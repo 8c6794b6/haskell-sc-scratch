@@ -8,11 +8,6 @@
 -- level, and could be specifyed by sending parameters to ugen, via
 -- @c_set@ message.
 --
--- TODOs:
---  * Use "n_map" instead of using "In" UGen.
---  * Use dbufrd instead of dseq for parameters.
---  * Use groups instead of AddToTail, AddToHead, etc to nodes.
---  * Instantiate UGen from Data and Typeable.
 --
 
 module ParralelSeq3 where
