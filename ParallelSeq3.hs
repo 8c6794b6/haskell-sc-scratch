@@ -6,11 +6,12 @@
 -- via control bus. The sound making ugen uses @in'@ haskell function
 -- to make @In@ ugen in scsynth. Control busses are defined in top
 -- level, and could be specifyed by sending parameters to ugen, via
--- @c_set@ message.
+-- @s_new@, or @c_set@ message.
 -- 
 -- TODOs: 
 --  * Use "n_map" instead of using "In" UGen.
 --  * Use dbufrd instead of dseq for parameters.
+--  * Use groups instead of AddToTail, AddToHead, etc to nodes.
 -- 
 
 module ParralelSeq3 where
@@ -103,7 +104,7 @@ setup :: IO ()
 setup = do
   writeSynthdef "para" paraUGen
   writeSynthdef "simplePlayer" =<< simplePlayerUGen
-  withSC3 reloadSynwthdef
+  withSC3 reloadSynthdef
 
 -- | Send synthdefs. 2 sound making ugens and 1 player ugen.
 doPlay :: IO ()
