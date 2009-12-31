@@ -1,6 +1,6 @@
 ----------------------------------------------------------------------
 -- | Some maybe-reusable functions appeared while writing scratches
--- for parallel control of sequences.
+-- for parallel control of sequences. By the way, this file name is awful.
 --
 -- TODO: Move to hsc3-8c6794b6 library? ... might rename the library.
 -- 
@@ -69,3 +69,8 @@ send' :: OSC -> SendUDP ()
 send' = flip send
 
 
+-- | Sends "/g_queryTree" and shows returning message.
+queryRootNode :: Transport t => t -> IO OSC
+queryRootNode fd = do
+  send fd (Message "/g_queryTree" [Int 0]) 
+  wait fd "/g_queryTree.reply"
