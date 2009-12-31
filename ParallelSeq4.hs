@@ -34,18 +34,18 @@ bpm = 130
 -- | UGen to send trigger.
 trigUGen :: IO UGen
 trigUGen = do 
-    durs <- dbufrd (control kr "bufnum" 0) 0 Loop
-    let bus = control kr "bus" 100
+    durs <- dbufrd (control kr "durbuf" 0) 0 Loop
+    let bus = control kr "out" 100
         trigger = tDuty kr (60*durs/bpm) 0 RemoveSynth 1 0
     return $ out bus trigger 
 
 -- | UGen to send parameters.
 paramUGen :: IO UGen
 paramUGen = do 
-    params <- dbufrd (control kr "bufnum" 0) 0 Loop
+    params <- dbufrd (control kr "parambuf" 0) 0 Loop
     let trigger = control kr "trig" 0 
         param = demand trigger 0 params
-        bus = control kr "bus" 100
+        bus = control kr "out" 100
     return $ out bus param 
 
 ampBus1,freqBus1,trigBus1 :: Num a => a
@@ -88,19 +88,28 @@ setup = do
 -- 
 setupBuffers :: Transport t => t -> IO ()
 setupBuffers fd = do
+
+  send fd (b_free ampBuf1)
+  send fd (b_free freqBuf1) 
+  send fd (b_free durBuf1)
+  send fd (b_free ampBuf1)
+  send fd (b_free freqBuf1) 
+  send fd (b_free durBuf1)
+
   async fd (b_alloc ampBuf1 (length notes1) 1) 
   async fd (b_alloc freqBuf1 (length notes1) 1)
+  async fd (b_alloc durBuf1 (length notes1) 1)
   async fd (b_alloc ampBuf2 (length notes2) 1) 
   async fd (b_alloc freqBuf2 (length notes2) 1) 
+  async fd (b_alloc durBuf2 (length notes2) 1)
 
-  send fd $ b_setn ampBuf1 [(length notes1, 
-                             map (dbAmp . noteAmp) notes1)]
-  send fd $ b_setn freqBuf1 [(length notes1, 
-                              map (midiCPS . notePitch) notes1)]
-  send fd $ b_setn ampBuf2 [(length notes2, 
-                             map (dbAmp . noteAmp) notes2)]
-  send fd $ b_setn freqBuf2 [(length notes2, 
-                              map (midiCPS . notePitch) notes2)]
+  send fd $ b_setn ampBuf1 [(0, map (dbAmp . noteAmp) notes1)]
+  send fd $ b_setn freqBuf1 [(0, map (midiCPS . notePitch) notes1)]
+  send fd $ b_setn durBuf1 [(0, map noteDur notes1)]
+
+  send fd $ b_setn ampBuf2 [(0, map (dbAmp . noteAmp) notes2)]
+  send fd $ b_setn freqBuf2 [(0, map (midiCPS . notePitch) notes2)]
+  send fd $ b_setn durBuf2 [(0, map noteDur notes2)]
 
 -- | Send sound generating ugens and node mapping messages.
 soundUGenMappings :: Transport t => t -> IO ()
@@ -119,9 +128,14 @@ soundUGenMappings fd = do
            [("amp",ampBus2),("freq",freqBus2),("trig",trigBus2)]
 
   send fd $ s_new "param" paraAmp1 AddToHead 1 
-           [("bus",ampBus1),("trig",trigBus1),("bufnum",ampBuf1)]
+           [("out",ampBus1),("trig",trigBus1),("parambuf",ampBuf1)]
+  send fd $ s_new "param" paraFreq1 AddToHead 1
+           [("out",freqBus1),("trig",trigBus1),("parambuf",freqBuf1)]
   send fd $ s_new "param" paraAmp2 AddToHead 1 
-           [("bus",ampBus2),("trig",trigBus2),("bufnum",ampBuf2)]
+           [("out",ampBus2),("trig",trigBus2),("parambuf",ampBuf2)]
+  send fd $ s_new "param" paraFreq2 AddToHead 1
+           [("out",freqBus2),("trig",trigBus2),("parambuf",freqBuf2)]
+
 
 -- | Go with player ugen.
 go :: IO ()
@@ -129,8 +143,8 @@ go = utcr >>= withSC3 . send' . bundle where
     bundle time = Bundle (UTCr time) 
      [
       s_new "trig" 2001 AddToHead 1
-                [("bus",trigBus1),("bufnum",durBuf1)],
+                [("out",trigBus1),("durbuf",durBuf1)],
       s_new "trig" 2002 AddToHead 1
-                [("bus",trigBus2),("bufnum",durBuf2)]
+                [("out",trigBus2),("durbuf",durBuf2)]
      ]
                    
