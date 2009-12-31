@@ -1,20 +1,24 @@
 ----------------------------------------------------------------------
 -- | Parallel sequence of Note, third try.
--- 
+--
 -- This time, sending trigger to node with using busses and buffers.
 -- Uses 2 ugens, one for sending trigger and parameter for the other
 -- via control bus. The sound making ugen uses @in'@ haskell function
 -- to make @In@ ugen in scsynth. Control busses are defined in top
 -- level, and could be specifyed by sending parameters to ugen, via
--- @s_new@, or @c_set@ message.
--- 
--- TODOs: 
+-- @c_set@ message.
+--
+-- TODOs:
 --  * Use "n_map" instead of using "In" UGen.
 --  * Use dbufrd instead of dseq for parameters.
 --  * Use groups instead of AddToTail, AddToHead, etc to nodes.
--- 
+--  * Instantiate UGen from Data and Typeable.
+--
 
 module ParralelSeq3 where
+
+import Data.Generics
+import Data.List (nub)
 
 import Sound.SC3
 import Sound.OpenSoundControl
@@ -48,14 +52,14 @@ notes1 = concat $ replicate 2
     ]
 
 notes2 :: [Note]
-notes2 = 
+notes2 =
     [
      Note 48 82 1.5, Note 43 75 0.5, Note 48 80 1.5, Note 43 75 0.5,
      Note 53 81 1.5, Note 48 75 0.5, Note 53 80 1.5, Note 48 75 0.5,
      Note 48 82 1.5, Note 43 75 0.5, Note 48 80 1.5, Note 43 75 0.5,
      Note 55 81 1.5, Note 50 75 0.5, Note 55 80 1.5, Note 50 75 0.5
     ]
- 
+
 -- | UGen making sound.
 paraUGen :: UGen
 paraUGen = out 0 (pan2 osc pos 1) where
@@ -64,7 +68,7 @@ paraUGen = out 0 (pan2 osc pos 1) where
     freq = in' 1 KR (Control KR "freq" freqBus1)
     amp = in' 1 KR (Control KR "amp" ampBus1) * env
     env = envGen KR envTrig 1 0 1 DoNothing envShape
-    envTrig = in' 1 KR (Control KR "trig" trigBus1) 
+    envTrig = in' 1 KR (Control KR "trig" trigBus1)
     envShape = envPerc 0.01 0.8
 
 -- | UGen which controls the paraUGen.
@@ -91,7 +95,7 @@ simplePlayerUGen = do
       freq2 = demand noteTrig2 0 freqs2
       amp2 = demand noteTrig2 0 amps2
 
-  return $ mce [out ampBus1 amp1, 
+  return $ mce [out ampBus1 amp1,
                 out freqBus1 freq1,
                 out trigBus1 noteTrig1,
                 out ampBus2 amp2,
@@ -111,10 +115,10 @@ doPlay :: IO ()
 doPlay = utcr >>= withSC3 . send' . msg where
     msg time = Bundle (UTCr time) [
            s_new "simplePlayer" 1000 AddToHead 1 [],
-           s_new "para" 1001 AddToHead 1 
+           s_new "para" 1001 AddToHead 1
                      [("freq",freqBus1),("amp",ampBus1),
                       ("trig",trigBus1),("pan",0.7)],
-           s_new "para" 1002 AddToTail 1 
+           s_new "para" 1002 AddToTail 1
                      [("freq",freqBus2),("amp",ampBus2),
                       ("trig",trigBus2),("pan",-0.5)]
           ]
@@ -130,3 +134,17 @@ send' = flip send
 -- | @flip async@.
 async' :: OSC -> SendUDP OSC
 async' = flip async
+
+-- | Get rate, name, and default value of controls from given ugen.
+getControls :: UGen -> [(Rate,String,Double)]
+getControls = nub . getControls' where
+
+getControls' :: UGen -> [(Rate,String,Double)]
+getControls' ug =
+    case ug of
+      Constant _ -> []
+      Control rate name def -> [(rate,name,def)]
+      Primitive _ _ inputs _ _ _ -> concatMap getControls' inputs
+      Proxy src _ -> getControls' src
+      MCE ugs -> concatMap getControls' ugs
+      MRG l r -> getControls' l ++ getControls' r
