@@ -1,0 +1,22 @@
+# -*- Text; Fundamental; -*-
+
+TODO List
+=========
+
+* Make parallel sequence of sound event. (DONE, with using dseq)
+* Write SynthDef files. (DONE)
+* Play sound with using synthdefs. (DONE)
+* Play parallel sequence with each event having arbitrary duration.
+* Play synthdef from demand ugens.
+* Make parallel sequence of sound event with using synthdefs. 
+
+* Use "n_map" instead of using "In" UGen.
+* Use dbufrd instead of dseq for passing parameters.
+* Instantiate UGen from Data and Typeable.
+
+* Create node graphs with adding each node with grouping.
+* Control parameters of graph, like effects, amplitude, etc. Both node
+  and group.
+* Rewrite acid example using haskell.
+* Recieve MIDI event from other app, device.
+* Write event scheduling library in haskell.
