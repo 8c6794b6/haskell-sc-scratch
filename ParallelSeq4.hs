@@ -4,6 +4,10 @@
 -- This time using @n_map@ to control triggers and parameters of ugen
 -- which making the sound.
 -- 
+-- PROBLEMS:
+--  * n_map is not working as expected. 
+--  * dbufrd is not returning expected values.
+-- 
 -- TODO: 
 --  * Write DSL for mapping nodes ... its tedious thing to do.
 --  * Find efficient way for book keeping of nodeID, busID, buffeerID.
@@ -15,6 +19,8 @@ import Sound.OpenSoundControl
 
 import Reusable
 import SimpleNotes
+
+import System.Random
 
 -- | Simple UGen for making sound.
 para4UGen :: UGen
@@ -34,7 +40,7 @@ bpm = 130
 -- | UGen to send trigger.
 trigUGen :: IO UGen
 trigUGen = do 
-    durs <- dbufrd (control kr "durbuf" 0) 0 Loop
+    durs <- dbufrd (control kr "durbuf" 0) 0 NoLoop
     let bus = control kr "out" 100
         trigger = tDuty kr (60*durs/bpm) 0 RemoveSynth 1 0
     return $ out bus trigger 
@@ -42,7 +48,7 @@ trigUGen = do
 -- | UGen to send parameters.
 paramUGen :: IO UGen
 paramUGen = do 
-    params <- dbufrd (control kr "parambuf" 0) 0 Loop
+    params <- dbufrd (control kr "parambuf" 0) 0 NoLoop
     let trigger = control kr "trig" 0 
         param = demand trigger 0 params
         bus = control kr "out" 100
@@ -89,12 +95,12 @@ setup = do
 setupBuffers :: Transport t => t -> IO ()
 setupBuffers fd = do
 
-  send fd (b_free ampBuf1)
-  send fd (b_free freqBuf1) 
-  send fd (b_free durBuf1)
-  send fd (b_free ampBuf1)
-  send fd (b_free freqBuf1) 
-  send fd (b_free durBuf1)
+  async fd (b_free ampBuf1)
+  async fd (b_free freqBuf1) 
+  async fd (b_free durBuf1)
+  async fd (b_free ampBuf2)
+  async fd (b_free freqBuf2) 
+  async fd (b_free durBuf2)
 
   async fd (b_alloc ampBuf1 (length notes1) 1) 
   async fd (b_alloc freqBuf1 (length notes1) 1)
@@ -103,11 +109,13 @@ setupBuffers fd = do
   async fd (b_alloc freqBuf2 (length notes2) 1) 
   async fd (b_alloc durBuf2 (length notes2) 1)
 
-  send fd $ b_setn ampBuf1 [(0, map (dbAmp . noteAmp) notes1)]
+  send fd $ b_setn ampBuf1 [
+                   (0, map (dbAmp . (flip (-) 100) . noteAmp) notes1)]
   send fd $ b_setn freqBuf1 [(0, map (midiCPS . notePitch) notes1)]
   send fd $ b_setn durBuf1 [(0, map noteDur notes1)]
 
-  send fd $ b_setn ampBuf2 [(0, map (dbAmp . noteAmp) notes2)]
+  send fd $ b_setn ampBuf2 [
+                   (0, map (dbAmp . (flip (-) 100) . noteAmp) notes2)]
   send fd $ b_setn freqBuf2 [(0, map (midiCPS . notePitch) notes2)]
   send fd $ b_setn durBuf2 [(0, map noteDur notes2)]
 
@@ -128,14 +136,20 @@ soundUGenMappings fd = do
            [("amp",ampBus2),("freq",freqBus2),("trig",trigBus2)]
 
   send fd $ s_new "param" paraAmp1 AddToHead 1 
-           [("out",ampBus1),("trig",trigBus1),("parambuf",ampBuf1)]
-  send fd $ s_new "param" paraFreq1 AddToHead 1
-           [("out",freqBus1),("trig",trigBus1),("parambuf",freqBuf1)]
-  send fd $ s_new "param" paraAmp2 AddToHead 1 
-           [("out",ampBus2),("trig",trigBus2),("parambuf",ampBuf2)]
-  send fd $ s_new "param" paraFreq2 AddToHead 1
-           [("out",freqBus2),("trig",trigBus2),("parambuf",freqBuf2)]
+           [("out",ampBus1),("parambuf",ampBuf1)]
+  send fd $ n_map paraAmp1 [("trig",trigBus1)]
 
+  send fd $ s_new "param" paraFreq1 AddToHead 1
+           [("out",freqBus1),("parambuf",freqBuf1)]
+  send fd $ n_map paraAmp1 [("trig",trigBus1)]
+
+  send fd $ s_new "param" paraAmp2 AddToHead 1 
+           [("out",ampBus2),("parambuf",ampBuf2)]
+  send fd $ n_map paraAmp1 [("trig",trigBus2)]
+
+  send fd $ s_new "param" paraFreq2 AddToHead 1
+           [("out",freqBus2),("parambuf",freqBuf2)]
+  send fd $ n_map paraAmp1 [("trig",trigBus2)]
 
 -- | Go with player ugen.
 go :: IO ()
@@ -148,3 +162,13 @@ go = utcr >>= withSC3 . send' . bundle where
                 [("out",trigBus2),("durbuf",durBuf2)]
      ]
                    
+test1 = 
+    let n = randomRs (200.0, 500.0) (mkStdGen 0)
+    in do { withSC3 (\fd -> do { async fd (b_alloc 10 24 1)
+                           ; send fd (b_setn 10 [(0, take 24 n)]) })
+      ; s <- dseq 3 (mce [0, 3, 5, 0, 3, 7, 0, 5, 9])
+      ; b <- dbrown 5 0 23 1
+      ; p <- dseq dinf (mce [s, b])
+      ; t <- dust KR 10
+      ; r <- dbufrd 10 p Loop
+      ; audition (out 0 (sinOsc AR (demand t 0 r) 0 * 0.1)) }
