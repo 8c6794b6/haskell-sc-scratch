@@ -1,14 +1,17 @@
 ----------------------------------------------------------------------
 -- | Scratchy module for writing SynthDef files.
--- 
+--
 
 module WritingSynthDef where
 
-import Sound.SC3
-import Sound.OpenSoundControl
+import Data.List (zipWith4)
 import System.Environment (getEnvironment)
 import System.FilePath ((</>), (<.>))
 import System.Random
+
+import Sound.SC3
+import Sound.OpenSoundControl
+
 import qualified Data.ByteString as B
 
 -- | Environmental variable for synthdefs.
@@ -51,15 +54,44 @@ simpleRandomUGen = do
 
 -- | UGen with taking parameters.
 simpleParamUGen :: UGen
-simpleParamUGen = out channel oscillator where
+simpleParamUGen = out 0 oscillator where
     channel = Control KR "out" 0
-    oscillator = sinOsc AR freq 0 * amp
+    oscillator = pan2 (sinOsc AR freq 0 * amp) pos 1
     amp = Control KR "amp" 0.3
     freq = Control KR "freq" 440
+    pos = Control KR "pos" 0
+
+--
+-- Some aliases for parameters
+--
+type NodeId = Int
+type Channel = Int
+type Position = Double
+type Amp = Double
+type Freq = Double
 
 -- | Sends new simpleParam UGen with specifying parameters.
-sendSimpleParam :: Int -> Double -> Double -> Double -> IO ()
+-- Here, @fromIntegral@ is used to pass the parameter of channel as
+-- Double in the param list.
+sendSimpleParam :: NodeId -> Position -> Amp -> Freq -> IO ()
 sendSimpleParam nodeId channel amp freq = do
     writeSynthdef "simpleParam" simpleParamUGen
-    withSC3 $ \fd -> send fd (s_new "simpleParam" 
+    withSC3 $ \fd ->
+        send fd (s_new "simpleParam" nodeId AddToTail 1
+                       [("pos",channel),
+                        ("amp",amp),
+                        ("freq",freq)])
+
+-- | Send some simpleParam synths.
+sendSomeSimpleParams :: IO ()
+sendSomeSimpleParams = do
+  let numNodes = 5
+      randomRParams (min,max) =
+          newStdGen >>=
+          return . randomRs (min,max) >>=
+          return . take numNodes
+  freqs <- randomRParams (50,2000)
+  amps <- randomRParams (0.1,0.3)
+  channels <- randomRParams (-1,1)
+  sequence_ (zipWith4 sendSimpleParam [1000..] channels amps freqs)
 
