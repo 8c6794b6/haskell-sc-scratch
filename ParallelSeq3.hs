@@ -1,7 +1,12 @@
 ----------------------------------------------------------------------
 -- | Parallel sequence of Note, third try.
--- This time, sending trigger to node with using busses and buffers.
 -- 
+-- This time, sending trigger to node with using busses and buffers.
+-- Uses 2 ugens, one for sending trigger and parameter for the other
+-- via control bus. The sound making ugen uses @in'@ haskell function
+-- to make @In@ ugen in scsynth. Control busses are defined in top
+-- level, and could be specifyed by sending parameters to ugen, via
+-- @c_set@ message.
 
 module ParralelSeq3 where
 
@@ -32,7 +37,7 @@ notes1 =
      Note 62 76 0.5, Note 64 81 2.0, Note 60 80 1.5, Note 62 81 0.5] 
 
      
--- | UGen which makes sound.
+-- | UGen making sound.
 paraUGen :: UGen
 paraUGen = out 0 (pan2 osc pos 1) where
     osc = sinOsc AR freq 0 * amp
