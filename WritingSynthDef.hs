@@ -30,7 +30,6 @@ writeSynthdef name ugen = do
       contents = B.pack $ synthdef name ugen
   B.writeFile path contents
 
-
 -- | Reload synthdef directory. If specified, path to the
 -- @HSC3_SYNTHDEF_DIR@ would be used. Otherwise, current directory
 -- would be used.

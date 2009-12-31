@@ -43,16 +43,15 @@ pattern1 = do
       noteTrig1 = tDuty KR (durs1*60/bpm) 0 RemoveSynth 1 0
       amp1 = demand noteTrig1 0 amps1
       pitch1 = demand noteTrig1 0 pitches1
-      osc1 = sinOsc AR (midiCPS pitch1) 0 * dbAmp (amp1 - 100)
+      env1 = envGen KR noteTrig1 1 0 1 DoNothing shape1
+      shape1 = envPerc 0.015 0.65
+      osc1 = sinOsc AR (midiCPS pitch1) 0 * dbAmp (amp1 - 100) * env1
 
       noteTrig2 = tDuty KR (durs2*60/bpm) 0 RemoveSynth 1 0
       amp2 = demand noteTrig2 0 amps2
       pitch2 = demand noteTrig2 0 pitches2
-      osc2 = sinOsc AR (midiCPS pitch2) 0 * dbAmp (amp2 - 100)
+      env2 = envGen KR noteTrig2 1 0 1 DoNothing shape2
+      shape2 = envPerc 0.03 2
+      osc2 = sinOsc AR (midiCPS pitch2) 0 * dbAmp (amp2 - 100) * env2
 
   return (out 0 (pan2 osc1 (-0.5) 1 + pan2 osc2 0.5 1))
-
-
-epattern2 = undefined
-
-

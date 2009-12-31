@@ -64,3 +64,4 @@ b = do
 
   audition (out 0 (pan2 osc1 (-0.2) 1 +
 		   pan2 osc2 0.3 1))
+

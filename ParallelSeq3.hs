@@ -12,12 +12,10 @@
 
 module ParralelSeq3 where
 
-import Data.Generics
-import Data.List (nub)
 
 import Sound.SC3
 import Sound.OpenSoundControl
-import WritingSynthDef
+import Reusable
 
 -- | Set groups of scsynth.
 initGroups :: IO ()
@@ -118,28 +116,3 @@ doPlay = utcr >>= withSC3 . send' . msg where
                       ("trig",trigBus2),("pan",-0.5)]
           ]
 
--- | Type synonym for sending osc message to scsynth.
-type SendUDP a = UDP -> IO a
-
--- | @flip send@. With flipping the argument, one can write as below:
--- > withSC3 (send' some_osc_message)
-send' :: OSC -> SendUDP ()
-send' = flip send
-
--- | @flip async@.
-async' :: OSC -> SendUDP OSC
-async' = flip async
-
--- | Get rate, name, and default value of controls from given ugen.
-getControls :: UGen -> [(Rate,String,Double)]
-getControls = nub . getControls' where
-
-getControls' :: UGen -> [(Rate,String,Double)]
-getControls' ug =
-    case ug of
-      Constant _ -> []
-      Control rate name def -> [(rate,name,def)]
-      Primitive _ _ inputs _ _ _ -> concatMap getControls' inputs
-      Proxy src _ -> getControls' src
-      MCE ugs -> concatMap getControls' ugs
-      MRG l r -> getControls' l ++ getControls' r
