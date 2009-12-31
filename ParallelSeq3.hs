@@ -7,6 +7,11 @@
 -- to make @In@ ugen in scsynth. Control busses are defined in top
 -- level, and could be specifyed by sending parameters to ugen, via
 -- @c_set@ message.
+-- 
+-- TODOs: 
+--  * Use "n_map" instead of using "In" UGen.
+--  * Use dbufrd instead of dseq for parameters.
+-- 
 
 module ParralelSeq3 where
 
@@ -98,7 +103,7 @@ setup :: IO ()
 setup = do
   writeSynthdef "para" paraUGen
   writeSynthdef "simplePlayer" =<< simplePlayerUGen
-  withSC3 reloadSynthdef
+  withSC3 reloadSynwthdef
 
 -- | Send synthdefs. 2 sound making ugens and 1 player ugen.
 doPlay :: IO ()
