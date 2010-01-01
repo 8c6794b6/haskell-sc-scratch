@@ -2,7 +2,7 @@
 -- | Parallel sequence studying, take4.
 --
 -- This time using @n_map@ to control triggers and parameters of ugen
--- which making the sound.
+-- which making the sound. 
 --
 -- PROBLEMS:
 --  * n_map is not working as expected.
@@ -43,7 +43,7 @@ trigUGen = do
       trigger = tDuty kr (60*durs/bpm) 0 DoNothing 1 0
       idx' = stepper trigger 0 0
              (bufFrames kr (control kr "durbuf" 0) - 1) 1 0
-  return $ mce [out bus trigger, out (control kr "idx" 0) idx']
+  return $ mrg [out bus trigger, out (control kr "idx" 0) idx']
 
 -- | UGen to send parameters.
 paramUGen :: IO UGen
@@ -77,6 +77,13 @@ ampBuf2 = 20
 durBuf2 = 21
 freqBuf2 = 22
 
+-- Groups
+trigGroup, paramGroup, synthGroup :: Num a => a
+trigGroup = 2
+paramGroup = 3
+synthGroup = 4
+
+
 -- | Setup mappings, buffers, and sound making ugens.
 setup :: IO ()
 setup = do
@@ -105,46 +112,49 @@ setupBuffers fd = do
   async fd (b_alloc durBuf1 (length notes1) 1)
 
   send fd $ Bundle (UTCr (now + 1))
-           [
-            b_setn freqBuf1 [(0, map (midiCPS . notePitch) notes1)],
+           [b_setn freqBuf1 [(0, map (midiCPS . notePitch) notes1)],
             b_setn durBuf1 [(0, map noteDur notes1)],
             b_setn ampBuf1
-                       [(0, map (dbAmp . (flip (-) 100) . noteAmp) notes1)]
-           ]
+                       [(0, map (dbAmp . (flip (-) 100) . noteAmp) notes1)]]
 
 -- | Send sound generating ugens and node mapping messages.
 soundUGenMappings :: Transport t => t -> IO ()
 soundUGenMappings fd = do
+  now <- utcr
   let nId1 = 1000
       nId2 = 1001
       paraAmp1 = 1002
       paraFreq1 = 1003
       paraAmp2 = 1004
       paraFreq2 = 1005
-  now <- utcr
-  send fd $ Bundle (UTCr now)
-       [
-        s_new "para4" nId1 AddToTail 1 [("pan",0.5)],
-            n_map nId1 [("amp",ampBus1),("freq",freqBus1),("trig",trigBus1)],
-        s_new "param" paraAmp1 AddToHead 1
+
+  -- Add groups in order.
+  send fd $ Bundle (UTCr now) 
+       [g_new [(trigGroup,AddToTail,1)],
+        g_new [(paramGroup,AddAfter,trigGroup)],
+        g_new [(synthGroup,AddAfter,paramGroup)]]
+
+  -- Add synths to appropriate groups.
+  send fd $ Bundle (UTCr $ now+1)
+       [s_new "param" paraAmp1 AddToHead paramGroup
                   [("out",ampBus1),("parambuf",ampBuf1)],
         n_map paraAmp1 [("trig",trigBus1),("idx",durIdxBus1)],
-        s_new "param" paraFreq1 AddToHead 1
+        s_new "param" paraFreq1 AddToHead paramGroup
                   [("out",freqBus1),("parambuf",freqBuf1)],
-        n_map paraFreq1 [("trig",trigBus1),("idx",durIdxBus1)],
-        c_set [(durIdxBus1,-1)]
-       ]
+        s_new "para4" nId1 AddToHead synthGroup [("pan",0.5)]]
 
--- | Go with player ugen.
+  -- Map and set control busses.
+  send fd $ Bundle (UTCr $ now + 2)
+       [n_map nId1 [("amp",ampBus1),("freq",freqBus1),("trig",trigBus1)],
+        n_map paraFreq1 [("trig",trigBus1),("idx",durIdxBus1)],
+        c_set [(durIdxBus1,-1)]]
+
+-- | Go with player ugen. n_query
 go :: IO ()
 go = utcr >>= withSC3 . send' . bundle where
-    bundle time = Bundle (UTCr time)
-     [
-      s_new "trig" 2001 AddToHead 1
-                [
-                 ("out",trigBus1),
+    bundle time = Bundle (UTCr $ time + 1)
+     [s_new "trig" 2001 AddToHead trigGroup
+                [("out",trigBus1),
                  ("durbuf",durBuf1),
                  ("idx",durIdxBus1),
-                 ("bpm",bpm)
-                ]
-     ]
+                 ("bpm",bpm)]]
