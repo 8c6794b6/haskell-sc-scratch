@@ -35,9 +35,11 @@ idxbus = 100
 bpmbus :: Num a => a
 bpmbus = 101
 
+-- | Pattern for pitches.
 ppattern :: [Double]
 ppattern = [60,62,64,65,67,69,71,72]
 
+-- | Pattern for durations.
 dpattern :: [Double]
 dpattern = [1.0,0.5,0.25,0.25,
             1.0,0.5,0.25,0.25]
