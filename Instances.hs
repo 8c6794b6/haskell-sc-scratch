@@ -121,8 +121,19 @@ con_Special = mkConstr ty_Special "Special" [] Prefix
 ty_Special = mkDataType "Sound.SC3.UGen.Special" [con_Special]
 
 
--- instance Typeable UGenId where
--- instance Data UGenId where
+instance Typeable UGenId where
+    typeOf _ = mkTyConApp tc_UGenId []
+
+tc_UGenId = mkTyCon "Sound.SC3.UGen.UGen" 
+
+instance Data UGenId where
+    gfoldl k z (UGenId a) = z UGenId `k` a
+    gunfold k z c = k (z UGenId)
+    toConstr (UGenId _) = con_UGenId
+    dataTypeOf _ = ty_UGenId
+
+con_UGenId = mkConstr ty_UGenId "UGenId" [] Prefix
+ty_UGenId = mkDataType "Sound.SC3.UGen.UGen" [con_UGenId]
 
 -- instance Typeable Rate where
 -- instance Data Rate where
