@@ -124,7 +124,7 @@ ty_Special = mkDataType "Sound.SC3.UGen.Special" [con_Special]
 instance Typeable UGenId where
     typeOf _ = mkTyConApp tc_UGenId []
 
-tc_UGenId = mkTyCon "Sound.SC3.UGen.UGen" 
+tc_UGenId = mkTyCon "Sound.SC3.UGen.UGen"
 
 instance Data UGenId where
     gfoldl k z (UGenId a) = z UGenId `k` a
@@ -157,7 +157,7 @@ instance Data Rate where
     toConstr KR = con_KR
     toConstr AR = con_AR
     toConstr DR = con_DR
-    
+
     dataTypeOf _ = ty_Rate
 
 con_IR = mkConstr ty_Rate "IR" [] Prefix
@@ -165,13 +165,50 @@ con_KR = mkConstr ty_Rate "KR" [] Prefix
 con_AR = mkConstr ty_Rate "AR" [] Prefix
 con_DR = mkConstr ty_Rate "DR" [] Prefix
 
-ty_Rate = mkDataType "Sound.SC3.UGen.Rate" 
+ty_Rate = mkDataType "Sound.SC3.UGen.Rate"
           [con_IR,con_KR,con_AR,con_DR]
 
 
+instance Typeable UGen where
+    typeOf _ = mkTyConApp tc_UGen []
 
--- instance Typeable UGen where
--- instance Data UGen where
+tc_UGen = mkTyCon "Sound.SC3.UGen.UGen"
+
+instance Data UGen where
+    gfoldl k z (Constant a) = z Constant `k` a
+    gfoldl k z (Control a b c) = z Control `k` a `k` b `k` c
+    gfoldl k z (Primitive a b c d e f) =
+        z Primitive `k` a `k` b `k` c `k` d `k` e `k` f
+    gfoldl k z (Proxy a b) = z Proxy `k` a `k` b
+    gfoldl k z (MCE a) = z MCE `k` a
+    gfoldl k z (MRG a b) = z MRG `k` a `k` b
+
+    gunfold k z c = case constrIndex c of
+                      1 -> k (z Constant)
+                      2 -> k (k (k (z Control)))
+                      3 -> k (k (k (k (k (k (z Primitive))))))
+                      4 -> k (k (z Proxy))
+                      5 -> k (z MCE)
+                      6 -> k (k (z MRG))
+
+    toConstr (Constant _) = con_Constant
+    toConstr (Control _ _ _) = con_Control
+    toConstr (Primitive _ _ _ _ _ _) = con_Primitive
+    toConstr (Proxy _ _) = con_Proxy
+    toConstr (MCE _) = con_MCE
+    toConstr (MRG _ _) = con_MRG
+
+    dataTypeOf _ = ty_UGen
+
+con_Constant = mkConstr ty_UGen "Constant" [] Prefix
+con_Control = mkConstr ty_UGen "Control" [] Prefix
+con_Primitive = mkConstr ty_UGen "Primitive" [] Prefix
+con_Proxy = mkConstr ty_UGen "Proxy" [] Prefix
+con_MCE = mkConstr ty_UGen "MCE" [] Prefix
+con_MRG = mkConstr ty_UGen "MRG" [] Prefix
+
+ty_UGen = mkDataType "Sound.SC3.UGen.UGen"
+          [con_Constant,con_Control,con_Primitive,con_Proxy,con_MCE,con_MRG]
 
 --
 -- Some tests
@@ -227,3 +264,16 @@ test1_OSC = everywhere (mkT f) oscMsg
 test2_OSC = everything (++) ([] `mkQ` f) oscMsg
     where f (String s) = [s]
           f _ = []
+
+ugen = out 0 osc
+    where osc = sinOsc ar freq 0 * env
+          freq = control kr "freq" 440
+          env = xLine kr 1 0.1 1 RemoveSynth
+
+test1_UGen = everywhere (mkT f) ugen
+    where f (Constant c) = Constant (c+10)
+          f a = a
+
+test2_UGen = everything (+) (0 `mkQ` f) ugen
+    where f AR =  1
+          f _ = 0
