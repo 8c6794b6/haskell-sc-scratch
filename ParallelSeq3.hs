@@ -1,4 +1,4 @@
-----------------------------------------------------------------------
+------------------------------------------------------------------------------
 -- | Parallel sequence of Note, third try.
 --
 -- This time, sending trigger to node with using busses and buffers.
@@ -11,7 +11,6 @@
 --
 
 module ParralelSeq3 where
-
 
 import Sound.SC3
 import Sound.OpenSoundControl
@@ -115,4 +114,3 @@ doPlay = utcr >>= withSC3 . send' . msg where
                      [("freq",freqBus2),("amp",ampBus2),
                       ("trig",trigBus2),("pan",-0.5)]
           ]
-
