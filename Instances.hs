@@ -51,6 +51,12 @@ con_TimeStamp = mkConstr ty_Datum "TimeStamp" [] Prefix
 ty_Datum = mkDataType "Sound.OpenSoundControl.Datum"
            [con_Int,con_Float,con_Double,con_String,con_Blob,con_TimeStamp]
 
+
+instance Typeable Time where
+    typeOf _  = mkTyConApp tc_Time []
+
+tc_Time = mkTyCon "Sound.OpenSoundControl.Time"
+
 instance Data Time where
     gfoldl k z (UTCr x) = z UTCr `k` x
     gfoldl k z (NTPr x) = z NTPr `k` x
@@ -74,10 +80,11 @@ con_NTPi = mkConstr ty_Time "NTPi" [] Prefix
 ty_Time = mkDataType "Sound.OpenSoundControl.Time"
           [con_UTCr, con_NTPr, con_NTPi]
 
-instance Typeable Time where
-    typeOf _  = mkTyConApp tc_Time []
 
-tc_Time = mkTyCon "Sound.OpenSoundControl.Time"
+instance Typeable OSC where
+    typeOf _ = mkTyConApp tc_OSC []
+
+tc_OSC = mkTyCon "Sound.OpenSoundControl.OSC"
 
 instance Data OSC where
     gfoldl k z (Message a b) = z Message `k` a `k` b
@@ -97,12 +104,22 @@ con_Bundle = mkConstr ty_OSC "Bundle" [] Prefix
 
 ty_OSC = mkDataType "Sound.OpenSoundControl.OSC" [con_Message,con_Bundle]
 
-instance Typeable OSC where
-    typeOf _ = mkTyConApp tc_OSC []
 
-tc_OSC = mkTyCon "Sound.OpenSoundControl.OSC"
--- instance Typeable Special where
--- instance Data Special where
+instance Typeable Special where
+    typeOf _ = mkTyConApp tc_Special []
+
+tc_Special = mkTyCon "Sound.SC3.UGen.Special"
+
+instance Data Special where
+    gfoldl k z (Special a) = z Special `k` a
+    gunfold k z c = k (z Special)
+    toConstr (Special _) = con_Special
+    dataTypeOf _ = ty_Special
+
+con_Special = mkConstr ty_Special "Special" [] Prefix
+
+ty_Special = mkDataType "Sound.SC3.UGen.Special" [con_Special]
+
 
 -- instance Typeable UGenId where
 -- instance Data UGenId where
