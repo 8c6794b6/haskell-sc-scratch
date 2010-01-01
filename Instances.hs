@@ -135,8 +135,40 @@ instance Data UGenId where
 con_UGenId = mkConstr ty_UGenId "UGenId" [] Prefix
 ty_UGenId = mkDataType "Sound.SC3.UGen.UGen" [con_UGenId]
 
--- instance Typeable Rate where
--- instance Data Rate where
+
+instance Typeable Rate where
+    typeOf _ = mkTyConApp tc_Rate []
+
+tc_Rate = mkTyCon "Sound.SC3.UGen.Rate"
+
+instance Data Rate where
+    gfoldl k z IR = z IR
+    gfoldl k z KR = z KR
+    gfoldl k z AR = z AR
+    gfoldl k z DR = z DR
+
+    gunfold k z c = case constrIndex c of
+                      1 -> z IR
+                      2 -> z KR
+                      3 -> z AR
+                      4 -> z DR
+
+    toConstr IR = con_IR
+    toConstr KR = con_KR
+    toConstr AR = con_AR
+    toConstr DR = con_DR
+    
+    dataTypeOf _ = ty_Rate
+
+con_IR = mkConstr ty_Rate "IR" [] Prefix
+con_KR = mkConstr ty_Rate "KR" [] Prefix
+con_AR = mkConstr ty_Rate "AR" [] Prefix
+con_DR = mkConstr ty_Rate "DR" [] Prefix
+
+ty_Rate = mkDataType "Sound.SC3.UGen.Rate" 
+          [con_IR,con_KR,con_AR,con_DR]
+
+
 
 -- instance Typeable UGen where
 -- instance Data UGen where
