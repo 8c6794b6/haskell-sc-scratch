@@ -36,6 +36,10 @@ TODO List
 
 * Rewrite acid example using haskell.
 
+* Write DSL for mapping nodes ... its tedious thing to do.
+
+* Find efficient way for book keeping of nodeID, busID, buffeerID.
+
 * Recieve MIDI event from other app, device.
 
 * Write event scheduling library in haskell.

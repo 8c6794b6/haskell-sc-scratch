@@ -8,9 +8,6 @@
 --  * n_map is not working as expected. 
 --  * dbufrd is not returning expected values.
 -- 
--- TODO: 
---  * Write DSL for mapping nodes ... its tedious thing to do.
---  * Find efficient way for book keeping of nodeID, busID, buffeerID.
 
 module ParallelSeq4 where
 
