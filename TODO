@@ -23,22 +23,31 @@ TODO List
   * Sent trigger from tDuty, and then passed this trigger signal to
     ugen with envelope. This will trigger the envelope, thus makes sound.
 
-* Use "n_map" instead of using "In" UGen.
+* Use "n_map" instead of using "In" UGen. (DONE)
+  * See "ParallelSeq4".
 
-* Use dbufrd instead of dseq for passing parameters.
+* Instantiate UGen from Data and Typeable. (DONE)
+  * See "Instances.hs". Wrote by hand.
 
-* Instantiate UGen from Data and Typeable.
-
-* Create node graphs with adding each node with grouping.
+* Create node graphs with adding each node with grouping. (DONE)
+  * See "ParallelSeq4".
 
 * Control parameters of graph, like effects, amplitude, etc. Both node
   and group.
+
+* Use dbufrd instead of dseq for passing parameters. (DONE, but...)
+  * See "ParallelSeq4". Though could be improved concerning the use of
+    index. ParallelSeq4 uses stepper ugen, and resetting is not
+    working as desired. Control bus value is sometime overwritten by
+    the ugen, sometime not.
+
+* Add "resting" to sequence of notes.
 
 * Rewrite acid example using haskell.
 
 * Write DSL for mapping nodes ... its tedious thing to do.
 
-* Find efficient way for book keeping of nodeID, busID, buffeerID.
+* Find efficient way for bookkeeping of nodeID, busID, buffeerID.
 
 * Recieve MIDI event from other app, device.
 
