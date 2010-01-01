@@ -2,7 +2,7 @@
 -- | Parallel sequence studying, take4.
 --
 -- This time using @n_map@ to control triggers and parameters of ugen
--- which making the sound. 
+-- which making the sound.
 --
 -- Try:
 -- > > withSC3 reset
@@ -33,11 +33,11 @@ para4UGen = out 0 (pan2 osc pos 1) where
 bpm :: Num a => a
 bpm = 130
 
--- | UGen to send trigger. 
+-- | UGen to send trigger.
 -- First trigger is executed before the output, control bus's initial value is
 -- set to @-1@. And in this ugen, index would be one point prior to the other
 -- parameters, hence added @1@ to the idx. ... True? Or, is there any other
--- way to avoid this offset fixing? 
+-- way to avoid this offset fixing?
 --
 -- XXX: Read "Order of execution" SC help.
 trigUGen :: IO UGen
@@ -121,7 +121,6 @@ setupBuffers fd = do
   async fd (b_free durBuf2)
   async fd (b_alloc durBuf2 (length notes2) 1)
 
-
   send fd $ Bundle (UTCr (now + 1))
            [b_setn freqBuf1 [(0, map (midiCPS . notePitch) notes1)],
             b_setn durBuf1 [(0, map noteDur notes1)],
@@ -145,7 +144,7 @@ soundUGenMappings fd = do
       paraFreq2 = 1005
 
   -- Add groups in order.
-  send fd $ Bundle (UTCr now) 
+  send fd $ Bundle (UTCr now)
        [g_new [(trigGroup,AddToTail,1)],
         g_new [(paramGroup,AddAfter,trigGroup)],
         g_new [(synthGroup,AddAfter,paramGroup)]]
@@ -173,7 +172,7 @@ soundUGenMappings fd = do
         n_map paraFreq2 [("trig",trigBus2),("idx",durIdxBus2)],
         c_set [(durIdxBus1,-1),(durIdxBus2,-1)]]
 
--- | Go with player ugen. 
+-- | Go with player ugen.
 go :: IO ()
 go = utcr >>= withSC3 . send' . bundle where
     bundle time = Bundle (UTCr $ time+0.1)
