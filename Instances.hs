@@ -11,8 +11,6 @@ import Data.Typeable
 import Sound.SC3
 import Sound.OpenSoundControl
 
--- XXX: Instantiate OSC and UGen from Data and Typeable.
-
 instance Typeable Datum where
     typeOf _  = mkTyConApp tc_Datum []
 
@@ -81,13 +79,39 @@ instance Typeable Time where
 
 tc_Time = mkTyCon "Sound.OpenSoundControl.Time"
 
--- instance Data OSC where
---     gfoldl k z (Message _ _) = undefined
---     gfoldl k z (Bundle _ _) = undefined
+instance Data OSC where
+    gfoldl k z (Message a b) = z Message `k` a `k` b
+    gfoldl k z (Bundle a b) = z Bundle `k` a `k` b
 
--- instance Typeable OSC where
---     typeOf (Message _ _) = undefined
---     typeOf (Bundle _ _) = undefined
+    gunfold k z c = case constrIndex c of
+                      1 -> k (k (z Message))
+                      2 -> k (k (z Bundle))
+
+    toConstr (Message _ _) = con_Message
+    toConstr (Bundle _ _) = con_Bundle
+
+    dataTypeOf _ = ty_OSC
+
+con_Message = mkConstr ty_OSC "Message" [] Prefix
+con_Bundle = mkConstr ty_OSC "Bundle" [] Prefix
+
+ty_OSC = mkDataType "Sound.OpenSoundControl.OSC" [con_Message,con_Bundle]
+
+instance Typeable OSC where
+    typeOf _ = mkTyConApp tc_OSC []
+
+tc_OSC = mkTyCon "Sound.OpenSoundControl.OSC"
+-- instance Typeable Special where
+-- instance Data Special where
+
+-- instance Typeable UGenId where
+-- instance Data UGenId where
+
+-- instance Typeable Rate where
+-- instance Data Rate where
+
+-- instance Typeable UGen where
+-- instance Data UGen where
 
 --
 -- Some tests
@@ -129,3 +153,17 @@ test2_Time = everything (+) (0 `mkQ` f) datumList
     where f (UTCr _) = 0
           f (NTPi a) = fromInteger a
           f (NTPr a) = a
+
+oscMsg = Bundle (NTPi 0)
+         [
+          s_new "foo" 1000 AddToTail 1 [("amp",80),("freq",440)],
+          s_new "poo" 1001 AddToHead 1 [("out",0),("pan",0.2)]
+         ]
+
+test1_OSC = everywhere (mkT f) oscMsg
+    where f (String s) | s == "foo" = String "bar"
+          f a = a
+
+test2_OSC = everything (++) ([] `mkQ` f) oscMsg
+    where f (String s) = [s]
+          f _ = []
