@@ -3,20 +3,39 @@
 TODO List
 =========
 
-* Make parallel sequence of sound event. (DONE, with using dseq)
+* Make parallel sequence of sound event. (DONE, 
+  * Did this by using dseq.
+   
 * Write SynthDef files. (DONE)
+  * Used Data.ByteString.
+
 * Play sound with using synthdefs. (DONE)
-* Play parallel sequence with each event having arbitrary duration.
-* Play synthdef from demand ugens.
-* Make parallel sequence of sound event with using synthdefs. 
+  * Write synthdef, and the reload with "/d_loadDir".
+
+* Play parallel sequence with each event having arbitrary
+  duration. (DONE)
+  * Used tDuty, duty and demand.
+
+* Play synthdef from demand ugens. (DONE)
+  * Did in above TODO.
+
+* Make parallel sequence of sound event with using synthdefs. (DONE)
+  * Sent trigger from tDuty, and then passed this trigger signal to
+    ugen with envelope. This will trigger the envelope, thus makes sound.
 
 * Use "n_map" instead of using "In" UGen.
+
 * Use dbufrd instead of dseq for passing parameters.
+
 * Instantiate UGen from Data and Typeable.
 
 * Create node graphs with adding each node with grouping.
+
 * Control parameters of graph, like effects, amplitude, etc. Both node
   and group.
+
 * Rewrite acid example using haskell.
+
 * Recieve MIDI event from other app, device.
+
 * Write event scheduling library in haskell.
