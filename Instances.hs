@@ -1,6 +1,9 @@
 --------------------------------------------------------------------------------
 -- | Instances.
 --
+-- UGen, OSC, etc. are not instantiated from Data and Typeable, wrote
+-- them by hand. Yeah, It was a boilerplate.
+-- 
 
 module Instances where
 
