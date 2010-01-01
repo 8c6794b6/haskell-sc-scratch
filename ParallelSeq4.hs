@@ -37,31 +37,30 @@ bpm = 130
 trigUGen :: IO UGen
 trigUGen = do
   let idx = in' 1 kr (control kr "idx" 0)
-  durs <- dbufrd (control kr "durbuf" 0) idx NoLoop
+  durs <- dbufrd (control kr "durbuf" 0) (idx+1) Loop
   let bus = control kr "out" 100
-      trigger = tDuty kr (60*durs/bpm) 0 RemoveSynth 1 0
+      trigger = tDuty kr (60*durs/bpm) 0 DoNothing 1 0
       idx' = stepper trigger 0 0
-             (bufFrames kr (control kr "durbuf" 0)) 1 0
-  return $ mrg [out bus trigger, out (control kr "idx" 0) idx']
+             (bufFrames kr (control kr "durbuf" 0) - 1) 1 0
+  return $ mce [out bus trigger, out (control kr "idx" 0) idx']
 
 -- | UGen to send parameters.
 paramUGen :: IO UGen
 paramUGen = do
-  let idx = in' 1 kr (control kr "idx" 0)
+  let idx = (control kr "idx" 0)
   params <- dbufrd (control kr "parambuf" 0) idx NoLoop
   let trigger = control kr "trig" 0
       param = demand trigger 0 params
       bus = control kr "out" 100
   return $ out bus param
-  --     idx' = stepper trigger 0 0
-  --            (bufFrames kr (control kr "parambuf" 0) - 1) 1 0
-  -- return $ mce [out bus param, out (control kr "idx" 0) idx']
 
-ampBus1,freqBus1,trigBus1,idxBus1 :: Num a => a
+ampBus1,freqBus1,trigBus1,durIdxBus1,ampIdxBus1,freqIdxBus1 :: Num a => a
 ampBus1 = 100
 freqBus1 = 101
 trigBus1 = 102
-idxBus1 = 103
+durIdxBus1 = 103
+ampIdxBus1 = 104
+freqIdxBus1 = 105
 
 ampBus2,freqBus2,trigBus2,idxBus2 :: Num a => a
 ampBus2 = 200
@@ -129,12 +128,12 @@ soundUGenMappings fd = do
         s_new "para4" nId1 AddToTail 1 [("pan",0.5)],
             n_map nId1 [("amp",ampBus1),("freq",freqBus1),("trig",trigBus1)],
         s_new "param" paraAmp1 AddToHead 1
-                  [("out",ampBus1),("parambuf",ampBuf1),("idx",idxBus1)],
-        n_map paraAmp1 [("trig",trigBus1)],
+                  [("out",ampBus1),("parambuf",ampBuf1),("idx",ampIdxBus1)],
+        n_map paraAmp1 [("trig",trigBus1),("idx",durIdxBus1)],
         s_new "param" paraFreq1 AddToHead 1
-                  [("out",freqBus1),("parambuf",freqBuf1),("idx",idxBus1)],
-        n_map paraFreq1 [("trig",trigBus1)],
-        c_set [(idxBus1,0),(idxBus2,0)]
+                  [("out",freqBus1),("parambuf",freqBuf1),("idx",freqIdxBus1)],
+        n_map paraFreq1 [("trig",trigBus1),("idx",durIdxBus1)],
+        c_set [(durIdxBus1,-1),(ampIdxBus1,0),(freqIdxBus1,0)]
        ]
 
 -- | Go with player ugen.
@@ -143,5 +142,5 @@ go = utcr >>= withSC3 . send' . bundle where
     bundle time = Bundle (UTCr time)
      [
       s_new "trig" 2001 AddToHead 1
-                [("out",trigBus1),("durbuf",durBuf1),("idx",idxBus1)]
+                [("out",trigBus1),("durbuf",durBuf1),("idx",durIdxBus1)]
      ]
