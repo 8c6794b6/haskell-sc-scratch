@@ -74,5 +74,15 @@ queryRootNode fd = do
   send fd (Message "/g_queryTree" [Int 0, Int 1]) 
   wait fd "/g_queryTree.reply"
 
+-- | Dumps root node and show in scsynth.
 dumpRootNode :: Transport t => t -> IO ()
 dumpRootNode fd = send fd (Message "/g_dumpTree" [Int 0, Int 1])
+
+-- | Sends @/b_getn@ message and wait until it gets @/b_setn@.
+-- > \fd ->
+b_getn' :: Transport t => Int -> [(Int,Int)] -> (t -> IO OSC)
+b_getn' id params = \fd -> send fd (b_getn id params) >> wait fd "/b_setn"
+
+-- | Sends @/c_get@ message and wait until it gets @/c_set@.
+c_get' :: Transport t => [Int] -> (t -> IO OSC)
+c_get' ids = \fd -> send fd (c_get ids) >> wait fd "/c_set"

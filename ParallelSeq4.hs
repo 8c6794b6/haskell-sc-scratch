@@ -86,12 +86,11 @@ setup = do
   writeSynthdef "para4" para4UGen
   writeSynthdef "trig" =<< trigUGen
   writeSynthdef "param" =<< paramUGen
+  withSC3 reloadSynthdef
 
   -- allocate buffers and fill with parameters
-  withSC3 (\fd -> do
-             reloadSynthdef fd
-             setupBuffers fd
-             soundUGenMappings fd)
+  withSC3 setupBuffers
+  withSC3 soundUGenMappings
 
 -- | Allocates buffers and fills with parameters.
 --
@@ -107,22 +106,12 @@ setupBuffers fd = do
   async fd (b_free durBuf1)
   async fd (b_alloc durBuf1 (length notes1) 1)
 
-  -- async fd (b_free ampBuf2)
-  -- async fd (b_alloc ampBuf2 (length notes2) 1)
-  -- async fd (b_free freqBuf2)
-  -- async fd (b_alloc freqBuf2 (length notes2) 1)
-  -- async fd (b_free durBuf2)
-  -- async fd (b_alloc durBuf2 (length notes2) 1)
-
   send fd $ Bundle (UTCr now)
            [
-            b_setn ampBuf1
-                       [(0, map (dbAmp . (flip (-) 100) . noteAmp) notes1)],
             b_setn freqBuf1 [(0, map (midiCPS . notePitch) notes1)],
-            b_setn durBuf1 [(0, map noteDur notes1)]
--- b_setn ampBuf2 [(0, map (dbAmp . (flip (-) 100) . noteAmp) notes2)],
--- b_setn freqBuf2 [(0, map (midiCPS . notePitch) notes2)],
--- b_setn durBuf2 [(0, map noteDur notes2)]
+            b_setn durBuf1 [(0, map noteDur notes1)],
+            b_setn ampBuf1 
+                       [(0, map (dbAmp . (flip (-) 100) . noteAmp) notes1)]
            ]
 
 -- | Send sound generating ugens and node mapping messages.
@@ -138,21 +127,13 @@ soundUGenMappings fd = do
   send fd $ Bundle (UTCr now)
        [
         s_new "para4" nId1 AddToTail 1 [("pan",0.5)],
-        -- s_new "para4" nId2 AddToTail 1 [("pan",-0.5)],
-        n_map nId1 [("amp",ampBus1),("freq",freqBus1),("trig",trigBus1)],
-        -- n_map nId2 [("amp",ampBus2),("freq",freqBus2),("trig",trigBus2)],
+            n_map nId1 [("amp",ampBus1),("freq",freqBus1),("trig",trigBus1)],
         s_new "param" paraAmp1 AddToHead 1
                   [("out",ampBus1),("parambuf",ampBuf1)],
         n_map paraAmp1 [("trig",trigBus1)],
         s_new "param" paraFreq1 AddToHead 1
                   [("out",freqBus1),("parambuf",freqBuf1)],
         n_map paraFreq1 [("trig",trigBus1)],
-        -- s_new "param" paraAmp2 AddToHead 1
-        --           [("out",ampBus2),("parambuf",ampBuf2)],
-        -- n_map paraAmp2 [("trig",trigBus2)],
-        -- s_new "param" paraFreq2 AddToHead 1
-        --    [("out",freqBus2),("parambuf",freqBuf2)],
-        -- n_map paraFreq2 [("trig",trigBus2)],
         c_set [(idxBus1,0),(idxBus2,0)]
        ]
 
@@ -163,14 +144,4 @@ go = utcr >>= withSC3 . send' . bundle where
      [
       s_new "trig" 2001 AddToHead 1
                 [("out",trigBus1),("durbuf",durBuf1),("idx",idxBus1)]
-      -- s_new "trig" 2002 AddToHead 1
-      --           [("out",trigBus2),("durbuf",durBuf2),("idx",idxBus2)]
      ]
-
-
--- | Sends @/b_getn@ message and wait until it gets @/b_setn@.
--- > \fd ->
-b_getn' :: Transport t => Int -> [(Int,Int)] -> (t -> IO OSC)
-b_getn' id params fd = do
-  send fd (b_getn id params)
-  wait fd "/b_setn"
