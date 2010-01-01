@@ -29,7 +29,7 @@ para4UGen = out 0 (pan2 osc pos 1) where
     envTrig = control kr "trig" 0
     envShape = envPerc 0.01 0.8
 
--- | Make this controllable!
+-- | Initial bpm
 bpm :: Num a => a
 bpm = 130
 
@@ -37,6 +37,7 @@ bpm = 130
 trigUGen :: IO UGen
 trigUGen = do
   let idx = in' 1 kr (control kr "idx" 0)
+      bpm = control kr "bpm" 130
   durs <- dbufrd (control kr "durbuf" 0) (idx+1) Loop
   let bus = control kr "out" 100
       trigger = tDuty kr (60*durs/bpm) 0 DoNothing 1 0
@@ -54,13 +55,11 @@ paramUGen = do
       bus = control kr "out" 100
   return $ out bus param
 
-ampBus1,freqBus1,trigBus1,durIdxBus1,ampIdxBus1,freqIdxBus1 :: Num a => a
+ampBus1,freqBus1,trigBus1,durIdxBus1 :: Num a => a
 ampBus1 = 100
 freqBus1 = 101
 trigBus1 = 102
 durIdxBus1 = 103
-ampIdxBus1 = 104
-freqIdxBus1 = 105
 
 ampBus2,freqBus2,trigBus2,idxBus2 :: Num a => a
 ampBus2 = 200
@@ -128,12 +127,12 @@ soundUGenMappings fd = do
         s_new "para4" nId1 AddToTail 1 [("pan",0.5)],
             n_map nId1 [("amp",ampBus1),("freq",freqBus1),("trig",trigBus1)],
         s_new "param" paraAmp1 AddToHead 1
-                  [("out",ampBus1),("parambuf",ampBuf1),("idx",ampIdxBus1)],
+                  [("out",ampBus1),("parambuf",ampBuf1)],
         n_map paraAmp1 [("trig",trigBus1),("idx",durIdxBus1)],
         s_new "param" paraFreq1 AddToHead 1
-                  [("out",freqBus1),("parambuf",freqBuf1),("idx",freqIdxBus1)],
+                  [("out",freqBus1),("parambuf",freqBuf1)],
         n_map paraFreq1 [("trig",trigBus1),("idx",durIdxBus1)],
-        c_set [(durIdxBus1,-1),(ampIdxBus1,0),(freqIdxBus1,0)]
+        c_set [(durIdxBus1,-1)]
        ]
 
 -- | Go with player ugen.
@@ -142,5 +141,10 @@ go = utcr >>= withSC3 . send' . bundle where
     bundle time = Bundle (UTCr time)
      [
       s_new "trig" 2001 AddToHead 1
-                [("out",trigBus1),("durbuf",durBuf1),("idx",durIdxBus1)]
+                [
+                 ("out",trigBus1),
+                 ("durbuf",durBuf1),
+                 ("idx",durIdxBus1),
+                 ("bpm",bpm)
+                ]
      ]
