@@ -65,7 +65,7 @@ getControls' ug =
 
 -- | @flip send@. With flipping the argument, one can write as below:
 -- > withSC3 (send' some_osc_message)
-send' :: OSC -> SendUDP ()
+send' :: Transport t => OSC -> t -> IO ()
 send' = flip send
 
 -- | Sends "/g_queryTree" and shows returning message.

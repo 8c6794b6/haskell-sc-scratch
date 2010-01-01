@@ -15,9 +15,8 @@ import Sound.SC3
 import Sound.OpenSoundControl
 
 import Reusable
+import Instances
 import SimpleNotes
-
-import System.Random
 
 -- | Simple UGen for making sound.
 para4UGen :: UGen
@@ -42,8 +41,8 @@ trigUGen = do
   let bus = control kr "out" 100
       trigger = tDuty kr (60*durs/bpm) 0 RemoveSynth 1 0
       idx' = stepper trigger 0 0
-             (bufFrames kr (control kr "durbuf" 0) - 1) 1 0
-  return $ mce [out bus trigger, out (control kr "idx" 0) idx']
+             (bufFrames kr (control kr "durbuf" 0)) 1 0
+  return $ mrg [out bus trigger, out (control kr "idx" 0) idx']
 
 -- | UGen to send parameters.
 paramUGen :: IO UGen
@@ -53,9 +52,10 @@ paramUGen = do
   let trigger = control kr "trig" 0
       param = demand trigger 0 params
       bus = control kr "out" 100
-      idx' = stepper trigger 0 0
-             (bufFrames kr (control kr "parambuf" 0) - 1) 1 0
-  return $ mce [out bus param, out (control kr "idx" 0) idx']
+  return $ out bus param
+  --     idx' = stepper trigger 0 0
+  --            (bufFrames kr (control kr "parambuf" 0) - 1) 1 0
+  -- return $ mce [out bus param, out (control kr "idx" 0) idx']
 
 ampBus1,freqBus1,trigBus1,idxBus1 :: Num a => a
 ampBus1 = 100
@@ -106,7 +106,7 @@ setupBuffers fd = do
   async fd (b_free durBuf1)
   async fd (b_alloc durBuf1 (length notes1) 1)
 
-  send fd $ Bundle (UTCr now)
+  send fd $ Bundle (UTCr (now + 1))
            [
             b_setn freqBuf1 [(0, map (midiCPS . notePitch) notes1)],
             b_setn durBuf1 [(0, map noteDur notes1)],
@@ -129,10 +129,10 @@ soundUGenMappings fd = do
         s_new "para4" nId1 AddToTail 1 [("pan",0.5)],
             n_map nId1 [("amp",ampBus1),("freq",freqBus1),("trig",trigBus1)],
         s_new "param" paraAmp1 AddToHead 1
-                  [("out",ampBus1),("parambuf",ampBuf1)],
+                  [("out",ampBus1),("parambuf",ampBuf1),("idx",idxBus1)],
         n_map paraAmp1 [("trig",trigBus1)],
         s_new "param" paraFreq1 AddToHead 1
-                  [("out",freqBus1),("parambuf",freqBuf1)],
+                  [("out",freqBus1),("parambuf",freqBuf1),("idx",idxBus1)],
         n_map paraFreq1 [("trig",trigBus1)],
         c_set [(idxBus1,0),(idxBus2,0)]
        ]
@@ -145,3 +145,4 @@ go = utcr >>= withSC3 . send' . bundle where
       s_new "trig" 2001 AddToHead 1
                 [("out",trigBus1),("durbuf",durBuf1),("idx",idxBus1)]
      ]
+

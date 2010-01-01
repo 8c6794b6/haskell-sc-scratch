@@ -107,7 +107,7 @@ doPlay :: IO ()
 doPlay = utcr >>= withSC3 . send' . msg where
     msg time = Bundle (UTCr time) [
            s_new "simplePlayer" 1000 AddToHead 1 [],
-           s_new "para" 1001 AddToHead 1
+           s_new "para" 1001 AddToTail 1
                      [("freq",freqBus1),("amp",ampBus1),
                       ("trig",trigBus1),("pan",0.7)],
            s_new "para" 1002 AddToTail 1
