@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveDataTypeable #-}
 --------------------------------------------------------------------------------
 -- | Instances.
 --
@@ -101,9 +100,9 @@ datumList = [Int 1,
              Double 1,
              String "str",
              Blob [],
-             TimeStamp (UTCr 0),
-             TimeStamp (NTPr 1),
-             TimeStamp (NTPi 2)
+             TimeStamp (UTCr 1),
+             TimeStamp (NTPr 2),
+             TimeStamp (NTPi 3)
             ]
 
 test1_Datum = everywhere (mkT f) datumList
@@ -122,6 +121,11 @@ timeList = [UTCr 0,
             NTPi 100,
             NTPi 200]
 
-test1_Time = everywhere (mkT f) datumList
+test1_Time = everywhere (mkT f) timeList
     where f (NTPi x) = NTPi (x + 100)
           f a = a
+
+test2_Time = everything (+) (0 `mkQ` f) datumList
+    where f (UTCr _) = 0
+          f (NTPi a) = fromInteger a
+          f (NTPr a) = a
