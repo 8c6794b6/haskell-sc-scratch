@@ -71,8 +71,8 @@ send' = flip send
 -- | Sends "/g_queryTree" and shows returning message.
 queryRootNode :: Transport t => t -> IO OSC
 queryRootNode fd = do
-  send fd (Message "/g_queryTree" [Int 0]) 
+  send fd (Message "/g_queryTree" [Int 0, Int 1]) 
   wait fd "/g_queryTree.reply"
 
 dumpRootNode :: Transport t => t -> IO ()
-dumpRootNode fd = send fd (Message "/g_dumpTree" [Int 0])
+dumpRootNode fd = send fd (Message "/g_dumpTree" [Int 0, Int 1])

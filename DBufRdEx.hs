@@ -1,6 +1,10 @@
 ----------------------------------------------------------------------
 -- | Scratch for dbufrd.
 --
+-- So, to use dbufrd ugen for sequeicing parameter for duration,
+-- should I use external control bus to hold the current index of the
+-- buffer, or use dseq instead of dbufrd. 
+-- 
 
 module DBufRdEx where
 
