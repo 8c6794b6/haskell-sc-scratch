@@ -1,3 +1,7 @@
+------------------------------------------------------------------------------
+-- | Module for notes with amplitude, frequency, and duration.
+-- 
+
 module SimpleNotes where
 
 data Note = Note { notePitch :: Double,
