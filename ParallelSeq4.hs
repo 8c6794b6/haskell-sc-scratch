@@ -41,7 +41,7 @@ trigUGen = do
   durs <- dbufrd (control kr "durbuf" 0) (idx+1) Loop
   let bus = control kr "out" 100
       trigger = tDuty kr (60*durs/bpm) 0 DoNothing 1 0
-      idx' = stepper trigger 0 0
+      idx' = stepper trigger 1 0
              (bufFrames kr (control kr "durbuf" 0) - 1) 1 0
   return $ mrg [out bus trigger, out (control kr "idx" 0) idx']
 
@@ -76,6 +76,7 @@ ampBuf2, durBuf2,freqBuf2 :: Num a => a
 ampBuf2 = 20
 durBuf2 = 21
 freqBuf2 = 22
+
 
 -- Groups
 trigGroup, paramGroup, synthGroup :: Num a => a
@@ -135,7 +136,7 @@ soundUGenMappings fd = do
         g_new [(synthGroup,AddAfter,paramGroup)]]
 
   -- Add synths to appropriate groups.
-  send fd $ Bundle (UTCr $ now+1)
+  send fd $ Bundle (UTCr $ now+0.1)
        [s_new "param" paraAmp1 AddToHead paramGroup
                   [("out",ampBus1),("parambuf",ampBuf1)],
         n_map paraAmp1 [("trig",trigBus1),("idx",durIdxBus1)],
@@ -144,7 +145,7 @@ soundUGenMappings fd = do
         s_new "para4" nId1 AddToHead synthGroup [("pan",0.5)]]
 
   -- Map and set control busses.
-  send fd $ Bundle (UTCr $ now + 2)
+  send fd $ Bundle (UTCr $ now+0.2)
        [n_map nId1 [("amp",ampBus1),("freq",freqBus1),("trig",trigBus1)],
         n_map paraFreq1 [("trig",trigBus1),("idx",durIdxBus1)],
         c_set [(durIdxBus1,-1)]]
@@ -152,7 +153,7 @@ soundUGenMappings fd = do
 -- | Go with player ugen. n_query
 go :: IO ()
 go = utcr >>= withSC3 . send' . bundle where
-    bundle time = Bundle (UTCr $ time + 1)
+    bundle time = Bundle (UTCr $ time+0.1)
      [s_new "trig" 2001 AddToHead trigGroup
                 [("out",trigBus1),
                  ("durbuf",durBuf1),
