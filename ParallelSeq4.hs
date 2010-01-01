@@ -110,7 +110,7 @@ setupBuffers fd = do
            [
             b_setn freqBuf1 [(0, map (midiCPS . notePitch) notes1)],
             b_setn durBuf1 [(0, map noteDur notes1)],
-            b_setn ampBuf1 
+            b_setn ampBuf1
                        [(0, map (dbAmp . (flip (-) 100) . noteAmp) notes1)]
            ]
 
@@ -145,4 +145,3 @@ go = utcr >>= withSC3 . send' . bundle where
       s_new "trig" 2001 AddToHead 1
                 [("out",trigBus1),("durbuf",durBuf1),("idx",idxBus1)]
      ]
-
