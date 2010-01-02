@@ -20,15 +20,14 @@ import Data.Typeable
 
 import Text.ParserCombinators.Parsec
 
-data SCTree = SynthGroup GroupId [SCTree]
-            | SynthNode NodeId SynthName [NodeParam]
+data SCTree = Group NodeId [SCTree]
+            | Synth NodeId SynthName [SynthParam]
               deriving (Eq,Show,Data,Typeable)
 
-type GroupId = Int
 type NodeId = Int
 type SynthName = String
 
-data NodeParam = NodeParam ParamName ParamValue
+data SynthParam = SynthParam ParamName ParamValue
                deriving (Eq,Show,Data,Typeable)
 
 type ParamName = String
@@ -37,14 +36,58 @@ data ParamValue = CValue Double
                 | BusId Int
                   deriving (Eq,Show,Data,Typeable)
 
+-- | After "withSC3 reset".
 defaultGroup :: SCTree
-defaultGroup = SynthGroup 1 []
+defaultGroup = Group 0 [Group 1 []]
+
+parseSCTree :: OSC -> SCTree
+parseSCTree (Message s ds) 
+    | s == "/g_queryTree.reply" = fst (parseSCTree' ds)
+    | otherwise = error "not a /g_queryTree.reply message"
+parseSCTree _ = error "OSC mssage is not a 'Message', might be 'Bundle'"
+
+parseSCTree' :: [Datum] -> (SCTree,[Datum])
+parseSCTree' [] = error "empty list"
+parseSCTree' (d:ds) = parseGroup ds
+
+parseGroup :: [Datum] -> (SCTree,[Datum])
+parseGroup (Int x:Int y:ds) | y < 0 = parseSynth x ds
+                            | otherwise = (Group x tree,ds')
+    where
+      (tree,ds') = parseSCTreeFor y ds []
+
+parseSCTreeFor :: Int -> [Datum] -> [SCTree] -> ([SCTree],[Datum])
+parseSCTreeFor left ds trees
+    | left == 0 = (trees,ds)
+    | otherwise = parseSCTreeFor (left-1) ds' (tree':trees) 
+    where
+      (tree',ds') = parseGroup ds
+
+getNextNode = undefined
+
+parseSynth :: NodeId -> [Datum] -> (SCTree,[Datum])
+parseSynth nid (String name:Int num:ds) = (Synth nid name params,ds')
+    where
+      (params,ds') = parseParamsFor num [] ds
+
+parseParamsFor :: Int -> [SynthParam] -> [Datum] -> ([SynthParam],[Datum])
+parseParamsFor 0 ps ds = (ps,ds)
+parseParamsFor n ps ds = parseParamsFor (n-1) (ps':ps) ds'
+    where (ps',ds') = parseParam ds
+
+parseParam :: [Datum] -> (SynthParam,[Datum])
+parseParam (String n:d:ds) = (SynthParam n d',ds)
+    where
+      d' = case d of 
+             Float x -> CValue x
+             String s -> BusId (read (tail s))
 
 -- | Sample message returned from scsynth server, without group other
 -- than default. 
 oscList1 :: OSC
 oscList1 = Message "/g_queryTree.reply" 
-                [Int 1,Int 1,Int 2,
+                [Int 1, -- containing control parameters
+                 Int 1,Int 2, -- default group, with 2 child elements
                  Int 1000,Int (-1),
                  String "simplePercSine",Int 5,
                  String "sustain",Float 0.800000011920929,
@@ -61,104 +104,31 @@ oscList1 = Message "/g_queryTree.reply"
                  String "out",Float 0.0]
 
 scTree1 :: SCTree
-scTree1 = SynthGroup 1 
-               [SynthNode 1000 "simplePercSine" 
-                [NodeParam "sustain" (CValue 0.8),
-                 NodeParam "trig" (CValue 0),
-                 NodeParam "amp" (CValue 0.1),
-                 NodeParam "freq" (CValue 440),
-                 NodeParam "out" (CValue 0)],
-                SynthNode 1000 "simplePercSine" 
-                [NodeParam "sustain" (CValue 0.8),
-                 NodeParam "trig" (CValue 0),
-                 NodeParam "amp" (CValue 0.1),
-                 NodeParam "freq" (CValue 440),
-                 NodeParam "out" (CValue 0)]]
-
--- oscList2 = 
-    -- Message "/g_queryTree.reply" 
-    --             [Int 1,Int 0,Int 1, -- first "1" means this message contains
-    --                                 -- control params, next "0" is the node id
-    --                                 -- of this node (it means root node), and
-    --                                 -- the third "1" is number of node in this
-    --                                 -- tree, only the default group.
-
-    --              Int 1,Int 5, -- node id "1", number of node in this group, 5
-    --                           -- elements are in this group.
-
-    --              Int 2,Int 0, -- node id "2", no elements are in this group.
-
-    --              Int 3,Int 4, -- node id "3", 4 elements are in this group.
-
-    --              Int 1002,Int (-1), -- node id "1002", "-1" indicates that this
-    --                                 -- element is a synth node, not a group.
-
-    --              String "param",Int 4, -- name of this synth, number of control
-    --                                    -- parameters.
-
-    --              String "idx",String "c103", -- pair of control name and value.
-    --              String "parambuf",Float 10.0,
-    --              String "trig",String "c102",
-    --              String "out",Float 100.0,
-                        
-    --              Int 1003,Int (-1), -- 
-    --              String "param",Int 4,
-    --              String "idx",String "c103",
-    --              String "parambuf",Float 12.0,
-    --              String "trig",String "c102",
-    --              String "out",Float 101.0,
-    --              Int 1004,Int (-1),
-    --              String "out",Float 201.0,
-    --              Int 4,Int 2,
-    --              Int 1000,Int (-1),
-    --              String "para4",Int 5,
-    --              String "sustain",Float 0.800000011920929,
-    --              String "trig",String "c102",
-    --              String "amp",String "c100",
-    --              String "freq",String "c101",
-    --              String "out",Float 104.0,
-    --              Int 1001,Int (-1),
-    --              String "para4",Int 5,
-    --              String "sustain",Float 2.0,
-    --              String "trig",String "c202",
-    --              String "amp",String "c200",
-    --              String "freq",String "c201",
-    --              String "out",Float 204.0,
-    --              Int 5,Int 2,
-    --              Int 1006,Int (-1),
-    --              String "simpleReverb",Int 4,
-    --              String "damp",Float 0.5,
-    --              String "room",Float 0.8999999761581421,
-    --              String "mix",Float 0.5,
-    --              String "in",Float 104.0,
-    --              Int 1007,Int (-1),
-    --              String "simpleReverb",Int 4,
-    --              String "damp",Float 0.8999999761581421,
-    --              String "room",Float 0.5,
-    --              String "mix",Float 0.5,
-    --              String "in",Float 204.0,
-    --              Int 6,Int 2,
-    --              Int 1008,Int (-1),
-    --              String "simplePanGain",Int 3,
-    --              String "pan",Float (-0.800000011920929),
-    --              String "gain",Float 1.0,
-    --              String "bus",Float 104.0,
-    --              Int 1009,Int (-1),
-    --              String "simplePanGain",Int 3,
-    --              String "pan",Float 0.800000011920929,
-    --              String "gain",Float 1.0,
-    --              String "bus",Float 204.0]
+scTree1 = Group 1 
+               [Synth 1000 "simplePercSine" 
+                [SynthParam "sustain" (CValue 0.8),
+                 SynthParam "trig" (CValue 0),
+                 SynthParam "amp" (CValue 0.1),
+                 SynthParam "freq" (CValue 440),
+                 SynthParam "out" (CValue 0)],
+                Synth 1000 "simplePercSine" 
+                [SynthParam "sustain" (CValue 0.8),
+                 SynthParam "trig" (CValue 0),
+                 SynthParam "amp" (CValue 0.1),
+                 SynthParam "freq" (CValue 440),
+                 SynthParam "out" (CValue 0)]]
 
 oscList2 :: OSC
 oscList2 = 
     Message "/g_queryTree.reply" 
-                [Int 1,Int 0,Int 1,
-                 Int 1,Int 5,
-                 Int 2,Int 0,
-                 Int 3,Int 4,
-                 Int 1002,Int (-1),
-                 String "param",Int 4,
-                 String "idx",String "c103",
+                [Int 1, -- containing control parameters
+                 Int 0,Int 1, -- root node, with 1 child element
+                 Int 1,Int 5, -- default group, with 5 child element
+                 Int 2,Int 0, -- group 2, no child element
+                 Int 3,Int 4, -- group 3, 4 child elements.
+                 Int 1002,Int (-1), -- node 1002, 
+                 String "param",Int 4, -- name is "param", 4 control params.
+                 String "idx",String "c103", -- idx, from control bus 103.
                  String "parambuf",Float 10.0,
                  String "trig",String "c102",
                  String "out",Float 100.0,
@@ -224,7 +194,7 @@ oscList2 =
 getAllNames :: Data a => a -> [SynthName]
 getAllNames = everything (++) ([] `mkQ` f) 
     where 
-      f (SynthNode _ n _) = [n]
+      f (Synth _ n _) = [n]
       f a = []
 
 -- | Another test for syb.
