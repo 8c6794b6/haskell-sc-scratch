@@ -20,23 +20,24 @@ import SimpleNotes
 
 -- | Simple UGen for making sound.
 para4UGen :: UGen
-para4UGen = out 0 (pan2 osc pos 1) where
+para4UGen = out (control kr "out" 0) osc where
     osc = sinOsc ar freq 0 * amp
-    pos = control kr "pan" 0.0
     freq = control kr "freq" 440
     amp = control kr "amp" (dbAmp (-20)) * env
     env = envGen kr envTrig 1 0 1 DoNothing envShape
     envTrig = control kr "trig" 0
     envShape = envPerc 0.01 (control kr "sustain" 0.8)
 
--- | Simple UGen for reverb effect.
+-- | Simple UGen for reverb effect, using freeVerb.
 simpleReverv :: UGen
-simpleReverv = out (control kr "out" 0) result
-    where result = combC inSound maxTime delTime decTime
+simpleReverv = out 0 (pan2 result pan 1)
+    where result = freeVerb inSound mix room damp
           maxTime = 1.0
           inSound = in' 1 ar (control kr "in" 0)
-          delTime = control kr "delTime" 0.3
-          decTime = control kr "decTime" 0.2
+          mix = control kr "mix" 0.5
+          room = control kr "room" 0.5
+          damp = control kr "damp" 0.5
+          pan = control kr "pan" 0
 
 -- | UGen to send trigger.
 -- First trigger is executed before the output, control bus's initial value is
@@ -66,19 +67,19 @@ paramUGen = do
       bus = control kr "out" 100
   return $ out bus param
 
-ampBus1,freqBus1,trigBus1,durIdxBus1,audioBus1 :: Num a => a
+ampBus1,freqBus1,trigBus1,durIdxBus1,effectBus1 :: Num a => a
 ampBus1 = 100
 freqBus1 = 101
 trigBus1 = 102
 durIdxBus1 = 103
-audioBus1 = 104
+effectBus1 = 104
 
-ampBus2,freqBus2,trigBus2,durIdxBus2,audioBus2 :: Num a => a
+ampBus2,freqBus2,trigBus2,durIdxBus2,effectBus2 :: Num a => a
 ampBus2 = 200
 freqBus2 = 201
 trigBus2 = 202
 durIdxBus2 = 203
-audioBus2 = 204
+effectBus2 = 204
 
 ampBuf1,durBuf1,freqBuf1 :: Num a => a
 ampBuf1 = 10
@@ -108,6 +109,7 @@ setup = do
   writeSynthdef "para4" para4UGen
   writeSynthdef "trig" =<< trigUGen
   writeSynthdef "param" =<< paramUGen
+  writeSynthdef "simpleReverb" simpleReverv
   withSC3 reloadSynthdef
 
   -- allocate buffers and fill with parameters
@@ -153,12 +155,15 @@ soundUGenMappings fd = do
       paraFreq1 = 1003
       paraAmp2 = 1004
       paraFreq2 = 1005
+      eId1 = 1006
+      eId2 = 1007
 
   -- Add groups in order.
   send fd $ Bundle (UTCr now)
        [g_new [(trigGroup,AddToTail,1)],
         g_new [(paramGroup,AddAfter,trigGroup)],
-        g_new [(synthGroup,AddAfter,paramGroup)]]
+        g_new [(synthGroup,AddAfter,paramGroup)],
+        g_new [(effectGroup,AddAfter,synthGroup)]]
 
   -- Add synths to appropriate groups.
   send fd $ Bundle (UTCr $ now+0.1)
@@ -170,8 +175,14 @@ soundUGenMappings fd = do
                   [("out",ampBus2),("parambuf",ampBuf2)],
         s_new "param" paraFreq2 AddToHead paramGroup
                   [("out",freqBus2),("parambuf",freqBuf2)],
-        s_new "para4" nId1 AddToHead synthGroup [("pan",0.5)],
-        s_new "para4" nId2 AddToHead synthGroup [("pan",-0.5),("sustain",2.0)]]
+        s_new "para4" nId1 AddToHead synthGroup 
+                  [("out",effectBus1)],
+        s_new "para4" nId2 AddToHead synthGroup 
+                  [("out",effectBus2),("sustain",2.0)],
+        s_new "simpleReverb" eId1 AddToHead effectGroup
+                  [("in",effectBus1),("pan",-0.5),("room",0.9)],
+        s_new "simpleReverb" eId2 AddToHead effectGroup
+                  [("in",effectBus2),("pan",0.5),("mix",0.9)]]
 
   -- Map and set control busses.
   send fd $ Bundle (UTCr $ now+0.2)
@@ -192,8 +203,8 @@ go = utcr >>= withSC3 . send' . bundle where
                  ("durbuf",durBuf1),
                  ("idx",durIdxBus1),
                  ("bpm",bpm)],
-     s_new "trig" 2002 AddToTail trigGroup
-               [("out",trigBus2),
-                ("durbuf",durBuf2),
-                ("idx",durIdxBus2),
-                ("bpm",bpm)]]
+      s_new "trig" 2002 AddToTail trigGroup
+                [("out",trigBus2),
+                 ("durbuf",durBuf2),
+                 ("idx",durIdxBus2),
+                 ("bpm",bpm)]]
