@@ -1,3 +1,4 @@
+{-# LANGUAGE ExistentialQuantification #-}
 ----------------------------------------------------------------------
 -- | Parallel sequence studying, take4.
 --
@@ -43,9 +44,12 @@ simpleReverv = out 0 (pan2 result pan 1)
 -- First trigger is executed before the output, control bus's initial value is
 -- set to @-1@. And in this ugen, index would be one point prior to the other
 -- parameters, hence added @1@ to the idx. ... True? Or, is there any other
--- way to avoid this offset fixing?
+-- way to avoid this offset fixing? 
 --
--- XXX: Read "Order of execution" SC help.
+-- XXX: 
+--  * Read "Order of execution" SC help.
+--  * Try implement this ugen with using LocalIn, LocalOut UGens.
+-- 
 trigUGen :: IO UGen
 trigUGen = do
   let idx = in' 1 kr (control kr "idx" 0)
@@ -55,9 +59,13 @@ trigUGen = do
       trigger = tDuty kr (60*durs/bpm) 0 DoNothing 1 0
       idx' = stepper trigger 1 0
              (bufFrames kr (control kr "durbuf" 0) - 1) 1 0
-  return $ mrg [out bus trigger, out (control kr "idx" 0) idx']
+  -- return $ mrg [out bus trigger, out (control kr "idx" 0) idx']
+  return $ mrg [out (control kr "idx" 0) idx', out bus trigger]
 
--- | UGen to send parameters.
+-- | UGen to send parameters. 
+-- Receives trigger from trigUGen, and read the specifyed buffer with dbufrd,
+-- sends the value written in the buffer to out. Intended use of this ugen is
+-- to map the output to other ugen, for sequencing parameters.
 paramUGen :: IO UGen
 paramUGen = do
   let idx = (control kr "idx" 0)
@@ -67,6 +75,9 @@ paramUGen = do
       bus = control kr "out" 100
   return $ out bus param
 
+--
+-- Busses
+--
 ampBus1,freqBus1,trigBus1,durIdxBus1,effectBus1 :: Num a => a
 ampBus1 = 100
 freqBus1 = 101
@@ -81,6 +92,12 @@ trigBus2 = 202
 durIdxBus2 = 203
 effectBus2 = 204
 
+bpmBus :: Num a => a
+bpmBus = 1000
+
+-- 
+-- Buffers
+--
 ampBuf1,durBuf1,freqBuf1 :: Num a => a
 ampBuf1 = 10
 durBuf1 = 11
@@ -91,7 +108,9 @@ ampBuf2 = 20
 durBuf2 = 21
 freqBuf2 = 22
 
+-- 
 -- Groups
+-- 
 trigGroup, paramGroup, synthGroup, effectGroup :: Num a => a
 trigGroup = 2
 paramGroup = 3
@@ -116,7 +135,7 @@ setup = do
   withSC3 setupBuffers
   withSC3 soundUGenMappings
 
--- | Allocates buffers and fills with parameters.
+-- | Allocates buffers and fill with parameters.
 setupBuffers :: Transport t => t -> IO ()
 setupBuffers fd = do
   now <- utcr
@@ -135,14 +154,12 @@ setupBuffers fd = do
   async fd (b_alloc durBuf2 (length notes2) 1)
 
   send fd $ Bundle (UTCr (now + 1))
-           [b_setn freqBuf1 [(0, map (midiCPS . notePitch) notes1)],
-            b_setn durBuf1 [(0, map noteDur notes1)],
-            b_setn ampBuf1
-                       [(0, map (dbAmp . (flip (-) 100) . noteAmp) notes1)],
-            b_setn freqBuf2 [(0, map (midiCPS . notePitch) notes2)],
-            b_setn durBuf2 [(0, map noteDur notes2)],
-            b_setn ampBuf2
-                       [(0, map (dbAmp . (flip (-) 100) . noteAmp) notes2)]]
+           [b_setn freqBuf1 [(0, map noteToFreq notes1)],
+            b_setn durBuf1 [(0, map noteToDur notes1)],
+            b_setn ampBuf1 [(0, map noteToAmp notes1)],
+            b_setn freqBuf2 [(0, map noteToFreq notes2)],
+            b_setn durBuf2 [(0, map noteToDur notes2)],
+            b_setn ampBuf2 [(0, map noteToAmp notes2)]]
 
 
 -- | Send sound generating ugens and node mapping messages.
@@ -167,22 +184,22 @@ soundUGenMappings fd = do
 
   -- Add synths to appropriate groups.
   send fd $ Bundle (UTCr $ now+0.1)
-       [s_new "param" paraAmp1 AddToHead paramGroup
-                  [("out",ampBus1),("parambuf",ampBuf1)],
-        s_new "param" paraFreq1 AddToHead paramGroup
-                  [("out",freqBus1),("parambuf",freqBuf1)],
-        s_new "param" paraAmp2 AddToHead paramGroup
-                  [("out",ampBus2),("parambuf",ampBuf2)],
-        s_new "param" paraFreq2 AddToHead paramGroup
-                  [("out",freqBus2),("parambuf",freqBuf2)],
-        s_new "para4" nId1 AddToHead synthGroup 
-                  [("out",effectBus1)],
-        s_new "para4" nId2 AddToHead synthGroup 
-                  [("out",effectBus2),("sustain",2.0)],
-        s_new "simpleReverb" eId1 AddToHead effectGroup
-                  [("in",effectBus1),("pan",-0.5),("room",0.9)],
-        s_new "simpleReverb" eId2 AddToHead effectGroup
-                  [("in",effectBus2),("pan",0.5),("mix",0.9)]]
+           [s_new "simpleReverb" eId1 AddToTail effectGroup
+                      [("in",effectBus1),("pan",-0.9),("room",0.9)],
+            s_new "simpleReverb" eId2 AddToTail effectGroup
+                      [("in",effectBus2),("pan",0.9),("mix",0.9)],
+            s_new "para4" nId1 AddToTail synthGroup 
+                      [("out",effectBus1)],
+            s_new "para4" nId2 AddToTail synthGroup 
+                      [("out",effectBus2),("sustain",2.0)],
+            s_new "param" paraAmp1 AddToTail paramGroup
+                      [("out",ampBus1),("parambuf",ampBuf1)],
+            s_new "param" paraFreq1 AddToTail paramGroup
+                      [("out",freqBus1),("parambuf",freqBuf1)],
+            s_new "param" paraAmp2 AddToTail paramGroup
+                      [("out",ampBus2),("parambuf",ampBuf2)],
+            s_new "param" paraFreq2 AddToTail paramGroup
+                      [("out",freqBus2),("parambuf",freqBuf2)]]
 
   -- Map and set control busses.
   send fd $ Bundle (UTCr $ now+0.2)
@@ -192,19 +209,21 @@ soundUGenMappings fd = do
         n_map nId2 [("amp",ampBus2),("freq",freqBus2),("trig",trigBus2)],
         n_map paraAmp2 [("trig",trigBus2),("idx",durIdxBus2)],
         n_map paraFreq2 [("trig",trigBus2),("idx",durIdxBus2)],
-        c_set [(durIdxBus1,-1),(durIdxBus2,-1)]]
+        c_set [(durIdxBus1,-1),(durIdxBus2,-1),(bpmBus,bpm)]]
 
 -- | Go with player ugen.
 go :: IO ()
 go = utcr >>= withSC3 . send' . bundle where
+    trigId1 = 2001
+    trigId2 = 2002
     bundle time = Bundle (UTCr $ time+0.1)
-     [s_new "trig" 2001 AddToTail trigGroup
+     [s_new "trig" trigId1 AddToTail trigGroup
                 [("out",trigBus1),
                  ("durbuf",durBuf1),
-                 ("idx",durIdxBus1),
-                 ("bpm",bpm)],
-      s_new "trig" 2002 AddToTail trigGroup
+                 ("idx",durIdxBus1)],
+      s_new "trig" trigId2 AddToTail trigGroup
                 [("out",trigBus2),
                  ("durbuf",durBuf2),
-                 ("idx",durIdxBus2),
-                 ("bpm",bpm)]]
+                 ("idx",durIdxBus2)],
+      n_map trigId1 [("bpm",bpmBus)],
+      n_map trigId2 [("bpm",bpmBus)]]
