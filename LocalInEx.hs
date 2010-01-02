@@ -25,3 +25,12 @@ test2 = return $ mrg [offsetOut 0 p, localOut d]
           i = impulse ar 1 0
           d = delayC (i+(p*0.995)) 1 (recip 440 - recip controlRate)
 
+-- test for offsetOut
+test3 = audition $ mrg [a,b] 
+    where a = offsetOut 0 (impulse ar 5 0)
+          b = out 0 (sinOsc ar 60 0 * 0.1)
+
+test4 = audition $ mrg [a,b]
+    where a = out 0 $ impulse ar 5 0
+          b = out 0 $ sinOsc ar 60 0 * 0.1
+

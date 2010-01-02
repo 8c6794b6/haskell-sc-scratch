@@ -34,6 +34,7 @@ TODO List
 
 * Control parameters of graph, like effects, amplitude, etc. Both node
   and group.
+  * Use "/n_set" message or,  "/c_set" and map to control busses.
 
 * Use dbufrd instead of dseq for passing parameters. (DONE, but...)
   * See "ParallelSeq4". Though could be improved concerning the use of

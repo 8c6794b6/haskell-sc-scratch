@@ -31,13 +31,18 @@ para4UGen = out (control kr "out" 0) osc where
 
 -- | Simple UGen for reverb effect, using freeVerb.
 simpleReverv :: UGen
-simpleReverv = out 0 (pan2 result pan 1)
-    where result = freeVerb inSound mix room damp
+simpleReverv = out 0 result
+    where result = freeVerb input mix room damp
           maxTime = 1.0
-          inSound = in' 1 ar (control kr "in" 0)
+          input = in' 1 ar (control kr "in" 0)
           mix = control kr "mix" 0.5
           room = control kr "room" 0.5
           damp = control kr "damp" 0.5
+
+-- | Simple panner.
+simplePanner :: UGen
+simplePanner = out 0 (pan2 input pan 1)
+    where input = in' 1 ar (control kr "bus" 0)
           pan = control kr "pan" 0
 
 -- | UGen to send trigger.
@@ -59,7 +64,6 @@ trigUGen = do
       trigger = tDuty kr (60*durs/bpm) 0 DoNothing 1 0
       idx' = stepper trigger 1 0
              (bufFrames kr (control kr "durbuf" 0) - 1) 1 0
-  -- return $ mrg [out bus trigger, out (control kr "idx" 0) idx']
   return $ mrg [out (control kr "idx" 0) idx', out bus trigger]
 
 -- | UGen to send parameters. 
@@ -129,6 +133,7 @@ setup = do
   writeSynthdef "trig" =<< trigUGen
   writeSynthdef "param" =<< paramUGen
   writeSynthdef "simpleReverb" simpleReverv
+  writeSynthdef "simplePanner" simplePanner
   withSC3 reloadSynthdef
 
   -- allocate buffers and fill with parameters
@@ -163,6 +168,7 @@ setupBuffers fd = do
 
 
 -- | Send sound generating ugens and node mapping messages.
+-- Dont know why but panning for notes2 sound is not working as expected.
 soundUGenMappings :: Transport t => t -> IO ()
 soundUGenMappings fd = do
   now <- utcr
@@ -172,8 +178,10 @@ soundUGenMappings fd = do
       paraFreq1 = 1003
       paraAmp2 = 1004
       paraFreq2 = 1005
-      eId1 = 1006
-      eId2 = 1007
+      revId1 = 1006
+      revId2 = 1007
+      panId1 = 1008
+      panId2 = 1009
 
   -- Add groups in order.
   send fd $ Bundle (UTCr now)
@@ -184,14 +192,7 @@ soundUGenMappings fd = do
 
   -- Add synths to appropriate groups.
   send fd $ Bundle (UTCr $ now+0.1)
-           [s_new "simpleReverb" eId1 AddToTail effectGroup
-                      [("in",effectBus1),("pan",-0.9),("room",0.9)],
-            s_new "simpleReverb" eId2 AddToTail effectGroup
-                      [("in",effectBus2),("pan",0.9),("mix",0.9)],
-            s_new "para4" nId1 AddToTail synthGroup 
-                      [("out",effectBus1)],
-            s_new "para4" nId2 AddToTail synthGroup 
-                      [("out",effectBus2),("sustain",2.0)],
+           [
             s_new "param" paraAmp1 AddToTail paramGroup
                       [("out",ampBus1),("parambuf",ampBuf1)],
             s_new "param" paraFreq1 AddToTail paramGroup
@@ -199,7 +200,21 @@ soundUGenMappings fd = do
             s_new "param" paraAmp2 AddToTail paramGroup
                       [("out",ampBus2),("parambuf",ampBuf2)],
             s_new "param" paraFreq2 AddToTail paramGroup
-                      [("out",freqBus2),("parambuf",freqBuf2)]]
+                      [("out",freqBus2),("parambuf",freqBuf2)],
+
+            s_new "para4" nId1 AddToTail synthGroup 
+                      [("out",effectBus1)],
+            s_new "para4" nId2 AddToTail synthGroup 
+                      [("out",effectBus2),("sustain",2.0)],
+            
+            s_new "simpleReverb" revId1 AddToTail effectGroup
+                      [("in",effectBus1),("room",0.9)],
+            s_new "simpleReverb" revId2 AddToTail effectGroup
+                      [("in",effectBus2),("mix",0.9)],
+            s_new "simplePanner" panId1 AddToTail effectGroup
+                      [("bus",effectBus1),("pan",-0.25)],
+            s_new "simplePanner" panId2 AddToTail effectGroup
+                      [("bus",effectBus2),("pan",0.25)]]
 
   -- Map and set control busses.
   send fd $ Bundle (UTCr $ now+0.2)

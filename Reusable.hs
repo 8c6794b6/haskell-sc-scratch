@@ -86,3 +86,11 @@ b_getn' id params = \fd -> send fd (b_getn id params) >> wait fd "/b_setn"
 -- | Sends @/c_get@ message and wait until it gets @/c_set@.
 c_get' :: Transport t => [Int] -> (t -> IO OSC)
 c_get' ids = \fd -> send fd (c_get ids) >> wait fd "/c_set"
+
+(|>) :: (a -> b) -> (b -> c) -> (a -> c)
+(|>) = flip (.)
+
+-- a >>=* b = a >>= b |> return
+
+(>>=*) :: (Functor f) => f a -> (a -> b) -> f b
+(>>=*) = flip fmap
