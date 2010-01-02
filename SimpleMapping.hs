@@ -51,17 +51,18 @@ parseSCTree' [] = error "empty list"
 parseSCTree' (d:ds) = parseGroup ds
 
 parseGroup :: [Datum] -> (SCTree,[Datum])
-parseGroup (Int x:Int y:ds) | y < 0 = parseSynth x ds
-                            | otherwise = (Group x tree,ds')
+parseGroup (Int x:Int y:ds) 
+    | y < 0 = parseSynth x ds
+    | otherwise = (Group x tree,ds')
     where
       (tree,ds') = parseSCTreeFor y ds []
 
 parseSCTreeFor :: Int -> [Datum] -> [SCTree] -> ([SCTree],[Datum])
-parseSCTreeFor left ds trees
-    | left == 0 = (trees,ds)
-    | otherwise = parseSCTreeFor (left-1) ds' (tree':trees) 
+parseSCTreeFor left ds ts
+    | left == 0 = (ts,ds)
+    | otherwise = parseSCTreeFor (left-1) ds' (ts++[t]) 
     where
-      (tree',ds') = parseGroup ds
+      (t,ds') = parseGroup ds
 
 getNextNode = undefined
 
@@ -72,7 +73,7 @@ parseSynth nid (String name:Int num:ds) = (Synth nid name params,ds')
 
 parseParamsFor :: Int -> [SynthParam] -> [Datum] -> ([SynthParam],[Datum])
 parseParamsFor 0 ps ds = (ps,ds)
-parseParamsFor n ps ds = parseParamsFor (n-1) (ps':ps) ds'
+parseParamsFor n ps ds = parseParamsFor (n-1) (ps++[ps']) ds'
     where (ps',ds') = parseParam ds
 
 parseParam :: [Datum] -> (SynthParam,[Datum])
