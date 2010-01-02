@@ -42,6 +42,10 @@ TODO List
     working as desired. Control bus value is sometime overwritten by
     the ugen, sometime not.
 
+* Write some panning example shown in SC help. Listen carefully that
+  the haskell version is making same sound as SC version. Use both
+  sclang and hsc3.
+
 * Add "resting" to sequence of notes.
 
 * Rewrite acid example using haskell.
