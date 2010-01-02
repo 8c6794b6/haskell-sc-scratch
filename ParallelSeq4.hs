@@ -29,9 +29,14 @@ para4UGen = out 0 (pan2 osc pos 1) where
     envTrig = control kr "trig" 0
     envShape = envPerc 0.01 (control kr "sustain" 0.8)
 
--- | Initial bpm
-bpm :: Num a => a
-bpm = 130
+-- | Simple UGen for reverb effect.
+simpleReverv :: UGen
+simpleReverv = out (control kr "out" 0) result
+    where result = combC inSound maxTime delTime decTime
+          maxTime = 1.0
+          inSound = in' 1 ar (control kr "in" 0)
+          delTime = control kr "delTime" 0.3
+          decTime = control kr "decTime" 0.2
 
 -- | UGen to send trigger.
 -- First trigger is executed before the output, control bus's initial value is
@@ -61,17 +66,19 @@ paramUGen = do
       bus = control kr "out" 100
   return $ out bus param
 
-ampBus1,freqBus1,trigBus1,durIdxBus1 :: Num a => a
+ampBus1,freqBus1,trigBus1,durIdxBus1,audioBus1 :: Num a => a
 ampBus1 = 100
 freqBus1 = 101
 trigBus1 = 102
 durIdxBus1 = 103
+audioBus1 = 104
 
-ampBus2,freqBus2,trigBus2,durIdxBus2 :: Num a => a
+ampBus2,freqBus2,trigBus2,durIdxBus2,audioBus2 :: Num a => a
 ampBus2 = 200
 freqBus2 = 201
 trigBus2 = 202
 durIdxBus2 = 203
+audioBus2 = 204
 
 ampBuf1,durBuf1,freqBuf1 :: Num a => a
 ampBuf1 = 10
@@ -84,11 +91,15 @@ durBuf2 = 21
 freqBuf2 = 22
 
 -- Groups
-trigGroup, paramGroup, synthGroup :: Num a => a
+trigGroup, paramGroup, synthGroup, effectGroup :: Num a => a
 trigGroup = 2
 paramGroup = 3
 synthGroup = 4
+effectGroup = 5
 
+-- | Initial bpm
+bpm :: Num a => a
+bpm = 130
 
 -- | Setup mappings, buffers, and sound making ugens.
 setup :: IO ()
