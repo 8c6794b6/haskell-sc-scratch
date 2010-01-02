@@ -36,10 +36,6 @@ data ParamValue = CValue Double
                 | BusId Int
                   deriving (Eq,Show,Data,Typeable)
 
--- | After "withSC3 reset".
-defaultGroup :: SCTree
-defaultGroup = Group 0 [Group 1 []]
-
 -- | Only working with osc message including synth control parameters.
 parseSCTree :: OSC -> SCTree
 parseSCTree (Message s ds)
