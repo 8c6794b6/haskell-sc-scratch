@@ -2,6 +2,7 @@
 ------------------------------------------------------------------------------
 -- | Playing with mapping nodes to synth.
 --
+-- TODO: Remove @(++)@ from parseOSC, or use parsec.
 
 module SimpleMapping where
 
@@ -22,55 +23,104 @@ import Data.Typeable
 
 data SCTree = Group NodeId [SCTree]
             | Synth NodeId SynthName [SynthParam]
-              deriving (Eq,Show,Data,Typeable)
+              deriving (Eq,Read,Show,Data,Typeable)
 
 type NodeId = Int
 type SynthName = String
 
 data SynthParam = SynthParam ParamName ParamValue
-               deriving (Eq,Show,Data,Typeable)
+               deriving (Eq,Read,Show,Data,Typeable)
 
 type ParamName = String
 
-data ParamValue = CValue Double
-                | BusId Int
-                  deriving (Eq,Show,Data,Typeable)
+data ParamValue = PVal Double
+                | PBus Int
+                  deriving (Eq,Read,Show,Data,Typeable)
 
--- | Only working with osc message including synth control parameters.
-parseSCTree :: OSC -> SCTree
-parseSCTree (Message s ds)
-    | s == "/g_queryTree.reply" = fst (parseSCTree' (tail ds))
+-- | Parse osc message returned from "/g_queryTree" and returns haskell
+-- representation of the node tree.
+-- Only working with osc message including synth control parameters.
+parseOSC :: OSC -> SCTree
+parseOSC (Message s ds)
+    | s == "/g_queryTree.reply" = fst (parseDatum (tail ds))
     | otherwise = error "not a /g_queryTree.reply message"
-parseSCTree _ = error "OSC mssage is not a 'Message', might be 'Bundle'"
+parseOSC _ = error "OSC mssage is not a 'Message', might be 'Bundle'"
 
-parseSCTree' :: [Datum] -> (SCTree,[Datum])
-parseSCTree' [] = error "empty list passed to \"parseSCTree'\""
-parseSCTree' (Int x:Int y:ds)
+parseDatum :: [Datum] -> (SCTree,[Datum])
+parseDatum [] = error "empty list passed to parseDatum"
+parseDatum (Int x:Int y:ds)
     | y < 0 = parseSynth x ds
-    | otherwise = (Group x tree,ds')
-    where (tree,ds') = parseSCTreeFor y ds []
+    | otherwise = (Group x ts,ds')
+    where (ts,ds') = parseDatumFor y ds []
 
-parseSCTreeFor :: Int -> [Datum] -> [SCTree] -> ([SCTree],[Datum])
-parseSCTreeFor left ds ts
+parseDatumFor :: Int -> [Datum] -> [SCTree] -> ([SCTree],[Datum])
+parseDatumFor left ds ts
     | left == 0 = (ts,ds)
-    | otherwise = parseSCTreeFor (left-1) ds' (ts++[t])
-    where (t,ds') = parseSCTree' ds
+    | otherwise = parseDatumFor (left-1) ds' (ts++[t])
+    where (t,ds') = parseDatum ds
 
 parseSynth :: NodeId -> [Datum] -> (SCTree,[Datum])
 parseSynth nid (String name:Int num:ds) = (Synth nid name params,ds')
-    where (params,ds') = parseParamsFor num [] ds
+    where (params,ds') = parseParamsFor num ds []
 
-parseParamsFor :: Int -> [SynthParam] -> [Datum] -> ([SynthParam],[Datum])
-parseParamsFor 0 ps ds = (ps,ds)
-parseParamsFor n ps ds = parseParamsFor (n-1) (ps++[ps']) ds'
+parseParamsFor :: Int -> [Datum] -> [SynthParam] -> ([SynthParam],[Datum])
+parseParamsFor 0 ds ps = (ps,ds)
+parseParamsFor n ds ps = parseParamsFor (n-1) ds' (ps++[ps'])
     where (ps',ds') = parseParam ds
 
 parseParam :: [Datum] -> (SynthParam,[Datum])
 parseParam (String n:d:ds) = (SynthParam n d',ds)
     where
       d' = case d of
-             Float x -> CValue x
-             String s -> BusId (read (tail s))
+             Float x -> PVal x
+             String s -> PBus (read (tail s))
+
+toGroupTree :: SCTree -> SCTree
+toGroupTree (Group gid ts) = Group gid (map toGroupTree ts') 
+    where ts' = filter isGroup ts
+          isGroup (Group _ _) = True
+          isGroup (Synth _ _ _) = False
+toGroupTree (Synth _ _ _) = undefined
+
+-- | Extract "/g_new" messages.
+gNew :: SCTree -> OSC
+gNew t = squash $ gNew' t' []
+    where squash m = Message "/g_new" (everything (++) ([] `mkQ` f) m) 
+          f (Int i) = [Int i]
+          f _ = []
+          t' = toGroupTree t
+
+gNew' :: SCTree -> [OSC] -> [OSC]
+gNew' (Group gId ts) msg = addToParent gId ts msg
+gNew' _ msg = msg
+
+addToParent :: NodeId -> [SCTree] -> [OSC] -> [OSC]
+addToParent gId ((Group gId' ts'):ts) msg = msg
+addToParent gId ((Synth nId name ps):ts) msg 
+    = [s_new name nId  AddToTail gId (concatMap paramToTuple ps)] ++
+      addToParent gId ts msg
+addToParent gId [] msg = msg
+
+paramToTuple :: SynthParam -> [(String,Double)]
+paramToTuple (SynthParam name val) 
+    = case val of
+        PVal d -> [(name,d)]
+        _      -> []
+
+        
+
+
+paramToMap :: SynthParam -> [(String,Int)]
+paramToMap = undefined
+
+-- | Extract "/s_new" messages.
+sNew :: SCTree -> OSC
+sNew = undefined
+
+-- | Extract "/n_map" messages.
+nMap :: SCTree -> OSC
+nMap = undefined
+
 
 -- | Sample message returned from scsynth server, without group other
 -- than default.
@@ -96,17 +146,17 @@ oscList1 = Message "/g_queryTree.reply"
 scTree1 :: SCTree
 scTree1 = Group 1
                [Synth 1000 "simplePercSine"
-                [SynthParam "sustain" (CValue 0.8),
-                 SynthParam "trig" (CValue 0),
-                 SynthParam "amp" (CValue 0.1),
-                 SynthParam "freq" (CValue 440),
-                 SynthParam "out" (CValue 0)],
-                Synth 1000 "simplePercSine"
-                [SynthParam "sustain" (CValue 0.8),
-                 SynthParam "trig" (CValue 0),
-                 SynthParam "amp" (CValue 0.1),
-                 SynthParam "freq" (CValue 440),
-                 SynthParam "out" (CValue 0)]]
+                [SynthParam "sustain" (PVal 0.800000011920929),
+                 SynthParam "trig" (PVal 0),
+                 SynthParam "amp" (PVal 0.10000000149011612),
+                 SynthParam "freq" (PVal 440),
+                 SynthParam "out" (PVal 0)],
+                Synth 1001 "simplePercSine"
+                [SynthParam "sustain" (PVal 0.800000011920929),
+                 SynthParam "trig" (PVal 0),
+                 SynthParam "amp" (PVal 0.10000000149011612),
+                 SynthParam "freq" (PVal 440),
+                 SynthParam "out" (PVal 0)]]
 
 oscList2 :: OSC
 oscList2 =
