@@ -15,6 +15,7 @@ import Instances
 import Sound.SC3
 import Sound.OpenSoundControl
 
+import Data.List
 import Data.Generics
 import Data.Data
 import Data.Typeable
@@ -76,7 +77,7 @@ parseParam (String n:d:ds) = (SynthParam n d',ds)
              String s -> PBus (read (tail s))
 
 toGroupTree :: SCTree -> SCTree
-toGroupTree (Group gid ts) = Group gid (map toGroupTree ts') 
+toGroupTree (Group gid ts) = Group gid (map toGroupTree ts')
     where ts' = filter isGroup ts
           isGroup (Group _ _) = True
           isGroup (Synth _ _ _) = False
@@ -85,7 +86,7 @@ toGroupTree (Synth _ _ _) = undefined
 -- | Extract "/g_new" messages.
 gNew :: SCTree -> OSC
 gNew t = squash $ gNew' t' []
-    where squash m = Message "/g_new" (everything (++) ([] `mkQ` f) m) 
+    where squash m = Message "/g_new" (everything (++) ([] `mkQ` f) m)
           f (Int i) = [Int i]
           f _ = []
           t' = toGroupTree t
@@ -95,32 +96,44 @@ gNew' (Group gId ts) msg = addToParent gId ts msg
 gNew' _ msg = msg
 
 addToParent :: NodeId -> [SCTree] -> [OSC] -> [OSC]
-addToParent gId ((Group gId' ts'):ts) msg = msg
-addToParent gId ((Synth nId name ps):ts) msg 
+addToParent gId ((Group gId' ts'):ts) msg
+    = g_new [(gId',AddToTail,gId)] : addToParent gId' ts' [] ++ addToParent gId ts msg
+addToParent gId ((Synth nId name ps):ts) msg
     = [s_new name nId  AddToTail gId (concatMap paramToTuple ps)] ++
       addToParent gId ts msg
 addToParent gId [] msg = msg
 
 paramToTuple :: SynthParam -> [(String,Double)]
-paramToTuple (SynthParam name val) 
+paramToTuple (SynthParam name val)
     = case val of
         PVal d -> [(name,d)]
         _      -> []
 
-        
-
-
-paramToMap :: SynthParam -> [(String,Int)]
-paramToMap = undefined
+paramToMap :: NodeId -> SynthParam -> [OSC]
+paramToMap _ (SynthParam name (PVal v)) = []
+paramToMap i (SynthParam n (PBus b)) = [n_map i [(n,b)]]
 
 -- | Extract "/s_new" messages.
 sNew :: SCTree -> OSC
 sNew = undefined
 
 -- | Extract "/n_map" messages.
-nMap :: SCTree -> OSC
-nMap = undefined
+-- 
+-- XXX: Remove @nub@ function!
+nMap :: SCTree -> [OSC]
+nMap = everything (++) ([] `mkQ` f)
+    where 
+      f (Group _ ts) = concatMap f ts
+      f (Synth nId _ ps) = concatMap (paramToMap nId) ps
 
+-- | Get current node mapping representation of @SCTree@.
+getTree :: (Transport t) => t -> IO SCTree
+getTree fd = queryTree fd >>= return . parseOSC
+
+-- | Send node mapping OSC message scsynth, defined by @SCTree@.
+mkTree :: (Transport t) => SCTree -> t -> IO ()
+mkTree tree = \fd -> 
+             send fd (Bundle (NTPi 0) (gNew' tree [] ++ nub (nMap tree)))
 
 -- | Sample message returned from scsynth server, without group other
 -- than default.
