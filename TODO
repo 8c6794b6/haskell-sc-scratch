@@ -9,12 +9,23 @@ TODO List
     working as desired. Control bus value is sometime overwritten by
     the ugen, sometime not.
 
+* Read SC Tutorial in help files, and translate in haskell.
+  * Getting started with SC
+  * Introductory Tutorial
+  * Tutorial
+  * Tour of Unit Generators
+  * A Practical Guide to Patterns
+  * Streams Overview
+
+* Read "Architecture" section in sc help file.
+
 * Write some example shown in SC help. Listen carefully that the
   haskell version is making same sound as SC version. Use both sclang
   and hsc3. Especially synth and effect mapping using synthdefs.
 
 * Write DSL for mapping nodes ... its tedious thing to do. (DONE, but...)
   * It's working, though its so messy, not efficient. 
+  * Use parsec or monadic style shown in monparsing.ps
 
 * Write DSL for buffer read, write, set.
 
