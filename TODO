@@ -3,7 +3,7 @@
 TODO List
 =========
 
-* Make parallel sequence of sound event. (DONE, 
+* Make parallel sequence of sound event. (DONE) 
   * Did this by using dseq.
    
 * Write SynthDef files. (DONE)
@@ -27,14 +27,14 @@ TODO List
   * See "ParallelSeq4".
 
 * Instantiate UGen from Data and Typeable. (DONE)
-  * See "Instances.hs". Wrote by hand.
+  * See "Instances.hs". Wrote by hand. Could be improved.
 
 * Create node graphs with adding each node with grouping. (DONE)
   * See "ParallelSeq4".
 
 * Control parameters of graph, like effects, amplitude, etc. Both node
   and group. (DONE)
-  * Use "/n_set" message or,  "/c_set" and map to control busses.
+  * Use "/n_set" message or, "/c_set" and map to control busses.
 
 * Use dbufrd instead of dseq for passing parameters. (DONE, but...)
   * See "ParallelSeq4". Though could be improved in use of
@@ -46,18 +46,20 @@ TODO List
   haskell version is making same sound as SC version. Use both sclang
   and hsc3. Especially synth and effect mapping using synthdefs.
 
-* Add "resting" to sequence of notes.
-
-* Rewrite acid example using haskell.
-
 * Write DSL for mapping nodes ... its tedious thing to do. (DONE)
   * It's working, though its so messy, not efficient. 
 
 * Write "showTree" function for SCTree. (DONE)
   * Convertd to Data.Tree.Tree and used Data.Tree.drawTree.
-  
+
+* Write DSL for buffer read, write, set.
+
+* Add "resting" to sequence of notes.
+
+* Rewrite acid example using haskell.
+
 * Find efficient way for bookkeeping of nodeID, busID, buffeerID.
 
 * Recieve MIDI event from other app, device.
 
-* Write event scheduling library in haskell.
+* Write concurrent event scheduling library in haskell.
