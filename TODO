@@ -3,6 +3,35 @@
 TODO List
 =========
 
+* Use dbufrd instead of dseq for passing parameters. (DONE, but...)
+  * See "ParallelSeq4". Though could be improved in use of
+    index. ParallelSeq4 uses stepper ugen, and resetting is not
+    working as desired. Control bus value is sometime overwritten by
+    the ugen, sometime not.
+
+* Write some example shown in SC help. Listen carefully that the
+  haskell version is making same sound as SC version. Use both sclang
+  and hsc3. Especially synth and effect mapping using synthdefs.
+
+* Write DSL for mapping nodes ... its tedious thing to do. (DONE, but...)
+  * It's working, though its so messy, not efficient. 
+
+* Write DSL for buffer read, write, set.
+
+* Add "resting" to sequence of notes.
+
+* Rewrite acid example using haskell.
+
+* Find efficient way for bookkeeping of nodeID, busID, buffeerID.
+
+* Recieve MIDI event from other app, device.
+
+* Write concurrent event scheduling library in haskell.
+
+
+DONE
+====
+
 * Make parallel sequence of sound event. (DONE) 
   * Did this by using dseq.
    
@@ -36,30 +65,5 @@ TODO List
   and group. (DONE)
   * Use "/n_set" message or, "/c_set" and map to control busses.
 
-* Use dbufrd instead of dseq for passing parameters. (DONE, but...)
-  * See "ParallelSeq4". Though could be improved in use of
-    index. ParallelSeq4 uses stepper ugen, and resetting is not
-    working as desired. Control bus value is sometime overwritten by
-    the ugen, sometime not.
-
-* Write some example shown in SC help. Listen carefully that the
-  haskell version is making same sound as SC version. Use both sclang
-  and hsc3. Especially synth and effect mapping using synthdefs.
-
-* Write DSL for mapping nodes ... its tedious thing to do. (DONE)
-  * It's working, though its so messy, not efficient. 
-
 * Write "showTree" function for SCTree. (DONE)
   * Convertd to Data.Tree.Tree and used Data.Tree.drawTree.
-
-* Write DSL for buffer read, write, set.
-
-* Add "resting" to sequence of notes.
-
-* Rewrite acid example using haskell.
-
-* Find efficient way for bookkeeping of nodeID, busID, buffeerID.
-
-* Recieve MIDI event from other app, device.
-
-* Write concurrent event scheduling library in haskell.
