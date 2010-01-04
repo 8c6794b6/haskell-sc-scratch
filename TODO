@@ -53,7 +53,8 @@ TODO List
 * Write DSL for mapping nodes ... its tedious thing to do. (DONE)
   * It's working, though its so messy, not efficient. 
 
-* Write "showTree" function for SCTree.
+* Write "showTree" function for SCTree. (DONE)
+  * Convertd to Data.Tree.Tree and used Data.Tree.drawTree.
   
 * Find efficient way for bookkeeping of nodeID, busID, buffeerID.
 
