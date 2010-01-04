@@ -2,14 +2,18 @@
 ------------------------------------------------------------------------------
 -- | Playing with mapping nodes to synth.
 --
--- TODO: Remove @(++)@ from parseOSC, or use parsec.
+-- TODO:
+-- * Remove @(++)@ from parseOSC, or use parsec.
+-- * Remove @nub@ from @nMap@.
+-- * Write pretty printer for SCTree.
+--
 
 module SimpleMapping where
 
 import SimpleUGens
 import SimpleNotes
 
-import Reusable
+import Reusable (queryTree)
 import Instances
 
 import Sound.SC3
@@ -29,7 +33,7 @@ data SCTree = Group NodeId [SCTree]
 type NodeId = Int
 type SynthName = String
 
-data SynthParam = SynthParam ParamName ParamValue
+data SynthParam = ParamName := ParamValue
                deriving (Eq,Read,Show,Data,Typeable)
 
 type ParamName = String
@@ -37,6 +41,8 @@ type ParamName = String
 data ParamValue = PVal Double
                 | PBus Int
                   deriving (Eq,Read,Show,Data,Typeable)
+
+infixr 5 :=
 
 -- | Parse osc message returned from "/g_queryTree" and returns haskell
 -- representation of the node tree.
@@ -70,7 +76,7 @@ parseParamsFor n ds ps = parseParamsFor (n-1) ds' (ps++[ps'])
     where (ps',ds') = parseParam ds
 
 parseParam :: [Datum] -> (SynthParam,[Datum])
-parseParam (String n:d:ds) = (SynthParam n d',ds)
+parseParam (String n:d:ds) = (n := d',ds)
     where
       d' = case d of
              Float x -> PVal x
@@ -104,25 +110,34 @@ addToParent gId ((Synth nId name ps):ts) msg
 addToParent gId [] msg = msg
 
 paramToTuple :: SynthParam -> [(String,Double)]
-paramToTuple (SynthParam name val)
+paramToTuple (name := val)
     = case val of
         PVal d -> [(name,d)]
         _      -> []
 
 paramToMap :: NodeId -> SynthParam -> [OSC]
-paramToMap _ (SynthParam name (PVal v)) = []
-paramToMap i (SynthParam n (PBus b)) = [n_map i [(n,b)]]
+paramToMap _ (_ := (PVal v)) = []
+paramToMap i (n := (PBus b)) = [n_map i [(n,b)]]
 
 -- | Extract "/s_new" messages.
 sNew :: SCTree -> OSC
 sNew = undefined
 
+toSynthList :: SCTree -> [(NodeId,SCTree)]
+toSynthList = nub . everything (++) ([] `mkQ` f)
+    where
+      f (Group gId ts) = g gId ts
+      f _ = []
+      g gId ((Group gId' ts'):ts) = g gId' ts' ++ g gId ts
+      g gId (s@(Synth _ _ _):ts) = (gId,s):g gId ts
+      g gId [] = []
+
 -- | Extract "/n_map" messages.
--- 
+--
 -- XXX: Remove @nub@ function!
 nMap :: SCTree -> [OSC]
-nMap = everything (++) ([] `mkQ` f)
-    where 
+nMap = nub . everything (++) ([] `mkQ` f)
+    where
       f (Group _ ts) = concatMap f ts
       f (Synth nId _ ps) = concatMap (paramToMap nId) ps
 
@@ -132,8 +147,8 @@ getTree fd = queryTree fd >>= return . parseOSC
 
 -- | Send node mapping OSC message scsynth, defined by @SCTree@.
 mkTree :: (Transport t) => SCTree -> t -> IO ()
-mkTree tree = \fd -> 
-             send fd (Bundle (NTPi 0) (gNew' tree [] ++ nub (nMap tree)))
+mkTree tree = \fd ->
+             send fd (Bundle (NTPi 0) (gNew' tree [] ++ nMap tree))
 
 -- | Sample message returned from scsynth server, without group other
 -- than default.
@@ -159,17 +174,17 @@ oscList1 = Message "/g_queryTree.reply"
 scTree1 :: SCTree
 scTree1 = Group 1
                [Synth 1000 "simplePercSine"
-                [SynthParam "sustain" (PVal 0.800000011920929),
-                 SynthParam "trig" (PVal 0),
-                 SynthParam "amp" (PVal 0.10000000149011612),
-                 SynthParam "freq" (PVal 440),
-                 SynthParam "out" (PVal 0)],
+                ["sustain" := (PVal 0.800000011920929),
+                 "trig" := (PVal 0),
+                 "amp" := (PVal 0.10000000149011612),
+                 "freq" := (PVal 440),
+                 "out" := (PVal 0)],
                 Synth 1001 "simplePercSine"
-                [SynthParam "sustain" (PVal 0.800000011920929),
-                 SynthParam "trig" (PVal 0),
-                 SynthParam "amp" (PVal 0.10000000149011612),
-                 SynthParam "freq" (PVal 440),
-                 SynthParam "out" (PVal 0)]]
+                ["sustain" := (PVal 0.800000011920929),
+                 "trig" := (PVal 0),
+                 "amp" := (PVal 0.10000000149011612),
+                 "freq" := (PVal 440),
+                 "out" := (PVal 0)]]
 
 oscList2 :: OSC
 oscList2 =

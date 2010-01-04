@@ -6,37 +6,41 @@ module Scratch where
 import Sound.SC3
 import Sound.OpenSoundControl
 
+import Reusable
+import Instances
+import SimpleMapping
+
 a = audition (out 0 (sinOsc ar 440 0 * 0.3))
 
 b = do
   -- a pattern for pitch
   let pitchPat1 =
-	  [60,62,60,62, 64,62,64,62,
-	   60,62,60,62, 65,62,64,62,
+          [60,62,60,62, 64,62,64,62,
+           60,62,60,62, 65,62,64,62,
 
-	   60,62,60,62, 64,62,64,62,
-	   67,65,64,62, 62,60,62,60]
+           60,62,60,62, 64,62,64,62,
+           67,65,64,62, 62,60,62,60]
 
   -- pattern for amplitude
   let ampPat1 =
-	  [1.0,0.4,0.8,0.5, 1.0,0.4,1.0,0.5,
-	   1.0,0.4,0.8,0.5, 1.0,0.4,1.0,0.5,
-	   1.0,0.4,0.8,0.5, 1.0,0.4,1.0,0.5,
-	   1.0,0.4,0.8,0.5, 1.0,0.4,1.0,0.5]
+          [1.0,0.4,0.8,0.5, 1.0,0.4,1.0,0.5,
+           1.0,0.4,0.8,0.5, 1.0,0.4,1.0,0.5,
+           1.0,0.4,0.8,0.5, 1.0,0.4,1.0,0.5,
+           1.0,0.4,0.8,0.5, 1.0,0.4,1.0,0.5]
 
   -- another pattern for pitch
   let pitchPat2 =
-	  [60,60,60,60, 60,60,60,60,
-	   65,65,65,65, 65,65,67,67,
-	   60,60,60,60, 60,60,65,67,
-	   65,65,65,65, 65,65,67,67]
+          [60,60,60,60, 60,60,60,60,
+           65,65,65,65, 65,65,67,67,
+           60,60,60,60, 60,60,65,67,
+           65,65,65,65, 65,65,67,67]
 
   -- pattern for amplitude
   let ampPat2 =
-	  [1.0,0.6,0.5,0.5, 1.0,0.4,0.3,0.5,
-	   0.8,0.3,0.3,0.3, 0.8,0.7,0.6,0.4,
-	   1.0,0.4,0.8,0.5, 0.7,0.4,0.6,0.5,
-	   0.9,0.3,1.0,0.5, 0.7,0.4,1.0,0.5]
+          [1.0,0.6,0.5,0.5, 1.0,0.4,0.3,0.5,
+           0.8,0.3,0.3,0.3, 0.8,0.7,0.6,0.4,
+           1.0,0.4,0.8,0.5, 0.7,0.4,0.6,0.5,
+           0.9,0.3,1.0,0.5, 0.7,0.4,1.0,0.5]
 
   ds1 <- dseq 2 $ mce pitchPat1
   amp1 <- dseq 2 $ mce ampPat1
@@ -63,5 +67,28 @@ b = do
       osc2 = o2 * e2
 
   audition (out 0 (pan2 osc1 (-0.2) 1 +
-		   pan2 osc2 0.3 1))
+                   pan2 osc2 0.3 1))
 
+
+tree1 :: SCTree
+tree1
+    = Group 0
+      [Group 1
+       [Group 10
+        [Synth 1000 "simpleTrigger"
+         ["out" := v 100,"freq" := v 2]],
+        Group 11
+        [Synth 1100 "simplePercSine"
+         ["trig" := bus 100,"out" := v 100],
+         Synth 1101 "simplePercSine"
+         ["trig" := bus 100,"out" := v 100,"freq" := v 660],
+         Synth 1102 "simplePercSine"
+         ["trig" := bus 100,"out" := v 101,"freq" := v 330],
+         Synth 1103 "simplePercSine"
+         ["trig" := bus 100,"out" := v 101,"freq" := v 220]],
+        Group 12
+        [Synth 1200 "simpleReverb" ["in" := v 100,"out" := v 0],
+         Synth 1201 "simpleReverb" ["in" := v 101,"out" := v 1]]]]
+
+v = PVal
+bus = PBus

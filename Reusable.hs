@@ -69,14 +69,14 @@ send' :: Transport t => OSC -> t -> IO ()
 send' = flip send
 
 -- | Sends "/g_queryTree" and shows returning message.
-queryRootNode :: Transport t => t -> IO OSC
-queryRootNode fd = do
+queryTree :: Transport t => t -> IO OSC
+queryTree fd = do
   send fd (Message "/g_queryTree" [Int 0, Int 1]) 
   wait fd "/g_queryTree.reply"
 
 -- | Dumps root node and show in scsynth.
-dumpRootNode :: Transport t => t -> IO ()
-dumpRootNode fd = send fd (Message "/g_dumpTree" [Int 0, Int 1])
+dumpTree :: Transport t => t -> IO ()
+dumpTree fd = send fd (Message "/g_dumpTree" [Int 0, Int 1])
 
 -- | Sends @/b_getn@ message and wait until it gets @/b_setn@.
 -- > \fd ->
