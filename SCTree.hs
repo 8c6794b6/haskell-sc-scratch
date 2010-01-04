@@ -23,6 +23,7 @@ import Data.List
 import Data.Generics
 import Data.Data
 import Data.Typeable
+import Data.Tree
 
 -- import Text.ParserCombinators.Parsec
 
@@ -149,6 +150,34 @@ getTree fd = queryTree fd >>= return . parseOSC
 mkTree :: (Transport t) => SCTree -> t -> IO ()
 mkTree tree = \fd ->
              send fd (Bundle (NTPi 0) (gNew' tree [] ++ nMap tree))
+
+
+-- 
+-- For converting SCTree to Tree datatype in Data.Tree.
+-- Data.Tree.Tree is a rose tree, but SCTree datatype is not.
+-- 
+
+type SCTree' = Tree SCNode
+
+data SCNode = G NodeId
+            | S NodeId SynthName [SynthParam]
+              deriving (Eq)
+
+instance Show SCNode where
+    show (G nid) = "Group " ++ show nid
+    show (S nid name ps) = "Synth " ++ show nid ++ " " ++ name ++ " " ++ show ps
+
+toRose :: SCTree -> SCTree'
+toRose (Group nid ns) = Node (G nid) (map toRose ns)
+toRose (Synth nid name ps) = Node (S nid name ps) []
+
+showSCTree :: SCTree -> String
+showSCTree = drawTree . fmap show . toRose
+
+-- | Prints current SCTree.
+printTree :: Transport t => t -> IO ()
+printTree fd = getTree fd >>= putStr . showSCTree
+
 
 -- | Sample message returned from scsynth server, without group other
 -- than default.
