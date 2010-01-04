@@ -8,7 +8,7 @@
 -- * Write pretty printer for SCTree.
 --
 
-module SimpleMapping where
+module SCTree where
 
 import SimpleUGens
 import SimpleNotes

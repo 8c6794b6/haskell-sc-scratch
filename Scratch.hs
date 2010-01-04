@@ -8,7 +8,7 @@ import Sound.OpenSoundControl
 
 import Reusable
 import Instances
-import SimpleMapping
+import SCTree
 
 a = audition (out 0 (sinOsc ar 440 0 * 0.3))
 
