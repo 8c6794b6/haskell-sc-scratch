@@ -17,6 +17,8 @@ import Control.Applicative
 import Control.Monad
 import System.Random
 
+import qualified Data.ByteString.Lazy as B
+
 data Chan a = Mono a
             | Stereo a a
 
@@ -240,7 +242,7 @@ groupTree02 =
       sources = 2
       effects = 3
 
--- groupAsGroup :: SCTree
+groupAsGroup :: IO ()
 groupAsGroup = do
   let f n = do
         freqOffset <- constant <$> randomRIO (0,110::Double)
@@ -298,6 +300,15 @@ tutorial_playback = mrg [out ("out" @= 0) pb, remove]
       remove = freeSelfWhenDone pb
 
 
+b_loadToByteString :: Int -> IO [B.ByteString]
+b_loadToByteString = undefined
+
+b_writeTest :: IO OSC
+b_writeTest = 
+    withSC3 $ \fd -> 
+        async fd (b_write 1 "/tmp/b_write_test" 1 1 (-1) 0 0)
+
+diskInHelp :: IO OSC
 diskInHelp =
     withSC3 $ \fd -> do
       async fd $ b_alloc 0 8192 n
@@ -307,6 +318,7 @@ diskInHelp =
       f = "/home/atsuro/audio/wav/shot_shot_mono.wav"
       n = 1
       g = out 0 $ diskIn n 0 NoLoop
+
 
 
 -- | From in' help file.
