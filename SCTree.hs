@@ -25,7 +25,7 @@ import Data.Data
 import Data.Typeable
 import Data.Tree
 
--- import Text.ParserCombinators.Parsec
+import Text.ParserCombinators.Parsec
 
 data SCTree = Group NodeId [SCTree]
             | Synth NodeId SynthName [SynthParam]
@@ -46,7 +46,7 @@ data ParamValue = PVal Double
 infixr 5 :=
 
 -- | Parse osc message returned from "/g_queryTree" and returns haskell
--- representation of the node tree.
+-- representation of scsynth node tree.
 -- Only working with osc message including synth control parameters.
 parseOSC :: OSC -> SCTree
 parseOSC (Message s ds)
@@ -104,7 +104,8 @@ gNew' _ msg = msg
 
 addToParent :: NodeId -> [SCTree] -> [OSC] -> [OSC]
 addToParent gId ((Group gId' ts'):ts) msg
-    = g_new [(gId',AddToTail,gId)] : addToParent gId' ts' [] ++ addToParent gId ts msg
+    = g_new [(gId',AddToTail,gId)] : addToParent gId' ts' [] ++ 
+      addToParent gId ts msg
 addToParent gId ((Synth nId name ps):ts) msg
     = [s_new name nId  AddToTail gId (concatMap paramToTuple ps)] ++
       addToParent gId ts msg
@@ -201,20 +202,22 @@ oscList1 = Message "/g_queryTree.reply"
                  String "out",Float 0.0]
 
 scTree1 :: SCTree
-scTree1 = Group 1
-               [Synth 1000 "simplePercSine"
-                ["sustain" := (PVal 0.800000011920929),
-                 "trig" := (PVal 0),
-                 "amp" := (PVal 0.10000000149011612),
-                 "freq" := (PVal 440),
-                 "out" := (PVal 0)],
-                Synth 1001 "simplePercSine"
-                ["sustain" := (PVal 0.800000011920929),
-                 "trig" := (PVal 0),
-                 "amp" := (PVal 0.10000000149011612),
-                 "freq" := (PVal 440),
-                 "out" := (PVal 0)]]
-
+scTree1 
+    = Group 0 
+      [Group 1
+       [Synth 1000 "simplePercSine"
+        ["sustain" := (PVal 0.800000011920929),
+         "trig" := (PVal 0),
+         "amp" := (PVal 0.10000000149011612),
+         "freq" := (PVal 440),
+         "out" := (PVal 0)],
+        Synth 1001 "simplePercSine"
+        ["sustain" := (PVal 0.800000011920929),
+         "trig" := (PVal 0),
+         "amp" := (PVal 0.10000000149011612),
+         "freq" := (PVal 440),
+         "out" := (PVal 0)]]]
+       
 oscList2 :: OSC
 oscList2 =
     Message "/g_queryTree.reply"
