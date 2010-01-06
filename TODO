@@ -10,7 +10,7 @@ TODO List
     the ugen, sometime not.
 
 * Read SC Tutorial in help files, and translate in haskell.
-  * Getting started with SC
+  * Getting started with SC (READ, write buffer examples again)
   * Introductory Tutorial
   * Tutorial
   * Tour of Unit Generators
@@ -23,9 +23,8 @@ TODO List
   haskell version is making same sound as SC version. Use both sclang
   and hsc3. Especially synth and effect mapping using synthdefs.
 
-* Write DSL for mapping nodes ... its tedious thing to do. (DONE, but...)
-  * It's working, though its so messy, not efficient. 
-  * Use parsec or monadic style shown in monparsing.ps
+* Instantiate UGen from Data and Typeable. (DONE, but...)
+  * See "Instances.hs". Wrote by hand. Could be improved.
 
 * Write implementation of function for buffer written in Reusable.hs.
 
@@ -70,8 +69,8 @@ DONE
 * Use "n_map" instead of using "In" UGen. (DONE)
   * See "ParallelSeq4".
 
-* Instantiate UGen from Data and Typeable. (DONE)
-  * See "Instances.hs". Wrote by hand. Could be improved.
+* Write DSL for mapping nodes ... its tedious thing to do. (DONE)
+  * Used monadic style shown in pearl.pdf, by Graham and Meijer.
 
 * Create node graphs with adding each node with grouping. (DONE)
   * See "ParallelSeq4".

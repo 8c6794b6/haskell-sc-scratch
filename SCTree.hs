@@ -26,8 +26,6 @@ import Data.Data
 import Data.Typeable
 import Data.Tree
 
--- import Text.ParserCombinators.Parsec
-
 data SCTree = Group NodeId [SCTree]
             | Synth NodeId SynthName [SynthParam]
               deriving (Eq,Read,Show,Data,Typeable)
@@ -75,13 +73,16 @@ float = do {d <- datum; case d of {Float x -> return x; _ -> mzero}}
 string :: DatumParser String
 string = do {d <- datum; case d of {String x -> return x; _ -> mzero}}
 
--- -- | Parse osc message returned from "/g_queryTree" and returns haskell
--- -- representation of scsynth node tree.
--- -- Only working with osc message including synth control parameters.
+-- | Parse osc message returned from "/g_queryTree" and returns haskell
+-- representation of scsynth node tree.
+-- Only working with osc message including synth control parameters.
 parseOSC :: OSC -> SCTree
 parseOSC (Message s ds)
-    | s == "/g_queryTree.reply" = fst $ head $ parse parseGroup (tail ds)
+    | s == "/g_queryTree.reply" = parseDatum ds
     | otherwise = error "not a /q_queryTree.reply message"
+
+parseDatum :: [Datum] -> SCTree
+parseDatum ds = fst $ head $ parse parseGroup $ tail ds
 
 parseGroup :: DatumParser SCTree
 parseGroup = do
