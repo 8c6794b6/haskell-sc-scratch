@@ -1,4 +1,4 @@
-# -*- Text; Fundamental; -*-
+# -*- mode: Text; Fundamental; -*-
 
 TODO List
 =========
@@ -26,6 +26,10 @@ TODO List
 * Write DSL for mapping nodes ... its tedious thing to do. (DONE, but...)
   * It's working, though its so messy, not efficient. 
   * Use parsec or monadic style shown in monparsing.ps
+
+* Write implementation of function for buffer written in Reusable.hs.
+
+* Change the name of Reusable.hs, or move to other place.
 
 * Write DSL for buffer read, write, set.
 
