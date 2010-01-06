@@ -3,6 +3,9 @@
 --
 module Scratch where
 
+import Data.Tree
+import Data.Foldable
+
 import Sound.SC3
 import Sound.OpenSoundControl
 
@@ -92,3 +95,21 @@ tree1
 
 v = PVal
 bus = PBus
+
+t1 :: SCTree'
+t1 = Node (G 0)
+     [Node (G 1)
+      [Node (G 10)
+       [Node (S 1000 "foo"
+              ["amp" := PVal 100,
+               "freq" := PVal 200]) [],
+        Node (S 1001 "foo2"
+              ["amp" := PVal 10,
+               "freq" := PVal 20]) []],
+       Node (G 11)
+       [Node (S 2000 "bar"
+              ["amp" := PBus 1,
+               "freq" := PVal 100]) [],
+        Node (S 2001 "bar"
+              ["amp" := PVal 100,
+               "freq" := PVal 20]) []]]]
