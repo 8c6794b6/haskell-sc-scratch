@@ -121,7 +121,7 @@ b_loadToDouble :: Int -> IO [Double]
 b_loadToDouble = undefined
 
 -- | Read from buffer to @[ByteString]@.
-b_loadToByteString :: Int -> IO [ByteString]
+b_loadToByteString :: Int -> IO [B.ByteString]
 b_loadToByteString = undefined
 
 -- | Plays the buffer. Takes buffer id and boolean for looping or not.
