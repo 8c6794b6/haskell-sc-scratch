@@ -19,13 +19,14 @@ import Instances
 import Sound.SC3
 import Sound.OpenSoundControl
 
+import Control.Monad
 import Data.List
 import Data.Generics
 import Data.Data
 import Data.Typeable
 import Data.Tree
 
-import Text.ParserCombinators.Parsec
+-- import Text.ParserCombinators.Parsec
 
 data SCTree = Group NodeId [SCTree]
             | Synth NodeId SynthName [SynthParam]
@@ -45,43 +46,128 @@ data ParamValue = PVal Double
 
 infixr 5 :=
 
--- | Parse osc message returned from "/g_queryTree" and returns haskell
--- representation of scsynth node tree.
--- Only working with osc message including synth control parameters.
+newtype DatumParser a = DatumParser {parse::[Datum] -> [(a,[Datum])]}
+
+instance Monad DatumParser where
+    return a = DatumParser $ \ds -> [(a,ds)]
+    p >>= f = DatumParser $ \cs ->
+              concat [parse (f a) cs' | (a,cs') <- parse p cs]
+
+instance MonadPlus DatumParser where
+    mzero = DatumParser $ \_ -> []
+    p `mplus` q = DatumParser $ \cs -> parse p cs ++ parse q cs
+
+datum :: DatumParser Datum
+datum = DatumParser $ \cs ->
+       case cs of
+         [] -> []
+         (c:cs) -> [(c,cs)]
+
+int :: DatumParser Int
+int = do {d <- datum; case d of {Int x -> return x; _ -> mzero}}
+
+double :: DatumParser Double
+double = do {d <- datum; case d of {Double x -> return x; _ -> mzero}}
+
+float :: DatumParser Double
+float = do {d <- datum; case d of {Float x -> return x; _ -> mzero}}
+
+string :: DatumParser String
+string = do {d <- datum; case d of {String x -> return x; _ -> mzero}}
+
+-- -- | Parse osc message returned from "/g_queryTree" and returns haskell
+-- -- representation of scsynth node tree.
+-- -- Only working with osc message including synth control parameters.
 parseOSC :: OSC -> SCTree
 parseOSC (Message s ds)
-    | s == "/g_queryTree.reply" = fst (parseDatum (tail ds))
-    | otherwise = error "not a /g_queryTree.reply message"
-parseOSC _ = error "OSC mssage is not a 'Message', might be 'Bundle'"
+    | s == "/g_queryTree.reply" = fst $ head $ parse parseGroup (tail ds)
+    | otherwise = error "not a /q_queryTree.reply message"
 
-parseDatum :: [Datum] -> (SCTree,[Datum])
-parseDatum [] = error "empty list passed to parseDatum"
-parseDatum (Int x:Int y:ds)
-    | y < 0 = parseSynth x ds
-    | otherwise = (Group x ts,ds')
-    where (ts,ds') = parseDatumFor y ds []
+parseGroup :: DatumParser SCTree
+parseGroup = do
+  nId <- int
+  numChild <- int
+  if numChild < 0
+    then parseSynth nId
+    else do
+      ts <- parseGroupFor numChild
+      return (Group nId ts)
 
-parseDatumFor :: Int -> [Datum] -> [SCTree] -> ([SCTree],[Datum])
-parseDatumFor left ds ts
-    | left == 0 = (ts,ds)
-    | otherwise = parseDatumFor (left-1) ds' (ts++[t])
-    where (t,ds') = parseDatum ds
+parseGroupFor :: Int -> DatumParser [SCTree]
+parseGroupFor 0 = return []
+parseGroupFor n = do
+  t <- parseGroup
+  ts <- parseGroupFor (n-1)
+  return (t:ts)
 
-parseSynth :: NodeId -> [Datum] -> (SCTree,[Datum])
-parseSynth nid (String name:Int num:ds) = (Synth nid name params,ds')
-    where (params,ds') = parseParamsFor num ds []
+parseSynth :: Int -> DatumParser SCTree
+parseSynth nId = do
+  name <- string
+  numParams <- int
+  params <- parseParamsFor numParams
+  return $ Synth nId name params
 
-parseParamsFor :: Int -> [Datum] -> [SynthParam] -> ([SynthParam],[Datum])
-parseParamsFor 0 ds ps = (ps,ds)
-parseParamsFor n ds ps = parseParamsFor (n-1) ds' (ps++[ps'])
-    where (ps',ds') = parseParam ds
+parseParamsFor :: Int -> DatumParser [SynthParam]
+parseParamsFor 0 = return []
+parseParamsFor n = do
+  p <- parseParam
+  ps <- parseParamsFor (n-1)
+  return (p:ps)
 
-parseParam :: [Datum] -> (SynthParam,[Datum])
-parseParam (String n:d:ds) = (n := d',ds)
-    where
-      d' = case d of
-             Float x -> PVal x
-             String s -> PBus (read (tail s))
+parseParam :: DatumParser SynthParam
+parseParam = do
+    name <- string
+    val <- parseParamValue
+    return $ name := val
+
+parseParamValue :: DatumParser ParamValue
+parseParamValue = do
+  val <- datum
+  case val of
+    Float v -> return $ PVal v
+    String s -> return $ PBus (read $ tail s)
+
+
+-- Below is an old implementation for parseOSC, without using monadic
+-- parsing style.
+
+-- -- | Parse osc message returned from "/g_queryTree" and returns haskell
+-- -- representation of scsynth node tree.
+-- -- Only working with osc message including synth control parameters.
+-- parseOSC :: OSC -> SCTree
+-- parseOSC (Message s ds)
+--     | s == "/g_queryTree.reply" = fst (parseDatum (tail ds))
+--     | otherwise = error "not a /g_queryTree.reply message"
+-- parseOSC _ = error "OSC mssage is not a 'Message', might be 'Bundle'"
+
+-- parseDatum :: [Datum] -> (SCTree,[Datum])
+-- parseDatum [] = error "empty list passed to parseDatum"
+-- parseDatum (Int x:Int y:ds)
+--     | y < 0 = parseSynth x ds
+--     | otherwise = (Group x ts,ds')
+--     where (ts,ds') = parseDatumFor y ds []
+
+-- parseDatumFor :: Int -> [Datum] -> [SCTree] -> ([SCTree],[Datum])
+-- parseDatumFor left ds ts
+--     | left == 0 = (ts,ds)
+--     | otherwise = parseDatumFor (left-1) ds' (ts++[t])
+--     where (t,ds') = parseDatum ds
+
+-- parseSynth :: NodeId -> [Datum] -> (SCTree,[Datum])
+-- parseSynth nid (String name:Int num:ds) = (Synth nid name params,ds')
+--     where (params,ds') = parseParamsFor num ds []
+
+-- parseParamsFor :: Int -> [Datum] -> [SynthParam] -> ([SynthParam],[Datum])
+-- parseParamsFor 0 ds ps = (ps,ds)
+-- parseParamsFor n ds ps = parseParamsFor (n-1) ds' (ps++[ps'])
+--     where (ps',ds') = parseParam ds
+
+-- parseParam :: [Datum] -> (SynthParam,[Datum])
+-- parseParam (String n:d:ds) = (n := d',ds)
+--     where
+--       d' = case d of
+--              Float x -> PVal x
+--              String s -> PBus (read (tail s))
 
 toGroupTree :: SCTree -> SCTree
 toGroupTree (Group gid ts) = Group gid (map toGroupTree ts')
@@ -172,12 +258,12 @@ toRose :: SCTree -> SCTree'
 toRose (Group nid ns) = Node (G nid) (map toRose ns)
 toRose (Synth nid name ps) = Node (S nid name ps) []
 
-showSCTree :: SCTree -> String
-showSCTree = drawTree . fmap show . toRose
+drawSCTree :: SCTree -> String
+drawSCTree = drawTree . fmap show . toRose
 
 -- | Prints current SCTree.
 printTree :: Transport t => t -> IO ()
-printTree fd = getTree fd >>= putStr . showSCTree
+printTree fd = getTree fd >>= putStr . drawSCTree
 
 
 -- | Sample message returned from scsynth server, without group other
@@ -289,6 +375,14 @@ oscList2 =
                  String "pan",Float 0.800000011920929,
                  String "gain",Float 1.0,
                  String "bus",Float 204.0]
+
+oscList3 :: OSC
+oscList3 = 
+    Message "/g_queryTree.reply" 
+    [Int 1,
+     Int 1, Int 2,
+     Int 2, Int 0,
+     Int 3, Int 0]
 
 -- | Testing syb.
 getAllNames :: Data a => a -> [SynthName]
