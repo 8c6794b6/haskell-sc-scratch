@@ -119,6 +119,7 @@ parseParamValue = do
   val <- datum
   case val of
     Float v -> return $ PVal v
+    Double v -> return $ PVal v
     String s -> return $ PBus (read $ tail s)
 
 
