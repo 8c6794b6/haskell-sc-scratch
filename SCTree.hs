@@ -55,6 +55,13 @@ instance MonadPlus DatumParser where
     mzero = DatumParser $ \_ -> []
     p `mplus` q = DatumParser $ \cs -> parse p cs ++ parse q cs
 
+manyN :: Int -> DatumParser a -> DatumParser [a]
+manyN 0 _ = return []
+manyN n p = do
+  x <- p
+  xs <- manyN (n-1) p
+  return (x:xs)
+
 datum :: DatumParser Datum
 datum = DatumParser $ \cs ->
        case cs of
@@ -90,30 +97,16 @@ parseGroup = do
   numChild <- int
   if numChild < 0
     then parseSynth nId
-    else do
-      ts <- parseGroupFor numChild
-      return (Group nId ts)
-
-parseGroupFor :: Int -> DatumParser [SCTree]
-parseGroupFor 0 = return []
-parseGroupFor n = do
-  t <- parseGroup
-  ts <- parseGroupFor (n-1)
-  return (t:ts)
+    else do 
+      ts <- manyN numChild parseGroup
+      return $ Group nId ts
 
 parseSynth :: Int -> DatumParser SCTree
 parseSynth nId = do
   name <- string
   numParams <- int
-  params <- parseParamsFor numParams
+  params <- manyN numParams parseParam
   return $ Synth nId name params
-
-parseParamsFor :: Int -> DatumParser [SynthParam]
-parseParamsFor 0 = return []
-parseParamsFor n = do
-  p <- parseParam
-  ps <- parseParamsFor (n-1)
-  return (p:ps)
 
 parseParam :: DatumParser SynthParam
 parseParam = do
@@ -241,7 +234,7 @@ mkTree tree = \fd ->
 
 
 -- 
--- For converting SCTree to Tree datatype in Data.Tree.
+-- For converting SCTree to Tree datatype in Data.Tree.Tree.
 -- Data.Tree.Tree is a rose tree, but SCTree datatype is not.
 -- 
 
