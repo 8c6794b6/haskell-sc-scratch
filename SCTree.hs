@@ -221,22 +221,23 @@ sNew :: SCTree -> OSC
 sNew = undefined
 
 toSynthList :: SCTree -> [(NodeId,SCTree)]
-toSynthList = nub . everything (++) ([] `mkQ` f)
+toSynthList = everything (++) ([] `mkQ` f)
     where
-      f (Group gId ts) = g gId ts
+      f (Group gId ts) = concatMap (g gId) ts
       f _ = []
-      g gId ((Group gId' ts'):ts) = g gId' ts' ++ g gId ts
-      g gId (s@(Synth _ _ _):ts) = (gId,s):g gId ts
-      g gId [] = []
+      g gId s@(Synth _ _ _) = [(gId,s)]
+      g gid (Group _ _) = []
 
 -- | Extract "/n_map" messages.
 --
 -- XXX: Remove @nub@ function!
 nMap :: SCTree -> [OSC]
-nMap = nub . everything (++) ([] `mkQ` f)
+nMap = everything (++) ([] `mkQ` f)
     where
-      f (Group _ ts) = concatMap f ts
-      f (Synth nId _ ps) = concatMap (paramToMap nId) ps
+      f (Group _ ts) = concatMap g ts
+      f _ = []
+      g (Synth nId _ ps) = concatMap (paramToMap nId) ps
+      g _ = []
 
 -- | Get current node mapping representation of @SCTree@.
 getTree :: (Transport t) => t -> IO SCTree
@@ -299,22 +300,32 @@ oscList1 = Message "/g_queryTree.reply"
                  String "freq",Float 440.0,
                  String "out",Float 0.0]
 
--- scTree1 :: SCTree
--- scTree1 
---     = Group 0 
---       [Group 1
---        [Synth 1000 "simplePercSine"
---         ["sustain" := (PVal 0.800000011920929),
---          "trig" := (PVal 0),
---          "amp" := (PVal 0.10000000149011612),
---          "freq" := (PVal 440),
---          "out" := (PVal 0)],
---         Synth 1001 "simplePercSine"
---         ["sustain" := (PVal 0.800000011920929),
---          "trig" := (PVal 0),
---          "amp" := (PVal 0.10000000149011612),
---          "freq" := (PVal 440),
---          "out" := (PVal 0)]]]
+scTree1 :: SCTree
+scTree1 
+    = Group 0 
+      [Group 1
+       [Synth 1000 "simplePercSine"
+        ["sustain" := (0.800000011920929),
+         "trig" := (0),
+         "amp" := (0.10000000149011612),
+         "freq" := (440),
+         "out" := (0)],
+        Group 10 
+        [Group 100
+         [Group 101
+          [Synth 1011 "simplePercSine"
+           ["sustain" := 0.8,
+            "trig" := 0,
+            "amp" := 0.1,
+            "freq" := 330,
+            "out" := 0]]]],
+            
+        Synth 1001 "simplePercSine"
+        ["sustain" := (0.800000011920929),
+         "trig" := (0),
+         "amp" := (0.10000000149011612),
+         "freq" := (440),
+         "out" := (0)]]]
        
 oscList2 :: OSC
 oscList2 =
