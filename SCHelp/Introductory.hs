@@ -7,6 +7,7 @@ module SCHelp.Introductory where
 import Control.Applicative
 import Control.Arrow
 import Control.Concurrent
+import Control.Monad
 import System.Random
 
 import Sound.SC3
@@ -303,4 +304,131 @@ setChainTree01Randomly = do
              n_set 3 [("freq",freq),("freqDev",freqDev),("boost",7)]]
   withSC3 $ send' $ Bundle (NTPi 0) msg
 
-    
+someGrains :: IO UGen
+someGrains = do
+  let gate = impulse kr ("grainFreq" @= 2) 0
+      shape = envSine 0.1 1
+  n <- lfNoise0 kr 4 >>. (* "freqDev" @= 200) >>. (+ "centerFreq" @= 777)
+  return $ out 0 $ sinOsc ar n 0 * envGen kr gate 1 0 1 DoNothing shape
+
+aDelay :: UGen
+aDelay = out 1 delayed 
+    where
+      dt = "delay" @= 0.25
+      delayed = delayN (in' 1 ar 0) dt dt
+
+grainDelayed :: SCTree
+grainDelayed = 
+    Group 0 
+    [Group 1
+     [Group 2 
+      [Synth (-1) "someGrains" []],
+      Group 3 
+      [Synth (-1) "aDelay" []]]]
+
+combExample1 :: IO UGen
+combExample1 = do
+  freq <- randomRIO (500,1000::Double) >>. constant
+  let input = sinOsc ar freq 0 * 0.2 * line kr 1 0 0.1 DoNothing
+      combed = combN input 0.3 0.25 6
+  return $ out 0 combed
+
+allpassExample1 :: IO UGen
+allpassExample1 = do
+  freq <- randomRIO (500,1000::Double) >>. constant
+  let input = sinOsc ar freq 0 * 0.2 * line kr 1 0 0.1 DoNothing
+      allpassed = allpassN input 0.3 0.25 6
+  return $ out 0 allpassed
+
+combExample2 :: IO UGen
+combExample2 = do
+  freq <- randomRIO (500,1000::Double) >>. constant
+  let input = sinOsc ar freq 0 * 0.2 * line kr 1 0 0.1 DoNothing
+      combed = combN input 0.1 0.025 6
+  return $ out 0 combed
+
+allpassExample2 :: IO UGen
+allpassExample2 = do
+  freq <- randomRIO (500,1000::Double) >>. constant
+  let input = sinOsc ar freq 0 * 0.2 * line kr 1 0 0.1 DoNothing
+      combed = combN input 0.1 0.025 6
+  return $ out 0 combed
+
+whySC :: IO UGen
+whySC = do
+  let f a b = do
+          input <- dust ar 0.2 >>. (*50)
+          freqOffset <- randomRIO (0,3000::Double) >>. constant
+          return $ a + resonz input (200+freqOffset) 0.003
+  s <- foldM f 0 [1..10]
+  let z = delayN s 0.048 0.048 
+      g a b = do
+          noiseFreq <- randomRIO (0,0.1::Double) >>. constant
+          dct <- lfNoise1 kr noiseFreq >>. (*0.04) >>. (+0.05)
+          return $ a + combN z 0.1 dct 15
+  y <- foldM g 0 [1..7]
+  let g' a b = do
+          dtL <- randomRIO (0,0.050::Double) >>. constant
+          dtR <- randomRIO (0,0.050::Double) >>. constant
+          return $ allpassN a 0.050 (mce [dtL,dtR]) 1
+  y' <- foldM g' y [0..4]
+  return $ out 0 $ s + (0.2*y')
+
+filteredDust :: IO UGen
+filteredDust = do
+  let f a b = do
+        input <- dust ar 0.2 >>. (* 50)
+        freq <- rand 200 3200 
+        return $ a + resonz input freq 0.003 
+  output <- foldM f 0 [1..10]
+  return $ out 2 output
+
+preDelay :: IO UGen
+preDelay = return $ replaceOut 4 $ delayN (in' 1 ar 2) 0.048 0.048
+
+combs :: IO UGen
+combs = do
+  let f a b = do 
+          nFreq <- rand 0 0.1
+          dt <- lfNoise1 kr  nFreq >>. (* 0.04) >>. (+0.05)
+          return $ combN a 0.1 dt 15
+  output <- foldM f (in' 1 ar 4)  [1..7]
+  return $ replaceOut 6 output
+
+allpasses :: IO UGen
+allpasses = do
+  let source = in' 1 ar 6
+      gain = "gain" @= 0.2
+      f a b = do
+              dtL <- rand 0 0.05
+              dtR <- rand 0 0.05
+              return $ allpassN a 0.050 (mce [dtL,dtR]) 1
+  output <- foldM f source [1..8]
+  return $ replaceOut 8 $ source * gain
+              
+theMixer :: IO UGen
+theMixer = return $ replaceOut 0 $
+           mix (mce [in' 1 ar 2, in' 2 ar 8]) * ("gain" @= 1)
+  
+
+loadJMCs :: IO ()
+loadJMCs 
+    = mapM_ (\(n, u) -> withSC3 . loadSynthdef n =<< u)
+      [("filteredDust",filteredDust),
+       ("preDelay", preDelay),
+       ("combs",combs),
+       ("allpasses",allpasses),
+       ("theMixer",theMixer)]
+
+whySCTree :: SCTree
+whySCTree = 
+    Group 0
+    [Group 1
+     [Group 2 
+      [Synth (-1) "filteredDust" []],
+      Group 3
+      [Synth (-1) "preDelay" [],
+       Synth (-1) "combs" [],
+       Synth (-1) "allpasses" []],
+      Group 4
+      [Synth (-1) "theMixer" []]]]
