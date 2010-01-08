@@ -253,7 +253,7 @@ aLoopingSamplePlayer = do
       mul = "mul" @= 1
   n <- lfNoise0 kr (constant $ recip 2) >>. (*0.05)
   return $ out ("outBus" @= 0) $
-         playBuf 1 bufnum (bufRateScale kr bufnum * rateScale + n) 1 0 
+         playBuf 1 bufnum (bufRateScale kr bufnum * rateScale + n) 1 0
                  Loop DoNothing * mul
 
 ampMod :: UGen
@@ -267,7 +267,7 @@ ampMod = out outBus $ mce [in' 1 ar inBus * sinOsc kr modFreq 0,
 aLowPassFilter :: IO UGen
 aLowPassFilter = do
   let outBus = "outBus" @= 0
-      inBus = "inBus" @= 0 
+      inBus = "inBus" @= 0
       freq = "freq" @= 300
       freqDev = "freqDev" @= 50
       boost = "boost" @= 1
@@ -281,14 +281,14 @@ chainTree01
  = Group 0
    [Group 1
     [Group 2
-     [Synth (-1) "aLoopingSamplePlayer" 
-      ["outBus":=PVal 3, "bufNum":=PVal b, 
-       "rateScale":=PVal 1, "mul":=PVal 0.051]],
+     [Synth (-1) "aLoopingSamplePlayer"
+      ["outBus":=3, "bufNum":=b,
+       "rateScale":=1, "mul":=0.051]],
      Group 3
      [Synth (-1) "ampMod"
-      ["inBus":=PVal 3, "outBus":=PVal 5, "modFreq":=PVal 1],
+      ["inBus":=3, "outBus":=5, "modFreq":=1],
       Synth (-1) "aLowPassFilter"
-      ["inBus":=PVal 5, "outBus":=PVal 0, "boost":=PVal 5]]]]
+      ["inBus":=5, "outBus":=0, "boost":=5]]]]
     where
       b = 0
 
@@ -312,18 +312,18 @@ someGrains = do
   return $ out 0 $ sinOsc ar n 0 * envGen kr gate 1 0 1 DoNothing shape
 
 aDelay :: UGen
-aDelay = out 1 delayed 
+aDelay = out 1 delayed
     where
       dt = "delay" @= 0.25
       delayed = delayN (in' 1 ar 0) dt dt
 
 grainDelayed :: SCTree
-grainDelayed = 
-    Group 0 
+grainDelayed =
+    Group 0
     [Group 1
-     [Group 2 
+     [Group 2
       [Synth (-1) "someGrains" []],
-      Group 3 
+      Group 3
       [Synth (-1) "aDelay" []]]]
 
 combExample1 :: IO UGen
@@ -361,7 +361,7 @@ whySC = do
           freqOffset <- randomRIO (0,3000::Double) >>. constant
           return $ a + resonz input (200+freqOffset) 0.003
   s <- foldM f 0 [1..10]
-  let z = delayN s 0.048 0.048 
+  let z = delayN s 0.048 0.048
       g a b = do
           noiseFreq <- randomRIO (0,0.1::Double) >>. constant
           dct <- lfNoise1 kr noiseFreq >>. (*0.04) >>. (+0.05)
@@ -378,17 +378,19 @@ filteredDust :: IO UGen
 filteredDust = do
   let f a b = do
         input <- dust ar 0.2 >>. (* 50)
-        freq <- rand 200 3200 
-        return $ a + resonz input freq 0.003 
+        freq <- rand 200 3200
+        return $ a + resonz input freq 0.003
   output <- foldM f 0 [1..10]
   return $ out 2 output
 
 preDelay :: IO UGen
-preDelay = return $ replaceOut 4 $ delayN (in' 1 ar 2) 0.048 0.048
+preDelay = return $ replaceOut 4 $ delayN (in' 1 ar inBus) 0.048 0.048
+    where
+      inBus = "inBus" @= 2
 
 combs :: IO UGen
 combs = do
-  let f a b = do 
+  let f a _ = do
           nFreq <- rand 0 0.1
           dt <- lfNoise1 kr  nFreq >>. (* 0.04) >>. (+0.05)
           return $ a + combN (in' 1 ar 4) 0.1 dt 15
@@ -399,20 +401,20 @@ allpasses :: IO UGen
 allpasses = do
   let source = in' 1 ar 6
       gain = "gain" @= 0.2
-      f a b = do
+      f a _ = do
               dtL <- rand 0 0.05
               dtR <- rand 0 0.05
               return $ allpassN a 0.050 (mce [dtL,dtR]) 1
   output <- foldM f source [1..8]
   return $ replaceOut 8 $ source * gain
-              
+
 theMixer :: IO UGen
 theMixer = return $ replaceOut 0 $
-           mix $ mce [in' 1 ar 2, in' 2 ar 8] * ("gain" @= 1)
-  
+           (in' 1 ar 2 + in' 2 ar 8) * ("gain" @= 1)
+
 
 loadJMCs :: IO ()
-loadJMCs 
+loadJMCs
     = mapM_ (\(n, u) -> withSC3 . loadSynthdef n =<< u)
       [("filteredDust",filteredDust),
        ("preDelay", preDelay),
@@ -421,10 +423,10 @@ loadJMCs
        ("theMixer",theMixer)]
 
 whySCTree :: SCTree
-whySCTree = 
+whySCTree =
     Group 0
     [Group 1
-     [Group 2 
+     [Group 2
       [Synth (-1) "filteredDust" []],
       Group 3
       [Synth (-1) "preDelay" [],
@@ -432,3 +434,117 @@ whySCTree =
        Synth (-1) "allpasses" []],
       Group 4
       [Synth (-1) "theMixer" []]]]
+
+fm1 :: IO UGen
+fm1 = do
+  idxOffset <- lfNoise1 kr (constant $ recip 5) >>. abs
+  let bus = "bus" @= 0
+      freq = "freq" @= 440
+      carPartial = "carPartial" @= 1
+      modPartial = "modPartial" @= 1
+      index = "index" @= 3
+      mul = "mul" @= 0.05
+      mod = sinOsc ar (freq * modPartial) 0 * freq * index * idxOffset
+      car = sinOsc ar ((freq * carPartial) + mod) 0 * mul
+  return $ out bus car
+
+fmNodes01 :: SCTree
+fmNodes01 =
+    Group 0
+    [Group 1
+     [Synth (-1) "fm1" ["bus" := 0, "freq" := 440,
+                        "carPartial" := 1, "modPartial" := 2.4],
+      Synth (-1) "fm1" ["bus" := 1, "freq" := 442,
+                        "carPartial" := 1, "modPartial" := 2.401]]]
+
+fmReverbNodes :: SCTree
+fmReverbNodes =
+    Group 0
+    [Group 1
+     [Group 2
+      [Synth (-1) "fm1" ["bus" := 2, "freq" := 440, "carPartial" := 1,
+                         "modPartial" := 1.99, "mul" := 0.071],
+       Synth (-1) "fm1" ["bus" := 2, "freq" := 442, "carPartial" := 1,
+                         "modPartial" := 2.401, "mul" := 0.071]],
+      Group 3
+      [Synth (-1) "preDelay" [],
+       Synth (-1) "combs" [],
+       Synth (-1) "allpass" [],
+       Synth (-1) "theMixer" ["gain" := 0.64]]]]
+
+
+carrier :: UGen
+carrier = out outBus $ sinOsc ar ((freq * carPartial) + mod) 0 * mul
+    where
+      outBus = "outBus" @= 0
+      inBus = "inBus" @= 2
+      mod = in' 1 ar inBus
+      freq = "freq" @= 440
+      carPartial = "carPartial" @= 1
+      index = "index" @= 3
+      mul = "mul" @= 0.2
+
+modulator :: IO UGen
+modulator = do
+  nf <- rand 3 6 >>. recip >>. abs
+  n <- lfNoise1 kr nf
+  let outBus = "outBus" @= 2
+      freq = "freq" @= 440
+      modPartial = "modPartial" @= 1
+      index = "index" @= 3
+  return $ out outBus $ sinOsc ar (freq * modPartial) 0 * freq * n * index
+
+loadFmComponents :: IO ()
+loadFmComponents = do
+  withSC3 $ loadSynthdef "carrier" carrier
+  withSC3 . loadSynthdef "modulator" =<< modulator
+  return ()
+
+fmComponentTree :: SCTree
+fmComponentTree =
+  Group 0
+  [Group 1
+   [Group 2
+    [Synth (-1) "modulator"
+     ["outbus" := 2, "freq" := freq, "modPartial" := 0.649, "index" := 2],
+     Synth (-1) "modulator"
+     ["outbus" := 2, "freq" := freq, "modPartial" := 1.683, "index" := 2.31],
+     Synth (-1) "modulator"
+     ["outbus" := 4, "freq" := freq, "modPartial" := 0.729, "index" := 1.43],
+     Synth (-1) "modulator"
+     ["outbus" := 4, "freq" := freq, "modPartial" := 2.19, "index" := 1.76]],
+    Group 3
+    [Synth (-1) "carrier"
+     ["inBus" := 2, "outBus" := 0, "freq" := freq, "carPartial" := 1],
+     Synth (-1) "carrier"
+     ["inBus" := 4, "outBus" := 1, "freq" := freq, "carPartial" := 0.97]]]]
+    where
+      freq = 440
+
+
+reverbedFmComponentTree :: IO SCTree
+reverbedFmComponentTree = do
+  freq <- randomRIO (330,500)
+  let tree =
+       Group 0
+       [Group 1
+        [Group 2
+         [Synth (-1) "modulator"
+          ["outbus" := 60, "freq" := freq, "modPartial" := 0.649, "index" := 2],
+          Synth (-1) "modulator"
+          ["outbus" := 60, "freq" := freq, "modPartial" := 1.683, "index" := 2.31],
+         Synth (-1) "modulator"
+          ["outbus" := 62, "freq" := freq, "modPartial" := 1.11, "index" := 1.43],
+          Synth (-1) "modulator"
+          ["outbus" := 62, "freq" := freq, "modPartial" := 0.729, "index" := 1.76]],
+         Group 3
+         [Synth (-1) "carrier"
+          ["inBus" := 60, "outBus" := 100, "freq" := freq, "carPartial" := 1],
+          Synth (-1) "carrier"
+          ["inBus" := 62, "outBus" := 100, "freq" := freq+1, "carPartial" := 2.91]],
+         Group 4
+         [Synth (-1) "preDelay" ["inBus" := 100],
+          Synth (-1) "combs" [],
+          Synth (-1) "allpasses" [],
+          Synth (-1) "theMixer" ["gain" := 0.2]]]]
+  return tree
