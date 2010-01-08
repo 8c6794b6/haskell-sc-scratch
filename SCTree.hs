@@ -33,16 +33,22 @@ data SCTree = Group NodeId [SCTree]
 type NodeId = Int
 type SynthName = String
 
+-- data SynthParam = ParamName := ParamValue
+--                deriving (Eq,Show,Read,Data,Typeable)
 data SynthParam = ParamName := ParamValue
-               deriving (Eq,Read,Show,Data,Typeable)
+                | ParamName :<- BusId
+                  deriving (Eq,Show,Read,Data,Typeable)
 
 type ParamName = String
+type ParamValue = Double
+type BusId = Int
 
-data ParamValue = PVal Double
-                | PBus Int
-                  deriving (Eq,Read,Show,Data,Typeable)
+-- data ParamValue = PVal Double
+--                 | PBus Int
+--                   deriving (Eq,Read,Show,Data,Typeable)
 
 infixr 5 :=
+infixr 5 :<-
 
 newtype DatumParser a = DatumParser {parse::[Datum] -> [(a,[Datum])]}
 
@@ -111,16 +117,20 @@ parseSynth nId = do
 parseParam :: DatumParser SynthParam
 parseParam = do
     name <- string
-    val <- parseParamValue
-    return $ name := val
+    val <- parseParamValue name
+    return val
+    -- return $ name := val
 
-parseParamValue :: DatumParser ParamValue
-parseParamValue = do
+parseParamValue :: String -> DatumParser SynthParam -- ParamValue
+parseParamValue name = do
   val <- datum
   case val of
-    Float v -> return $ PVal v
-    Double v -> return $ PVal v
-    String s -> return $ PBus (read $ tail s)
+    Float x -> return $ name := x
+    Double x -> return $ name := x
+    String x -> return $ name :<- (read $ tail x)
+    -- Float v -> return $ PVal v
+    -- Double v -> return $ PVal v
+    -- String s -> return $ PBus (read $ tail s)
 
 
 -- Below is an old implementation for parseOSC, without using monadic
@@ -193,14 +203,18 @@ addToParent gId ((Synth nId name ps):ts) msg
 addToParent gId [] msg = msg
 
 paramToTuple :: SynthParam -> [(String,Double)]
-paramToTuple (name := val)
-    = case val of
-        PVal d -> [(name,d)]
-        _      -> []
+paramToTuple (name := val) = [(name,val)]
+paramToTuple _ = []
+-- paramToTuple (name := val) 
+--     = case val of
+--         PVal d -> [(name,d)]
+--         _      -> []
 
 paramToMap :: NodeId -> SynthParam -> [OSC]
-paramToMap _ (_ := (PVal v)) = []
-paramToMap i (n := (PBus b)) = [n_map i [(n,b)]]
+paramToMap i (n :<- b) = [n_map i [(n,b)]]
+paramToMap _ _ = []
+-- paramToMap _ (_ := (PVal v)) = []
+-- paramToMap i (n := (PBus b)) = [n_map i [(n,b)]]
 
 -- | Extract "/s_new" messages.
 sNew :: SCTree -> OSC
@@ -260,6 +274,9 @@ drawSCTree = drawTree . fmap show . toRose
 printTree :: Transport t => t -> IO ()
 printTree fd = getTree fd >>= putStr . drawSCTree
 
+queryAllNodes :: Transport t => t -> IO ()
+queryAllNodes = \fd -> getTree fd >>= putStr . drawSCTree 
+
 
 -- | Sample message returned from scsynth server, without group other
 -- than default.
@@ -282,22 +299,22 @@ oscList1 = Message "/g_queryTree.reply"
                  String "freq",Float 440.0,
                  String "out",Float 0.0]
 
-scTree1 :: SCTree
-scTree1 
-    = Group 0 
-      [Group 1
-       [Synth 1000 "simplePercSine"
-        ["sustain" := (PVal 0.800000011920929),
-         "trig" := (PVal 0),
-         "amp" := (PVal 0.10000000149011612),
-         "freq" := (PVal 440),
-         "out" := (PVal 0)],
-        Synth 1001 "simplePercSine"
-        ["sustain" := (PVal 0.800000011920929),
-         "trig" := (PVal 0),
-         "amp" := (PVal 0.10000000149011612),
-         "freq" := (PVal 440),
-         "out" := (PVal 0)]]]
+-- scTree1 :: SCTree
+-- scTree1 
+--     = Group 0 
+--       [Group 1
+--        [Synth 1000 "simplePercSine"
+--         ["sustain" := (PVal 0.800000011920929),
+--          "trig" := (PVal 0),
+--          "amp" := (PVal 0.10000000149011612),
+--          "freq" := (PVal 440),
+--          "out" := (PVal 0)],
+--         Synth 1001 "simplePercSine"
+--         ["sustain" := (PVal 0.800000011920929),
+--          "trig" := (PVal 0),
+--          "amp" := (PVal 0.10000000149011612),
+--          "freq" := (PVal 440),
+--          "out" := (PVal 0)]]]
        
 oscList2 :: OSC
 oscList2 =

@@ -10,7 +10,7 @@ TODO List
     the ugen, sometime not.
 
 * Read SC Tutorial in help files, and translate in haskell.
-  * Getting started with SC (READ, write buffer examples again)
+  * Getting started with SC (READ, but write buffer examples again)
   * Introductory Tutorial
   * Tutorial
   * Tour of Unit Generators
@@ -30,13 +30,23 @@ TODO List
 
 * Change the name of Reusable.hs, or move to other place.
 
-* Write DSL for buffer read, write, set.
+* Write DSL for get/set/free.
+  * Inspired by realworldhaskel, something like below. (Is it possible?)
+    > query (bufid ==? 3)
+    > update (bufid ==? 3) (0,[1,2,3,4,5]) 
+    > query (busid ==? 1) 
+    > query (name ==? "foo")
+    > update (name ==? "foo" &&? param ==? "amp") 0.1 
+    > free (nid ==? 2)
 
 * Add "resting" to sequence of notes.
 
 * Rewrite acid example using haskell.
 
-* Find efficient way for bookkeeping of nodeID, busID, buffeerID.
+* Find efficient way for bookkeeping nodeID, busID, buffeerID.
+
+* Rewrite sc examples from distribution in haskell . It's in
+  ~/share/SuperCollider/examples/. Mac OSX specific examples could be ignored.
 
 * Recieve MIDI event from other app, device.
 
