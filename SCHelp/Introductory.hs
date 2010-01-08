@@ -391,8 +391,8 @@ combs = do
   let f a b = do 
           nFreq <- rand 0 0.1
           dt <- lfNoise1 kr  nFreq >>. (* 0.04) >>. (+0.05)
-          return $ combN a 0.1 dt 15
-  output <- foldM f (in' 1 ar 4)  [1..7]
+          return $ a + combN (in' 1 ar 4) 0.1 dt 15
+  output <- foldM f 0 [1..7]
   return $ replaceOut 6 output
 
 allpasses :: IO UGen
@@ -408,7 +408,7 @@ allpasses = do
               
 theMixer :: IO UGen
 theMixer = return $ replaceOut 0 $
-           mix (mce [in' 1 ar 2, in' 2 ar 8]) * ("gain" @= 1)
+           mix $ mce [in' 1 ar 2, in' 2 ar 8] * ("gain" @= 1)
   
 
 loadJMCs :: IO ()
