@@ -412,7 +412,6 @@ theMixer :: IO UGen
 theMixer = return $ replaceOut 0 $
            (in' 1 ar 2 + in' 2 ar 8) * ("gain" @= 1)
 
-
 loadJMCs :: IO ()
 loadJMCs
     = mapM_ (\(n, u) -> withSC3 . loadSynthdef n =<< u)
@@ -521,7 +520,6 @@ fmComponentTree =
     where
       freq = 440
 
-
 reverbedFmComponentTree :: IO SCTree
 reverbedFmComponentTree = do
   freq <- randomRIO (330,500)
@@ -548,3 +546,4 @@ reverbedFmComponentTree = do
           Synth (-1) "allpasses" [],
           Synth (-1) "theMixer" ["gain" := 0.2]]]]
   return tree
+

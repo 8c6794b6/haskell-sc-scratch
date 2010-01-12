@@ -1,4 +1,4 @@
-# -*- mode: Text; Fundamental; -*-
+# -*- mode: Text; Fill; Fundamental; -*-
 
 TODO List
 =========
@@ -30,7 +30,7 @@ TODO List
 
 * Change the name of Reusable.hs, or move to other place.
 
-* Write DSL for get/set/free.
+* Write DSL for get/set/add/free, or in other word, CRUD.
   * Inspired by realworldhaskel, something like below. (Is it possible?)
     > query (bufid ==? 3)
     > update (bufid ==? 3) (0,[1,2,3,4,5]) 
@@ -38,6 +38,7 @@ TODO List
     > query (name ==? "foo")
     > update (name ==? "foo" &&? param ==? "amp") 0.1 
     > free (nid ==? 2)
+    > add 1 "foo" [freq := 440] -- target groupId, synth, params
 
 * Add "resting" to sequence of notes.
 
@@ -51,7 +52,12 @@ TODO List
 * Recieve MIDI event from other app, device.
 
 * Write concurrent event scheduling library in haskell.
-
+  * Enable below from ghci session
+    * Add thread 
+    * Show current threads and status
+    * Pause thread
+    * Restart thread
+    * Kill, or remove thread
 
 DONE
 ====

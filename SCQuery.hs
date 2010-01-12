@@ -75,8 +75,16 @@ nfree nId = do
   fd <- ask
   lift $ send fd $ Message "/n_free" [Int nId]
 
+addDefault :: Query ()
+addDefault = msg $ g_new [(1,AddToTail,0)]
+
 freeAll :: Query ()
-freeAll = nfree 1 >> add 0 (Group 1 [])
+freeAll = msg $ g_freeAll [1]
+
+msg :: OSC -> Query ()
+msg oscMsg = do
+  fd <- ask
+  lift $ send fd oscMsg
 
 type NodeInfo a  = SCTree -> a
 type Condition = NodeInfo Bool
@@ -193,3 +201,4 @@ instance Monad NI where
     NI f >>= k =  NI (\t -> (runNI (k (f t)) t))
 
 testNI a = runNI (return (==) `ap` NI name `ap` return a)
+

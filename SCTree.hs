@@ -268,6 +268,9 @@ toRose :: SCTree -> SCTree'
 toRose (Group nid ns) = Node (G nid) (map toRose ns)
 toRose (Synth nid name ps) = Node (S nid name ps) []
 
+fromRose :: SCTree' -> SCTree
+fromRose = undefined
+
 drawSCTree :: SCTree -> String
 drawSCTree = drawTree . fmap show . toRose
 
