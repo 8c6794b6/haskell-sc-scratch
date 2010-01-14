@@ -13,6 +13,7 @@ import SCTree
 import Reusable
 import Instances
 
+import Control.Exception
 import Control.Monad
 import Control.Monad.Reader
 import Data.Generics
@@ -25,7 +26,7 @@ type Query a = ReaderT UDP IO a
 -- > > query (add 1 $ Synth 1001 "foo" []) s
 -- > > query (free 1001) s
 query :: Query a -> IO UDP -> IO a
-query q fd = runReaderT q =<< fd
+query q fd = bracket fd close (runReaderT q)
 
 -- | Default server on localhost, UDP port 57110.
 s :: IO UDP
@@ -35,6 +36,13 @@ test :: Query ()
 test = do
   fd <- ask
   lift $ send fd $ Message "/n_trace" [Int 0]
+
+-- | Latency.
+latency :: Double
+latency = 0.01
+
+bundle :: Double -> [OSC] -> OSC
+bundle time msg = Bundle (UTCr (time + latency)) msg
 
 allNodes :: Query SCTree
 allNodes = do
@@ -54,26 +62,27 @@ load name ugen = do
   fd <- ask
   lift $ do
     writeSynthdef name ugen
-    send fd $ d_recv (synthdef name ugen)
-    wait fd "/done"
+    async fd $ d_recv (synthdef name ugen)
 
 add :: NodeId -> SCTree -> Query ()
 add nId node = do
   fd <- ask
-  lift $ send fd $
+  lift $ do
+    now <- utcr
+    send fd $
        case node of
          (g@(Group gid ts)) ->
              if gid /= 0 then
-                 Bundle (NTPi 0) (gNew' (Group nId [g]) [])
+                 bundle now (gNew' (Group nId [g]) [])
              else
-                 Bundle (NTPi 0) (gNew' g [])
+                 bundle now (gNew' g [])
          (s@(Synth nid' name ps)) ->
-             s_new name nid' AddToTail nId (concatMap paramToTuple ps)
+             bundle now 
+               [s_new name nid' AddToTail nId (concatMap paramToTuple ps)]
+         
 
 nfree :: NodeId -> Query ()
-nfree nId = do
-  fd <- ask
-  lift $ send fd $ Message "/n_free" [Int nId]
+nfree nId = msg $ Message "/n_free" [Int nId]
 
 addDefault :: Query ()
 addDefault = msg $ g_new [(1,AddToTail,0)]
@@ -84,7 +93,9 @@ freeAll = msg $ g_freeAll [1]
 msg :: OSC -> Query ()
 msg oscMsg = do
   fd <- ask
-  lift $ send fd oscMsg
+  lift $ do
+    now <- utcr
+    send fd $ bundle now [oscMsg]
 
 type NodeInfo a  = SCTree -> a
 type Condition = NodeInfo Bool
@@ -113,7 +124,8 @@ params :: NodeInfo [SynthParam]
 params (Group _ _) = []
 params (Synth _ _ ps) = ps
 
--- | Ex. query (select $ paramNames `has` "freq" &&? name ==? "fm") s
+-- | Ex. 
+-- > > query (select $ paramNames `has` "freq" &&? name ==? "fm") s
 paramNames :: NodeInfo [ParamName]
 paramNames (Synth _ _ ps) = map getName ps
     where getName (n:=_) = n
@@ -191,7 +203,7 @@ param name = do
 -- Playing with datatype.
 --
 
-data NI a = NI {runNI :: SCTree -> a}
+newtype NI a = NI {runNI :: SCTree -> a}
 
 instance Show (NI a) where
     show _ =  "<NodeInfo>"
