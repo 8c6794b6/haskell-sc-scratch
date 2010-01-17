@@ -82,7 +82,7 @@ string = do {d <- datum; case d of {String x -> return x; _ -> mzero}}
 parseOSC :: OSC -> SCTree
 parseOSC (Message s ds)
     | s == "/g_queryTree.reply" = parseDatum ds
-    | otherwise = error "not a /q_queryTree.reply message"
+    | otherwise = error "not a /g_queryTree.reply message"
 
 parseDatum :: [Datum] -> SCTree
 parseDatum ds = fst $ head $ parse parseGroup $ tail ds
