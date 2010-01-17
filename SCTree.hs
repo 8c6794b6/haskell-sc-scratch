@@ -3,15 +3,11 @@
 -- | Playing with mapping nodes to synth.
 --
 -- TODO:
--- * Remove @(++)@ from parseOSC, or use parsec.
--- * Remove @nub@ from @nMap@.
--- * Write pretty printer for SCTree.
---
+-- 
+-- * Rewrite @SCTree -> OSC@ function in parser style.
+-- 
 
 module SCTree where
-
-import SimpleUGens
-import SimpleNotes
 
 import Reusable (queryTree)
 import Instances
@@ -33,8 +29,6 @@ data SCTree = Group NodeId [SCTree]
 type NodeId = Int
 type SynthName = String
 
--- data SynthParam = ParamName := ParamValue
---                deriving (Eq,Show,Read,Data,Typeable)
 data SynthParam = ParamName := ParamValue
                 | ParamName :<- BusId
                   deriving (Eq,Show,Read,Data,Typeable)
@@ -42,10 +36,6 @@ data SynthParam = ParamName := ParamValue
 type ParamName = String
 type ParamValue = Double
 type BusId = Int
-
--- data ParamValue = PVal Double
---                 | PBus Int
---                   deriving (Eq,Read,Show,Data,Typeable)
 
 infixr 5 :=
 infixr 5 :<-
@@ -103,7 +93,7 @@ parseGroup = do
   numChild <- int
   if numChild < 0
     then parseSynth nId
-    else do 
+    else do
       ts <- manyN numChild parseGroup
       return $ Group nId ts
 
@@ -119,18 +109,14 @@ parseParam = do
     name <- string
     val <- parseParamValue name
     return val
-    -- return $ name := val
 
-parseParamValue :: String -> DatumParser SynthParam -- ParamValue
+parseParamValue :: String -> DatumParser SynthParam
 parseParamValue name = do
   val <- datum
   case val of
     Float x -> return $ name := x
     Double x -> return $ name := x
     String x -> return $ name :<- (read $ tail x)
-    -- Float v -> return $ PVal v
-    -- Double v -> return $ PVal v
-    -- String s -> return $ PBus (read $ tail s)
 
 
 -- Below is an old implementation for parseOSC, without using monadic
@@ -195,7 +181,7 @@ gNew' _ msg = msg
 
 addToParent :: NodeId -> [SCTree] -> [OSC] -> [OSC]
 addToParent gId ((Group gId' ts'):ts) msg
-    = g_new [(gId',AddToTail,gId)] : addToParent gId' ts' [] ++ 
+    = g_new [(gId',AddToTail,gId)] : addToParent gId' ts' [] ++
       addToParent gId ts msg
 addToParent gId ((Synth nId name ps):ts) msg
     = [s_new name nId  AddToTail gId (concatMap paramToTuple ps)] ++
@@ -205,16 +191,10 @@ addToParent gId [] msg = msg
 paramToTuple :: SynthParam -> [(String,Double)]
 paramToTuple (name := val) = [(name,val)]
 paramToTuple _ = []
--- paramToTuple (name := val) 
---     = case val of
---         PVal d -> [(name,d)]
---         _      -> []
 
 paramToMap :: NodeId -> SynthParam -> [OSC]
 paramToMap i (n :<- b) = [n_map i [(n,b)]]
 paramToMap _ _ = []
--- paramToMap _ (_ := (PVal v)) = []
--- paramToMap i (n := (PBus b)) = [n_map i [(n,b)]]
 
 -- | Extract "/s_new" messages.
 sNew :: SCTree -> OSC
@@ -229,8 +209,6 @@ toSynthList = everything (++) ([] `mkQ` f)
       g gid (Group _ _) = []
 
 -- | Extract "/n_map" messages.
---
--- XXX: Remove @nub@ function!
 nMap :: SCTree -> [OSC]
 nMap = everything (++) ([] `mkQ` f)
     where
@@ -249,10 +227,10 @@ mkTree tree = \fd ->
              send fd (Bundle (NTPi 0) (gNew' tree [] ++ nMap tree))
 
 
--- 
+--
 -- For converting SCTree to Tree datatype in Data.Tree.Tree.
 -- Data.Tree.Tree is a rose tree, but SCTree datatype is not.
--- 
+--
 
 type SCTree' = Tree SCNode
 
@@ -279,7 +257,7 @@ printTree :: Transport t => t -> IO ()
 printTree fd = getTree fd >>= putStr . drawSCTree
 
 queryAllNodes :: Transport t => t -> IO ()
-queryAllNodes = \fd -> getTree fd >>= putStr . drawSCTree 
+queryAllNodes = \fd -> getTree fd >>= putStr . drawSCTree
 
 
 -- | Sample message returned from scsynth server, without group other
@@ -304,8 +282,8 @@ oscList1 = Message "/g_queryTree.reply"
                  String "out",Float 0.0]
 
 scTree1 :: SCTree
-scTree1 
-    = Group 0 
+scTree1
+    = Group 0
       [Group 1
        [Synth 1000 "simplePercSine"
         ["sustain" := (0.800000011920929),
@@ -313,7 +291,7 @@ scTree1
          "amp" := (0.10000000149011612),
          "freq" := (440),
          "out" := (0)],
-        Group 10 
+        Group 10
         [Group 100
          [Group 101
           [Synth 1011 "simplePercSine"
@@ -322,14 +300,14 @@ scTree1
             "amp" := 0.1,
             "freq" := 330,
             "out" := 0]]]],
-            
+
         Synth 1001 "simplePercSine"
         ["sustain" := (0.800000011920929),
          "trig" := (0),
          "amp" := (0.10000000149011612),
          "freq" := (440),
          "out" := (0)]]]
-       
+
 oscList2 :: OSC
 oscList2 =
     Message "/g_queryTree.reply"
@@ -403,8 +381,8 @@ oscList2 =
                  String "bus",Float 204.0]
 
 oscList3 :: OSC
-oscList3 = 
-    Message "/g_queryTree.reply" 
+oscList3 =
+    Message "/g_queryTree.reply"
     [Int 1,
      Int 1, Int 2,
      Int 2, Int 0,
