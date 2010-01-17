@@ -8,7 +8,7 @@ module FRPScratch where
 import Control.Applicative
 import Control.Concurrent (forkIO,killThread)
 import Data.Monoid
-import Data.List (sort)
+import Data.List (sort,unfoldr)
 import System.Random hiding (next)
 
 import Data.VectorSpace
@@ -19,6 +19,10 @@ import FRP.Reactive.LegacyAdapters
 import FRP.Reactive.Internal.Reactive (runE,forkR)
 import Sound.OpenSoundControl
 import Sound.SC3 hiding (stepper)
+
+import Reusable
+import SCTree
+import SCQuery
 
 type BellMachine = Event () -> Event ()
 
@@ -70,7 +74,7 @@ type Dot = (Double,Double)
 
 data Input = I { mouse :: Behavior (Double,Double)
                , button :: Event ()
-               , integral :: (VectorSpace v, Scalar v ~ TimeT) => 
+               , integral :: (VectorSpace v, Scalar v ~ TimeT) =>
                              Behavior v -> Behavior v
                }
 
@@ -93,17 +97,21 @@ event01 = fmap print . listE $ zip [0,0.25..] ['a'..'g']
 
 
 -- | Try:
--- 
+--
 -- > > t1 <- forkIO $ adaptSC msgs01
 -- > > t2 <- forkIO $ adaptSC msgs02
--- 
-adaptSC :: Sink (Event OSC)
-adaptSC e = do
-  t0 <- fmap (fromIntegral . ceiling) utcr
+--
+-- Event is @Monoid@.
+--
+-- > > t1 <- forkIO $ adaptSC (msgs01 `mappend` msgs02)
+--
+adaptSC :: (Double -> Double) -> Sink (Event OSC)
+adaptSC f e = do
+  t0 <- fmap f utcr
   let latency = 0.01
-      e' = fmap (\(osc,dt) -> withSC3 $ 
-                 \fd -> send fd $ 
-                 Bundle (UTCr $ t0 + dt + latency) [osc]) 
+      e' = fmap (\(osc,dt) -> withSC3 $
+                 \fd -> send fd $
+                 Bundle (UTCr $ t0 + dt + latency) [osc])
            (withTimeE e)
   runE (pauseThreadUntil . (+ t0) . exactNB) e'
 
@@ -122,20 +130,82 @@ msgs01 = listE $ zip [0,0.5..]
 -- | Another example OSC messages.
 msgs02 :: Event OSC
 msgs02 = listE $ zip [0,1..]
-         (cycle [p 880, p 1320, p 1760, p 1320])
+         (cycle $ map p [880, 1320, 1760, 1320])
     where
       p f = s_new "percussive01" (-1) AddToTail 1 [("freq",f),("out",1)]
 
--- | Add some randomness to osc messages.
+-- | Antoerh osc messages with randomness.
 msgs03 :: IO (Event OSC)
 msgs03 = do
   gen <- newStdGen
   let freqs = randomRs (50,12600) gen
       outs = randomRs (0,1::Int) gen
       times = scanl (+) 0 $ randomRs (0.001,0.1::Double) gen
-      ms f o = s_new "percussive01" (-1) AddToTail 1 
+      ms f o = s_new "percussive01" (-1) AddToTail 1
              [("freq",f),
               ("dur",0.08),
               ("out",fromIntegral o),
               ("amp",0.04)]
   return $ listE $ zip times (zipWith ms freqs outs)
+
+msgs04 :: Event OSC
+msgs04 = listE $ zip [0,2..] $ cycle $ map p [220,110,55,110]
+    where
+      p f = s_new "percussive01" (-1) AddToTail 1 [("freq",f),("dur",3)]
+
+bpm :: Num a => a
+bpm = 120
+
+ms04 :: Event OSC
+ms04 = listE $ zip times (cycle es)
+    where
+      times = [0,0.5..]
+      es = map f [60, 62, 64, 60, 62, 64, 62, 60]
+      f m = s_new "percussive01" (-1) AddToTail 1
+            [("freq",midiCPS m),("amp",0.2),("dur",1)]
+
+ms05 :: Event OSC
+ms05 = foldr mappend mempty [e1,e2,e3]
+    where
+      [e1,e2,e3] = map (listE . zip times . cycle . (fmap f)) [f1,f2,f3]
+      times = [0,4..]
+      f1 = [48, 48, 50, 47]
+      f2 = [55, 53, 53, 53]
+      f3 = [64, 69, 69, 67]
+      f m = s_new "percussive01" (-1) AddToTail 1
+            [("freq",midiCPS m),("amp",0.2),("dur",4)]
+
+
+b01 :: Behavior Action
+b01 = stepper (return ()) $ fmap print $
+      listE [(x,y)|x<-[0..10],y<-["hello","functioal","reactive"]]
+
+b02 :: Behavior Action
+b02 = stepper (return ()) $ fmap g $
+      listE $ zip [1..] oscs
+    where
+      g msg = withSC3 $ \fd -> send fd msg
+      oscs = [s_new "percussive01" (-1) AddToTail 1 [("freq",440)],
+              s_new "percussive01" (-1) AddToTail 1 [("freq",660)],
+              s_new "percussive01" (-1) AddToTail 1 [("freq",440)],
+              s_new "percussive01" (-1) AddToTail 1 [("freq",330)]]
+
+b03 :: Behavior Action
+b03 = stepper (return ()) $ fmap g $ listE $ zip [0..] oscs
+    where
+      g m = withSC3 $ \fd -> send fd m
+      oscs = cycle oscs'
+      oscs' = map tone [440,660,440,330]
+      tone freq = s_new "percussive01" (-1) AddToTail 1 [("freq",freq)]
+
+-- | Try:
+--
+-- > > t1 <- forkIO $ adaptSC (adjust 120 16) msgs04
+-- > > t2 <- forkIO $ adaptSC (adjust 120 16) msgs02
+-- > > t3 <- msgs03 >>= \m3 -> forkIO $ adaptSC (adjust 120 16) m3
+--
+adjust :: Double -> Double -> Double -> Double
+adjust beats num now = nextTime
+    where
+      nextTime = (60/beats) * num * q
+      q = fromIntegral $ ceiling $ now / (num * (60/beats))
