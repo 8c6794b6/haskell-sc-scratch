@@ -10,14 +10,14 @@
 -- > > setup
 -- > > go
 
-module ParallelSeq4 where
+module Scratch.ParallelSeq4 where
 
 import Sound.SC3
 import Sound.OpenSoundControl
 
 import Reusable
 import Instances
-import SimpleNotes
+import Scratch.SimpleNotes
 
 -- | Simple UGen for making sound.
 para4UGen :: UGen

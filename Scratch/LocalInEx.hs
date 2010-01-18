@@ -2,7 +2,7 @@
 -- | Example for LocalIn and LocalOut UGens.
 --
 
-module LocalInEx where
+module Scratch.LocalInEx where
 
 import Sound.OpenSoundControl
 import Sound.SC3

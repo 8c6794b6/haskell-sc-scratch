@@ -10,7 +10,7 @@
 -- > > withSC3 prepare1
 -- > > withSC3 go1
 
-module DBufRdEx where
+module Scratch.DBufRdEx where
 
 import Data.List (genericLength)
 

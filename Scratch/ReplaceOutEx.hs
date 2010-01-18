@@ -2,7 +2,7 @@
 -- | Example for using ReplaceOut UGen.
 --
 
-module ReplaceOutEx where
+module Scratch.ReplaceOutEx where
 
 import Sound.SC3
 import Sound.OpenSoundControl

@@ -10,7 +10,7 @@
 --
 --
 
-module ParralelSeq3 where
+module Scratch.ParralelSeq3 where
 
 import Sound.SC3
 import Sound.OpenSoundControl

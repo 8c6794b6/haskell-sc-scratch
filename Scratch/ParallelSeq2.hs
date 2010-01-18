@@ -8,7 +8,7 @@
 -- returning values from @demand@ ugens are used for controlling
 -- amplitude and frequency.
 
-module ParallelSeq2 where
+module Scratch.ParallelSeq2 where
 
 import Sound.SC3
 import Sound.OpenSoundControl

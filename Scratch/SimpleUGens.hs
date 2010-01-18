@@ -2,7 +2,7 @@
 -- | Simple UGens.
 -- 
 
-module SimpleUGens where
+module Scratch.SimpleUGens where
 
 import Control.Monad (zipWithM)
 

@@ -2,7 +2,7 @@
 -- | Module for notes with amplitude, frequency, and duration.
 --
 
-module SimpleNotes where
+module Scratch.SimpleNotes where
 
 import System.Random
 import Sound.SC3

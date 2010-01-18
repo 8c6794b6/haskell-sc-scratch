@@ -2,7 +2,7 @@
 ------------------------------------------------------------------------------
 -- | Playing with threads in haskell.
 --
-module ThreadPlay where
+module Scratch.ThreadPlay where
 
 import Control.Applicative
 import Control.Concurrent
