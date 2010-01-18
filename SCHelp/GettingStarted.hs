@@ -5,16 +5,20 @@
 
 module SCHelp.GettingStarted where
 
-import Reusable
-import SCTree
 import Instances
+import Reusable
+import SCSched
+import SCTree
 
 import Sound.SC3
 import Sound.SC3.UGen.Dot
 import Sound.OpenSoundControl
+import FRP.Reactive
 
 import Control.Applicative
+import Control.Concurrent (forkIO, killThread)
 import Control.Monad
+import Data.Monoid
 import System.Random
 
 import qualified Data.ByteString.Lazy as B
@@ -183,10 +187,10 @@ busExTree
        [Synth (-1) "tutorial_DecayPink"
         ["effectBus" := b],
         Synth (-1) "tutorial_DecaySin"
-        ["effectBus" := b, "outBus" := PVal 1],
+        ["effectBus" := b, "outBus" := 1],
         Synth (-1) "tutorial_Reverb"
         ["inBus" := b]]]
-    where b = PVal 1
+    where b = 1
 
 tutorial_map :: UGen
 tutorial_map = out 0 $ sinOsc ar (mce [freq1,freq2]) 0 * 0.1
@@ -230,12 +234,12 @@ groupTree02 =
     [Group 1
      [Group sources
       [Synth (-1) "tutorial_DecaySin2"
-       ["effectBus" := PVal bus1, "outBus" := PVal 0],
+       ["effectBus" := bus1, "outBus" := 0],
        Synth (-1) "tutorial_DecaySin2"
-       ["effectBus" := PVal bus2, "outBus" := PVal 0,"freq" := PVal 660]]],
+       ["effectBus" := bus2, "outBus" := 0,"freq" := 660]]],
      Group effects
       [Synth (-1) "tutorial_Reverb2"
-       ["inBus1" := PVal bus1,"inBus2" := PVal bus2]]]
+       ["inBus1" := bus1,"inBus2" := bus2]]]
     where
       bus1 = 1
       bus2 = 2
@@ -299,6 +303,60 @@ tutorial_playback = mrg [out ("out" @= 0) pb, remove]
       pb = playBuf 1 ("bufnum" @= 1) 1 1 0 NoLoop RemoveSynth
       remove = freeSelfWhenDone pb
 
+fm2 :: IO UGen
+fm2 = do
+  let bus = "bus" @= 0 
+      freq = "freq" @= 440
+      carPartial = "carPartial" @= 1
+      modPartial = "modPartial" @= 1
+      index = "index" @= 3
+      mul = "mul" @= 0.2
+      ts = "ts" @= 1
+  modIndex <- lfNoise1 kr (constant $ recip 5) >>. abs
+  let mod = sinOsc ar (freq + modPartial) 0 * freq * index * modIndex
+      car = sinOsc ar ((freq * carPartial) + mod) 0 * mul
+  return $ out bus $ car * envGen kr 1 0 1 ts RemoveSynth (envSine 1 ts)
+
+fmRoutine :: IO (Event OSC)
+fmRoutine = do
+  gen <- newStdGen
+  let bs = randomRs (0,1::Int) gen
+      fs = randomRs (440,1200) gen
+      cs = randomRs (0.5,2) gen
+      ts = randomRs (0.5,11) gen
+      oscs = getZipList $ g <$> z bs <*> z fs <*> z cs <*> z ts
+      z = ZipList
+      g b f c t = s_new "fm2" (-1) AddToTail 1 
+                  [("bus",fromIntegral b),("freq",f),("carPartial",c),("ts",t)]
+  return $ listE $ zip (take 12 $ scanl (+) 0 $ repeat 2) oscs 
+
+echoplex :: IO UGen
+echoplex = do
+  rd <- randomRIO (0.05, 0.3)
+  ld <- randomRIO (0.05, 0.3)
+  let echoed = combN (in' 1 ar 0) 0.35 (mce [rd, ld]) 7 * 0.5
+  return $ replaceOut 0 echoed
+
+fmTree :: SCTree
+fmTree = 
+ Group 0 
+ [Group 1
+  [Group 2 [],
+   Group 3 [Synth (-1) "echoplex" []]]]
+
+fmRoutine2 :: IO (Event OSC)
+fmRoutine2 = do
+  gen <- newStdGen
+  let times = take 12 $ scanl (+) 0 $ repeat 2
+      fs = randomRs (400,1200) gen
+      ms = randomRs (0.3,2.0) gen
+      cs = randomRs (0.5,11) gen
+      ts = randomRs (0.1,0.2) gen
+      z = ZipList
+      f o f m c t = s_new "fm2" (-1) AddToTail 2
+                    [("bus",o),("freq",f),("modPartial",m),("carPartial",c),("ts",t)]
+      oscs = getZipList $ f <$> pure 0 <*> z fs <*> z ms <*> z cs <*> z ts
+  return $ listE $ zip times oscs
 
 b_loadToByteString :: Int -> IO [B.ByteString]
 b_loadToByteString = undefined
