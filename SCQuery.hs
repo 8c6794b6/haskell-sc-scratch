@@ -73,11 +73,11 @@ add nId node = do
        case node of
          (g@(Group gid ts)) ->
              if gid /= 0 then
-                 bundle now (gNew' (Group nId [g]) [])
+                 bundle now $ treeToOSC $ Group nId [g]
              else
-                 bundle now (gNew' g [])
+                 bundle now $ treeToOSC g
          (s@(Synth nid' name ps)) ->
-             bundle now 
+             bundle now $ 
                [s_new name nid' AddToTail nId (concatMap paramToTuple ps)]
          
 

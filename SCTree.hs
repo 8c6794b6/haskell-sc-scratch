@@ -160,13 +160,24 @@ parseParamValue name = do
 --              Float x -> PVal x
 --              String s -> PBus (read (tail s))
 
+
 toGroupTree :: SCTree -> SCTree
 toGroupTree (Group gid ts) = Group gid (map toGroupTree ts')
     where ts' = filter isGroup ts
           isGroup (Group _ _) = True
           isGroup (Synth _ _ _) = False
-toGroupTree (Synth _ _ _) = undefined
+toGroupTree (Synth _ _ _) = error "toGroupTree: Root is Synth."
 
+-- | SCTree to [OSC] with using @everything@ from syb.
+treeToOSC :: SCTree -> [OSC]
+treeToOSC t = everything (++) ([] `mkQ` f) t ++ nMap t
+    where
+      f (Group nId ts) = concatMap (g nId) ts
+      f _ = []
+      g gId (Synth nId name params) 
+          = [s_new name nId AddToTail gId (concatMap paramToTuple params)]
+      g gId (Group gId' _)  = [g_new [(gId',AddToTail,gId)]]
+      
 -- | Extract "/g_new" messages.
 gNew :: SCTree -> OSC
 gNew t = squash $ gNew' t' []
@@ -196,9 +207,9 @@ paramToMap :: NodeId -> SynthParam -> [OSC]
 paramToMap i (n :<- b) = [n_map i [(n,b)]]
 paramToMap _ _ = []
 
--- | Extract "/s_new" messages.
-sNew :: SCTree -> OSC
-sNew = undefined
+-- -- | Extract "/s_new" messages.
+-- sNew :: SCTree -> OSC
+-- sNew = undefined
 
 toSynthList :: SCTree -> [(NodeId,SCTree)]
 toSynthList = everything (++) ([] `mkQ` f)
@@ -223,8 +234,11 @@ getTree fd = queryTree fd >>= return . parseOSC
 
 -- | Send node mapping OSC message scsynth, defined by @SCTree@.
 mkTree :: (Transport t) => SCTree -> t -> IO ()
-mkTree tree = \fd ->
-             send fd (Bundle (NTPi 0) (gNew' tree [] ++ nMap tree))
+mkTree t = \fd -> do
+             t0 <- utcr
+             send fd (Bundle (UTCr (t0 + 0.1)) (treeToOSC t))
+-- mkTree tree = \fd ->
+--              send fd (Bundle (NTPi 0) (gNew' tree [] ++ nMap tree))
 
 
 --
@@ -246,8 +260,8 @@ toRose :: SCTree -> SCTree'
 toRose (Group nid ns) = Node (G nid) (map toRose ns)
 toRose (Synth nid name ps) = Node (S nid name ps) []
 
-fromRose :: SCTree' -> SCTree
-fromRose = undefined
+-- fromRose :: SCTree' -> SCTree
+-- fromRose = undefined
 
 drawSCTree :: SCTree -> String
 drawSCTree = drawTree . fmap show . toRose
@@ -286,27 +300,27 @@ scTree1
     = Group 0
       [Group 1
        [Synth 1000 "simplePercSine"
-        ["sustain" := (0.800000011920929),
-         "trig" := (0),
-         "amp" := (0.10000000149011612),
-         "freq" := (440),
-         "out" := (0)],
+        ["sustain" := 0.800000011920929,
+         "trig" :<- 1,
+         "amp" := 0.10000000149011612,
+         "freq" := 440,
+         "out" := 0],
         Group 10
         [Group 100
          [Group 101
           [Synth 1011 "simplePercSine"
            ["sustain" := 0.8,
-            "trig" := 0,
+            "trig" :<- 2,
             "amp" := 0.1,
             "freq" := 330,
             "out" := 0]]]],
 
         Synth 1001 "simplePercSine"
-        ["sustain" := (0.800000011920929),
-         "trig" := (0),
-         "amp" := (0.10000000149011612),
-         "freq" := (440),
-         "out" := (0)]]]
+        ["sustain" := 0.800000011920929,
+         "trig" :<- 3,
+         "amp" := 0.10000000149011612,
+         "freq" := 440,
+         "out" := 0]]]
 
 oscList2 :: OSC
 oscList2 =

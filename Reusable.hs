@@ -16,7 +16,7 @@ import System.FilePath ((</>), (<.>))
 import Sound.SC3
 import Sound.OpenSoundControl
 
-import qualified Data.ByteString as B
+import qualified Data.ByteString.Lazy as B
 
 -- | Environmental variable for synthdefs.
 hsc3SynthdefDirEnvVar :: String
@@ -151,6 +151,12 @@ c_get' ids = send' (c_get ids) >> wait' "/c_set"
 (>>.) :: Functor f => f a -> (a -> b) -> f b
 (>>.) = flip fmap
 
+-- | @a \@> b = b a@
+(@>) :: a -> (a -> b) -> b
+a @> b = b a
+
+infixr 2 @>
+
 -- | Returns Control ugen.
 (@=) :: String -> Double -> UGen
 name @= val = control kr name val 
@@ -158,3 +164,22 @@ name @= val = control kr name val
 -- | Returns Control ugen, with lag.
 (@~) :: String -> Double -> UGen -> UGen
 a @~ b = \c -> lag (a @= b) c
+
+-- Copied from current head of darcs repository.
+
+-- List of asynchronous server commands.
+async_cmds :: [String]
+async_cmds = ["/d_recv", "/d_load", "/d_loadDir"
+             ,"/b_alloc", "/b_allocRead", "/b_allocReadChannel"
+             ,"/b_free", "/b_close"
+             ,"/b_read", "/b_readChannel"
+             ,"/b_write", "/b_zero"]
+
+-- | Add a completion message to an existing asynchronous command.
+withCM :: OSC -> OSC -> OSC
+withCM (Message c xs) cm =
+    if c `elem` async_cmds
+    then let xs' = xs ++ [Blob (B.unpack (encodeOSC cm))]
+         in Message c xs'
+    else error ("withCM: not async: " ++ c)
+withCM _ _ = error "withCM: not message"
