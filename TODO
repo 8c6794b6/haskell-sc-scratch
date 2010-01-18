@@ -17,7 +17,8 @@ TODO List
   * A Practical Guide to Patterns
   * Streams Overview
 
-* Read "Architecture" section in sc help file.
+
+* Read Help fiiles for busses and buffers.
 
 * Write some example shown in SC help. Listen carefully that the
   haskell version is making same sound as SC version. Use both sclang
@@ -101,6 +102,8 @@ DONE
 
 * Write "showTree" function for SCTree. (DONE)
   * Convertd to Data.Tree.Tree and used Data.Tree.drawTree.
+
+* Read "Architecture" section in sc help file. (DONE)
 
 BURIED
 ======
