@@ -41,6 +41,8 @@ TODO List
     > update (name ==? "foo" &&? param ==? "amp") 0.1 
     > free (nid ==? 2)
     > add 1 "foo" [freq := 440] -- target groupId, synth, params
+  * ... After writing few lines of scratch, feeling that above
+    language design is not so efficient.
 
 * Rewrite acid example using haskell.
 
@@ -52,6 +54,12 @@ TODO List
 * Recieve MIDI event from other app
 
 * Recieve MIDI event from device.
+
+* Read templatehaskell tutorials, understand it, and try using it.
+  * Need to break down "try using" part.
+
+* Read hs-plugin documentation, understand it, and try using it.
+  * Need to break down "try using" part.
 
 * Write concurrent event scheduling library in haskell.
   * Enable below from ghci session
