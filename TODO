@@ -12,11 +12,10 @@ TODO List
 * Read SC Tutorial in help files, and translate in haskell.
   * Getting started with SC (READ, but write buffer examples again)
   * Introductory Tutorial (READ, Implemented scheduling examples with Event)
-  * Tutorial
+  * Tutorial (READ)
   * Tour of Unit Generators
   * A Practical Guide to Patterns
   * Streams Overview
-
 
 * Read Help fiiles for busses and buffers.
 
@@ -56,10 +55,10 @@ TODO List
 * Recieve MIDI event from device.
 
 * Read templatehaskell tutorials, understand it, and try using it.
-  * Need to break down "try using" part.
+  * Need to break down "try using it".
 
 * Read hs-plugin documentation, understand it, and try using it.
-  * Need to break down "try using" part.
+  * Need to break down "try using it".
 
 * Write concurrent event scheduling library in haskell.
   * Enable below from ghci session
@@ -68,7 +67,8 @@ TODO List
     * Pause thread
     * Restart thread 
     * Kill, or remove thread
-  * ... should I use haskeline and implement this in specific interpreter?
+  * ... should I use haskeline and implement this in specific
+    interpreter?
 
 DONE
 ====
@@ -76,7 +76,9 @@ DONE
 * Make parallel sequence of sound event. (DONE) 
   * Did this by using dseq.
   * Did again with pauseThread (threadDelay with bit of calc) and
-    Event from FRP.Reactive.
+    Event from FRP.Reactive. With using Event datatype and wrapping
+    OSC message, writing to file for NRT rendering wouldn't be so
+    hard, perhaps.
    
 * Write SynthDef files. (DONE)
   * Used Data.ByteString.
