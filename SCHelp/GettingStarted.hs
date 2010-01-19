@@ -305,7 +305,7 @@ tutorial_playback = mrg [out ("out" @= 0) pb, remove]
 
 fm2 :: IO UGen
 fm2 = do
-  let bus = "bus" @= 0 
+  let bus = "bus" @= 0
       freq = "freq" @= 440
       carPartial = "carPartial" @= 1
       modPartial = "modPartial" @= 1
@@ -326,24 +326,28 @@ fmRoutine = do
       ts = randomRs (0.5,11) gen
       oscs = getZipList $ g <$> z bs <*> z fs <*> z cs <*> z ts
       z = ZipList
-      g b f c t = s_new "fm2" (-1) AddToTail 1 
+      g b f c t = s_new "fm2" (-1) AddToTail 1
                   [("bus",fromIntegral b),("freq",f),("carPartial",c),("ts",t)]
-  return $ listE $ zip (take 12 $ scanl (+) 0 $ repeat 2) oscs 
+  return $ listE $ zip (take 12 $ scanl (+) 0 $ repeat 2) oscs
 
 echoplex :: IO UGen
 echoplex = do
-  rd <- randomRIO (0.05, 0.3)
-  ld <- randomRIO (0.05, 0.3)
+  rd <- rand 0.05 0.3
+  ld <- rand 0.05 0.3
   let echoed = combN (in' 1 ar 0) 0.35 (mce [rd, ld]) 7 * 0.5
   return $ replaceOut 0 echoed
 
+-- | Run:
+-- > > withSC3 $ mkTree fmTree
 fmTree :: SCTree
-fmTree = 
- Group 0 
+fmTree =
+ Group 0
  [Group 1
   [Group 2 [],
    Group 3 [Synth (-1) "echoplex" []]]]
 
+-- | Run:
+-- > > spawn 0 60 =<< fmRoutine2
 fmRoutine2 :: IO (Event OSC)
 fmRoutine2 = do
   gen <- newStdGen
@@ -353,17 +357,18 @@ fmRoutine2 = do
       cs = randomRs (0.5,11) gen
       ts = randomRs (0.1,0.2) gen
       z = ZipList
-      f o f m c t = s_new "fm2" (-1) AddToTail 2
-                    [("bus",o),("freq",f),("modPartial",m),("carPartial",c),("ts",t)]
-      oscs = getZipList $ f <$> pure 0 <*> z fs <*> z ms <*> z cs <*> z ts
+      g f m c t = s_new "fm2" (-1) AddToTail 2
+                    [("bus",0),("freq",f),("modPartial",m),
+                     ("carPartial",c),("ts",t)]
+      oscs = getZipList $ g <$> z fs <*> z ms <*> z cs <*> z ts
   return $ listE $ zip times oscs
 
 b_loadToByteString :: Int -> IO [B.ByteString]
 b_loadToByteString = undefined
 
 b_writeTest :: IO OSC
-b_writeTest = 
-    withSC3 $ \fd -> 
+b_writeTest =
+    withSC3 $ \fd ->
         async fd (b_write 1 "/tmp/b_write_test" 1 1 (-1) 0 0)
 
 diskInHelp :: IO OSC
@@ -376,8 +381,6 @@ diskInHelp =
       f = "/home/atsuro/audio/wav/shot_shot_mono.wav"
       n = 1
       g = out 0 $ diskIn n 0 NoLoop
-
-
 
 -- | From in' help file.
 -- connect something to system's input in jackd.

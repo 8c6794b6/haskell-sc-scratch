@@ -5,7 +5,7 @@
 module SCHelp.Tutorial where
 
 import Control.Applicative
-import Control.Concurrent (forkIO, killThread)
+import Control.Concurrent (forkIO, killThread,ThreadId)
 import Control.Monad
 import Data.Monoid
 import Data.Traversable (traverse)
@@ -209,7 +209,7 @@ sappyEv02 = listE $ zip times oscs
              ("amp",0.1)]
 
 sappyEv03 :: IO (Event OSC)
-sappyEv03 = do 
+sappyEv03 = do
   gen <- newStdGen
   let times = fmap (+32) $ scanl (+) 0 $ repeat 1
       g = s_new "bass_Ex" (-1) AddToTail 10
