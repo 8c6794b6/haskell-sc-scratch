@@ -118,49 +118,6 @@ parseParamValue name = do
     Double x -> return $ name := x
     String x -> return $ name :<- (read $ tail x)
 
-
--- Below is an old implementation for parseOSC, without using monadic
--- parsing style.
-
--- -- | Parse osc message returned from "/g_queryTree" and returns haskell
--- -- representation of scsynth node tree.
--- -- Only working with osc message including synth control parameters.
--- parseOSC :: OSC -> SCTree
--- parseOSC (Message s ds)
---     | s == "/g_queryTree.reply" = fst (parseDatum (tail ds))
---     | otherwise = error "not a /g_queryTree.reply message"
--- parseOSC _ = error "OSC mssage is not a 'Message', might be 'Bundle'"
-
--- parseDatum :: [Datum] -> (SCTree,[Datum])
--- parseDatum [] = error "empty list passed to parseDatum"
--- parseDatum (Int x:Int y:ds)
---     | y < 0 = parseSynth x ds
---     | otherwise = (Group x ts,ds')
---     where (ts,ds') = parseDatumFor y ds []
-
--- parseDatumFor :: Int -> [Datum] -> [SCTree] -> ([SCTree],[Datum])
--- parseDatumFor left ds ts
---     | left == 0 = (ts,ds)
---     | otherwise = parseDatumFor (left-1) ds' (ts++[t])
---     where (t,ds') = parseDatum ds
-
--- parseSynth :: NodeId -> [Datum] -> (SCTree,[Datum])
--- parseSynth nid (String name:Int num:ds) = (Synth nid name params,ds')
---     where (params,ds') = parseParamsFor num ds []
-
--- parseParamsFor :: Int -> [Datum] -> [SynthParam] -> ([SynthParam],[Datum])
--- parseParamsFor 0 ds ps = (ps,ds)
--- parseParamsFor n ds ps = parseParamsFor (n-1) ds' (ps++[ps'])
---     where (ps',ds') = parseParam ds
-
--- parseParam :: [Datum] -> (SynthParam,[Datum])
--- parseParam (String n:d:ds) = (n := d',ds)
---     where
---       d' = case d of
---              Float x -> PVal x
---              String s -> PBus (read (tail s))
-
-
 toGroupTree :: SCTree -> SCTree
 toGroupTree (Group gid ts) = Group gid (map toGroupTree ts')
     where ts' = filter isGroup ts
@@ -168,16 +125,21 @@ toGroupTree (Group gid ts) = Group gid (map toGroupTree ts')
           isGroup (Synth _ _ _) = False
 toGroupTree (Synth _ _ _) = error "toGroupTree: Root is Synth."
 
--- | SCTree to [OSC] with using @everything@ from syb.
+-- | SCTree to [OSC] with g_new, s_new and n_map.
 treeToOSC :: SCTree -> [OSC]
-treeToOSC t = everything (++) ([] `mkQ` f) t ++ nMap t
+treeToOSC t = treeToNew t ++ nMap t
+      
+-- | SCTree to [OSC] with g_new and s_new. 
+-- Using @everything@ from syb.
+treeToNew :: SCTree -> [OSC]
+treeToNew t = everything (++) ([] `mkQ` f) t
     where
       f (Group nId ts) = concatMap (g nId) ts
       f _ = []
       g gId (Synth nId name params) 
           = [s_new name nId AddToTail gId (concatMap paramToTuple params)]
       g gId (Group gId' _)  = [g_new [(gId',AddToTail,gId)]]
-      
+
 -- | Extract "/g_new" messages.
 gNew :: SCTree -> OSC
 gNew t = squash $ gNew' t' []
