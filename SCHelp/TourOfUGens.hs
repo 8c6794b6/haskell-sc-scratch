@@ -82,6 +82,15 @@ type Trig2 = UGen -> UGen -> UGen
 -- | for pulseDivider
 type Trig3 = UGen -> UGen -> UGen -> UGen
 
+-- | PV ugen with 2 inputs.
+type PV2 = UGen -> UGen -> UGen
+
+-- | For PV_RandComb.
+type PV3M = UId m => UGen -> UGen -> UGen -> m UGen
+
+-- | For PV_RectComb.
+type PV4 = UGen -> UGen -> UGen -> UGen -> UGen
+
 -- | Try lfEx[01,02,03,04] with lfPar, lfCub, lfTri, lfSaw.
 --
 -- e.g.
@@ -545,6 +554,7 @@ allocReadPlayBuf sf =
       async fd $ b_free playBufNum
       async fd $ b_allocRead playBufNum sf 0 0
 
+-- | palyBuf numChannels bufnum rate trig startpos loop doneAction
 pbEx01 :: UGen
 pbEx01 = out 0 $ sinOsc ar (800 + 700 * pb) 0 * 0.3
     where
@@ -678,8 +688,8 @@ tgEx07 = do
   let trate = 100
       dur = 8 / trate
       clk = impulse kr trate 0
-      b = granularBufNum 
-  pos <- (\n -> integrator (n*0.001) 0.1) <$> brownNoise ar 
+      b = granularBufNum
+  pos <- (\n -> integrator (n*0.001) 0.1) <$> brownNoise ar
   pan <- (* 0.6) <$> whiteNoise ar
   return $ out 0 $ tGrains 2 clk b 1 pos dur pan 0.1 1
 
@@ -691,7 +701,7 @@ tgEx08 = do
       pos = mouseX kr 0 (bufDur kr b) Linear 0.1
       b = granularBufNum
   pan <- (* 0.8) <$> whiteNoise ar
-  rate <- (* 2) <$> whiteNoise ar 
+  rate <- (* 2) <$> whiteNoise ar
   return $ out 0 $ tGrains 2 clk b rate pos dur pan 0.1 1
 
 tgEx09 :: IO UGen
@@ -706,14 +716,14 @@ tgEx09 = do
   let amp = 0.1
   return $ tGrains 2 clk b rate pos dur pan amp 2
 
--- 
+--
 -- GrainSin
 --
 
 gSinEx01 :: IO UGen
 gSinEx01 = do
   let trigrate = mouseX kr 2 120 Linear 0.1
-      winsize = recip trigrate 
+      winsize = recip trigrate
       trig = impulse ar trigrate 0
   freq <- tRand 440 880 trig
   pan <- lfNoise1 kr 0.2
@@ -721,9 +731,9 @@ gSinEx01 = do
 
 grainSinBufNum :: Num a => a
 grainSinBufNum = 102
- 
+
 allocGrainSinBuf :: IO ()
-allocGrainSinBuf = withSC3 $ \fd -> 
+allocGrainSinBuf = withSC3 $ \fd ->
                    send fd $ b_alloc grainSinBufNum 1024 1
 
 writeGrainSinBuf :: [Double] -> IO ()
@@ -736,30 +746,30 @@ gSinEx02 = do
       winsize = recip trigrate
       trig = impulse ar trigrate 0
   freq <- tRand 440 880 trig
-  pan <- lfNoise1 kr 0.2 
+  pan <- lfNoise1 kr 0.2
   return $ out 0 $ grainSin 2 trig winsize freq pan grainSinBufNum * 0.2
 
--- 
+--
 -- See also: GrainFM, GrainBuf, and GrainIn.
 --
 
--- 
+--
 -- Controls
--- 
-decayEx01 :: Control2 -> IO UGen 
-decayEx01 ug = 
+--
+decayEx01 :: Control2 -> IO UGen
+decayEx01 ug =
     (out 0 . (*0.2) . (* ug (impulse ar 1 0) 0.9)) <$> whiteNoise ar
 
 decayEx02 :: Control2 -> IO UGen
-decayEx02 ug = 
+decayEx02 ug =
     (\t n -> out 0 $ ug t 0.9 * 0.2 * n) <$> dust ar 3 <*> whiteNoise ar
 
 decayEx03 :: Control2 -> IO UGen
-decayEx03 ug = 
+decayEx03 ug =
     (\t -> out 0 $ sinOsc ar (ug t 0.5 * 800) 0 * 0.2) <$> dust ar 4
 
 decay2Ex01 :: Control3 -> IO UGen
-decay2Ex01 ug = 
+decay2Ex01 ug =
     (out 0 . (*0.2) . (* ug (impulse ar 1 0) 0.2 0.9)) <$> whiteNoise ar
 
 decay2Ex02 :: Control3 -> IO UGen
@@ -767,11 +777,11 @@ decay2Ex02 ug =
     (\t n -> out 0 $ ug t 0.2 0.9 * 0.2 * n) <$> dust ar 3 <*> whiteNoise ar
 
 lagEx01 :: Control2 -> UGen
-lagEx01 ug = out 0 $ sinOsc ar (ug (lfPulse ar 2 0 0.5 * 800 + 400) 
-                                       (mouseX kr 0 0.5 Linear 0.1)) 0 * 0.2 
+lagEx01 ug = out 0 $ sinOsc ar (ug (lfPulse ar 2 0 0.5 * 800 + 400)
+                                       (mouseX kr 0 0.5 Linear 0.1)) 0 * 0.2
 
 integratorEx01 :: Control2 -> IO UGen
-integratorEx01 ug = 
+integratorEx01 ug =
     (\t -> out 0 $ sinOsc ar (ug t 0.99999 * 200 + 800) 0 * 0.2) <$> dust2 ar 8
 
 --
@@ -779,23 +789,23 @@ integratorEx01 ug =
 --
 
 trigEx01 :: Trig2 -> IO UGen
-trigEx01 ug = 
+trigEx01 ug =
     (\t -> out 0 $ ug t 0.2 * fSinOsc ar 800 0 * 0.4) <$> dust ar 2
 
 tDelayEx01 :: Trig2 -> IO UGen
 tDelayEx01 ug = do
   t <- dust ar 2
-  return $ out 0 $ 
+  return $ out 0 $
          mce [trig1 t 0.05 * fSinOsc ar 660 0 * 0.2,
               trig1 (ug t 0.1) 0.05 * fSinOsc ar 880 0 * 0.2]
 
 latchEx01 :: Trig2 -> IO UGen
-latchEx01 ug = 
+latchEx01 ug =
     (\n -> out 0 $ blip ar (ug n (impulse ar 9 0) * 400 + 500) 4 * 0.2)
     <$> whiteNoise ar
 
 latchEx02 :: Trig2 -> UGen
-latchEx02 ug = 
+latchEx02 ug =
     out 0 $ blip ar (ug (sinOsc ar 0.3 0) (impulse ar 9 0) * 400 + 500) 4 * 0.2
 
 gateEx01 :: Trig2 -> IO UGen
@@ -804,11 +814,11 @@ gateEx01 ug =
     <$> lfNoise2 ar 40
 
 pulseCountEx01 :: Trig2 -> UGen
-pulseCountEx01 ug = 
+pulseCountEx01 ug =
     out 0 $ sinOsc ar (ug (impulse ar 10 0) (impulse ar 0.4 0) * 200) 0 * 0.05
 
 pulseCountEx02 :: Trig2 -> IO UGen
-pulseCountEx02 ug = 
+pulseCountEx02 ug =
     (\r -> out 0 $ sinOsc ar (ug (impulse ar 12 0) r * 200) 0 * 0.05)
     <$> dust2 kr 4
 
@@ -817,17 +827,17 @@ pulseDividerEx01 ug = out 0 $ mce [a, b]
     where
       p = impulse ar 8 0
       a = sinOsc ar 1200 0 * decay2 p 0.005 0.1
-      b = sinOsc ar 600 0 * decay2 (ug p pdiv 0) 0.005 0.5 
+      b = sinOsc ar 600 0 * decay2 (ug p pdiv 0) 0.005 0.5
       pdiv = ceil (mouseX kr 1 8 Linear 0.1)
 
 
--- 
+--
 -- EnvGen
--- 
+--
 
 -- | EnvShape could be made from env, envCoord, envTrapezoid, envPerc,
 -- envSine, etc.
--- 
+--
 -- * env [levels] [times] [curves] level-scale? level-offset?
 -- * envCoord [(time,level)] total-duration level-scale envCurve
 -- * envTrapezoid shape skew dur amp
@@ -836,7 +846,7 @@ pulseDividerEx01 ug = out 0 $ mce [a, b]
 --
 egEx01 :: [UGen] -> UGen
 egEx01 shape = out 0 $ sinOsc ar 880 0 * 0.2 * e
-    where e = envGen kr 1 1 0 1 RemoveSynth shape 
+    where e = envGen kr 1 1 0 1 RemoveSynth shape
 
 egEx02 :: [UGen] -> UGen
 egEx02 shape = out 0 $ sinOsc ar 880 0 * 0.2 * e
@@ -844,7 +854,7 @@ egEx02 shape = out 0 $ sinOsc ar 880 0 * 0.2 * e
 
 egEx03 :: [UGen] -> IO UGen
 egEx03 shape = do
-  t <- dust kr 3 
+  t <- dust kr 3
   let e = envGen kr t 1 0 1 DoNothing shape
   return $ out 0 $ sinOsc ar 880 0 * 0.2 * e
 
@@ -854,14 +864,14 @@ egEx03 shape = do
 -- negative value to gate argument. ... Got it. The envelope used in
 -- the target node should have next value to change. with havins value
 -- 0 as its level, it sound like release. Probably forced releasing
--- means, "move to next value". 
-egEx04Def :: IO OSC 
+-- means, "move to next value".
+egEx04Def :: IO OSC
 egEx04Def = withSC3 (sendSynthdef "egEx04" ug)
     where ug = out 0 $ sinOsc ar 880 0 * 0.2 * e
           e = envGen kr Arg.gate 1 0 1 RemoveSynth shape
           shape = envCoord [(0,0),(0.01,1),(0.2,0.5),(9999,0.0)] 1 1 EnvSin
 
--- | Send a synth with envelope gate opened.      
+-- | Send a synth with envelope gate opened.
 egEx04 :: IO ()
 egEx04 = withSC3 $ \fd -> do
            send fd $ s_new "egEx04" (-1) AddToTail 1 [("gate",1)]
@@ -877,5 +887,143 @@ egEx05 n = do
  let shape = envCoord (zip (times++[99999]) (levels++[0])) 1 1 EnvCub
      times = scanl (+) 0 $ take n $ randomRs (0.005,0.2) gen
      levels = 0 : (take (n-2) $ randomRs (0,1.0) gen)
-     e = envGen kr ("gate" @= 1) 1 0 1 DoNothing shape 
- return $ out 0 $ sinOsc ar 880 0 * 0.2 * e 
+     e = envGen kr ("gate" @= 1) 1 0 1 DoNothing shape
+ return $ out 0 $ sinOsc ar 880 0 * 0.2 * e
+
+
+--
+-- Spectral
+--
+
+fftBuf :: Num a => a
+fftBuf = 110
+
+sndBuf :: Num a => a
+sndBuf = 111
+
+allocFFTBuf :: IO ()
+allocFFTBuf = withSC3 $ \fd -> send fd $ b_alloc fftBuf 2048 1
+
+allocReadSndBuf :: FilePath -> IO ()
+allocReadSndBuf sf = withSC3 $ \fd -> send fd $ b_allocRead sndBuf sf 0 0
+
+-- | Don't forget to allocate the buffer used for fft ugens.
+fftEx01 :: UGen
+fftEx01 = out 0 $ 0.5 * ifft' chain
+    where
+      chain = fft' fftBuf input
+      input = playBuf 1 sndBuf (bufRateScale kr sndBuf) 1 0 Loop DoNothing
+
+fftInput :: UGen
+fftInput = playBuf 1 sndBuf (bufRateScale kr sndBuf) 1 0 Loop DoNothing
+
+-- | Takes pv ugen and process it to soundfile played by playbuf.
+-- To hear sound with doing nothing with pv ugens, try
+-- @audition $ fftEx00 undefined const@.
+fftEx00 :: UGen -> PV2 -> UGen
+fftEx00 ctrl ug = out 0 $ 0.5 * ifft' chain
+    where
+      chain = ug (fft' fftBuf fftInput) ctrl
+
+-- | For pv_MagAbove and  pv_MagBelow.
+fftEx02 :: PV2 -> UGen
+fftEx02 = fftEx00 (mouseX kr 0.1 512 Exponential 0.1)
+
+-- | For pv_BrickWall
+fftEx03 :: PV2 -> UGen
+fftEx03 = fftEx00 (mouseX kr (-1) 1 Linear 0.1)
+
+-- | For pv_MagFreeze
+fftEx04 :: PV2 -> UGen
+fftEx04 = fftEx00 (lfPulse kr 1 0.75 0.5)
+
+-- | For pv_RandComb
+fftEx05 :: PV3M -> IO UGen
+fftEx05 ug = do
+  chain <- ug (fft' fftBuf fftInput)
+           (mouseX kr 0 1 Linear 0.1) (impulse kr 0.4 0)
+  return $ out 0 $ 0.5 * ifft' chain
+
+-- | For pv_RectComb, but not working due to audio buffer size?
+fftEx06 :: PV4 -> UGen
+fftEx06 ug = out 0 $ 0.5 * ifft' chain
+    where chain = ug (fft' fftBuf fftInput) 8 (mouseY kr 0 1 Linear 0.1)
+                  (mouseX kr 0 1 Linear 0.1)
+
+
+--
+-- Techniques
+--
+
+-- | Artificial Space ex01, correlated
+asEx01a :: IO UGen
+asEx01a = (out 0 . (* 0.2) . mce . replicate 2) <$> brownNoise ar
+
+-- | Artificial Space ex01, not correlated
+asEx01b :: IO UGen
+asEx01b = (out 0 . (*0.2)) <$> clone 2 (brownNoise ar)
+
+asEx02a :: IO UGen
+asEx02a = (out 0 . (* 0.2) . mce . replicate 2 .
+           (\n -> lpf n (mouseX kr 100 10000 Linear 0.1))) <$> brownNoise ar
+
+asEx02b :: IO UGen
+asEx02b = (out 0 . (* 0.2) . (\n -> lpf n (mouseX kr 100 10000 Linear 0.1)))
+          <$> clone 2 (brownNoise ar)
+
+-- asEx03a :: IO UGen
+-- asEx03a = do
+--   n <- (* 7e-3) <$> pinkNoise ar
+--   let spec = klankSpec [200,671,1153,1723] [1,1,1,1] [1,1,1,1]
+--       k = klank n 1 0 1 spec
+--   return $ out 0 $ mce [k,k]
+
+-- | Correlated
+asEx03a :: IO UGen
+asEx03a = (out 0 . (* 7e-3) . mce . replicate 2 . (\n -> klank n 1 0 1 spec))
+           <$> brownNoise ar
+    where spec = klankSpec [200,671,1153,1723] [1,1,1,1] [1,1,1,1]
+
+-- | Not correlated
+asEx03b :: IO UGen
+asEx03b = (out 0 . (* 7e-3) . (\n -> klank n 1 0 1 spec)) <$>
+          clone 2 (brownNoise ar)
+    where spec = klankSpec [200,671,1153,1723] [1,1,1,1] [1,1,1,1]
+
+-- | Two waves mixed together coming out both speakers
+asEx04a :: UGen
+asEx04a = out 0 . mce . replicate 2 . mix $
+          varSaw ar (mce [100,101]) 0 0.1 * 0.2
+
+-- | Two waves coming out each speaker independently
+asEx04b :: UGen
+asEx04b = out 0 $ varSaw ar (mce [100,101]) 0 0.1 * 0.2
+
+-- | Delays as cues to direction
+asEx05a :: UGen
+asEx05a = out 0 $ mce . replicate 2 . (* lfTri ar 1000 0) $
+          decay2 (impulse ar 4 0 * 0.2) 0.004 0.2
+
+-- | Inter-speaker delays
+asEx05b :: UGen
+asEx05b = out 0 $ mce
+          [delayC x 0.01 0.01,
+           delayC x 0.02 (mouseX kr 0.02 0 Linear 0.1)]
+    where
+      x = lfTri ar 1000 0 * decay2 (impulse ar 4 0 * 0.2) 0.004 0.2
+
+-- | Phasing sound
+asEx06a :: IO UGen
+asEx06a = do
+  x <- (* 0.2) <$> brownNoise ar
+  let x' = mix $ mce [delayC x 0.01 0.01,
+                      delayC x 0.02 (mouseX kr 0 0.02 Linear 0.1)]
+  return $ out 0 $ mce [x',x']
+
+-- | Spatial phasing sound.
+asEx06b :: IO UGen
+asEx06b = do
+  x <- (* 0.2) <$> brownNoise ar
+  return $ out 0 $ mce
+             [delayC x 0.01 0.01,
+              delayC x 0.02 (mouseX kr 0.02 0 Linear 0.1)]
