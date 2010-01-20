@@ -23,6 +23,9 @@ import SCSched
 r :: IO ()
 r = withSC3 reset
 
+d :: IO ()
+d = withSC3 queryAllNodes
+
 --
 -- Periodic Sources: Oscillators
 --
@@ -577,4 +580,49 @@ pbEx08 = do
   rate <- (* 2) <$> lfNoise2 kr (xLine kr 1 20 60 DoNothing) 
   return $ out 0 $ playBuf 1 playBufNum (bufRateScale kr playBufNum * rate)
          1 0 Loop DoNothing
+
+--
+-- Granular Synthesis
+--
+
+granularBufNum :: Num a => a
+granularBufNum = 101
+
+allocReadGranular :: FilePath -> IO OSC
+allocReadGranular sf = 
+    withSC3 $ \fd -> do
+      async fd $ b_free granularBufNum
+      async fd $ b_allocRead granularBufNum sf 0 0
+
+-- | tGrains: numChannels trigger bufnum rate centerPos dur pan amp interp
+tgEx01 :: UGen
+tgEx01 = out 0 $ tGrains 2 (impulse ar trate 0) granularBufNum 1 cpos dur 0 0.1 2
+    where
+      trate = mouseY kr 2 200 Linear 1
+      cpos = mouseX kr 0 (bufDur kr granularBufNum) Linear 0.1
+      dur = 4 / trate
+
+tgEx02 :: IO UGen
+tgEx02 = do
+  let trate = mouseY kr 8 120 Exponential 1
+      dur = 12 / trate
+      clk = impulse kr trate 0
+      b = granularBufNum
+      amp = 0.3
+  posOffset <- tRand 0 0.01 clk
+  let pos = mouseX kr 0 (bufDur kr b) Linear 0.1 + posOffset
+  pan <- (* 0.6) <$> whiteNoise kr  
+  return $ out 0 $ tGrains 2 clk b 1 pos dur pan amp 2
+
+tgEx03 :: IO UGen
+tgEx03 = do
+  let b = granularBufNum
+      trate = mouseY kr 2 120 Exponential 0.1
+      dur = 1.2/trate
+      clk = impulse kr trate 0
+      pos = mouseX kr 0 (bufDur kr b) Linear 0.1
+  n0 <- (* 3) <$> whiteNoise ar
+  n1 <- (* 0.6) <$> whiteNoise ar
+  let rate = shiftLeft 1.2 (roundE n0 1)
+  return $ out 0 $ tGrains 2 clk b rate pos dur n1 0.25 2
 
