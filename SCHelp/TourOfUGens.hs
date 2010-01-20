@@ -398,3 +398,61 @@ kkSpec04 = do
       as = take n $ randomRs (0.1,1.0) gen
       ds = take n $ randomRs (0.001,1.0) gen
   return $ klankSpec fs as ds
+
+unaryOpEx01 :: (UGen -> UGen) -> UGen
+unaryOpEx01 uo = out 0 $ uo $ sinOsc ar 300 0 * 0.2
+
+binaryOpEx01 :: (UGen -> UGen -> UGen) -> UGen
+binaryOpEx01 bo = out 0 $ bo (sinOsc ar 300 0 * amp) 1 * 0.2
+    where amp = mouseX kr 0.1 80 Linear 1
+
+zeroHzSinEx01 :: UGen
+zeroHzSinEx01 = out 0 $ sinOsc ar 0 i * 0.2
+    where i = sinOsc ar 300 0 * mouseX kr 0.1 (8*pi) Linear 1
+
+shaperBufNum :: Num a => a
+shaperBufNum = 90
+
+drawShaperBuf :: IO ()
+drawShaperBuf = withSC3 $ \fd -> do
+                  send fd $ b_alloc shaperBufNum 1024 1
+                  send fd $ b_gen shaperBufNum "cheby" [0,1,0,1,1,0,1]
+
+shaperEx01 :: UGen
+shaperEx01 = out 0 $ shaper shaperBufNum idx * 0.3
+    where idx = sinOsc ar 600 0 * mouseX kr 0 1 Linear 0.1
+
+panEx01 :: IO UGen
+panEx01 = do 
+  n <- brownNoise ar 
+  return $ out 0 $ pan2 n (mouseX kr (-1) 1 Linear 0.1) 0.3
+
+panEx02 :: UGen -> IO UGen
+panEx02 ug = do
+  n <- brownNoise ar
+  return $ out 0 $ pan2 n ug 0.3
+
+linPanEx01 :: UGen -> IO UGen
+linPanEx01 ug = fmap (\n -> out 0 $ linPan2 n ug 0.3) $ brownNoise ar
+
+balanceEx01 :: IO UGen
+balanceEx01 = (\n n' -> out 0 $ balance2 n n' pos 0.3) <$> brownNoise ar <*> brownNoise ar
+    where pos = mouseX kr (-1) 1 Linear 0.1
+
+xfade2Ex01 :: IO UGen
+xfade2Ex01 = do
+  n <- brownNoise ar
+  let s = sinOsc ar 500 0 
+  return $ out 0 $ xFade2 n s (mouseX kr (-1) 1 Linear 0.1) 0.3
+
+-- | .. how do i use this?
+panB2Ex01 :: IO UGen
+panB2Ex01 = do
+  n <- brownNoise ar
+  return $ out 0 $ panB2 n (mouseX kr (-1) 1 Linear 0.1) 0.3
+
+rotate2Ex01 :: IO UGen
+rotate2Ex01 = do
+  x <- (* 0.3) <$> brownNoise ar 
+  let y = saw ar 200 * 0.3
+  return $ out 0 $ rotate2 x y (lfSaw kr 0.1 0)
