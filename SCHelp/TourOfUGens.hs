@@ -16,9 +16,11 @@ import Sound.OpenSoundControl
 
 import Reusable
 import Instances
+import Missing
 import SCTree
 import SCQuery
 import SCSched
+
 
 r :: IO ()
 r = withSC3 reset
@@ -380,17 +382,17 @@ klankEx03 :: KlankSpec -> IO UGen -> IO UGen
 klankEx03 spec nz = fmap (\n -> out 0 $ klank n 1 0 1 spec) nz
 
 kkSpec01 :: IO KlankSpec
-kkSpec01 = do 
+kkSpec01 = do
   gen <- newStdGen
-  return $ klankSpec 
+  return $ klankSpec
            (take 12 $ map exp $ randomRs (log 200, log 4000) gen)
            (take 12 $ repeat 1)
            (take 12 $ repeat 1)
 
 kkSpec02 :: KlankSpec
-kkSpec02 = klankSpec 
-           (map (*200) [1..13]) 
-           (map recip [1..13]) 
+kkSpec02 = klankSpec
+           (map (*200) [1..13])
+           (map recip [1..13])
            (replicate 13 1)
 
 kkSpec03 :: KlankSpec
@@ -408,7 +410,7 @@ kkSpec04 = do
       ds = take n $ randomRs (0.001,1.0) gen
   return $ klankSpec fs as ds
 
--- 
+--
 -- Distortion
 --
 
@@ -435,13 +437,13 @@ shaperEx01 :: UGen
 shaperEx01 = out 0 $ shaper shaperBufNum idx * 0.3
     where idx = sinOsc ar 600 0 * mouseX kr 0 1 Linear 0.1
 
--- 
+--
 -- Panner
--- 
+--
 
 panEx01 :: IO UGen
-panEx01 = do 
-  n <- brownNoise ar 
+panEx01 = do
+  n <- brownNoise ar
   return $ out 0 $ pan2 n (mouseX kr (-1) 1 Linear 0.1) 0.3
 
 panEx02 :: UGen -> IO UGen
@@ -459,7 +461,7 @@ balanceEx01 = (\n n' -> out 0 $ balance2 n n' pos 0.3) <$> brownNoise ar <*> bro
 xfade2Ex01 :: IO UGen
 xfade2Ex01 = do
   n <- brownNoise ar
-  let s = sinOsc ar 500 0 
+  let s = sinOsc ar 500 0
   return $ out 0 $ xFade2 n s (mouseX kr (-1) 1 Linear 0.1) 0.3
 
 -- | .. how do i use this?
@@ -470,13 +472,13 @@ panB2Ex01 = do
 
 rotate2Ex01 :: IO UGen
 rotate2Ex01 = do
-  x <- (* 0.3) <$> brownNoise ar 
+  x <- (* 0.3) <$> brownNoise ar
   let y = saw ar 200 * 0.3
   return $ out 0 $ rotate2 x y (lfSaw kr 0.1 0)
 
--- 
+--
 -- Reverbs, cant find gverb ugen.
--- 
+--
 
 freeVerbEx01 :: IO UGen
 freeVerbEx01 = do
@@ -486,7 +488,7 @@ freeVerbEx01 = do
       x = mce [x', delayC x' 0.01 0.01]
   return $ out 0 $ freeVerb x 0.75 0.9 0.4
 
--- 
+--
 -- Delays and Buffer ugens
 --
 
@@ -506,12 +508,12 @@ fbEx01 ug = do
   return $ out 0 $ ug z 0.2 0.2 3
 
 fbEx02 :: Delay4 -> IO UGen
-fbEx02 ug = 
-  (\n -> out 0 $ ug (n*0.02) 0.01 (xLine kr 0.0001 0.01 20 DoNothing) 0.2) 
+fbEx02 ug =
+  (\n -> out 0 $ ug (n*0.02) 0.01 (xLine kr 0.0001 0.01 20 DoNothing) 0.2)
   <$> whiteNoise ar
 
 fbEx03 :: Delay4 -> IO UGen
-fbEx03 ug = 
+fbEx03 ug =
   (\n -> out 0 $ ug (n*0.02) 0.01 (xLine kr 0.0001 0.01 20 DoNothing) (-0.2))
   <$> whiteNoise ar
 
@@ -525,7 +527,7 @@ playBufNum :: Num a => a
 playBufNum = 100
 
 allocReadPlayBuf :: FilePath -> IO OSC
-allocReadPlayBuf sf = 
+allocReadPlayBuf sf =
     withSC3 $ \fd -> do
       async fd $ b_free playBufNum
       async fd $ b_allocRead playBufNum sf 0 0
@@ -533,15 +535,15 @@ allocReadPlayBuf sf =
 pbEx01 :: UGen
 pbEx01 = out 0 $ sinOsc ar (800 + 700 * pb) 0 * 0.3
     where
-      pb = playBuf 1 playBufNum (bufRateScale kr playBufNum) 
+      pb = playBuf 1 playBufNum (bufRateScale kr playBufNum)
            1 0 Loop DoNothing
 
 pbEx02 :: UGen
-pbEx02 = out 0 $ playBuf 1 playBufNum (bufRateScale kr playBufNum) 
+pbEx02 = out 0 $ playBuf 1 playBufNum (bufRateScale kr playBufNum)
          1 0 Loop DoNothing
 
 pbEx03 :: UGen
-pbEx03 = 
+pbEx03 =
     out 0 $ playBuf 1 playBufNum (bufRateScale kr playBufNum)
     t 0 NoLoop DoNothing
     where
@@ -549,21 +551,21 @@ pbEx03 =
 
 pbEx04 :: UGen
 pbEx04 =
-    out 0 $ playBuf 1 playBufNum (bufRateScale kr playBufNum) 
+    out 0 $ playBuf 1 playBufNum (bufRateScale kr playBufNum)
     t 0 NoLoop DoNothing
     where
       t = impulse kr (xLine kr 0.1 100 30 RemoveSynth) 0
 
 pbEx05 :: UGen
-pbEx05 = 
-    out 0 $ playBuf 1 playBufNum (bufRateScale kr playBufNum) 
+pbEx05 =
+    out 0 $ playBuf 1 playBufNum (bufRateScale kr playBufNum)
     t p Loop DoNothing
     where
       t = impulse kr (mouseY kr 0.5 200 Exponential 0.1) 0
       p = mouseX kr 0 (bufFrames kr playBufNum) Linear 0.1
 
 pbEx06 :: UGen
-pbEx06 = 
+pbEx06 =
     out 0 $ playBuf 1 playBufNum rate 1 0 Loop DoNothing
     where
       rate = xLine kr 0.1 100 60 RemoveSynth
@@ -577,7 +579,7 @@ pbEx07 =
 
 pbEx08 :: IO UGen
 pbEx08 = do
-  rate <- (* 2) <$> lfNoise2 kr (xLine kr 1 20 60 DoNothing) 
+  rate <- (* 2) <$> lfNoise2 kr (xLine kr 1 20 60 DoNothing)
   return $ out 0 $ playBuf 1 playBufNum (bufRateScale kr playBufNum * rate)
          1 0 Loop DoNothing
 
@@ -589,29 +591,31 @@ granularBufNum :: Num a => a
 granularBufNum = 101
 
 allocReadGranular :: FilePath -> IO OSC
-allocReadGranular sf = 
+allocReadGranular sf =
     withSC3 $ \fd -> do
       async fd $ b_free granularBufNum
       async fd $ b_allocRead granularBufNum sf 0 0
 
 -- | tGrains: numChannels trigger bufnum rate centerPos dur pan amp interp
 tgEx01 :: UGen
-tgEx01 = out 0 $ tGrains 2 (impulse ar trate 0) granularBufNum 1 cpos dur 0 0.1 2
+tgEx01 =
+    out 0 $ tGrains 2 (impulse ar trate 0) granularBufNum 1 cpos dur 0 0.1 2
     where
       trate = mouseY kr 2 200 Linear 1
       cpos = mouseX kr 0 (bufDur kr granularBufNum) Linear 0.1
       dur = 4 / trate
 
+-- | Why cant hear any sound with this?
+-- ... Find it. Dont't know why but whiteNoise won't work with KR.
 tgEx02 :: IO UGen
 tgEx02 = do
   let trate = mouseY kr 8 120 Exponential 1
-      dur = 12 / trate
+      dur = 1.2 / trate
       clk = impulse kr trate 0
       b = granularBufNum
       amp = 0.3
-  posOffset <- tRand 0 0.01 clk
-  let pos = mouseX kr 0 (bufDur kr b) Linear 0.1 + posOffset
-  pan <- (* 0.6) <$> whiteNoise kr  
+  pos <- pure (+ mouseX kr 0 (bufDur kr b) Linear 0.1) <*> tRand 0 0.01 clk
+  pan <- (* 0.6) <$> whiteNoise ar
   return $ out 0 $ tGrains 2 clk b 1 pos dur pan amp 2
 
 tgEx03 :: IO UGen
@@ -625,4 +629,104 @@ tgEx03 = do
   n1 <- (* 0.6) <$> whiteNoise ar
   let rate = shiftLeft 1.2 (roundE n0 1)
   return $ out 0 $ tGrains 2 clk b rate pos dur n1 0.25 2
+
+tgEx04 :: IO UGen
+tgEx04 = do
+  let trate = mouseY kr 8 120 Exponential 0.1
+      b = granularBufNum
+      dur = 4 / trate
+  clk <- dust kr trate
+  pos <- pure (+ mouseX kr 0 (bufDur kr b) Linear 0.1) <*> tRand 0 0.01 clk
+  pan <- pure (* 0.6) <*> whiteNoise ar
+  return $ out 0 $ tGrains 2 clk b 1 pos dur pan 0.1 0
+
+tgEx05 :: IO UGen
+tgEx05 = do
+  let trate = linExp (lfTri kr (mouseY kr 0.1 2 Linear 0.1) 0) (-1) 1 1 8 * 120
+      dur = 12 / trate
+      clk = impulse ar trate 0
+      pos = mouseX kr 0 (bufDur kr b) Linear 0.1
+      b = granularBufNum
+  pan <- (* 0.6) <$> whiteNoise ar
+  return $ out 0 $ tGrains 2 clk b 1 pos dur pan 0.1 1
+
+tgEx06 :: IO UGen
+tgEx06 = do
+  let trate = 12
+      dur = mouseY kr 0.2 24 Linear 0.1 / trate
+      b = granularBufNum
+      clk = impulse kr trate 0
+  pos <- (+ mouseX kr 0 (bufDur kr b) Linear 0.1) <$> tRand 0 0.01 clk
+  pan <- (* 0.6) <$> whiteNoise ar
+  return $ out 0 $ tGrains 2 clk b 1 pos dur pan 0.1 1
+
+tgEx07 :: IO UGen
+tgEx07 = do
+  let trate = 100
+      dur = 8 / trate
+      clk = impulse kr trate 0
+      b = granularBufNum 
+  pos <- (\n -> integrator (n*0.001) 0.1) <$> brownNoise ar 
+  pan <- (* 0.6) <$> whiteNoise ar
+  return $ out 0 $ tGrains 2 clk b 1 pos dur pan 0.1 1
+
+tgEx08 :: IO UGen
+tgEx08 = do
+  let trate = mouseY kr 1 400 Exponential 0.1
+      dur = 8 / trate
+      clk = impulse kr trate 0
+      pos = mouseX kr 0 (bufDur kr b) Linear 0.1
+      b = granularBufNum
+  pan <- (* 0.8) <$> whiteNoise ar
+  rate <- (* 2) <$> whiteNoise ar 
+  return $ out 0 $ tGrains 2 clk b rate pos dur pan 0.1 1
+
+tgEx09 :: IO UGen
+tgEx09 = do
+  let trate = mouseY kr 2 120 Exponential 0.1
+      dur = 1.2 / trate
+      clk = impulse ar trate 0
+      b = granularBufNum
+  rate <- (roundE 1 . (* 3) . (1.2 **)) <$> whiteNoise ar
+  let pos = mouseX kr 0 (bufDur kr b) Linear 0.1
+  pan <- (* 0.6) <$> whiteNoise ar
+  let amp = 0.1
+  return $ tGrains 2 clk b rate pos dur pan amp 2
+
+-- 
+-- GrainSin
+--
+
+gSinEx01 :: IO UGen
+gSinEx01 = do
+  let trigrate = mouseX kr 2 120 Linear 0.1
+      winsize = recip trigrate 
+      trig = impulse ar trigrate 0
+  freq <- tRand 440 880 trig
+  pan <- lfNoise1 kr 0.2
+  return $ out 0 $ grainSin 2 trig winsize freq pan (-1) * 0.2
+
+grainSinBufNum :: Num a => a
+grainSinBufNum = 102
+ 
+allocGrainSinBuf :: IO ()
+allocGrainSinBuf = withSC3 $ \fd -> 
+                   send fd $ b_alloc grainSinBufNum 1024 1
+
+writeGrainSinBuf :: [Double] -> IO ()
+writeGrainSinBuf vs =
+    withSC3 $ \fd -> send fd $ b_setn grainSinBufNum [(0,vs)]
+
+gSinEx02 :: IO UGen
+gSinEx02 = do
+  let trigrate = mouseX kr 2 120 Linear 0.1
+      winsize = recip trigrate
+      trig = impulse ar trigrate 0
+  freq <- tRand 440 880 trig
+  pan <- lfNoise1 kr 0.2 
+  return $ out 0 $ grainSin 2 trig winsize freq pan grainSinBufNum * 0.2
+
+-- 
+-- See also: GrainFM, GrainBuf, and GrainIn.
+--
 
