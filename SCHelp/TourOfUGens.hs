@@ -1027,3 +1027,81 @@ asEx06b = do
   return $ out 0 $ mce
              [delayC x 0.01 0.01,
               delayC x 0.02 (mouseX kr 0.02 0 Linear 0.1)]
+
+
+--
+-- Parallel Structures
+--  
+
+psEx01 :: IO UGen
+psEx01 = do
+  let n = 16
+      g a b = do
+           f <- randomRIO (200,1200)
+           return $ a + (fSinOsc ar f 0 / b)
+  pure (out 0 . (* 0.2)) <*> foldM g 0 [1..n]
+
+psEx02 :: IO UGen
+psEx02 = do
+  let n = 16
+      g a b = do
+           f <- randomRIO (200,1200)
+           return $ a + (fSinOsc ar (f + mce [0,0.5]) 0 / b)
+  pure (out 0 . (* 0.2)) <*> foldM g 0 [1..n]
+
+psEx03 :: IO UGen
+psEx03 = do
+  let n = 16
+      g a b = do
+           af <- exp <$> randomRIO (log 0.1, log 1)
+           ap <- randomRIO (0, pi * 2)
+           pan <- randomRIO (-1,1)
+           f <- exp <$> randomRIO (log 100, log 1000)
+           let amp = max 0 (fSinOsc kr af ap)
+           return $ a + pan2 (fSinOsc ar f 0 * amp / (2*b)) pan 1 
+  pure (out 0 . (* 0.8)) <*> foldM g 0 [1..n]
+
+psEx04 :: IO UGen
+psEx04 = do
+  let n = 8
+      g a b = do
+           gen <- newStdGen
+           let (drate,_) = randomR (0.0001,1) gen
+               (dtime,_) = randomR (0.0003, 0.0043) gen
+               (pan,_) = randomR (-1,1) gen
+           dt <- (* 0.3) <$> dust ar drate
+           return $ a + pan2 (combL dt 0.01 dtime 4) pan 1
+  out 0 <$> foldM g 0 [1..n]
+
+mkps :: (Num a, Enum a, Monad m, Functor m) 
+     => (UGen -> UGen) -> a -> (UGen -> a -> m UGen) -> m UGen
+mkps f n g = (out 0 . f) <$> foldM g 0 [1..n]
+
+psEx01' :: IO UGen
+psEx01' = mkps (* 0.2) 16 $ \a b -> do
+           f <- randomRIO (200,1200)
+           return $ a + (fSinOsc ar f 0 / b)
+
+psEx02' :: IO UGen
+psEx02' = mkps (* 0.2) 16 $ \a b -> do
+           f <- randomRIO (200,1200)
+           return $ a + (fSinOsc ar (f + mce [0,0.5]) 0 / b)
+
+psEx03' :: IO UGen
+psEx03' = mkps (* 0.8) 16 $ \a b -> do
+            af <- exp <$> randomRIO (log 0.1, log 1)
+            ap <- randomRIO (0, pi * 2)
+            pan <- randomRIO (-1,1)
+            f <- exp <$> randomRIO (log 100, log 1000)
+            let amp = max 0 (fSinOsc kr af ap)
+            return $ a + pan2 (fSinOsc ar f 0 * amp / (2*b)) pan 1
+
+psEx04' :: IO UGen
+psEx04' = mkps id 16 $ \a b -> do
+            gen <- newStdGen
+            let (drate,gen') = randomR (0.0001,1) gen
+                (dtime,gen'') = randomR (0.0003, 0.0043) gen'
+                (pan,_) = randomR (-1,1) gen''
+            dt <- (* 0.3) <$> dust ar drate
+            return $ a + pan2 (combL dt 0.01 dtime 4) pan 1
+
