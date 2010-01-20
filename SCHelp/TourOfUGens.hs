@@ -69,6 +69,18 @@ type Delay3 = UGen -> UGen -> UGen -> UGen
 -- | for comb[N,L,C] and allpass[N,L,C]
 type Delay4 = UGen -> UGen -> UGen -> UGen -> UGen
 
+-- | for decay
+type Control2 = UGen -> UGen -> UGen
+
+-- | for decay2
+type Control3 = UGen -> UGen -> UGen -> UGen
+
+-- | for trig, trig1, tDelay, latch, gate, pulseCount
+type Trig2 = UGen -> UGen -> UGen
+
+-- | for pulseDivider
+type Trig3 = UGen -> UGen -> UGen -> UGen
+
 -- | Try lfEx[01,02,03,04] with lfPar, lfCub, lfTri, lfSaw.
 --
 -- e.g.
@@ -729,4 +741,86 @@ gSinEx02 = do
 -- 
 -- See also: GrainFM, GrainBuf, and GrainIn.
 --
+
+-- 
+-- Controls
+-- 
+decayEx01 :: Control2 -> IO UGen 
+decayEx01 ug = 
+    (out 0 . (*0.2) . (* ug (impulse ar 1 0) 0.9)) <$> whiteNoise ar
+
+decayEx02 :: Control2 -> IO UGen
+decayEx02 ug = 
+    (\t n -> out 0 $ ug t 0.9 * 0.2 * n) <$> dust ar 3 <*> whiteNoise ar
+
+decayEx03 :: Control2 -> IO UGen
+decayEx03 ug = 
+    (\t -> out 0 $ sinOsc ar (ug t 0.5 * 800) 0 * 0.2) <$> dust ar 4
+
+decay2Ex01 :: Control3 -> IO UGen
+decay2Ex01 ug = 
+    (out 0 . (*0.2) . (* ug (impulse ar 1 0) 0.2 0.9)) <$> whiteNoise ar
+
+decay2Ex02 :: Control3 -> IO UGen
+decay2Ex02 ug =
+    (\t n -> out 0 $ ug t 0.2 0.9 * 0.2 * n) <$> dust ar 3 <*> whiteNoise ar
+
+lagEx01 :: Control2 -> UGen
+lagEx01 ug = out 0 $ sinOsc ar (ug (lfPulse ar 2 0 0.5 * 800 + 400) 
+                                       (mouseX kr 0 0.5 Linear 0.1)) 0 * 0.2 
+
+integratorEx01 :: Control2 -> IO UGen
+integratorEx01 ug = 
+    (\t -> out 0 $ sinOsc ar (ug t 0.99999 * 200 + 800) 0 * 0.2) <$> dust2 ar 8
+
+--
+-- Triggers
+--
+
+trigEx01 :: Trig2 -> IO UGen
+trigEx01 ug = 
+    (\t -> out 0 $ ug t 0.2 * fSinOsc ar 800 0 * 0.4) <$> dust ar 2
+
+tDelayEx01 :: Trig2 -> IO UGen
+tDelayEx01 ug = do
+  t <- dust ar 2
+  return $ out 0 $ 
+         mce [trig1 t 0.05 * fSinOsc ar 660 0 * 0.2,
+              trig1 (ug t 0.1) 0.05 * fSinOsc ar 880 0 * 0.2]
+
+latchEx01 :: Trig2 -> IO UGen
+latchEx01 ug = 
+    (\n -> out 0 $ blip ar (ug n (impulse ar 9 0) * 400 + 500) 4 * 0.2)
+    <$> whiteNoise ar
+
+latchEx02 :: Trig2 -> UGen
+latchEx02 ug = 
+    out 0 $ blip ar (ug (sinOsc ar 0.3 0) (impulse ar 9 0) * 400 + 500) 4 * 0.2
+
+gateEx01 :: Trig2 -> IO UGen
+gateEx01 ug =
+    (\n -> out 0 $ blip ar (ug n (lfPulse ar 1 0 0) * 400 + 500) 4 * 0.2)
+    <$> lfNoise2 ar 40
+
+pulseCountEx01 :: Trig2 -> UGen
+pulseCountEx01 ug = 
+    out 0 $ sinOsc ar (ug (impulse ar 10 0) (impulse ar 0.4 0) * 200) 0 * 0.05
+
+pulseCountEx02 :: Trig2 -> IO UGen
+pulseCountEx02 ug = 
+    (\r -> out 0 $ sinOsc ar (ug (impulse ar 12 0) r * 200) 0 * 0.05)
+    <$> dust2 kr 4
+
+pulseDividerEx01 :: Trig3 -> UGen
+pulseDividerEx01 ug = out 0 $ mce [a, b]
+    where
+      p = impulse ar 8 0
+      a = sinOsc ar 1200 0 * decay2 p 0.005 0.1
+      b = sinOsc ar 600 0 * decay2 (ug p pdiv 0) 0.005 0.5 
+      pdiv = ceil (mouseX kr 1 8 Linear 0.1)
+
+
+--
+-- EnvGen
+-- 
 
