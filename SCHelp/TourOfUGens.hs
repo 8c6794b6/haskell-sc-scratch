@@ -20,6 +20,7 @@ import Missing
 import SCTree
 import SCQuery
 import SCSched
+import qualified Scratch.ControlArgs as Arg
 
 
 r :: IO ()
@@ -820,7 +821,61 @@ pulseDividerEx01 ug = out 0 $ mce [a, b]
       pdiv = ceil (mouseX kr 1 8 Linear 0.1)
 
 
---
+-- 
 -- EnvGen
 -- 
 
+-- | EnvShape could be made from env, envCoord, envTrapezoid, envPerc,
+-- envSine, etc.
+-- 
+-- * env [levels] [times] [curves] level-scale? level-offset?
+-- * envCoord [(time,level)] total-duration level-scale envCurve
+-- * envTrapezoid shape skew dur amp
+-- * envPerc attack-time total-duration
+-- * envSine total-duration max-level
+--
+egEx01 :: [UGen] -> UGen
+egEx01 shape = out 0 $ sinOsc ar 880 0 * 0.2 * e
+    where e = envGen kr 1 1 0 1 RemoveSynth shape 
+
+egEx02 :: [UGen] -> UGen
+egEx02 shape = out 0 $ sinOsc ar 880 0 * 0.2 * e
+    where e = envGen kr (impulse kr 2 0) 1 0 1 DoNothing shape
+
+egEx03 :: [UGen] -> IO UGen
+egEx03 shape = do
+  t <- dust kr 3 
+  let e = envGen kr t 1 0 1 DoNothing shape
+  return $ out 0 $ sinOsc ar 880 0 * 0.2 * e
+
+
+-- | Hmmm... releasing of envelope wont work as expected. Some trick
+-- working in sclang, or scsynth? Envelope won't release with merly sending
+-- negative value to gate argument. ... Got it. The envelope used in
+-- the target node should have next value to change. with havins value
+-- 0 as its level, it sound like release. Probably forced releasing
+-- means, "move to next value". 
+egEx04Def :: IO OSC 
+egEx04Def = withSC3 (sendSynthdef "egEx04" ug)
+    where ug = out 0 $ sinOsc ar 880 0 * 0.2 * e
+          e = envGen kr Arg.gate 1 0 1 RemoveSynth shape
+          shape = envCoord [(0,0),(0.01,1),(0.2,0.5),(9999,0.0)] 1 1 EnvSin
+
+-- | Send a synth with envelope gate opened.      
+egEx04 :: IO ()
+egEx04 = withSC3 $ \fd -> do
+           send fd $ s_new "egEx04" (-1) AddToTail 1 [("gate",1)]
+
+-- | Release with specifyed duration. 0 means immediate release, 1
+-- means move to 0 in 1 second.
+egEx04Release :: Double -> IO ()
+egEx04Release rt = withSC3 $ \fd -> send fd $ n_set (-1) [("gate",-1 -rt)]
+
+egEx05 :: Int -> IO UGen
+egEx05 n = do
+ gen <- newStdGen
+ let shape = envCoord (zip (times++[99999]) (levels++[0])) 1 1 EnvCub
+     times = scanl (+) 0 $ take n $ randomRs (0.005,0.2) gen
+     levels = 0 : (take (n-2) $ randomRs (0,1.0) gen)
+     e = envGen kr ("gate" @= 1) 1 0 1 DoNothing shape 
+ return $ out 0 $ sinOsc ar 880 0 * 0.2 * e 
