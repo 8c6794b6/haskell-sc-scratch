@@ -58,6 +58,12 @@ type Filter4 = UGen -> UGen -> UGen -> UGen -> UGen
 -- | For klank ugen, just for readability.
 type KlankSpec = UGen
 
+-- | For delayN, delayL, and delayC.
+type Delay3 = UGen -> UGen -> UGen -> UGen
+
+-- | for comb[N,L,C] and allpass[N,L,C]
+type Delay4 = UGen -> UGen -> UGen -> UGen -> UGen
+
 -- | Try lfEx[01,02,03,04] with lfPar, lfCub, lfTri, lfSaw.
 --
 -- e.g.
@@ -399,6 +405,10 @@ kkSpec04 = do
       ds = take n $ randomRs (0.001,1.0) gen
   return $ klankSpec fs as ds
 
+-- 
+-- Distortion
+--
+
 unaryOpEx01 :: (UGen -> UGen) -> UGen
 unaryOpEx01 uo = out 0 $ uo $ sinOsc ar 300 0 * 0.2
 
@@ -421,6 +431,10 @@ drawShaperBuf = withSC3 $ \fd -> do
 shaperEx01 :: UGen
 shaperEx01 = out 0 $ shaper shaperBufNum idx * 0.3
     where idx = sinOsc ar 600 0 * mouseX kr 0 1 Linear 0.1
+
+-- 
+-- Panner
+-- 
 
 panEx01 :: IO UGen
 panEx01 = do 
@@ -456,3 +470,111 @@ rotate2Ex01 = do
   x <- (* 0.3) <$> brownNoise ar 
   let y = saw ar 200 * 0.3
   return $ out 0 $ rotate2 x y (lfSaw kr 0.1 0)
+
+-- 
+-- Reverbs, cant find gverb ugen.
+-- 
+
+freeVerbEx01 :: IO UGen
+freeVerbEx01 = do
+  d <- dust ar 2 >>. (* 0.1)
+  spec <- kkSpec04
+  let x' = klank d 1 0 1 spec
+      x = mce [x', delayC x' 0.01 0.01]
+  return $ out 0 $ freeVerb x 0.75 0.9 0.4
+
+-- 
+-- Delays and Buffer ugens
+--
+
+delayEx01 :: Delay3 -> IO UGen
+delayEx01 ug = do
+  z <- (\t n -> decay (t*0.5) 0.3 * n) <$> dust ar 1 <*> whiteNoise ar
+  return $ out 0 $ ug z 0.1 0.1 + z
+
+delayEx02 :: Delay3 -> IO UGen
+delayEx02 ug = do
+  z <- (\n -> decay (impulse ar 2 0 *0.4) 0.3 * n) <$> whiteNoise ar
+  return $ out 0 $ ug z 0.3 (mouseX kr 0 0.3 Linear 0.1) + z
+
+fbEx01 :: Delay4 -> IO UGen
+fbEx01 ug = do
+  z <- (\t n -> decay (t*0.5) 0.2 * n) <$> dust ar 1 <*> whiteNoise ar
+  return $ out 0 $ ug z 0.2 0.2 3
+
+fbEx02 :: Delay4 -> IO UGen
+fbEx02 ug = 
+  (\n -> out 0 $ ug (n*0.02) 0.01 (xLine kr 0.0001 0.01 20 DoNothing) 0.2) 
+  <$> whiteNoise ar
+
+fbEx03 :: Delay4 -> IO UGen
+fbEx03 ug = 
+  (\n -> out 0 $ ug (n*0.02) 0.01 (xLine kr 0.0001 0.01 20 DoNothing) (-0.2))
+  <$> whiteNoise ar
+
+apEx01 :: Delay4 -> IO UGen
+apEx01 ug = do
+  z <- (\t n -> decay (t * 0.5) 0.1 * n) <$> dust ar 1 <*> whiteNoise ar
+  let g a b = (\dt -> ug a 0.04 dt 2) <$> randomRIO (0,0.04)
+  out 0 <$> foldM g z [1..8]
+
+playBufNum :: Num a => a
+playBufNum = 100
+
+allocReadPlayBuf :: FilePath -> IO OSC
+allocReadPlayBuf sf = 
+    withSC3 $ \fd -> do
+      async fd $ b_free playBufNum
+      async fd $ b_allocRead playBufNum sf 0 0
+
+pbEx01 :: UGen
+pbEx01 = out 0 $ sinOsc ar (800 + 700 * pb) 0 * 0.3
+    where
+      pb = playBuf 1 playBufNum (bufRateScale kr playBufNum) 
+           1 0 Loop DoNothing
+
+pbEx02 :: UGen
+pbEx02 = out 0 $ playBuf 1 playBufNum (bufRateScale kr playBufNum) 
+         1 0 Loop DoNothing
+
+pbEx03 :: UGen
+pbEx03 = 
+    out 0 $ playBuf 1 playBufNum (bufRateScale kr playBufNum)
+    t 0 NoLoop DoNothing
+    where
+      t = impulse kr 2 0
+
+pbEx04 :: UGen
+pbEx04 =
+    out 0 $ playBuf 1 playBufNum (bufRateScale kr playBufNum) 
+    t 0 NoLoop DoNothing
+    where
+      t = impulse kr (xLine kr 0.1 100 30 RemoveSynth) 0
+
+pbEx05 :: UGen
+pbEx05 = 
+    out 0 $ playBuf 1 playBufNum (bufRateScale kr playBufNum) 
+    t p Loop DoNothing
+    where
+      t = impulse kr (mouseY kr 0.5 200 Exponential 0.1) 0
+      p = mouseX kr 0 (bufFrames kr playBufNum) Linear 0.1
+
+pbEx06 :: UGen
+pbEx06 = 
+    out 0 $ playBuf 1 playBufNum rate 1 0 Loop DoNothing
+    where
+      rate = xLine kr 0.1 100 60 RemoveSynth
+
+pbEx07 :: UGen
+pbEx07 =
+    out 0 $ playBuf 1 playBufNum (bufRateScale kr playBufNum * rate) 1 0
+    Loop DoNothing
+    where
+      rate = fSinOsc kr (xLine kr 0.2 8 30 DoNothing) 0 * 3 + 0.6
+
+pbEx08 :: IO UGen
+pbEx08 = do
+  rate <- (* 2) <$> lfNoise2 kr (xLine kr 1 20 60 DoNothing) 
+  return $ out 0 $ playBuf 1 playBufNum (bufRateScale kr playBufNum * rate)
+         1 0 Loop DoNothing
+
