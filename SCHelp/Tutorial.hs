@@ -276,13 +276,3 @@ runSappy = do
   spawn 0 120 . mconcat =<<
            sequence [sappyEv01, sappyEv015, sappyEv02, sappyEv03]
 
-transposeWithKeys :: Map a [b] -> [[(a,b)]]
-transposeWithKeys =
-  transpose . M.elems . M.mapWithKey (\k a -> zip (repeat k) a)
-
-mkSNew :: String -> Int -> AddAction -> Int -> Map String [Double] -> [OSC]
-mkSNew name nodeId addAction targetId =
-  map (s_new name nodeId addAction targetId) . transposeWithKeys
-
-mkSNew' :: String -> Int -> Map String [Double] -> [OSC]
-mkSNew' name targetId = mkSNew name (-1) AddToTail targetId

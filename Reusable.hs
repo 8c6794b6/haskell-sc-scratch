@@ -9,7 +9,9 @@
 module Reusable where
 
 import Control.Arrow ((>>>))
-import Data.List (nub)
+import Data.List (nub,transpose)
+import Data.Map (Map)
+import qualified Data.Map as M
 import System.Environment (getEnvironment)
 import System.FilePath ((</>), (<.>))
 
@@ -143,8 +145,6 @@ c_get' ids = send' (c_get ids) >> wait' "/c_set"
 (|>) :: (a -> b) -> (b -> c) -> (a -> c)
 (|>) = (>>>)
 
--- a >>=* b = a >>= b |> return
-
 (>>=*) :: (Functor f) => f a -> (a -> b) -> f b
 (>>=*) = flip fmap
 
@@ -164,6 +164,19 @@ name @= val = control kr name val
 -- | Returns Control ugen, with lag.
 (@~) :: String -> Double -> UGen -> UGen
 a @~ b = \c -> lag (a @= b) c
+
+-- | Makes list of s_new osc messages from Map.
+mkSNew :: String -> Int -> AddAction -> Int -> Map String [Double] -> [OSC]
+mkSNew name nodeId addAction targetId =
+  map (s_new name nodeId addAction targetId) . transposeWithKeys
+
+-- | Variant of mkSNew with nodeId (-1) and AddToTail.
+mkSNew' :: String -> Int -> Map String [Double] -> [OSC]
+mkSNew' name targetId = mkSNew name (-1) AddToTail targetId
+
+transposeWithKeys :: Map a [b] -> [[(a,b)]]
+transposeWithKeys =
+  transpose . M.elems . M.mapWithKey (\k a -> zip (repeat k) a)
 
 -- Copied from current head of darcs repository.
 

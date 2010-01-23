@@ -14,6 +14,7 @@ cut = "cut" @= 4000
 cutoff = "cutoff" @= 10000
 decay = "decay" @= 4
 delay = "delay" @= 0.2
+dur = "dur" @= 1
 ffreq = "ffreq" @= 440
 freq = "freq" @= 440
 gain = "gain" @= 1
