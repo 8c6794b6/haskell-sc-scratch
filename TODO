@@ -13,8 +13,25 @@ TODO List
   * Getting started with SC (READ, but write buffer examples again)
   * Introductory Tutorial (READ, Implemented scheduling examples with Event)
   * Tutorial (READ)
-  * Tour of Unit Generators
-  * A Practical Guide to Patterns
+  * Tour of Unit Generators (READ)
+  * A Practical Guide to Patterns (currently only taking a glance)
+    * PG_01_Introduction (READ)
+    * PG_02_Basic_Vocabulary (READ)
+    * PG_03_What_Is_Pbind (READ)
+    * PG_04_Words_to_Phrases (READ)
+    * PG_05_Math_on_patterns (READ)
+    * PG_06_Filter_Patterns (READ)
+    * PG_06a_Repetition_Contraint_Patterns (READ)
+    * PG_06b_Time_Based_Patterns (READ)
+    * PG_06c_Composition_of_Patterns (READ)
+    * PG_06d_Parallel_Patterns
+    * PG_06e_Language_Control
+    * PG_06f_Server_Control
+    * PG_06g_Data_Sharing
+    * PG_07_Value_Conversions
+    * PG_08_Event_Types_and_Parameters
+    * PG_Cookbook01_
+    * ...
   * Streams Overview
 
 * Read Help fiiles for busses and buffers.
@@ -45,9 +62,11 @@ TODO List
 
 * Rewrite acid example using haskell.
 
+* Rewrite pattern examples in haskell.
+
 * Find efficient way for bookkeeping nodeID, busID, buffeerID.
 
-* Rewrite sc examples from distribution in haskell . It's in
+* Rewrite sc examples from distribution in haskell. It's in
   ~/share/SuperCollider/examples/. Mac OSX specific examples could be ignored.
 
 * Recieve MIDI event from other app
@@ -69,6 +88,11 @@ TODO List
     * Kill, or remove thread
   * ... should I use haskeline and implement this in specific
     interpreter?
+
+BURIED
+======
+
+* Add "resting" to sequence of notes. (NOT CONCRETE ENOUGH.)
 
 DONE
 ====
@@ -115,7 +139,17 @@ DONE
 
 * Read "Architecture" section in sc help file. (DONE)
 
-BURIED
-======
+NOTES
+=====
+* Some function for Events are unstable for usid as timing control of
+  realtime musical performance. e.g. filterE, Behavior
 
-* Add "resting" to sequence of notes. (NOT ENOUGH CONCRETE.)
+* Found explanation of control args starting with "t_" in help file of
+  Synthdef.
+
+* SuperCollider's pbind sends new synth with POSITIVE node id. This
+  should doing some trick for releasing the gate after the synth is created.
+
+* Nesting of patterns seemed as using Data.Tree and flattening with
+  toList... Is it? 
+
