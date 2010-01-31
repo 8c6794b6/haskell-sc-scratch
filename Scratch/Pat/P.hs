@@ -1,6 +1,6 @@
--- | Module to play with pattern.
--- Using both datatype and typeclasses.
--- 
+-- | Module to play with pattern, different approach from written in 
+-- Sound.SC3.Language.Pattern.
+--
 -- XXX: 
 --  * Implement Prand. 
 --  * Try implement this with making Pat as a typeclass, and then
@@ -41,12 +41,12 @@ runPat (Prand n ps) = undefined
 runPat (Pinf a) = repeat a
 runPat Pempty = []
 
-rp :: (a -> [b]) -> Pbind a -> [[(String, b)]]
-rp f (Pbind ps) = transpose $ map g ps 
+runPb :: (a -> [b]) -> Pbind a -> [[(String, b)]]
+runPb f (Pbind ps) = transpose $ map g ps 
     where g (n,p) = zipWith (,) (repeat n) (f p)
 
 runPbind :: Pbind (Pat a) -> [[(String, a)]]
-runPbind = rp runPat
+runPbind = runPb runPat
 
 pat1 :: Pat (String, Double)
 pat1 = Pid ("foo", 3)
