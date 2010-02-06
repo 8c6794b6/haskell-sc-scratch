@@ -7,20 +7,68 @@
 module P5 where
 
 import Control.Applicative
+import Control.Arrow (first, second)
 import Data.Generics
 import Data.List (transpose)
+import Data.Monoid
 
-data Pattern a = Pid a
+data Pattern a = Pempty
+	       | Pid a
 	       | Pseq (Pattern PValue) [Pattern a]
 	       | Prand (Pattern PValue) [Pattern a]
-	       | Pbind [(String, (Pattern a))]
+	       | Pbind [(String, Pattern a)]
+	       | Pinf
 		 deriving (Eq, Show, Read, Data, Typeable)
 
 instance Functor Pattern where
+    fmap f Pempty = Pempty
     fmap f (Pid a) = Pid (f a)
     fmap f (Pseq p ps) = Pseq p (map (fmap f) ps)
     fmap f (Prand p ps) = Prand p (map (fmap f) ps)
     fmap f (Pbind ps) = Pbind (fmap (fmap $ fmap f) ps)
+    fmap f Pinf = Pinf
+
+instance Monoid (Pattern a) where
+    mempty = Pempty
+    p1 `mappend` p2  = Pseq (Pid 1) [p1, p2]
+
+instance Applicative Pattern where
+    pure = Pid
+    Pempty <*> p = Pempty
+    Pid f <*> p = fmap f p
+    Pseq n xs <*> Pseq m ys = Pseq n (zipWith (<*>) xs ys)
+    Pseq n xs <*> Prand m ys = Pseq n (zipWith (<*>) xs ys)
+    Pseq n xs <*> Pbind ys = Pseq n (zipWith (<*>) xs (map (\(a,b) -> b) ys))
+    Pseq n xs <*> y@(Pid _) = Pseq n (zipWith (<*>) xs (repeat y))
+    Pseq n xs <*> p = (head xs) <*> p
+    Prand n xs <*> Pseq m ys = Prand n (zipWith (<*>) xs ys)
+    Prand n xs <*> Prand m ys = Prand n (zipWith (<*>) xs ys)
+    Prand n xs <*> Pbind ys = Prand n (zipWith (<*>) xs (map (\(a,b) -> b) ys))
+    Prand n xs <*> y@(Pid _) = Prand n (zipWith (<*>) xs (repeat y))
+    Prand n xs <*> p = (head xs) <*> p
+    -- XXX: Pbind?
+    Pinf <*> p = Pinf
+
+instance (Num a) => Num (Pattern a) where
+    p1 + p2 = (+) <$> p1 <*> p2
+    p1 * p2 = (*) <$> p1 <*> p2
+    p1 - p2 = (-) <$> p1 <*> p2
+    negate = fmap negate
+    abs = fmap abs
+    signum = fmap signum
+    fromInteger = Pid . fromInteger
+
+instance (Enum a) => Enum (Pattern a) where
+    succ = fmap succ
+    pred = fmap pred
+    toEnum = Pid . toEnum
+    fromEnum (Pid a) = fromEnum a
+    fromEnum _ = error "fromEnum not defined"
+
+instance Fractional a => Fractional (Pattern a) where
+    p1 / p2 = (/) <$> p1 <*> p2
+    recip = fmap recip
+    fromRational = Pid . fromRational
 
 data PValue = PNum Double
 	    | PString String
@@ -81,19 +129,20 @@ instance Pv a => Pv [a] where
     fromPv _ = []
 
 runP :: Pattern PValue -> [PValue]
+runP Pempty = []
 runP (Pid a) = [a]
 runP (Pseq p ps) =
     concatMap (\x -> concat $ replicate (fromPv x) $ concatMap runP ps) (runP p)
 runP (Pbind ps) = map toPv $ transpose $ map (map toPv . f) ps
     where f (n,p) = zip (repeat n) (runP p)
+runP Pinf = repeat (PNum $ fromIntegral (maxBound :: Int))
 
 --
 -- Sample patterns
 --
 
 p1 :: Pattern PValue
-p1 = Pseq (Pid 3)
-     [Pid 1, Pid 2, Pid 3]
+p1 = Pseq (Pid 3) [Pid 1, Pid 2, Pid 3]
 
 p2 :: Pattern PValue
 p2 = fmap f p1 where
@@ -110,3 +159,6 @@ p3' = map fromPv $ runP p3
 
 p4 :: Pattern PValue
 p4 = Pbind [("foo", p1), ("bar", p2)]
+
+p5 :: Pattern PValue
+p5 = Pseq Pinf [Pid 1, Pid 2, Pid 3]
