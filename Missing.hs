@@ -1,8 +1,6 @@
 ------------------------------------------------------------------------------
 -- | Some ugens missing in hsc3-0.7.
 -- 
--- Yes, Some ugens are missing. 
---
 
 module Missing where
 
