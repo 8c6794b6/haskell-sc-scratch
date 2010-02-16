@@ -1,13 +1,18 @@
 # -*- mode: Text; Fill; Fundamental; -*-
 
-TODO List
-=========
+NOTES
+=====
+* Some function for Events are unstable for usid as timing control of
+  realtime musical performance. e.g. filterE, Behavior
 
-* Use dbufrd instead of dseq for passing parameters. (DONE, but...)
-  * See "ParallelSeq4". Though could be improved in use of
-    index. ParallelSeq4 uses stepper ugen, and resetting is not
-    working as desired. Control bus value is sometime overwritten by
-    the ugen, sometime not.
+* Found explanation of control args starting with "t_" in help file of
+  Synthdef.
+
+* SuperCollider's pbind sends new synth with POSITIVE node id. This
+  should doing some trick for releasing the gate after the synth is created.
+
+* Nesting of patterns seemed as using Data.Tree and flattening with
+  toList... Is it? 
 
 * Read SC Tutorial in help files, and translate in haskell.
   * Getting started with SC (READ, but write buffer examples again)
@@ -32,21 +37,6 @@ TODO List
     * PG_08_Event_Types_and_Parameters
     * PG_Cookbook01_
     * ...
-  * Streams Overview
-
-* Read Help fiiles for busses and buffers.
-
-* Write some example shown in SC help. Listen carefully that the
-  haskell version is making same sound as SC version. Use both sclang
-  and hsc3. Especially synth and effect mapping using synthdefs.
-
-* Instantiate UGen from Data and Typeable. (DONE, but...)
-  * See "Instances.hs". Wrote by hand. Could be improved.
-
-* Write implementation of function for buffer written in Reusable.hs.
-
-* Change the name of Reusable.hs, or move to other place.
-  * How about Misc?
 
 * Write DSL for get/set/add/free, or in other word, CRUD.
   * Inspired by realworldhaskel, something like below. (Is it possible?)
@@ -60,42 +50,11 @@ TODO List
   * ... After writing few lines of scratch, feeling that above
     language design is not so efficient.
 
-* Rewrite acid example using haskell.
-
-* Rewrite pattern examples in haskell.
-
-* Find efficient way for bookkeeping nodeID, busID, buffeerID.
-
-* Rewrite sc examples from distribution in haskell. It's in
-  ~/share/SuperCollider/examples/. Mac OSX specific examples could be ignored.
-
-* Recieve MIDI event from other app
-
-* Recieve MIDI event from device.
-
-* Read templatehaskell tutorials, understand it, and try using it.
-  * Need to break down "try using it".
-
-* Read hs-plugin documentation, understand it, and try using it.
-  * Need to break down "try using it".
-
-* Write concurrent event scheduling library in haskell.
-  * Enable below from ghci session
-    * Add thread 
-    * Show current threads and status 
-    * Pause thread
-    * Restart thread 
-    * Kill, or remove thread
-  * ... should I use haskeline and implement this in specific
-    interpreter?
-
-BURIED
-======
-
-* Add "resting" to sequence of notes. (NOT CONCRETE ENOUGH.)
-
 DONE
 ====
+
+* Instantiate UGen from Data and Typeable. (DONE, but...)
+  * See "Instances.hs". Wrote by hand. Could be improved.
 
 * Make parallel sequence of sound event. (DONE) 
   * Did this by using dseq.
@@ -139,17 +98,9 @@ DONE
 
 * Read "Architecture" section in sc help file. (DONE)
 
-NOTES
-=====
-* Some function for Events are unstable for usid as timing control of
-  realtime musical performance. e.g. filterE, Behavior
-
-* Found explanation of control args starting with "t_" in help file of
-  Synthdef.
-
-* SuperCollider's pbind sends new synth with POSITIVE node id. This
-  should doing some trick for releasing the gate after the synth is created.
-
-* Nesting of patterns seemed as using Data.Tree and flattening with
-  toList... Is it? 
+* Use dbufrd instead of dseq for passing parameters. (DONE, but...)
+  * See "ParallelSeq4". Though could be improved in use of
+    index. ParallelSeq4 uses stepper ugen, and resetting is not
+    working as desired. Control bus value is sometime overwritten by
+    the ugen, sometime not.
 
