@@ -140,7 +140,7 @@ b_play bufnum loop = undefined
 
 -- | Sends @/c_get@ message and wait until it gets @/c_set@.
 c_get' :: Transport t => [Int] -> (t -> IO OSC)
-c_get' ids = send' (c_get ids) >> wait' "/c_set"
+c_get' ids = \fd -> send fd  (c_get ids) >> wait fd "/c_set"
 
 (|>) :: (a -> b) -> (b -> c) -> (a -> c)
 (|>) = (>>>)
