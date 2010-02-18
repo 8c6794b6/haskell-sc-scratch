@@ -196,3 +196,7 @@ withCM (Message c xs) cm =
          in Message c xs'
     else error ("withCM: not async: " ++ c)
 withCM _ _ = error "withCM: not message"
+
+-- | Print the result of sending "/status".
+dumpStatus :: IO ()
+dumpStatus = mapM_ print =<< withSC3 serverStatus
