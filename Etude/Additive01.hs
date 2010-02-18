@@ -6,7 +6,7 @@ module Etude.Additive01 where
 
 import Control.Applicative
 import Control.Concurrent
-import Data.List (zipWith4)
+import Data.List (zipWith4, zipWith5)
 import System.Random
 
 import Sound.OpenSoundControl
@@ -25,68 +25,99 @@ updateSynthdefs :: IO ()
 updateSynthdefs = 
     mapM_ (uncurry writeSynthdef) synthdefs >> withSC3 reloadSynthdef
     where 
-      synthdefs = [("anOsc", anOsc)]
+      synthdefs = [("anOsc", anOsc),
+                   ("aLine", aLine),
+                   ("aLag", aLag),
+                   ("anXLine", anXLine)]
 
 numOsc :: Int
 numOsc = 128
 
+oscIds :: [NodeId]
+oscIds = mkIds 1001
+
+ampIds :: [NodeId]
+ampIds = mkIds 2001
+
+freqIds :: [NodeId]
+freqIds = mkIds 3001
+
+panIds :: [NodeId]
+panIds = mkIds 4001
+
+mkIds :: Int -> [Int]
+mkIds str = enumFromTo str (str+numOsc-1)
+
 ampBusses :: [Int]
-ampBusses = [1..numOsc]
+ampBusses = mkIds 1
 
 freqBusses :: [Int]
-freqBusses = [1001..(1000+numOsc)]
+freqBusses = mkIds 1001
 
 panBusses :: [Int]
-panBusses = [2001..(2000+numOsc)]
+panBusses = mkIds 2001
 
 setAmps :: [Double] -> IO ()
-setAmps = setParams ampBusses
+setAmps = setVals ampIds
 
 setFreqs :: [Double] -> IO ()
-setFreqs = setParams freqBusses
+setFreqs = setVals freqIds
 
 setPans :: [Double] -> IO ()
-setPans = setParams panBusses
+setPans = setVals panIds
 
-setParams :: [Int] -> [Double] -> IO ()
-setParams busIds params = 
-    withSC3 $ \t -> send t $ c_set $ zip busIds params
+setVals :: [NodeId] -> [Double] -> IO ()
+setVals ns ps = 
+    mapM_ (\(n, p) -> withSC3 $ \t -> send t $ n_set n [("val", p)])
+         (zip ns ps)
 
-setParamsLinear :: LineUGen -> [Int] -> [Double] -> IO ()
-setParamsLinear ug busIds values = do
-  valuePairs <- fmap reverse (cValue busIds)
-  let ug' = \x y z -> ug kr x y z RemoveSynth
-      ug'' = zipWith (\(x,y) z -> 
-                          out (constant x) $ 
-                          ug' (constant y) (constant z) 1)
-             valuePairs values
-  mapM_ audition ug''
-    
+setDurs :: [NodeId] -> [Double] -> IO ()
+setDurs ns ps = 
+    mapM_ (\(n,p) -> withSC3 $ \t -> send t $ n_set n [("dur",p)])
+          (zip ns ps)
+
 tree :: SCTree
-tree = mkOscTree ampBusses freqBusses panBusses
-
-mkOscTree :: [BusId] -> [BusId] -> [BusId] -> SCTree
-mkOscTree amps freqs pans = 
+tree = 
   Group 0 
    [Group 1 
-    [Group 2 [],
-     Group 10 (zipWith4 mkAnOsc [1000..] amps freqs pans),
-     Group 20 []]]
+    [Group 10 amps,
+     Group 11 freqs,
+     Group 12 pans,
+     Group 20 oscs,
+     Group 30 []]]
+
+amps :: [SCTree]
+amps = zipWith4 mkLag
+       ampIds ampBusses (repeat 0.02) (repeat 1)
+
+freqs :: [SCTree]
+freqs = zipWith4 mkLag
+        freqIds freqBusses (repeat 440) (repeat 1)
+
+pans :: [SCTree]
+pans = zipWith4 mkLag
+       panIds panBusses  (repeat 0) (repeat 1)
+
+oscs :: [SCTree]
+oscs = zipWith4 mkAnOsc oscIds ampBusses freqBusses panBusses
 
 mkAnOsc :: NodeId -> BusId -> BusId -> BusId -> SCTree
 mkAnOsc nId amp freq pan = 
     Synth nId "anOsc" ["amp":<-amp, "freq":<-freq, "pan":<-pan]
 
+mkLag :: NodeId -> BusId -> Double -> Double -> SCTree
+mkLag nId bId val dur = 
+    Synth nId "aLag"
+          ["out":=fromIntegral bId, "val":=val, "dur":=dur]
+
 anOsc :: UGen
 anOsc = out 0 $ pan2 (sinOsc ar A.freq 0 * A.amp) A.pan 1
 
+aLine :: UGen
+aLine = out A.out $ line kr A.start A.end A.dur DoNothing
 
--- Getting value from control bus.
-cValue :: [Int] -> IO [(Int,Double)]
-cValue busIds = f =<< withSC3 (c_get' busIds) 
-    where 
-      f (Message "/c_set" vs) = return (g [] vs)
-      f (Message _ _) = error "Message was not \"/c_set\""
-      f _ = error "Not implemented for Bundle returned value."
-      g xs [] = xs
-      g xs (Int n:Float v:vs) = g ((n,v):xs) vs
+aLag :: UGen
+aLag = out A.out $ lag A.val A.dur 
+
+anXLine :: UGen
+anXLine = out A.out $ xLine kr A.start A.end A.dur DoNothing
