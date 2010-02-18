@@ -4,7 +4,7 @@
 -- | Attempt to implement patterns, take 5.
 --
 
-module P5 where
+module Scratch.Pat.P5 where
 
 import Control.Applicative
 import Control.Arrow (first, second)
