@@ -17,6 +17,7 @@ delay = "delay" @= 0.2
 dur = "dur" @= 1
 ffreq = "ffreq" @= 440
 freq = "freq" @= 440
+end = "end" @= 0
 gain = "gain" @= 1
 gate = "gate" @= 0
 in' = "in" @= 0
@@ -30,8 +31,11 @@ out = "out" @= 0
 pan = "pan" @= 0
 postGain = "postGain" @= 1
 preGain = "preGain" @= 1
+range = "range" @= 1
 rate = "rate" @= 1
 rez = "rez" @= 1
 rezz = "rezz" @= 1
+start = "start" @= 0
 sustain = "sustain" @= 1
 trig = "trig" @= 1
+val = "val" @= 0
