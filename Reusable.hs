@@ -14,6 +14,7 @@ import Data.Map (Map)
 import qualified Data.Map as M
 import System.Environment (getEnvironment)
 import System.FilePath ((</>), (<.>))
+import System.Random (Random, RandomGen, randomR, randomRs, newStdGen)
 
 import Sound.SC3
 import Sound.OpenSoundControl
@@ -199,4 +200,16 @@ withCM _ _ = error "withCM: not message"
 
 -- | Print the result of sending "/status".
 dumpStatus :: IO ()
-dumpStatus = mapM_ print =<< withSC3 serverStatus
+dumpStatus = mapM_ putStrLn =<< withSC3 serverStatus
+
+randomRIOs :: Random a => (a, a) -> IO [a]
+randomRIOs range  = randomRs range `fmap` newStdGen
+
+chooseOne :: RandomGen g => [a] -> g -> (a, g)
+chooseOne xs g = (xs !! idx, g') 
+    where (idx, g') = randomR (0, length xs - 1) g
+    
+shuffle :: RandomGen g => [a] -> g -> ([a], g)
+shuffle xs g = (xs', g') 
+    where xs' = undefined
+          g' = undefined
