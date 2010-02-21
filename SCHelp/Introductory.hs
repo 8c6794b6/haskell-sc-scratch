@@ -426,13 +426,13 @@ whySCTree =
     Group 0
     [Group 1
      [Group 2
-      [Synth (-1) "filteredDust" []],
+        [Synth (-1) "filteredDust" []],
       Group 3
-      [Synth (-1) "preDelay" [],
-       Synth (-1) "combs" [],
-       Synth (-1) "allpasses" []],
+        [Synth (-1) "preDelay" [],
+         Synth (-1) "combs" [],
+         Synth (-1) "allpasses" []],
       Group 4
-      [Synth (-1) "theMixer" []]]]
+        [Synth (-1) "theMixer" []]]]
 
 fm1 :: IO UGen
 fm1 = do
