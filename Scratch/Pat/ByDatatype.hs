@@ -8,7 +8,6 @@ module Scratch.Pat.ByDatatype where
 
 import Control.Applicative
 import Control.Monad.State
-import Data.List (genericReplicate)
 import Data.Monoid
 import System.Random
 
