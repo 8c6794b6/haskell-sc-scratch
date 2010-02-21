@@ -77,9 +77,9 @@ add nId node = do
              else
                  bundle now $ treeToOSC g
          (s@(Synth nid' name ps)) ->
-             bundle now $ 
+             bundle now $
                [s_new name nid' AddToTail nId (concatMap paramToTuple ps)]
-         
+
 
 nfree :: NodeId -> Query ()
 nfree nId = msg $ Message "/n_free" [Int nId]
@@ -124,7 +124,7 @@ params :: NodeInfo [SynthParam]
 params (Group _ _) = []
 params (Synth _ _ ps) = ps
 
--- | Ex. 
+-- | Ex.
 -- > > query (select $ paramNames `has` "freq" &&? name ==? "fm") s
 paramNames :: NodeInfo [ParamName]
 paramNames (Synth _ _ ps) = map getName ps
@@ -213,4 +213,3 @@ instance Monad NI where
     NI f >>= k =  NI (\t -> (runNI (k (f t)) t))
 
 testNI a = runNI (return (==) `ap` NI name `ap` return a)
-

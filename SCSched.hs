@@ -1,7 +1,7 @@
 ------------------------------------------------------------------------------
 -- | Playing with scheduling.
 -- Using FRP thingy from reactive package.
--- 
+--
 module SCSched where
 
 import Control.Applicative
@@ -36,7 +36,7 @@ spawn dn b es = adaptSC (standby b dn) b es
 -- > > t1 <- forkIO $ adaptSC id $ mconcat [msgs01,msgs02]
 --
 adaptSC :: (Double -> Double) -- ^ Function applyed to initial starting time
-        -> BPM -- ^ Beats per minute 
+        -> BPM -- ^ Beats per minute
         -> Event OSC -- ^ Event of OSC message send to default scsynth
         -> IO ()
 adaptSC f b e = do
@@ -47,14 +47,14 @@ adaptSC f b e = do
                  send fd $ Bundle (UTCr $ t0 + toB dt + latency) [osc])
            (withTimeE e)
   runE (pauseThreadUntil . (+t0) . toB . exactNB) e'
-  
+
 -- | Standby timing of @adaptSC@. Could be used to specify offset of
 -- starting time.
 standby :: BPM -- ^ bpm
         -> Double -- ^ Number of beats to wait.
         -> Double -- ^ Current time
         -> Double
-standby _ 0 t0 = t0 -- Not the best definition. 
+standby _ 0 t0 = t0 -- Not the best definition.
 standby beats num t0 = (60/beats) * num * q
     where
       q = fromIntegral $ ceiling $ t0 / (num * (60/beats))
@@ -64,16 +64,16 @@ takeE :: TimeT -> Event a -> Event a
 takeE t e = untilE e (atTime t)
 
 -- | Drop first event until second event occurs
--- 
+--
 -- XXX: Delays a lot. And even worth, ghci hangs.
--- 
+--
 dropE :: TimeT -> Event a -> Event a
 dropE t = fmap fst . filterE (snd . second (>= t)) . withTimeE
 
 -- | Shift the time of occurrences.
 shiftE :: (TimeT -> TimeT) -> Event a -> Event a
 shiftE f es = error "Not implemented yet."
-      
+
 -- | Loop a event forever.
 loopE :: Event a -> Event a
 loopE es = error "Not implemented yet."

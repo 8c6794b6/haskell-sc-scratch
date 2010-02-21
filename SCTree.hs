@@ -3,9 +3,9 @@
 -- | Playing with mapping nodes to synth.
 --
 -- TODO:
--- 
+--
 -- * Rewrite @SCTree -> OSC@ function in parser style.
--- 
+--
 
 module SCTree where
 
@@ -128,15 +128,15 @@ toGroupTree (Synth _ _ _) = error "toGroupTree: Root is Synth."
 -- | SCTree to [OSC] with g_new, s_new and n_map.
 treeToOSC :: SCTree -> [OSC]
 treeToOSC t = treeToNew t ++ nMap t
-      
--- | SCTree to [OSC] with g_new and s_new. 
+
+-- | SCTree to [OSC] with g_new and s_new.
 -- Using @everything@ from syb.
 treeToNew :: SCTree -> [OSC]
 treeToNew t = everything (++) ([] `mkQ` f) t
     where
       f (Group nId ts) = concatMap (g nId) ts
       f _ = []
-      g gId (Synth nId name params) 
+      g gId (Synth nId name params)
           = [s_new name nId AddToTail gId (concatMap paramToTuple params)]
       g gId (Group gId' _)  = [g_new [(gId',AddToTail,gId)]]
 

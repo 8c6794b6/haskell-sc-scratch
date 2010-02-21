@@ -31,7 +31,7 @@ updateSynthdefs = do
            ("aNoise2", aNoise2)]
 
 numOsc :: Int
-numOsc = 128
+numOsc = 64 -- 128
 
 oscIds :: [NodeId]
 oscIds = mkIds 1001
@@ -262,7 +262,7 @@ n2 =
                        (take numOsc $
                              mkChorus (partialPitches
                                        [59,62,64,66,69,71]) g) g),
-     Send 90 $ \g -> setVals' freqIds
+     Send 106 $ \g -> setVals' freqIds
                      (shuffle'
                       (take numOsc $
                             mkChorus (partialPitches

@@ -93,4 +93,3 @@ sendSomeSimpleParams = do
   amps <- randomRParams (0.1,0.3)
   channels <- randomRParams (-1,1)
   sequence_ (zipWith4 sendSimpleParam [1000..] channels amps freqs)
-
