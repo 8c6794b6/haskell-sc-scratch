@@ -6,6 +6,7 @@ module Etude.Additive01 where
 
 import Control.Applicative
 import Control.Concurrent
+import Control.Monad
 import Data.List (zipWith4, zipWith5)
 import System.Random
 
@@ -152,6 +153,85 @@ partialPitches ps = zipWith (*) muls ps'
     where muls = concatMap (replicate (length ps)) [1..]
           ps' = cycle (map midiCPS ps)
 
+mkChorus :: RandomGen g => [Double] -> g -> [Double]
+mkChorus xs g = zipWith (*) (randomRs (0.985,1.015) g) xs
+
+bundleAt :: Double -> [OSC] -> IO OSC
+bundleAt t msgs = do
+  now <- utcr
+  return $ Bundle (UTCr $ now + t) msgs
+
+cycleMM :: [Double] -> [Double]
+cycleMM = map midiCPS . cycle
+
+data Send g a = Send Double (g -> [a])
+
+setAmps', setFreqs', setPans' :: [Double] -> [OSC]
+setAmps' = setVals' ampIds 
+setFreqs' = setVals' freqIds
+setPans' = setVals' panIds
+
+setVals', setDurs' :: [NodeId] -> [Double] -> [OSC]
+setVals' = setParams' "val"
+setDurs' = setParams' "dur"
+
+randomAmps :: RandomGen g => (Double,Double) -> g -> [OSC]
+randomAmps range = \g -> setAmps' (randomRs range g)
+
+randomFreqs :: RandomGen g => (Double,Double) -> g -> [OSC]
+randomFreqs range = \g -> setFreqs' (randomRs range g)
+
+chorusFreqs :: RandomGen g => [Double] -> g -> [OSC]
+chorusFreqs ps = setFreqs' . mkChorus (cycleMM ps)
+
+randomPans :: RandomGen g => (Double,Double) -> g -> [OSC]
+randomPans range = \g -> setPans' (randomRs range g)
+
+randomDurs :: RandomGen g => [NodeId] -> (Double,Double) -> g -> [OSC]
+randomDurs ids range = \g -> setDurs' ids $ randomRs range g
+
+n2 :: [Send StdGen OSC]
+n2 = 
+    [Send 0 $ randomAmps (0.001,0.03),
+     Send 0 $ randomDurs freqIds (1,4),
+     Send 2 $ randomFreqs (200,8000),
+     Send 4 $ randomPans (0.3,0.4),
+     Send 8 $ randomFreqs (100,800),
+     Send 10 $ randomAmps (0.001,0.03),
+     Send 11 $ randomPans (-0.8,-0.81),
+     Send 12 $ randomPans (0.3,0.31),
+     Send 13 $ randomPans (-0.2,-0.21),
+     Send 14 $ chorusFreqs [60,67,72,76],
+     Send 18 $ chorusFreqs [60,69,72,77],
+     Send 22 $ chorusFreqs [60,67,72,76],
+     Send 26 $ chorusFreqs [53,65,69,72],
+     Send 30 $ chorusFreqs [55,67,71,74],
+     Send 34 $ chorusFreqs [60,64,67,72],
+     Send 38 $ randomDurs ampIds (6,12),
+     Send 38 $ const $ setAmps' (repeat 0),
+     Send 42 $ randomAmps (0.001,0.03),
+     Send 42 $ randomFreqs (100,800),
+     Send 42 $ randomPans (-1,1),
+     Send 46 $ randomFreqs (200,1200),
+     Send 46 $ randomPans (-0.5,-0.3),
+     Send 52 $ randomFreqs (600,800),
+     Send 52 $ randomPans (-1,1),
+     Send 54 $ randomFreqs (100,800),
+     Send 54 $ randomPans (0.8,1),
+     Send 56 $ randomFreqs (1000,12000),
+     Send 57 $ randomPans (-1,-1),
+     Send 58 $ randomFreqs (100,800),
+     Send 59 $ randomPans (0.3,0.5),
+     Send 60 $ randomFreqs (100,12000),
+     Send 61 $ randomPans (-1,1),
+     Send 62 $ randomFreqs (200,400),
+     Send 62 $ const $ setAmps' (repeat 0)
+    ]
+
+goSend :: Send StdGen OSC -> IO ()
+goSend (Send t f) = 
+    newStdGen >>= return . f >>= bundleAt t >>= withSC3 . flip send 
+     
 -- Note of pitches.
 -- [35,47,52,56,59,64] 
 -- [36,48,52,55,60,64]
