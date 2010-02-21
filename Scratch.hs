@@ -79,37 +79,37 @@ tree1
       [Group 1
        [Group 10
         [Synth 1000 "simpleTrigger"
-         ["out" := v 100,"freq" := v 2]],
+         ["out" := 100,"freq" := 2]],
         Group 11
         [Synth 1100 "simplePercSine"
-         ["trig" := bus 100,"out" := v 100],
+         ["trig" :<- 100,"out" := 100],
          Synth 1101 "simplePercSine"
-         ["trig" := bus 100,"out" := v 100,"freq" := v 660],
+         ["trig" :<- 100,"out" := 100,"freq" := 660],
          Synth 1102 "simplePercSine"
-         ["trig" := bus 100,"out" := v 101,"freq" := v 330],
+         ["trig" :<- 100,"out" := 101,"freq" := 330],
          Synth 1103 "simplePercSine"
-         ["trig" := bus 100,"out" := v 101,"freq" := v 220]],
+         ["trig" :<- 100,"out" := 101,"freq" := 220]],
         Group 12
-        [Synth 1200 "simpleReverb" ["in" := v 100,"out" := v 0],
-         Synth 1201 "simpleReverb" ["in" := v 101,"out" := v 1]]]]
+        [Synth 1200 "simpleReverb" ["in" := 100,"out" := 0],
+         Synth 1201 "simpleReverb" ["in" := 101,"out" := 1]]]]
 
-v = PVal
-bus = PBus
+-- v = PVal
+-- bus = PBus
 
 t1 :: SCTree'
 t1 = Node (G 0)
      [Node (G 1)
       [Node (G 10)
        [Node (S 1000 "foo"
-              ["amp" := PVal 100,
-               "freq" := PVal 200]) [],
+              ["amp" :=  100,
+               "freq" :=  200]) [],
         Node (S 1001 "foo2"
-              ["amp" := PVal 10,
-               "freq" := PVal 20]) []],
+              ["amp" :=  10,
+               "freq" :=  20]) []],
        Node (G 11)
        [Node (S 2000 "bar"
-              ["amp" := PBus 1,
-               "freq" := PVal 100]) [],
+              ["amp" :<- 1,
+               "freq" :=  100]) [],
         Node (S 2001 "bar"
-              ["amp" := PVal 100,
-               "freq" := PVal 20]) []]]]
+              ["amp" :=  100,
+               "freq" :=  20]) []]]]
