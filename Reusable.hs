@@ -14,7 +14,14 @@ import Data.Map (Map)
 import qualified Data.Map as M
 import System.Environment (getEnvironment)
 import System.FilePath ((</>), (<.>))
-import System.Random (Random, RandomGen, randomR, randomRs, newStdGen)
+import System.Random 
+    (Random, 
+     RandomGen, 
+     getStdRandom,
+     next,
+     randomR, 
+     randomRs, 
+     newStdGen)
 
 import Sound.SC3
 import Sound.OpenSoundControl
@@ -209,7 +216,25 @@ chooseOne :: RandomGen g => [a] -> g -> (a, g)
 chooseOne xs g = (xs !! idx, g')
     where (idx, g') = randomR (0, length xs - 1) g
 
+choose :: RandomGen g => [a] -> Int -> g -> [a]
+choose xs num g = choose' [] xs num g
+    where
+      choose' :: RandomGen g => [a] -> [a] -> Int -> g -> [a]
+      choose' xs ys 0 g = xs
+      choose' xs ys n g = choose' (x:xs) ys' (n-1) g'
+          where (idx,g') = randomR (0,length ys - 1) g
+                x = ys !! idx
+                (a,b) = splitAt idx ys
+                ys' = a ++ tail b
+
 shuffle :: RandomGen g => [a] -> g -> ([a], g)
-shuffle xs g = (xs', g')
-    where xs' = undefined
-          g' = undefined
+shuffle xs g = (xs', g') 
+    where xs' = choose xs (length xs) g
+          (_,g') = next g
+
+shuffle' :: RandomGen g => [a] -> g -> [a]
+shuffle' xs g = fst $ shuffle xs g
+
+shuffleIO :: [a] -> IO [a]
+shuffleIO = getStdRandom . shuffle
+
