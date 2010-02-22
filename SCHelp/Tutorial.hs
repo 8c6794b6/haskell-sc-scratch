@@ -275,4 +275,3 @@ runSappy = do
   query (updateSappyUGens >> freeAll >> add 0 sappyTree) s
   spawn 0 120 . mconcat =<<
            sequence [sappyEv01, sappyEv015, sappyEv02, sappyEv03]
-
