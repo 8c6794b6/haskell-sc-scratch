@@ -11,14 +11,18 @@ import Control.Arrow (first, second)
 import Data.Generics
 import Data.List (transpose)
 import Data.Monoid
+import System.Random
 
-data Pattern a = Pempty
-	       | Pid a
-	       | Pseq (Pattern PValue) [Pattern a]
-	       | Prand (Pattern PValue) [Pattern a]
-	       | Pbind [(String, Pattern a)]
-	       | Pinf
-		 deriving (Eq, Show, Read, Data, Typeable)
+import Reusable
+
+data Pattern a 
+    = Pempty
+    | Pid a
+    | Pseq (Pattern PValue) [Pattern a]
+    | Prand (Pattern PValue) [Pattern a]
+    | Pbind [(String, Pattern a)]
+    | Pinf
+      deriving (Eq, Show, Read, Data, Typeable)
 
 instance Functor Pattern where
     fmap f Pempty = Pempty
@@ -128,14 +132,41 @@ instance Pv a => Pv [a] where
     fromPv (PList a) = map fromPv a
     fromPv _ = []
 
-runP :: Pattern PValue -> [PValue]
-runP Pempty = []
-runP (Pid a) = [a]
-runP (Pseq p ps) =
-    concatMap (\x -> concat $ replicate (fromPv x) $ concatMap runP ps) (runP p)
-runP (Pbind ps) = map toPv $ transpose $ map (map toPv . f) ps
-    where f (n,p) = zip (repeat n) (runP p)
-runP Pinf = repeat (PNum $ fromIntegral (maxBound :: Int))
+runP :: RandomGen g => Pattern PValue -> g -> ([PValue], g)
+runP Pempty g = ([],g') where (_,g') = next g
+runP (Pid a) g = ([a],g') where (_,g') = next g
+runP (Pseq p ps) g = (a,g')
+    where
+      a = concatMap (\n -> runPseq (fromPv n) g ps) (runP' p g)
+      g' = snd $ next g
+runP (Prand p ps) g = (a,h)
+    where
+      a = concatMap (\n -> fst $ runPrand g (fromPv n) ps) (runP' p g)
+      h = snd $ next g
+runP (Pbind ps) g = ( map toPv $ transpose $ map (map toPv . f) ps, g')
+    where f (n,p) = zip (repeat n) (runP' p g)
+          g' = snd $ next g
+runP Pinf g = (repeat (PNum $ fromIntegral (maxBound :: Int)), g')
+    where (_,g') = next g
+
+runP' :: RandomGen g => Pattern PValue -> g -> [PValue]
+runP' p g = fst (runP p g)
+
+runPIO :: Pattern PValue -> IO [PValue]
+runPIO p = getStdRandom (runP p)
+
+runPseq :: RandomGen g => Int -> g -> [Pattern PValue] -> [PValue]
+runPseq n g ps = f (concat $ replicate n ps)
+    where
+      f = fst . foldr f' ([],g)
+      f' a (b,g) = (a'++b, g')
+          where (a',g') = runP a g
+
+runPrand :: RandomGen g => g -> Int -> [Pattern PValue] -> ([PValue], g)
+runPrand g num ps = foldr f' ([],g) (replicate num ps)
+    where
+      f' a (b,g') = (runP' a' g' ++ b, g'')
+          where (a', g'') = chooseOne a g'
 
 --
 -- Sample patterns
@@ -154,8 +185,8 @@ p3 = Pseq (Pid 3)
      [Pbind [("foo", p1),("bar",p2)],
       Pbind [("foo", p2),("bar",p1)]]
 
-p3' :: [[(String,Double)]]
-p3' = map fromPv $ runP p3
+p3' :: IO [[(String,Double)]]
+p3' = map fromPv <$> runPIO p3
 
 p4 :: Pattern PValue
 p4 = Pbind [("foo", p1), ("bar", p2)]
