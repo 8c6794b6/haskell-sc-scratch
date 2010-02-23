@@ -100,7 +100,7 @@ prepareListE name xs = fst $ foldr f v xs
 --
 -- > > loadSynthdef "simpleSynth" simpleSynth
 -- > > spawn 0 84 =<< runFugue
--- 
+--
 runFugue :: IO (Event OSC)
 runFugue = do
   params <- map fromPv <$> runPIO fugue
@@ -118,7 +118,7 @@ simpleSynth = out 0 $ pan2 (sinOsc ar A.freq 0 * env) 0 1 * 0.3
 -- and play as a triad chord. Try:
 --
 -- > > spawn 0 60 =<< runMCEchords
--- 
+--
 
 mceChords :: [[Double]]
 mceChords = [[0,-2,-4],[0,-3,-5],[0,-2,-5],[0,-1,-4]]
@@ -139,20 +139,20 @@ runMCEchords = do
       durs' = scanl (+) 0 durs
       es = map (listE . zip durs' . map toOSC . zip durs) chords
   return $ mconcat es
-    where 
+    where
       toFreq x = freq $ defaultPitch {degree=x+7}
       toOSC (d,f) = s_new "simpleSynth" (-1) AddToTail 1 [("dur",d),("freq",f)]
 
 
 -- $customSynthdefs
--- 
+--
 -- Playing custom synthdef. This way of use of Pattern seems to be
 -- suited to be rewritten by using Data.Map in haskell.
 -- Try:
 --
 -- > > prepareStretched
 -- > > spawn 0 60 =<< runStretched
--- 
+--
 
 -- | Scratch test for pitchShift ugen.
 psTest :: IO ()
@@ -169,24 +169,22 @@ stretchedFragments = out A.out $ mce [sig, sig]
       src = playBuf 1 A.bufnum (recip A.stretch) 1 A.start NoLoop
             RemoveSynth * e
       e = linen 1 A.attack A.time A.decay RemoveSynth
-      -- e = envGen kr 1 1 0 1 RemoveSynth shape
-      -- shape = linen 1 A.attack A.time A.decay RemoveSynth
 
 stretchedBufnum :: Int
 stretchedBufnum = 1
 
 prepareStretched :: IO ()
 prepareStretched = do
-  withSC3 (\fd -> 
+  withSC3 (\fd ->
      loadSynthdef "stretchedFragments" stretchedFragments fd >>
-     send fd (b_allocRead stretchedBufnum 
+     send fd (b_allocRead stretchedBufnum
               "/home/atsuro/audio/wav/a11wlk01.wav" 0 0) >>
      wait fd "/done")
   return ()
 
 cleanUpStretched :: IO ()
 cleanUpStretched = do
-  withSC3 (\fd -> send fd (b_free stretchedBufnum) >> 
+  withSC3 (\fd -> send fd (b_free stretchedBufnum) >>
                   wait fd "/done")
   return ()
 
@@ -198,7 +196,7 @@ stretchedMessages = do
   g <- newStdGen
   b <- getBufInfo stretchedBufnum
   let times = randomRs (0.2, 1.5) g
-  let msg = M.fromList $ 
+  let msg = M.fromList $
         [("bufnum", repeat $ fromIntegral stretchedBufnum),
          ("start", randomRs (0, fromIntegral (bufNumFrames b) * 0.7) g),
          ("delta", times),
