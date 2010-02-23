@@ -71,7 +71,27 @@ getControls' ug =
       MCE ugs -> concatMap getControls' ugs
       MRG l r -> getControls' l ++ getControls' r
 
+-- | Datatype for representing '/b_info' message returned by sending
+-- '/b_query'.
+data BufInfo = BufInfo {
+      bufNumber :: Int,
+      bufNumFrames :: Int,
+      bufNumChannels :: Int,
+      bufSampleRate :: Double 
+    } deriving (Eq, Show)
+                         
+-- | Send /b_query and returns BufInfo.
+getBufInfo :: Int -> IO BufInfo
+getBufInfo bufId = do
+  msg <- withSC3 (\fd -> send fd (b_query [bufId]) >> 
+                         wait fd "/b_info")
+  case msg of
+    Message "/b_info" [Int bid, Int nf,Int nc,Float sr] -> 
+        return $ BufInfo bid nf nc sr
+    _ -> error "Not a /b_info message"
+
 -- | @flip send@. With flipping the argument, one can write as below:
+-- 
 -- > withSC3 (send' some_osc_message)
 send' :: Transport t => OSC -> (t -> IO ())
 send' = flip send
@@ -96,7 +116,7 @@ dumpTree = send' (Message "/g_dumpTree" [Int 0, Int 1])
 
 -- | Sends a synthdef to server.
 sendSynthdef :: Transport t => String -> UGen -> t -> IO OSC
-sendSynthdef name ugen = async' $ d_recv $ synthdef name ugen
+sendSynthdef name ugen = \t -> async t $ d_recv $ synthdef name ugen
 
 -- | Write a synthdef to file, then load it.
 loadSynthdef :: Transport t => String -> UGen -> (t -> IO OSC)
@@ -120,6 +140,7 @@ b_get' bId is = \fd -> send fd (b_get bId is) >> wait fd "/b_set"
 
 
 -- | Sends @/b_getn@ message and wait until it gets @/b_setn@.
+-- 
 -- > \fd ->
 b_getn' :: Transport t => Int -> [(Int,Int)] -> (t -> IO OSC)
 b_getn' id params = \fd -> send fd (b_getn id params) >> wait fd "/b_setn"
@@ -226,6 +247,10 @@ choose xs num g = choose' [] xs num g
                 x = ys !! idx
                 (a,b) = splitAt idx ys
                 ys' = a ++ tail b
+
+choices :: RandomGen g => [a] -> g -> [a]
+choices xs g = x:choices xs g'
+    where (x,g') = chooseOne xs g
 
 shuffle :: RandomGen g => [a] -> g -> ([a], g)
 shuffle xs g = (xs', g') 
