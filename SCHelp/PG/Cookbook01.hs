@@ -37,6 +37,8 @@ module SCHelp.PG.Cookbook01 (
      -- $customSynthdefs
      stretchedFragments,
      psTest,
+     expRandomR,
+     expRandomRs,
      prepareStretched,
      stretchedBufnum,
      stretchedMessages,
@@ -109,14 +111,16 @@ runFugue = do
 -- | Simple synth for playing fugue sequence.
 simpleSynth :: UGen
 simpleSynth = out 0 $ pan2 (sinOsc ar A.freq 0 * env) 0 1 * 0.3
-    where env = envGen kr 1 1 0 1 RemoveSynth (envPerc 0.1 0.5)
+    where env = envGen kr 1 1 0 1 RemoveSynth (envPerc 0.1 A.dur)
 
 
 -- $multichannelExpansion
+-- 
 -- Choose degrees randomly from one of:
 -- [[7, 4, 2], [7, 5, 2], [7, 5, 3], [7, 6, 3]]
 -- and play as a triad chord. Try:
 --
+-- > > loadSynthdef "simpleSynth" simpleSynth
 -- > > spawn 0 60 =<< runMCEchords
 --
 
@@ -133,7 +137,7 @@ runMCEchords = do
         let chords = fst $ chooseOne mceChords g
             dur = fst $ chooseOne mceDurs g
         return ((dur,chords):xs)
-  ps <- foldM f [] [1..20]
+  ps <- foldM f [] [1..100]
   let durs = map fst ps
       chords = transpose $ map (map (toFreq . (+7)) . snd) ps
       durs' = scanl (+) 0 durs
@@ -147,11 +151,13 @@ runMCEchords = do
 -- $customSynthdefs
 --
 -- Playing custom synthdef. This way of use of Pattern seems to be
--- suited to be rewritten by using Data.Map in haskell.
+-- suited to be written by using Data.Map in haskell.
 -- Try:
 --
 -- > > prepareStretched
 -- > > spawn 0 60 =<< runStretched
+--
+-- XXX: Sound differs. The synthdef is not same as one shown in cookbook.
 --
 
 -- | Scratch test for pitchShift ugen.
@@ -165,28 +171,27 @@ psTest = audition $ out 0 $ pitchShift (sinOsc ar 440 0) 0.2 r d 0
 stretchedFragments :: UGen
 stretchedFragments = out A.out $ mce [sig, sig]
     where
-      sig = pitchShift src 0.2 A.stretch 1 1
+      sig = pitchShift src 0.2 A.stretch 0 0
       src = playBuf 1 A.bufnum (recip A.stretch) 1 A.start NoLoop
             RemoveSynth * e
-      e = linen 1 A.attack A.time A.decay RemoveSynth
+      e = envGen kr 1 1 0 1 RemoveSynth shape 
+      shape = envLinen A.attack A.time A.decay 1 [EnvLin]
 
 stretchedBufnum :: Int
 stretchedBufnum = 1
 
-prepareStretched :: IO ()
+prepareStretched :: IO OSC
 prepareStretched = do
   withSC3 (\fd ->
      loadSynthdef "stretchedFragments" stretchedFragments fd >>
      send fd (b_allocRead stretchedBufnum
               "/home/atsuro/audio/wav/a11wlk01.wav" 0 0) >>
      wait fd "/done")
-  return ()
 
-cleanUpStretched :: IO ()
+cleanUpStretched :: IO OSC
 cleanUpStretched = do
   withSC3 (\fd -> send fd (b_free stretchedBufnum) >>
                   wait fd "/done")
-  return ()
 
 runStretched :: IO (Event OSC)
 runStretched = mapToEventOSC "stretchedFragments" 1 <$> stretchedMessages
@@ -195,13 +200,13 @@ stretchedMessages :: IO (Map String [Double])
 stretchedMessages = do
   g <- newStdGen
   b <- getBufInfo stretchedBufnum
-  let times = randomRs (0.2, 1.5) g
+  let times = expRandomRs (0.2, 1.5) g
   let msg = M.fromList $
         [("bufnum", repeat $ fromIntegral stretchedBufnum),
          ("start", randomRs (0, fromIntegral (bufNumFrames b) * 0.7) g),
          ("delta", times),
          ("time", times),
-         ("stretch", randomRs (1.0, 4.0) g),
+         ("stretch", expRandomRs (1.0, 4.0) g),
          ("amp", repeat 0.5),
          ("attack", repeat 0.1),
          ("decay", repeat 0.2)]
@@ -210,3 +215,11 @@ stretchedMessages = do
 mapToEventOSC :: String -> Int -> Map String [Double] -> Event OSC
 mapToEventOSC name gId m = listE $ zip durs (mkSNew' name gId m)
     where durs = scanl (+) 0 (maybe [] id $ M.lookup "time" m)
+
+expRandomR :: (Floating a, RandomGen g, Random a) => (a, a) -> g -> (a, g)
+expRandomR (min,max) g =  (exp x, g) 
+    where (x, g) = randomR (log min, log max) g 
+
+expRandomRs :: (Floating a, RandomGen g, Random a) => 
+               (a, a) -> g -> [a]
+expRandomRs (min,max) = map exp . randomRs (log min, log max)
