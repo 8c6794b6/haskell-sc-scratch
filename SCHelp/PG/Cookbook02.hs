@@ -124,10 +124,9 @@ melodyWriter chan low high = do
 
 fitInRange :: Integral a => a -> a -> a -> a
 fitInRange min max target 
-    | target < min = fromIntegral (target' `mod` min)
-    | max < target = fromIntegral (target' `mod` max)
+    | target < min = fromIntegral (target `mod` min)
+    | max < target = fromIntegral (target `mod` max)
     | otherwise = target
-    where target' = target
 
 -- | Concurrent melody reader.  
 melodyReader :: Chan Double -> IO (Event OSC)
