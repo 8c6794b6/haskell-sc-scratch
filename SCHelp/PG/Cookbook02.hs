@@ -12,69 +12,101 @@
 --
 
 module SCHelp.PG.Cookbook02 (
+
   -- * Merging (interleaving) independent streams
   -- $mergingIndependent
-  Melodies(..),
-  melodies,
+
   mkMelodyLine,
-  runMerging
+  melodyWriter,
+  melodyReader,
+  main
+
   -- * Reading an array forward and backward arbitrarily
   -- $readingArray
 
   -- * Changing Pbind value patterns on the fly
   -- $changingPbind
-  
+
   ) where
 
-import Control.Applicative
-import Control.Monad
-import Control.Monad.State
+import Control.Applicative ((<$>))
+import Control.Concurrent (forkIO)
+import Control.Concurrent.Chan
+    (Chan,
+     newChan,
+     getChanContents,
+     writeChan)
 import System.Random
-
+    (newStdGen,
+     getStdRandom,
+     randomR)
 import FRP.Reactive
-import Sound.OpenSoundControl
-import Sound.SC3
+    (TimeT,
+     listE)
+-- import Sound.OpenSoundControl
+-- import Sound.SC3
+import Sound.SC3.Lang.Math
 
 import Reusable
 import SCQuery
 import SCTree
 import SCSched
 
+
 -- $mergingIndependent
 --
 -- This example uses two melodies: lowMelody and highMelody.
 -- Those are generated in series, and ugen sends new synth with choosing
 -- frequency value from one, each time.
---
 
-data Melodies = Melodies { 
-      highMelody :: [Double],
-      lowMelody :: [Double] 
-    } deriving (Eq, Show)
+-- data Melodies = Melodies {
+--       highMelody :: [Double],
+--       lowMelody :: [Double]
+--     } deriving (Eq, Show)
 
-type Merging a = StateT Melodies IO a
-
-melodies :: IO Melodies
-melodies = do
-  high <- mkMelodyLine 4 [-2, -1, 1, 2]
-  low <- mkMelodyLine 14 [-3, -2, 2, 3]
-  return $ Melodies high low
 
 mkMelodyLine :: Double -> [Double] -> IO [Double]
 mkMelodyLine start intervals =
     scanl (+) start <$> choices intervals <$> newStdGen
 
-runMerging :: Merging (Event OSC)
-runMerging = do
-  g <- liftIO $ newStdGen
-  let durs = choices [0.25,0.5] g
-  return undefined
-  -- return ()
+data MelodyHight = HighMelody Double
+                 | LowMelody Double
+                   deriving (Eq, Show)
+
+lowMelody :: IO [Double]
+lowMelody = mkMelodyLine 4 [-2,-1,1,2]
+
+highMelody :: IO [Double]
+highMelody = mkMelodyLine 14 [-3,-2,2,3]
+
+melodyWriter :: Chan Double -> [Double] -> [Double] -> IO ()
+melodyWriter chan low high = do
+  isHigh <- getStdRandom (randomR (False,True))
+  if isHigh
+     then writeChan chan (head high) >> melodyWriter chan low (tail high)
+     else writeChan chan (head low) >> melodyWriter chan (tail low) high
+
+melodyReader :: Chan Double -> IO [(TimeT,Double)]
+melodyReader chan = do
+  vals <- getChanContents chan
+  durs <- choices [0.25,0.5] <$> newStdGen
+  return $ zip (scanl (+) 0 durs) vals
+
+main :: IO ()
+main = do
+  chan <- newChan
+  low <- lowMelody
+  high <- highMelody
+  _ <- forkIO $ melodyWriter chan low high
+  pairs <- melodyReader chan
+  print pairs
+
 
 -- $readingArray
--- 
--- XXX: TBW
+--
+-- TBW
+
 
 -- $changingPbind
--- XXX: TBW
-
+--
+-- TBW
