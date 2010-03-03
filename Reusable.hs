@@ -263,3 +263,10 @@ shuffle' xs g = fst $ shuffle xs g
 shuffleIO :: [a] -> IO [a]
 shuffleIO = getStdRandom . shuffle
 
+expRandomR :: (Floating a, RandomGen g, Random a) => (a, a) -> g -> (a, g)
+expRandomR (min,max) g =  (exp x, g) 
+    where (x, g) = randomR (log min, log max) g 
+
+expRandomRs :: (Floating a, RandomGen g, Random a) => 
+               (a, a) -> g -> [a]
+expRandomRs (min,max) = map exp . randomRs (log min, log max)

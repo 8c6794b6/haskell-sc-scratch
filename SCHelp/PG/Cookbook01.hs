@@ -37,8 +37,7 @@ module SCHelp.PG.Cookbook01 (
      -- $customSynthdefs
      stretchedFragments,
      psTest,
-     expRandomR,
-     expRandomRs,
+     stretchedFile,
      prepareStretched,
      stretchedBufnum,
      stretchedMessages,
@@ -157,8 +156,6 @@ runMCEchords = do
 -- > > prepareStretched
 -- > > spawn 0 60 =<< runStretched
 --
--- XXX: Sound differs. The synthdef is not same as one shown in cookbook.
---
 
 -- | Scratch test for pitchShift ugen.
 psTest :: IO ()
@@ -175,17 +172,19 @@ stretchedFragments = out A.out $ mce [sig, sig]
       src = playBuf 1 A.bufnum (recip A.stretch) 1 A.start NoLoop
             RemoveSynth * e
       e = envGen kr 1 1 0 1 RemoveSynth shape 
-      shape = envLinen A.attack A.time A.decay 1 [EnvLin]
+      shape = envLinen A.attack A.time A.decay 1 [EnvLin,EnvLin,EnvLin]
 
 stretchedBufnum :: Int
 stretchedBufnum = 1
+
+stretchedFile :: FilePath
+stretchedFile = "/home/atsuro/audio/wav/a11wlk01.wav"
 
 prepareStretched :: IO OSC
 prepareStretched = do
   withSC3 (\fd ->
      loadSynthdef "stretchedFragments" stretchedFragments fd >>
-     send fd (b_allocRead stretchedBufnum
-              "/home/atsuro/audio/wav/a11wlk01.wav" 0 0) >>
+     send fd (b_allocRead stretchedBufnum stretchedFile 0 0) >>
      wait fd "/done")
 
 cleanUpStretched :: IO OSC
@@ -216,10 +215,3 @@ mapToEventOSC :: String -> Int -> Map String [Double] -> Event OSC
 mapToEventOSC name gId m = listE $ zip durs (mkSNew' name gId m)
     where durs = scanl (+) 0 (maybe [] id $ M.lookup "time" m)
 
-expRandomR :: (Floating a, RandomGen g, Random a) => (a, a) -> g -> (a, g)
-expRandomR (min,max) g =  (exp x, g) 
-    where (x, g) = randomR (log min, log max) g 
-
-expRandomRs :: (Floating a, RandomGen g, Random a) => 
-               (a, a) -> g -> [a]
-expRandomRs (min,max) = map exp . randomRs (log min, log max)
