@@ -63,7 +63,7 @@ instance Pat Pseq where
 instance Functor Pseq where
     fmap f (Pseq p ps) = Pseq p (map (fmap f) ps)
 
--- There is a choise: whether to pass the seed for each repetation, or
+-- There is a choice: whether to pass the seed for each repetation, or
 -- repeat with same seed. Choosed to pass different seed for every repetation.
 runPseq :: (RandomGen g, Pat p)=> Int -> g -> [p a] -> [a]
 runPseq n g ps = f (concat $ replicate n ps)

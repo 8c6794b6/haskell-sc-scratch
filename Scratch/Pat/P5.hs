@@ -93,6 +93,13 @@ instance Num PValue where
     signum (PNum a) = PNum (signum a)
     signum _ = error "not a number"
 
+instance Fractional PValue where
+    PNum a / PNum b = PNum (a / b)
+    _ / _ = error "not a number"
+    recip (PNum a) = PNum (recip a)
+    recip _ = error "not a number"
+    fromRational = PNum . fromRational
+
 instance Enum PValue where
     succ (PNum a) = PNum (succ a)
     pred (PNum a) = PNum (pred a)
