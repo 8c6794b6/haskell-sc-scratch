@@ -33,7 +33,10 @@ module SCHelp.PG.Cookbook02 (
 
   -- * Reading an array forward and backward arbitrarily
   -- $readingArray
+  runMovingIndex,
   movingBusNum,
+  writeIndex,
+  writeIndex',
   getMove,
   setMove,
   thePitches
@@ -45,12 +48,16 @@ module SCHelp.PG.Cookbook02 (
 import Control.Applicative 
     ((<$>),
      (<*>))
-import Control.Concurrent (forkIO)
+import Control.Concurrent 
+    (forkIO,
+     threadDelay)
+import Control.Concurrent.MVar
 import Control.Concurrent.Chan
     (Chan,
      newChan,
      getChanContents,
      writeChan)
+import Control.Monad.State
 import System.Random
     (RandomGen,
      newStdGen,
@@ -155,7 +162,7 @@ melodyReader chan = do
 
 
 main :: IO ()
-main = spawnMerging
+main = runMovingIndex
 
 -- $readingArray
 --
@@ -167,24 +174,56 @@ main = spawnMerging
 -- holding step value.
 -- 
 
+-- | Runs moving index example. Set the value of buffer to hold the
+-- value for moving step.
+-- 
+-- > > setMove 3
+-- > > forkIO (runMovingIndex)
+-- > > setMove 4 
+-- > > setMove 7
+-- 
+runMovingIndex :: IO ()
+runMovingIndex = do
+  var <- newMVar 0
+  forkIO (writeIndex var)
+  forever $ do
+    idx <- takeMVar var 
+    let theFreq = freq $ defaultPitch { degree = degree }
+        degree = thePitches !! idx
+    withSC3 $ \fd -> send fd $ 
+                     s_new "simpleSynth" (-1) AddToTail 1 [("freq",theFreq)]
+    threadDelay $ round $ 10 ^ 6 * 0.25
+
 movingBusNum :: Num a => a
 movingBusNum = 101
 
 thePitches :: [Double]
 thePitches = [0..14]
 
+writeIndex :: MVar Int -> IO ()
+writeIndex var = forever $ do
+  evalStateT (sequence_ (repeat (writeIndex' var))) 0 
+
+writeIndex' :: MVar Int -> StateT Int IO ()
+writeIndex' var = do
+  idx <- get
+  mv <- liftIO getMove
+  let idx' = (idx + round mv) `mod` (length thePitches - 1)
+  liftIO $ putMVar var idx'
+  put idx'
+
+
 getMove :: IO Double
 getMove = withSC3 work >>= return . parse
     where 
       parse (Message "/c_set" [_,Float v]) = v
       parse _ = error "Something wrong happened in \"/c_get\""
-      work fd = do
-        send fd (c_get [movingBusNum])
-        wait fd "/c_set"
+      work fd = send fd (c_get [movingBusNum]) >> wait fd "/c_set"
 
 setMove :: Double -> IO ()
 setMove move = 
   withSC3 $ \fd -> send fd (c_set [(movingBusNum, move)])
+
 
 -- $changingPbind
 --
