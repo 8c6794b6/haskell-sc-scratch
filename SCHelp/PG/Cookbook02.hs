@@ -8,11 +8,16 @@
 -- Portability : portable
 --
 -- Exercise for implementing pattern sequences shown in
--- /PG_Cookbook02_Manipulating_Patterns/
+-- /PG_Cookbook02_Manipulating_Patterns/. 
+-- 
+-- One of the things not have been done is choosing elements from list
+-- with specifying probability. Take a look at hackage in random
+-- category and check whether there exist a function that give similar
+-- result from Pwrand. Looking for a weighted random element generator.
 --
 
 module SCHelp.PG.Cookbook02 (
-
+  main,
   -- * Merging (interleaving) independent streams
   -- $mergingIndependent
   fitInRange,
@@ -24,11 +29,14 @@ module SCHelp.PG.Cookbook02 (
   mkMelody,
   melodyToNotes,
   spawnMerging,
-  main
+
 
   -- * Reading an array forward and backward arbitrarily
   -- $readingArray
-
+  movingBusNum,
+  getMove,
+  setMove,
+  thePitches
   -- * Changing Pbind value patterns on the fly
   -- $changingPbind
 
@@ -53,10 +61,16 @@ import FRP.Reactive
      Event,
      listE)
 import Sound.OpenSoundControl
-    (OSC(..))
+    (OSC(..),
+     Datum(..),
+     send,
+     wait)
 import Sound.SC3
     (AddAction(..),
-     s_new)
+     c_get,
+     c_set,
+     s_new,
+     withSC3)
 import Sound.SC3.Lang.Math
 
 import Reusable
@@ -122,6 +136,7 @@ melodyWriter chan low high = do
      then writeChan chan (head high) >> melodyWriter chan low (tail high)
      else writeChan chan (head low) >> melodyWriter chan (tail low) high
 
+-- | Fit in specified range with using @mod@.
 fitInRange :: Integral a => a -> a -> a -> a
 fitInRange min max target 
     | target < min = fromIntegral (target `mod` min)
@@ -138,14 +153,40 @@ melodyReader chan = do
       f2 freq = s_new "simpleSynth" (-1) AddToTail 1 [("freq",freq)]
   return $ listE $ zip (scanl (+) 0 durs) vals'
 
+
 main :: IO ()
 main = spawnMerging
 
 -- $readingArray
 --
--- TBW
+-- Read an element from array, and move back and forth with in the
+-- array. 
+-- 
+-- One of the problem for haskell might be where to hold the temporary
+-- variable for amount of step in the array. Using control bus for
+-- holding step value.
+-- 
 
+movingBusNum :: Num a => a
+movingBusNum = 101
+
+thePitches :: [Double]
+thePitches = [0..14]
+
+getMove :: IO Double
+getMove = withSC3 work >>= return . parse
+    where 
+      parse (Message "/c_set" [_,Float v]) = v
+      parse _ = error "Something wrong happened in \"/c_get\""
+      work fd = do
+        send fd (c_get [movingBusNum])
+        wait fd "/c_set"
+
+setMove :: Double -> IO ()
+setMove move = 
+  withSC3 $ \fd -> send fd (c_set [(movingBusNum, move)])
 
 -- $changingPbind
 --
 -- TBW
+-- 
