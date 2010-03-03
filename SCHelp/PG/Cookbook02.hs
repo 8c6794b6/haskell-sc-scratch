@@ -182,7 +182,7 @@ main = runChangingValues
 -- One of the problem for haskell might be where to hold the temporary
 -- variable for amount of step in the array. Using control bus for
 -- holding step value.
--- 
+--
 -- Used MVar to hold the current index. The main action
 -- @runMovingIndex@ forks the writer thread, and loops the main reader
 -- action forever.
@@ -191,7 +191,7 @@ main = runChangingValues
 -- haskell version changes the moving step value immediately after the
 -- buffer's value has changed. Sclang version waits to update the step
 -- value until the last looping of pitch array has ended.
--- 
+--
 
 -- | Runs moving index example. Set the value of buffer to hold the
 -- value for moving step.
@@ -247,15 +247,15 @@ setMove move =
 -- Using buffer to hold the values used in synth.  In this way, random
 -- value pattern could not be expressed.
 --
--- Try something like: 
--- 
--- > setDegrees (take 32 $ cycle [1,3,5,7])
--- > setDurs (take 32 $ repeat 0.5)
--- > t1 <- forkIO (runChangingValues)
--- > setDurs (take 32 $ cycle [0.25, 0.25, 0.5])
--- > setDegrees . take 32 =<< choices [0,1,3,5,7] <$> newStdGen
--- > killThread t1
--- 
+-- Try something like:
+--
+-- > > setDegrees (take 32 $ cycle [1,3,5,7])
+-- > > setDurs (take 32 $ repeat 0.5)
+-- > > t1 <- forkIO (runChangingValues)
+-- > > setDurs (take 32 $ cycle [0.25, 0.25, 0.5])
+-- > > setDegrees . take 32 =<< choices [0,1,3,5,7] <$> newStdGen
+-- > > killThread t1
+--
 runChangingValues :: IO ()
 runChangingValues = forever $ do
   durs <- getDurs
@@ -289,7 +289,7 @@ setDurs :: [Double] -> IO ()
 setDurs = setBuf changingDurBuf
 
 setBuf :: Int -> [Double] -> IO ()
-setBuf bufNum vals = 
+setBuf bufNum vals =
     withSC3 $ \fd -> do
         send fd (b_alloc bufNum (length vals) 1)
         wait fd "/done"
@@ -302,9 +302,8 @@ getBuf bufNum = do
     send fd (b_getn bufNum [(0, bufNumFrames bufInfo)])
     wait fd "/b_setn"
   return $ toDoubles osc
-    where 
+    where
       toDoubles (Message "/b_setn" (_:_:_:fs)) = map unFloat fs
       toDoubles _ = []
       unFloat (Float x) = x
       unFloat _ = error "Not a float"
-
