@@ -39,10 +39,17 @@ module SCHelp.PG.Cookbook02 (
   writeIndex',
   getMove,
   setMove,
-  thePitches
+  thePitches,
+
   -- * Changing Pbind value patterns on the fly
   -- $changingPbind
-
+  runChangingValues,
+  changingDegreeBuf,
+  changingDurBuf,
+  getDegrees,
+  setDegrees,
+  getDurs,
+  setDurs
   ) where
 
 import Control.Applicative
@@ -74,6 +81,9 @@ import Sound.OpenSoundControl
      wait)
 import Sound.SC3
     (AddAction(..),
+     b_alloc,
+     b_getn,
+     b_setn,
      c_get,
      c_set,
      s_new,
@@ -162,7 +172,7 @@ melodyReader chan = do
 
 
 main :: IO ()
-main = runMovingIndex
+main = runChangingValues
 
 -- $readingArray
 --
@@ -172,7 +182,16 @@ main = runMovingIndex
 -- One of the problem for haskell might be where to hold the temporary
 -- variable for amount of step in the array. Using control bus for
 -- holding step value.
+-- 
+-- Used MVar to hold the current index. The main action
+-- @runMovingIndex@ forks the writer thread, and loops the main reader
+-- action forever.
 --
+-- One obvious difference between original sclang version is that
+-- haskell version changes the moving step value immediately after the
+-- buffer's value has changed. Sclang version waits to update the step
+-- value until the last looping of pitch array has ended.
+-- 
 
 -- | Runs moving index example. Set the value of buffer to hold the
 -- value for moving step.
@@ -212,7 +231,6 @@ writeIndex' var = do
   liftIO $ putMVar var idx'
   put idx'
 
-
 getMove :: IO Double
 getMove = withSC3 work >>= return . parse
     where
@@ -224,8 +242,69 @@ setMove :: Double -> IO ()
 setMove move =
   withSC3 $ \fd -> send fd (c_set [(movingBusNum, move)])
 
-
 -- $changingPbind
 --
--- TBW
+-- Using buffer to hold the values used in synth.  In this way, random
+-- value pattern could not be expressed.
 --
+-- Try something like: 
+-- 
+-- > setDegrees (take 32 $ cycle [1,3,5,7])
+-- > setDurs (take 32 $ repeat 0.5)
+-- > t1 <- forkIO (runChangingValues)
+-- > setDurs (take 32 $ cycle [0.25, 0.25, 0.5])
+-- > setDegrees . take 32 =<< choices [0,1,3,5,7] <$> newStdGen
+-- > killThread t1
+-- 
+runChangingValues :: IO ()
+runChangingValues = forever $ do
+  durs <- getDurs
+  degrees <- getDegrees
+  let notes = zipWith mkNotes durs degrees
+  mapM_ audify notes
+    where
+      mkNotes dur deg = (dur,msg)
+          where msg = s_new "simpleSynth" (-1) AddToTail 1 [("freq",f)]
+                f = freq $ defaultPitch {degree=deg}
+      audify (d,m) = do
+        withSC3 $ \fd -> send fd m
+        threadDelay $ round (10 ^ 6 * d)
+
+changingDegreeBuf :: Num a => a
+changingDegreeBuf = 101
+
+changingDurBuf :: Num a => a
+changingDurBuf = 102
+
+getDegrees :: IO [Double]
+getDegrees = getBuf changingDegreeBuf
+
+getDurs :: IO [Double]
+getDurs = getBuf changingDurBuf
+
+setDegrees :: [Double] -> IO ()
+setDegrees = setBuf changingDegreeBuf
+
+setDurs :: [Double] -> IO ()
+setDurs = setBuf changingDurBuf
+
+setBuf :: Int -> [Double] -> IO ()
+setBuf bufNum vals = 
+    withSC3 $ \fd -> do
+        send fd (b_alloc bufNum (length vals) 1)
+        wait fd "/done"
+        send fd (b_setn bufNum [(0, vals)])
+
+getBuf :: Int -> IO [Double]
+getBuf bufNum = do
+  bufInfo <- getBufInfo bufNum
+  osc <- withSC3 $ \fd -> do
+    send fd (b_getn bufNum [(0, bufNumFrames bufInfo)])
+    wait fd "/b_setn"
+  return $ toDoubles osc
+    where 
+      toDoubles (Message "/b_setn" (_:_:_:fs)) = map unFloat fs
+      toDoubles _ = []
+      unFloat (Float x) = x
+      unFloat _ = error "Not a float"
+
