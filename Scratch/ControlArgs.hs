@@ -8,6 +8,7 @@ import Reusable
 
 add = "add" @= 0
 amp = "amp" @= 0.3
+attack = "attack" @= 0.1
 bufnum = "bufnum" @= 1
 bus = "bus" @= 0
 cut = "cut" @= 4000
@@ -36,6 +37,8 @@ rate = "rate" @= 1
 rez = "rez" @= 1
 rezz = "rezz" @= 1
 start = "start" @= 0
+stretch = "stretch" @= 1
 sustain = "sustain" @= 1
+time = "time" @= 1
 trig = "trig" @= 1
 val = "val" @= 0
