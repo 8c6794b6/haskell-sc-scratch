@@ -20,11 +20,13 @@ import Data.Generics
 
 type Query a = ReaderT UDP IO a
 
--- | EXample:
+-- | Example:
+--
 -- > > query allNodes s
 -- > > query freeAll s
 -- > > query (add 1 $ Synth 1001 "foo" []) s
 -- > > query (free 1001) s
+-- 
 query :: Query a -> IO UDP -> IO a
 query q fd = bracket fd close (runReaderT q)
 
@@ -102,6 +104,7 @@ type Condition = NodeInfo Bool
 
 
 -- | Ex.
+--
 -- > > query (select $ name ==? "fm1") s
 -- > > query (select $ nodeId ==? 1001) s
 select :: Condition -> Query [SCTree]
@@ -125,6 +128,7 @@ params (Group _ _) = []
 params (Synth _ _ ps) = ps
 
 -- | Ex.
+--
 -- > > query (select $ paramNames `has` "freq" &&? name ==? "fm") s
 paramNames :: NodeInfo [ParamName]
 paramNames (Synth _ _ ps) = map getName ps
