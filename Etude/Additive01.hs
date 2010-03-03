@@ -7,7 +7,10 @@ module Etude.Additive01 where
 import Control.Applicative
 import Control.Concurrent
 import Control.Monad
-import Data.List (zipWith4, zipWith5)
+import Data.List 
+    (sort,
+     zipWith4, 
+     zipWith5)
 import System.Random
 
 import Sound.OpenSoundControl
@@ -270,6 +273,18 @@ n2 =
      Send 106 $ randomDurs ampIds (8,16),
      Send 106 $ const $ setAmps' (repeat 0)
     ]
+
+n3 :: [Send StdGen OSC]
+n3 = concatMap sendEnv (scanl (+) 0 $ randomRs (0,1.0) (mkStdGen 323))
+
+sendEnv :: Double -> [Send StdGen OSC]
+sendEnv t = 
+     [Send t $ \g -> setVals' ampIds (repeat 0),
+      Send (t+0.1) $ \g -> setVals' ampIds (randomRs (0.001,0.03) g),
+      Send (t+0.2) $ \g -> setVals' ampIds (repeat 0)]
+
+sendTime :: Send a b -> Double
+sendTime (Send t _) = t
 
 -- Note of pitches.
 -- [35,47,52,56,59,64]
