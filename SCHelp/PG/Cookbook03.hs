@@ -18,7 +18,7 @@ module SCHelp.PG.Cookbook03 (
     -- $controlByHID
     runByHID,
     playByKey,
-    playNote,
+    playHIDNote,
 
     -- * Triggering a pattern by a GUI
     -- $triggeringByGUI
@@ -33,6 +33,7 @@ module SCHelp.PG.Cookbook03 (
 import Control.Applicative
 import Control.Monad
 import Data.Char
+import System.IO
 
 import Sound.OpenSoundControl
 import Sound.SC3
@@ -43,7 +44,7 @@ import SCTree
 import SCSched
 
 main :: IO ()
-main = undefined
+main = runByHID
 
 -- $controlByHID
 --
@@ -52,27 +53,29 @@ main = undefined
 -- and 'w' is 61, as so on until 'k', 72.
 --
 runByHID :: IO ()
-runByHID = getChar >>= playByKey >> runByHID
+runByHID = ini >> forever g 
+    where g = getChar >>= playByKey playHIDNote
+          ini = hSetBuffering stdin NoBuffering >> hSetEcho stdin False
 
-playByKey :: Char -> IO ()
-playByKey 'a' = playNote 60
-playByKey 'w' = playNote 61
-playByKey 's' = playNote 62
-playByKey 'e' = playNote 63
-playByKey 'd' = playNote 64
-playByKey 'f' = playNote 65
-playByKey 't' = playNote 66
-playByKey 'g' = playNote 67
-playByKey 'y' = playNote 68
-playByKey 'h' = playNote 69
-playByKey 'u' = playNote 70
-playByKey 'j' = playNote 71
-playByKey 'k' = playNote 72
-playByKey 'q' = return ()
-playByKey _ = return ()
+playByKey :: (Double -> IO ()) -> Char -> IO ()
+playByKey f 'a' = f 60
+playByKey f 'w' = f 61
+playByKey f 's' = f 62
+playByKey f 'e' = f 63
+playByKey f 'd' = f 64
+playByKey f 'f' = f 65
+playByKey f 't' = f 66
+playByKey f 'g' = f 67
+playByKey f 'y' = f 68
+playByKey f 'h' = f 69
+playByKey f 'u' = f 70
+playByKey f 'j' = f 71
+playByKey f 'k' = f 72
+playByKey f 'q' = return ()
+playByKey _ _ = return ()
 
-playNote :: Double -> IO ()
-playNote note = withSC3 $ \fd -> do
+playHIDNote :: Double -> IO ()
+playHIDNote note = withSC3 $ \fd -> do
    send fd (s_new "simpleSynth" (-1) AddToTail 1
             [("dur",1),("freq",midiCPS note)])
   
