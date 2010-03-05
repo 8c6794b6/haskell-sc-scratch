@@ -10,7 +10,7 @@
 -- Exercise for implementing pattern sequences shown in
 -- /PG_Cookbook02_Manipulating_Patterns/.
 --
--- One of the things not have been done is choosing elements from list
+-- One of the thing not have been done is choosing elements from list
 -- with specifying probability. Take a look at hackage in random
 -- category and check whether there exist a function that give similar
 -- result from Pwrand. Looking for a weighted random element generator.
