@@ -43,7 +43,9 @@ module SCHelp.PG.Cookbook02 (
 
   -- * Changing Pbind value patterns on the fly
   -- $changingPbind
+  mkNote,
   runChangingValues,
+  runChanging,
   changingDegreeBuf,
   changingDurBuf,
   getDegrees,
@@ -77,7 +79,10 @@ import FRP.Reactive
 import Sound.OpenSoundControl
     (OSC(..),
      Datum(..),
+     Time(..),
+     pauseThreadUntil,
      send,
+     utcr,
      wait)
 import Sound.SC3
     (AddAction(..),
@@ -246,6 +251,9 @@ setMove move =
 --
 -- Using buffer to hold the values used in synth.  In this way, random
 -- value pattern could not be expressed.
+-- 
+-- Delay between getting new values from scsynth for degree and
+-- durations are hearedable.
 --
 -- Try something like:
 --
@@ -257,18 +265,25 @@ setMove move =
 -- > > killThread t1
 --
 runChangingValues :: IO ()
-runChangingValues = forever $ do
-  durs <- getDurs
-  degrees <- getDegrees
-  let notes = zipWith mkNotes durs degrees
-  mapM_ audify notes
-    where
-      mkNotes dur deg = (dur,msg)
-          where msg = s_new "simpleSynth" (-1) AddToTail 1 [("freq",f)]
-                f = freq $ defaultPitch {degree=deg}
-      audify (d,m) = do
-        withSC3 $ \fd -> send fd m
-        threadDelay $ round (10 ^ 6 * d)
+runChangingValues = join (runChanging <$> utcr <*> getDurs <*> getDegrees)
+
+-- | Repeat sending message with getting values from buffers.
+-- 
+-- Timing would be adjusted when either of degrees or durations has
+-- reached to the last value.
+-- 
+runChanging :: Double -> [Double] -> [Double] -> IO ()
+runChanging t0 (x:xs) (y:ys) = do
+  let latency = 0.1
+  withSC3 $ \fd -> send fd (Bundle (UTCr $ t0 + latency) [mkNote y])
+  pauseThreadUntil (x + t0)
+  runChanging (x + t0) xs ys
+runChanging t0 _ _ = join (runChanging t0 <$> getDurs <*> getDegrees)
+  
+mkNote :: Double -> OSC
+mkNote deg = msg
+  where msg = s_new "simpleSynth" (-1) AddToTail 1 [("freq",f)]
+        f = freq $ defaultPitch {degree=deg}
 
 changingDegreeBuf :: Num a => a
 changingDegreeBuf = 101
