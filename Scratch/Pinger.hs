@@ -15,16 +15,20 @@ at t f = do
   pauseThreadUntil (n + t)
   at (n + t) f
 
+ping :: UGen
 ping = out (control kr "out" 0) (sinOsc ar f 0 * e)
     where e = envGen kr 1 a 0 1 RemoveSynth s
           s = envPerc 0.1 0.6
           a = control kr "amp" 0.1
           f = control kr "freq" 440
 
+latency :: Double
 latency = 0.01
 
+bundle :: Double -> [OSC] -> OSC
 bundle t m = Bundle (UTCr $ t + latency) m
 
+pinger :: Double -> Double -> Double -> IO a
 pinger freq a c = do
   now <- utcr
   at (fromIntegral $ ceiling now) f
@@ -36,6 +40,7 @@ pinger freq a c = do
                putStrLn "Sending ping"
                return 1
 
+main :: IO ()
 main = withSC3 $ \fd -> do
          channel <- fmap (read . head) getArgs 
          async fd $ d_recv $ synthdef "ping" $ ping
