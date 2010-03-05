@@ -23,6 +23,8 @@ module SCHelp.PG.Cookbook03 (
     -- * Triggering a pattern by a GUI
     -- $triggeringByGUI
     runByGUI,
+    guiContents,
+    guiContainer,
 
     -- * Triggering a pattern by signal amplitude
     -- $triggeringBySignalAmplitude
@@ -31,20 +33,21 @@ module SCHelp.PG.Cookbook03 (
     ) where
 
 import Control.Applicative
+import Control.Concurrent
 import Control.Monad
-import Data.Char
 import System.IO
 
+import Graphics.UI.Gtk
 import Sound.OpenSoundControl
 import Sound.SC3
 
 import Reusable
 import SCQuery
-import SCTree
+import SCTree hiding ((:=))
 import SCSched
 
 main :: IO ()
-main = runByHID
+main = runByGUI
 
 -- $controlByHID
 --
@@ -54,8 +57,9 @@ main = runByHID
 --
 runByHID :: IO ()
 runByHID = ini >> forever g 
-    where g = getChar >>= playByKey playHIDNote
-          ini = hSetBuffering stdin NoBuffering >> hSetEcho stdin False
+    where 
+      g = getChar >>= playByKey playHIDNote
+      ini = hSetBuffering stdin NoBuffering >> hSetEcho stdin False
 
 playByKey :: (Double -> IO ()) -> Char -> IO ()
 playByKey f 'a' = f 60
@@ -81,10 +85,30 @@ playHIDNote note = withSC3 $ \fd -> do
   
 -- $triggeringByGUI
 --
--- Using GTK. Triggering sending of
+-- Pausing sequence with pushing a button. The button is made with
+-- using GUI from GTK.
 --
 runByGUI :: IO ()
-runByGUI = undefined
+runByGUI = do
+  initGUI
+  guiContents >>= guiContainer
+  mainGUI
+  
+
+-- Contents of the gui.
+-- guiContents :: WidgetClass w => IO w
+guiContents = do
+  container <- vBoxNew True 10
+  return container
+
+-- | Container of the gui.
+guiContainer :: WidgetClass w => w -> IO ()
+guiContainer widget = do
+  window <- windowNew
+  set window [containerBorderWidth := 10,
+              containerChild := widget]
+  window `onDestroy` mainQuit
+  widgetShowAll window
 
 -- $triggeringBySignalAmplitude
 --
