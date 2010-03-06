@@ -25,6 +25,9 @@ module SCHelp.PG.Cookbook03 (
     runByGUI,
     guiContents,
     guiContainer,
+    ThreadStatus(..),
+    toggleThread,
+    runSendingMessage,
 
     -- * Triggering a pattern by signal amplitude
     -- $triggeringBySignalAmplitude
@@ -35,6 +38,7 @@ module SCHelp.PG.Cookbook03 (
 import Control.Applicative
 import Control.Concurrent
 import Control.Monad
+import Control.Monad.State
 import System.IO
 
 import Graphics.UI.Gtk
@@ -56,8 +60,8 @@ main = runByGUI
 -- and 'w' is 61, as so on until 'k', 72.
 --
 runByHID :: IO ()
-runByHID = ini >> forever g 
-    where 
+runByHID = ini >> forever g
+    where
       g = getChar >>= playByKey playHIDNote
       ini = hSetBuffering stdin NoBuffering >> hSetEcho stdin False
 
@@ -82,7 +86,7 @@ playHIDNote :: Double -> IO ()
 playHIDNote note = withSC3 $ \fd -> do
    send fd (s_new "simpleSynth" (-1) AddToTail 1
             [("dur",1),("freq",midiCPS note)])
-  
+
 -- $triggeringByGUI
 --
 -- Pausing sequence with pushing a button. The button is made with
@@ -93,13 +97,45 @@ runByGUI = do
   initGUI
   guiContents >>= guiContainer
   mainGUI
-  
 
--- Contents of the gui.
--- guiContents :: WidgetClass w => IO w
+-- | Status for thread.
+data ThreadStatus = ThreadRunning
+                  | ThreadPaused
+                    deriving (Eq, Show)
+
+-- | Contents of the gui.
+guiContents :: IO VBox
 guiContents = do
-  container <- vBoxNew True 10
-  return container
+  -- button for toggling thread
+  var <- newMVar ()
+  toggleButton<- buttonNew
+  set toggleButton [buttonLabel := "toggle thread"]
+  onClicked toggleButton (toggleThread var)
+
+  -- button for quitting the gui
+  quitButton <- buttonNew
+  set quitButton [buttonLabel := "quit"]
+  onClicked quitButton mainQuit
+
+  -- container of buttons
+  box <- vBoxNew True 10
+  set box [containerChild := toggleButton,
+           containerChild := quitButton]
+  return box
+
+-- | Toggles the thread that sending message to scsynth.
+toggleThread :: MVar () -> IO ()
+toggleThread var = do
+  undefined
+
+-- | Send osc message.
+runSendingMessage :: MVar () -> IO ()
+runSendingMessage var = do
+  a <- takeMVar var
+  withSC3 $ \fd -> send fd $
+                   s_new "simpleSynth" (-1) AddToTail 1 [("freq",440)]
+  putMVar var a
+  threadDelay (10 ^ 6)
 
 -- | Container of the gui.
 guiContainer :: WidgetClass w => w -> IO ()
