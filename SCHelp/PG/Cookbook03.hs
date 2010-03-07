@@ -25,7 +25,6 @@ module SCHelp.PG.Cookbook03 (
     runByGUI,
     guiContents,
     guiContainer,
-    ThreadStatus(..),
     toggleThread,
     runSendingMessage,
 
@@ -90,52 +89,57 @@ playHIDNote note = withSC3 $ \fd -> do
 -- $triggeringByGUI
 --
 -- Pausing sequence with pushing a button. The button is made with
--- using GUI from GTK.
+-- using GUI from GTK. 
+-- 
+-- This action is using @unsafeInitGUIForThreadedRTS@, instead of
+-- @initGUI@. Need to compile this with @-threaded@ option.
 --
 runByGUI :: IO ()
 runByGUI = do
-  initGUI
+  unsafeInitGUIForThreadedRTS
   guiContents >>= guiContainer
   mainGUI
-
--- | Status for thread.
-data ThreadStatus = ThreadRunning
-                  | ThreadPaused
-                    deriving (Eq, Show)
 
 -- | Contents of the gui.
 guiContents :: IO VBox
 guiContents = do
+  -- MVar and thread
+  var <- newEmptyMVar
+  tId <- forkIO (forever $ runSendingMessage var)
+
   -- button for toggling thread
-  var <- newMVar ()
-  toggleButton<- buttonNew
+  toggleButton <- buttonNew
   set toggleButton [buttonLabel := "toggle thread"]
   onClicked toggleButton (toggleThread var)
-
+  
   -- button for quitting the gui
   quitButton <- buttonNew
   set quitButton [buttonLabel := "quit"]
-  onClicked quitButton mainQuit
+  quitButton `onClicked` (mainQuit >> killThread tId)
 
   -- container of buttons
   box <- vBoxNew True 10
   set box [containerChild := toggleButton,
-           containerChild := quitButton]
+             containerChild := quitButton]
   return box
 
 -- | Toggles the thread that sending message to scsynth.
 toggleThread :: MVar () -> IO ()
 toggleThread var = do
-  undefined
+  isEmpty <- isEmptyMVar var
+  putStrLn $ "from toggleThread: " ++ show isEmpty
+  if isEmpty
+     then putMVar var ()
+     else takeMVar var
 
 -- | Send osc message.
 runSendingMessage :: MVar () -> IO ()
 runSendingMessage var = do
-  a <- takeMVar var
+  putMVar var ()
   withSC3 $ \fd -> send fd $
                    s_new "simpleSynth" (-1) AddToTail 1 [("freq",440)]
-  putMVar var a
-  threadDelay (10 ^ 6)
+  a <- takeMVar var
+  threadDelay (round $ 10 ^ 6 * 0.5)
 
 -- | Container of the gui.
 guiContainer :: WidgetClass w => w -> IO ()
