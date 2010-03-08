@@ -103,24 +103,32 @@ runByGUI = do
 -- | Contents of the gui.
 guiContents :: IO VBox
 guiContents = do
-  -- MVar and thread
-  var <- newEmptyMVar
-  tId <- forkIO (forever $ runSendingMessage var)
+  -- MVars and threads
+  var1 <- newEmptyMVar
+  tId1 <- forkIO (forever $ runSendingMessage 440 var1)
 
-  -- button for toggling thread
-  toggleButton <- buttonNew
-  set toggleButton [buttonLabel := "toggle thread"]
-  onClicked toggleButton (toggleThread var)
+  var2 <- newEmptyMVar
+  tId2 <- forkIO (forever $ runSendingMessage 660 var2)
+
+  -- buttons for toggling thread
+  toggleButton1 <- buttonNew
+  set toggleButton1 [buttonLabel := "toggle thread 1"]
+  toggleButton1 `onClicked` (toggleThread var1)
+
+  toggleButton2 <- buttonNew
+  set toggleButton2 [buttonLabel := "toggle thread 2"]
+  toggleButton2 `onClicked` (toggleThread var2)         
   
   -- button for quitting the gui
   quitButton <- buttonNew
   set quitButton [buttonLabel := "quit"]
-  quitButton `onClicked` (mainQuit >> killThread tId)
+  quitButton `onClicked` (mainQuit >> killThread tId1 >> killThread tId2)
 
   -- container of buttons
   box <- vBoxNew True 10
-  set box [containerChild := toggleButton,
-             containerChild := quitButton]
+  set box [containerChild := toggleButton1,
+           containerChild := toggleButton2,
+           containerChild := quitButton]
   return box
 
 -- | Toggles the thread that sending message to scsynth.
@@ -133,11 +141,11 @@ toggleThread var = do
      else takeMVar var
 
 -- | Send osc message.
-runSendingMessage :: MVar () -> IO ()
-runSendingMessage var = do
+runSendingMessage :: Double -> MVar () -> IO ()
+runSendingMessage frq var = do
   putMVar var ()
   withSC3 $ \fd -> send fd $
-                   s_new "simpleSynth" (-1) AddToTail 1 [("freq",440)]
+                   s_new "simpleSynth" (-1) AddToTail 1 [("freq",frq)]
   a <- takeMVar var
   threadDelay (round $ 10 ^ 6 * 0.5)
 
