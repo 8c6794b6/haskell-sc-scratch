@@ -124,7 +124,7 @@ guiContents = do
   set quitButton [buttonLabel := "quit"]
   quitButton `onClicked` (mainQuit >> killThread tId1 >> killThread tId2)
 
-  -- container of buttons
+  -- container of buttons sendTrig
   box <- vBoxNew True 10
   set box [containerChild := toggleButton1,
            containerChild := toggleButton2,
@@ -160,7 +160,11 @@ guiContainer widget = do
 
 -- $triggeringBySignalAmplitude
 --
--- A bit trickier, in sclang.
---
+-- A bit trickier, in sclang. Even more trickier with haskell.
+-- Don't know why but @sendTrig@ UGen is not working with hsc3.
+-- Have no idea whether it's a matter of scsynth side or haskel side.
+-- 
+-- XXX: Pending this example. 
+-- 
 runBySignalAmplitude :: IO ()
 runBySignalAmplitude = undefined
