@@ -37,6 +37,7 @@ module SCHelp.PG.Cookbook05
       -- $runPitchedMaterial
       runPitchedMaterial,
       setPitchedMaterial,
+      cleanPitchedMaterial,
       pitchedMaterialEvent,
       recordOneNote,
       samplerBuf,
@@ -240,14 +241,39 @@ pitchedMaterialEvent = do
                     ("bufnum", repeat samplerBuf)]
   return $ listE $ zip durs' msgs
 
-setPitchedMaterial = do
-  withSC3 $ loadSynthdef "sampler" sampler
+-- | Set up task.
+-- Loads synthdef and record sample to buffer.
+setPitchedMaterial :: IO OSC
+setPitchedMaterial = withSC3 $ \fd -> do
+  loadSynthdef "sampler" sampler fd
+  recordOneNote fd
 
+-- | Clean up the resources used in pitched material example.
+cleanPitchedMaterial :: IO ()
+cleanPitchedMaterial = withSC3 $ \fd -> do
+  send fd $ b_free samplerBuf
+
+-- | Buffer used for pitched material example.
 samplerBuf :: Num a => a
 samplerBuf = 2
 
-recordOneNote = undefined
+-- | Records a fm sound enveloped sound to buffer.
+-- Don't understand why input ugen for recordBuf need to be increased
+-- to 2 channels with @mce@, but scsynth will raise an error if not.
+recordOneNote :: Transport t => t -> IO OSC
+recordOneNote fd = do
+  send fd $ b_alloc samplerBuf (44100 * 2) 1
+  send fd $ sync 0
+  let ug = recordBuf samplerBuf 0 1 0 1 NoLoop 1 (mce [car, car])
+      car = sinOsc ar (freq + (mod * freq)) 0 * decay2 initPulse 0.01 2
+      mod = sinOsc ar freq 0 * decay2 initPulse 0.01 3 * 5
+      initPulse = impulse kr 0 0
+      freq = 440
+  play fd ug
+  wait fd "/synced" 
 
+-- | UGen for pitched material example. 
+-- Plays specifyed buffer with specifyed rate.
 sampler :: UGen
 sampler = out A.out $ mce [sig, sig]
     where
