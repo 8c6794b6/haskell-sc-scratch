@@ -1,11 +1,12 @@
 ------------------------------------------------------------------------------
--- | Common names for controls. Import with "qualified".
+-- | Common names for controls. Intended to use with @qualified@ import.
 -- 
 
 module Scratch.ControlArgs where
 
 import Reusable
 
+accent = "accent" @= 0
 add = "add" @= 0
 amp = "amp" @= 0.3
 attack = "attack" @= 0.1
@@ -14,6 +15,7 @@ bus = "bus" @= 0
 cut = "cut" @= 4000
 cutoff = "cutoff" @= 10000
 decay = "decay" @= 4
+decayScale = "decayScale" @= 1
 delay = "delay" @= 0.2
 dur = "dur" @= 1
 ffreq = "ffreq" @= 440
