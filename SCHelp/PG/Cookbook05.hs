@@ -18,6 +18,7 @@ module SCHelp.PG.Cookbook05
       runSampledLoop,
       setSampledLoop,
       oneLoopBuf,
+      dsTest,
 
       -- ** UGens for playing sample and bell
       oneLoop,
@@ -74,7 +75,7 @@ oneLoop = out 0 $ mce [sig * e, sig * e]
       e = envGen kr 1 1 0 1 RemoveSynth shp
       shp = envLinen 0.01 A.time 0.05 A.amp [EnvLin]
 
--- | Buffer id used for holding a11wlk01.wav.
+-- | Buffer id used for holding sound sample.
 oneLoopBuf :: Num a => a
 oneLoopBuf = 1
 
@@ -89,7 +90,13 @@ bell = do
   let spec = klankSpec kFreq kOffset kDecay
       sig = klank exc (A.accent + 1) 0 A.decayScale spec
       d = detectSilence sig 0.1 0.2 RemoveSynth
-  return $ out 0 $ mce [sig, sig]
+  return $ mrg [out 0 $ mce [sig, sig], d]
+
+dsTest :: IO ()
+dsTest = do
+  let s = sinOsc ar 440 0 * mouseY kr 0 0.4 Linear 0.1
+      d = detectSilence s 0.1 0.2 RemoveSynth
+  audition $ mrg [out 0 s, d]
 
 -- $runPitchedMaterial
 
