@@ -16,6 +16,7 @@ module SCHelp.PG.Cookbook05
       -- $runSampledLoop
 
       runSampledLoop,
+      setSampledLoop,
       oneLoopBuf,
 
       -- ** UGens for playing sample and bell
@@ -30,6 +31,8 @@ module SCHelp.PG.Cookbook05
       runMultiSampled
     ) where
 
+import Control.Applicative ((<$>))
+import Control.Monad
 
 import Sound.OpenSoundControl
 import Sound.SC3
@@ -53,6 +56,16 @@ main = runSampledLoop
 runSampledLoop :: IO ()
 runSampledLoop = undefined
 
+-- | Setup for @runSampledLoop@. Update synthdefs and locate buffer.
+setSampledLoop :: IO OSC
+setSampledLoop = 
+    withSC3 $ \fd -> do
+      (loadSynthdef "oneLoop" oneLoop) fd
+      bell' <- bell
+      (loadSynthdef "bell" bell') fd
+      let a11wlk01 = "/home/atsuro/audio/wav/a11wlk01.wav"
+      async fd (b_allocRead oneLoopBuf a11wlk01 0 0)
+
 -- | UGen for playing sound file.
 oneLoop :: UGen
 oneLoop = out 0 $ mce [sig * e, sig * e] 
@@ -68,9 +81,15 @@ oneLoopBuf = 1
 -- | UGen of fm bell.
 bell :: IO UGen
 bell = do
-  sig <- undefined
+  exc <- (* decay2 (impulse kr 0 1) 0.01 0.05) <$> (* A.amp) <$>
+         pinkNoise ar 
+  kFreq <- replicateM 4 $ expRand 400 1600
+  kOffset <- replicateM 4 $ return 1
+  kDecay <- replicateM 4 $ expRand 0.1 0.4
+  let spec = klankSpec kFreq kOffset kDecay
+      sig = klank exc (A.accent + 1) 0 A.decayScale spec
+      d = detectSilence sig 0.1 0.2 RemoveSynth
   return $ out 0 $ mce [sig, sig]
-
 
 -- $runPitchedMaterial
 
