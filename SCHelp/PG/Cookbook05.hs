@@ -47,7 +47,20 @@ module SCHelp.PG.Cookbook05
 
       -- * Multi-sampled instruments
       -- $runMultiSampled
-      runMultiSampled
+      runMultiSampled,
+      setMultiSampled,
+
+      -- ** Helper function and actions for multi-sampled ex
+      baseBuf,
+      baseFreqBuf,
+      multiSampleMidiNotes,
+      multiSampledEvents,
+      recordSamples,
+
+      -- ** UGen for multi-sampled example
+      multiSampler,
+      sampleSource
+
     ) where
 
 import Control.Applicative
@@ -229,6 +242,10 @@ runPitchedMaterial = spawn 0 60 =<< pitchedMaterialEvent
 pitchedMaterialEvent :: IO (Event OSC)
 pitchedMaterialEvent = do
   degs <- choices [0..12] <$> newStdGen
+  -- degs <- map (fromIntegral . fitInRange (-11) 11 . round) .
+  --         scanl (+) 0 <$>
+  --         choices [-2,-1,1,2] <$>
+  --         newStdGen
   amps <- expRandomRs (0.1, 0.5) <$> newStdGen
   durs <- choices [0.25, 0.125] <$> newStdGen
   let durs' = scanl (+) 0 durs
@@ -270,9 +287,9 @@ recordOneNote fd = do
       initPulse = impulse kr 0 0
       freq = 440
   play fd ug
-  wait fd "/synced" 
+  wait fd "/synced"
 
--- | UGen for pitched material example. 
+-- | UGen for pitched material example.
 -- Plays specifyed buffer with specifyed rate.
 sampler :: UGen
 sampler = out A.out $ mce [sig, sig]
@@ -281,7 +298,96 @@ sampler = out A.out $ mce [sig, sig]
 
 -- $runMultiSampled
 --
--- TBW
+-- Changing pitch of sound with using sample, this time using multiple
+-- samples.
+--
 
+-- | Main action of multi sampled example.
 runMultiSampled :: IO ()
 runMultiSampled = undefined
+
+-- | Setup action for multi sample example.
+setMultiSampled :: IO OSC
+setMultiSampled = withSC3 $ \fd -> do
+  loadSynthdef "multiSampler" multiSampler fd
+  recordSamples fd
+  fillInMidiNotes fd
+
+-- | Midi notes for recorded samples.
+multiSampleMidiNotes :: [Double]
+multiSampleMidiNotes = [39,46..88]
+
+-- | Base buffer of recorded sample sounds.
+baseBuf :: Num a => a
+baseBuf = 100
+
+-- | Buffer to hold the base frequencies in midi note.
+baseFreqBuf :: Num a => a
+baseFreqBuf = 200
+
+-- | OSC events of multi-sampled example.
+multiSampledEvents :: IO (Event OSC)
+multiSampledEvents = do
+  durs <- choices [0.25, 0.125] <$> newStdGen
+  degs <- map (fitInRange (-11) 11) <$> scanl (+) 0 <$>
+          choices [-2,-1,1,2] <$> newStdGen
+  amps <- expRandomRs (0.1, 0.5) <$> newStdGen
+  let bufBases = repeat baseBuf
+      baseFreqBufs = repeat baseFreqBuf
+      bufnums = undefined
+      freqs = undefined
+  return $ listE $ zip durs $ mkSNew' "multiSampler" 1 $ M.fromList 
+             [("amp", amps),
+              ("baseFreqBuf", baseFreqBufs),
+              ("bufBase", bufBases),
+              ("bufnum", bufnums),
+              ("freq", freqs),
+              ("out", repeat 0)]
+
+-- | Record sample notes with changing frequency.
+recordSamples :: Transport t => t -> IO OSC
+recordSamples fd = do
+  -- Synthdef for making sample sound
+  let sendSampleSource b f = s_new "sampleSource" (-1) AddToTail 1 
+                   [("bufnum",b),("freq",f)]
+  -- Fill in the buffers
+  mapM_ (send fd) (zipWith3 b_alloc [baseBuf..]
+                   (replicate (length multiSampleMidiNotes)
+                    (44100 * 2))
+                   (repeat 1))
+  send fd (sync 0)
+  loadSynthdef "sampleSource" sampleSource fd
+  mapM_ (send fd) (zipWith sendSampleSource [baseBuf..]
+                           multiSampleMidiNotes)
+  wait fd "/synced"
+
+-- | Fill in a buffer to hold the midi notes.
+fillInMidiNotes :: Transport t => t -> IO OSC
+fillInMidiNotes fd = do
+    send fd $ b_alloc baseFreqBuf (length multiSampleMidiNotes) 1
+    send fd $ b_setn baseFreqBuf [(0,multiSampleMidiNotes)]
+    send fd $ sync 1
+    wait fd "/synced"
+
+-- | UGen for multi sampled example.
+multiSampler :: UGen
+multiSampler = out A.out $ mce [sig, sig]
+    where
+      sig = xFade2 playbuf1 playbuf2 xfade A.amp
+      buf1 = floorE A.bufnum
+      buf2 = buf1 + 1
+      xfade = mulAdd (A.bufnum - buf1) 2 (-1)
+      basefreq1 = index A.baseFreqBuf buf1
+      basefreq2 = index A.baseFreqBuf buf2
+      playbuf1 = playBuf 1 (A.bufBase + buf1)
+                 (A.freq / basefreq1) 1 0 NoLoop RemoveSynth
+      playbuf2 = playBuf 1 (A.bufBase + buf2)
+                 (A.freq / basefreq2) 1 0 NoLoop RemoveSynth
+
+-- | Synth for sample sound
+sampleSource :: UGen
+sampleSource = recordBuf A.bufnum 0 1 0 1 NoLoop 1 (mce [car, car])
+    where
+      car = sinOsc ar (A.freq + (mod*A.freq)) 0 * decay2 initPulse 0.01 2
+      mod = sinOsc ar A.freq 0 * decay2 initPulse 0.01 3 * 5
+      initPulse = impulse kr 0 0
