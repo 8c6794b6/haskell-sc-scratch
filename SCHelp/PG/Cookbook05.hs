@@ -67,9 +67,11 @@ import Control.Applicative
     ((<$>),
      (<*>),
      pure )
-import Control.Monad
+import Control.Monad (replicateM)
+import Data.List
 import Data.Map (Map)
-import Data.Monoid
+import Data.Monoid (mconcat)
+
 import qualified Data.Map as M
 import System.Random
 
@@ -77,6 +79,7 @@ import FRP.Reactive
 import Sound.OpenSoundControl
 import Sound.SC3
 import Sound.SC3.Lang.Math
+import qualified Sound.SC3.Lang as L
 
 import Missing
 import Reusable
@@ -233,6 +236,8 @@ stHelp = do
 -- $runPitchedMaterial
 --
 -- Plays sample in buffer with specifying rate for sample playback.
+-- 
+-- XXX: Calculation of frequency is wrong. Fix it.
 
 -- | Runs pitched material.
 runPitchedMaterial :: IO ()
@@ -328,14 +333,15 @@ baseFreqBuf = 200
 -- | OSC events of multi-sampled example.
 multiSampledEvents :: IO (Event OSC)
 multiSampledEvents = do
-  durs <- choices [0.25, 0.125] <$> newStdGen
-  degs <- map (fitInRange (-11) 11) <$> scanl (+) 0 <$>
-          choices [-2,-1,1,2] <$> newStdGen
+  durs <- scanl (+) 0 <$> choices [0.25, 0.125] <$> newStdGen
+  degs <- map (fromIntegral . fitInRange (-11) 11 . round) <$> 
+          scanl (+) 0 <$> choices [-2,-1,1,2] <$> newStdGen
   amps <- expRandomRs (0.1, 0.5) <$> newStdGen
   let bufBases = repeat baseBuf
       baseFreqBufs = repeat baseFreqBuf
-      bufnums = undefined
-      freqs = undefined
+      bufnums = map (\x -> L.indexInBetween x multiSampleMidiNotes) degs
+      toFreq d = freq $ defaultPitch {degree=d}
+      freqs = map toFreq degs
   return $ listE $ zip durs $ mkSNew' "multiSampler" 1 $ M.fromList 
              [("amp", amps),
               ("baseFreqBuf", baseFreqBufs),
@@ -344,21 +350,22 @@ multiSampledEvents = do
               ("freq", freqs),
               ("out", repeat 0)]
 
+idxInBtw :: [Double] -> Double -> Double
+idxInBtw idcs idx = undefined
+
 -- | Record sample notes with changing frequency.
 recordSamples :: Transport t => t -> IO OSC
 recordSamples fd = do
-  -- Synthdef for making sample sound
   let sendSampleSource b f = s_new "sampleSource" (-1) AddToTail 1 
                    [("bufnum",b),("freq",f)]
-  -- Fill in the buffers
   mapM_ (send fd) (zipWith3 b_alloc [baseBuf..]
                    (replicate (length multiSampleMidiNotes)
                     (44100 * 2))
                    (repeat 1))
-  send fd (sync 0)
   loadSynthdef "sampleSource" sampleSource fd
   mapM_ (send fd) (zipWith sendSampleSource [baseBuf..]
                            multiSampleMidiNotes)
+  send fd (sync 0)
   wait fd "/synced"
 
 -- | Fill in a buffer to hold the midi notes.
