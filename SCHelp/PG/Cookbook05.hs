@@ -49,6 +49,7 @@ module SCHelp.PG.Cookbook05
       -- $runMultiSampled
       runMultiSampled,
       setMultiSampled,
+      tidyMultiSampled,
 
       -- ** Helper function and actions for multi-sampled ex
       baseBuf,
@@ -56,6 +57,9 @@ module SCHelp.PG.Cookbook05
       multiSampleMidiNotes,
       multiSampledEvents,
       recordSamples,
+      fillInMidiNotes,
+      testMultiSampled,
+      playSampleSound,
 
       -- ** UGen for multi-sampled example
       multiSampler,
@@ -304,12 +308,13 @@ sampler = out A.out $ mce [sig, sig]
 -- $runMultiSampled
 --
 -- Changing pitch of sound with using sample, this time using multiple
--- samples.
+-- samples. Synthdef differs from sclang example, haskell version has
+-- distorted sound. Need to tweak inside the synthdef to figure out why.
 --
 
 -- | Main action of multi sampled example.
 runMultiSampled :: IO ()
-runMultiSampled = undefined
+runMultiSampled = spawn 0 60 =<< multiSampledEvents
 
 -- | Setup action for multi sample example.
 setMultiSampled :: IO OSC
@@ -317,6 +322,30 @@ setMultiSampled = withSC3 $ \fd -> do
   loadSynthdef "multiSampler" multiSampler fd
   recordSamples fd
   fillInMidiNotes fd
+
+-- | Tidy up buffers.
+tidyMultiSampled :: IO OSC
+tidyMultiSampled = withSC3 $ \fd -> do
+  mapM_ (send fd) (map b_free [baseBuf .. (baseBuf + length
+                                                   multiSampleMidiNotes)])
+  send fd (sync 0)
+  wait fd "/synced"
+
+-- | Test
+testMultiSampled :: Double -> Double -> IO ()
+testMultiSampled bn f = withSC3 $ \fd -> do
+  send fd $ s_new "multiSampler" (-1) AddToTail 1 
+       [("out",0),
+        ("amp",0.2),
+        ("baseFreqBuf",baseFreqBuf),
+        ("bufnum", bn),
+        ("bufBase",baseBuf),
+        ("freq",f)]
+
+-- | Plays recorded sample sound.
+playSampleSound :: Double -> IO ()
+playSampleSound n = 
+    audition $ out 0 $ playBuf 1 (constant n) 1 1 0 NoLoop RemoveSynth
 
 -- | Midi notes for recorded samples.
 multiSampleMidiNotes :: [Double]
@@ -339,7 +368,9 @@ multiSampledEvents = do
   amps <- expRandomRs (0.1, 0.5) <$> newStdGen
   let bufBases = repeat baseBuf
       baseFreqBufs = repeat baseFreqBuf
-      bufnums = map (\x -> L.indexInBetween x multiSampleMidiNotes) degs
+      bufnums = map (\x -> L.indexInBetween x 
+                           (map midiCPS multiSampleMidiNotes))
+                     freqs
       toFreq d = freq $ defaultPitch {degree=d}
       freqs = map toFreq degs
   return $ listE $ zip durs $ mkSNew' "multiSampler" 1 $ M.fromList 
@@ -350,14 +381,11 @@ multiSampledEvents = do
               ("freq", freqs),
               ("out", repeat 0)]
 
-idxInBtw :: [Double] -> Double -> Double
-idxInBtw idcs idx = undefined
-
 -- | Record sample notes with changing frequency.
 recordSamples :: Transport t => t -> IO OSC
 recordSamples fd = do
   let sendSampleSource b f = s_new "sampleSource" (-1) AddToTail 1 
-                   [("bufnum",b),("freq",f)]
+                   [("bufnum",b),("freq",midiCPS f)]
   mapM_ (send fd) (zipWith3 b_alloc [baseBuf..]
                    (replicate (length multiSampleMidiNotes)
                     (44100 * 2))
@@ -371,8 +399,11 @@ recordSamples fd = do
 -- | Fill in a buffer to hold the midi notes.
 fillInMidiNotes :: Transport t => t -> IO OSC
 fillInMidiNotes fd = do
-    send fd $ b_alloc baseFreqBuf (length multiSampleMidiNotes) 1
-    send fd $ b_setn baseFreqBuf [(0,multiSampleMidiNotes)]
+    let l = length multiSampleMidiNotes
+        fs = map midiCPS multiSampleMidiNotes
+    send fd $ b_alloc baseFreqBuf l 1
+    wait fd "/done"
+    send fd $ b_setn baseFreqBuf [(0,fs)]
     send fd $ sync 1
     wait fd "/synced"
 
