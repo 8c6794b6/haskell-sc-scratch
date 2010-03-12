@@ -10,6 +10,14 @@
 -- Exercise for implementing pattern sequences shown in
 -- /PG_Cookbook06_Phrase_Network/.
 --
+-- TODO:
+-- 
+-- * Synthdef differs from sclang version.
+--
+-- * Message does not sending gate off.
+-- 
+-- * Message does not sending new synth node creation.
+-- 
 
 module SCHelp.PG.Cookbook06 where
 
@@ -27,10 +35,59 @@ import Reusable
 import SCSched
 import SCTree
 import SCQuery
+import qualified Scratch.ControlArgs as A
 
 -- | UGen for pharase network example.
+--
+-- @
+-- SynthDef(\sawpulse, { |out, freq = 440, gate = 0.5, plfofreq = 6, mw = 0, ffreq = 2000, rq = 0.3, freqlag = 0.05, amp = 1|
+-- 	var sig, plfo, fcurve;
+-- 	plfo = SinOsc.kr(plfofreq, mul:mw, add:1);
+-- 	freq = Lag.kr(freq, freqlag) * plfo;
+-- 	fcurve = EnvGen.kr(Env.adsr(0, 0.3, 0.1, 20), gate);
+-- 	fcurve = (fcurve - 1).madd(0.7, 1) * ffreq;
+-- 	sig = Mix.ar([Pulse.ar(freq, 0.9), Saw.ar(freq*1.007)]);
+-- 	sig = RLPF.ar(sig, fcurve, rq)
+-- 	* EnvGen.kr(Env.adsr(0.04, 0.2, 0.6, 0.1), gate, doneAction:2)
+-- 	* amp;
+-- 	Out.ar(out, sig ! 2)
+-- }).memStore;
+-- @
+
 sawpulse :: UGen
-sawpulse = undefined
+sawpulse = out A.out $ mce [sig, sig]
+    where
+      sig = rlpf sig' fcurve rq *
+            envGen kr gate 1 0 1 RemoveSynth sh *
+            A.amp
+      sh = envCoord' [(0, 0), (0.04, 1), (0.2, 0.6), (0.3, 0)] 1 1
+           EnvLin
+      sig' = mix $ mce [pulse ar freq 0.9, saw ar (freq * 1.007)]
+      freq = lag A.freq freqlag * plfo
+      freqlag = A.freqlag {controlDefault = 0.05}
+      plfo = (sinOsc kr plfofreq 0 * A.mw) + 1
+      fcurve = mulAdd (fcurve' - 1) 0.7 1 * ffreq
+      fcurve' = envGen kr gate 1 0 1 DoNothing shape 
+      shape = envLinen 0 0.3 20 0.1 [EnvCub]
+      rq = A.rq {controlDefault = 0.3}
+      plfofreq = A.plfofreq {controlDefault = 6}
+      ffreq = A.ffreq {controlDefault = 2000}
+      gate = A.gate {controlDefault = 0.5}
+
+testSawPulse :: Transport t => t -> IO ()
+testSawPulse = \fd -> do
+  loadSynthdef "sawpulse" sawpulse fd
+  send fd $ sync 1
+  wait fd "/synced"
+  send fd $ s_new "sawpulse" (-1) AddToTail 1 []
+
+testEnv1 :: IO ()
+testEnv1 = envTest $ envLinen 0 0.3 20 0.1 [EnvCub]
+
+testEnv2 :: IO ()
+testEnv2 = envTest $ envLinen 0.04 0.2 0.6 0.1 [EnvCub]
+
+
 
 -- | BPM tempo.
 phraseTempo :: Num a => a
@@ -48,19 +105,31 @@ data PhraseState = PhraseState
       phraseIndex :: PhraseIndex }
 
 -- | Run phrases.
--- 
+--
 -- Current implementation does not send @gate@ information to node,
--- and is not using @sustain@ values at all. 
--- 
--- Rest is not expressed in performance. 
+-- and is not using @sustain@ values at all.
+--
+-- Rest is not expressed in performance.
+--
+-- Try:
+--
+-- @
+-- > setPhrase
+-- > runPhrase
+-- > cleanPhrase
+-- @
 -- 
 runPhrase :: IO ()
 runPhrase = playPhrases =<< genPhrases <$> initPhraseState
 
 setPhrase :: IO ()
 setPhrase = withSC3 $ \fd -> do
+  loadSynthdef "sawpulse" sawpulse fd
+  send fd (sync 1)
+  wait fd "/synced"            
   send fd $ s_new "sawpulse" phraseNodeId AddToTail 1 [("amp",0)]
 
+cleanPhrase :: IO ()
 cleanPhrase = withSC3 $ \fd -> do
   send fd $ n_free [phraseNodeId]
 
@@ -87,11 +156,15 @@ playPhrases = mapM_ playPhrase
 
 playPhrase :: Phrase -> IO ()
 playPhrase p = do
-  let p' = M.update (return . map midiCPS) "freq" . 
+  let p' = M.update (return . map midiCPS) "freq" .
            M.update (return . map (*0.4)) "amp" $ p
-      dur = scanl (+) 0 . maybe [] id . M.lookup "dur" $ p'
+      dur = scanl (+) 0 . maybe [] id . M.lookup "dur" $ p
+      sus = scanl (+) 0 . maybe [] id . M.lookup "sustain" $ p
       ev = listE $ zip dur $ mkNSet phraseNodeId p'
   spawn 0 phraseTempo ev
+
+phrasesToE :: [Phrase] -> Event OSC
+phrasesToE ps = undefined
 
 phraseMatrix :: PhraseMatrix
 phraseMatrix =
@@ -109,11 +182,49 @@ phraseMatrix =
      (11, [0,9,9,11,11,12,12,12,12,12]),
      (12, [6,6,8,9,9,9,10,10,10,10,13,13,13]),
      (13, [8,13,13])]
+-- phraseMatrix = 
+--     [(0, [0,1,2]),
+--      (1, [0,1,2]),
+--      (2, [0,2])]
 
 phrases :: [Phrase]
+-- phrases = [p01, p02, p03]
 phrases = [phr01, phr02, phr03, phr04, phr05,
            phr06, phr07, phr08, phr09, phr10,
            phr11, phr12, phr13, phr14]
+
+pp :: IO ()
+pp = playPhrase =<< 
+     M.update (return . map (*0.4)) "amp" <$>
+     M.unionsWith (++) <$> 
+     take 2000 <$> genPhrases <$> initPhraseState
+
+-- | Phrase for testing.
+p01 :: Phrase
+p01 = M.fromList $ 
+      [("freq", [60, 64, 67, 64, 60]),
+       ("dur",  0.5 : replicate 4 0.25),
+       ("sustain", [1.0, 1.0, 0.5, 0.5, 1.0]),
+       ("amp", [1, 1, 0.5, 0.5, 0.7]),
+       ("mw", replicate 5 0)]
+
+-- | Another phrase for testing.
+p02 :: Phrase 
+p02 = M.fromList $ 
+--      [("freq", [72, 69, 65, 60, 65, 69]),
+      [("freq", [60, 65, 69, 72, 69, 65]),
+       ("dur", replicate 6 0.25),
+       ("sustain", [0.5, 0.5, 0.25, 0.25, 0.25, 0.25]),
+       ("amp", [1, 0.7, 0.7, 1, 0.7, 0.5]),
+       ("mw", replicate 6 0)]
+
+p03 :: Phrase
+p03 = M.fromList $
+      [("freq", [62, 65, 67, 71, 67, 65]),
+       ("dur", replicate 6 0.25),
+       ("sustain", replicate 6 0.3),
+       ("amp", [1, 0.7, 0.7, 1, 0.7, 0.5]),
+       ("mw", replicate 6 0)] 
 
 phr01 :: Phrase
 phr01 = M.fromList $
