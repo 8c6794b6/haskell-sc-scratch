@@ -287,5 +287,19 @@ expRandomRs (min,max) = map exp . randomRs (log min, log max)
 envTest :: [UGen] -> IO ()
 envTest ugs = audition osc
     where
-      osc = sinOsc ar 440 0 * e
-      e = envGen kr 1 1 0 1 RemoveSynth ugs 
+      osc = out 0 $ sinOsc ar 880 0 * e
+      e = envGen kr gate 1 0 1 RemoveSynth ugs 
+      gate = control kr "gate" 0.5
+
+-- | Sustain the second to last value until gate set to 0.
+envCoord' :: [(UGen, UGen)] -> UGen -> UGen -> EnvCurve -> [UGen]
+envCoord' bp dur amp c = 
+    let l = map ((* amp) . snd) bp
+        t = map (* dur) (d_dx (map fst bp))
+    in  env l t (repeat c) 1 (-1)
+
+d_dx :: (Num a) => [a] -> [a]
+d_dx [] = []
+d_dx [_] = []
+d_dx [x,y] = [y - x]
+d_dx (x:y:r) = y - x : d_dx (y:r)
