@@ -203,6 +203,10 @@ mkSNew name nodeId addAction targetId =
 mkSNew' :: String -> Int -> Map String [Double] -> [OSC]
 mkSNew' name targetId = mkSNew name (-1) AddToTail targetId
 
+-- | Makes list of n_set osc messages from Map.
+mkNSet :: Int -> Map String [Double] -> [OSC]
+mkNSet nId = map (n_set nId) . transposeWithKeys
+
 transposeWithKeys :: Map a [b] -> [[(a,b)]]
 transposeWithKeys =
   transpose . M.elems . M.mapWithKey (\k a -> zip (repeat k) a)
@@ -225,6 +229,14 @@ withCM (Message c xs) cm =
          in Message c xs'
     else error ("withCM: not async: " ++ c)
 withCM _ _ = error "withCM: not message"
+
+
+-- | Fit in specified range with using @mod@.
+fitInRange :: Integral a => a -> a -> a -> a
+fitInRange min max target
+    | target < min = fromIntegral (target `mod` min)
+    | max < target = fromIntegral (target `mod` max)
+    | otherwise = target
 
 -- | Print the result of sending "/status".
 dumpStatus :: IO ()
@@ -270,3 +282,10 @@ expRandomR (min,max) g =  (exp x, g)
 expRandomRs :: (Floating a, RandomGen g, Random a) => 
                (a, a) -> g -> [a]
 expRandomRs (min,max) = map exp . randomRs (log min, log max)
+
+-- | Test for envelope shape. Play a sine tone with given shape.
+envTest :: [UGen] -> IO ()
+envTest ugs = audition osc
+    where
+      osc = sinOsc ar 440 0 * e
+      e = envGen kr 1 1 0 1 RemoveSynth ugs 
