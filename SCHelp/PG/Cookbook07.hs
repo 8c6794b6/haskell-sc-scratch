@@ -10,6 +10,7 @@
 -- Exercise for implementing pattern sequences shown in
 -- /PG_Cookbook06_Phrase_Network/.
 --
+-- Current problem for this implementation is performance.
 --
 
 module SCHelp.PG.Cookbook07 where
@@ -35,7 +36,13 @@ import SCQuery
 import qualified Scratch.ControlArgs as A
 
 runRhythmicVariations :: IO ()
-runRhythmicVariations = undefined
+runRhythmicVariations = do
+  let nb = 8 
+      bpm = 128
+  e1 <- mkEvent nb <$> hhInit
+  e2 <- mkEvent nb <$> snrInit
+  -- e3 <- mkEvent nb <$> kikInit
+  spawn 0 bpm $ mconcat [e1, e2] -- , e3]
 
 setRhythmicVariations :: IO OSC
 setRhythmicVariations = withSC3 $ \fd -> do
@@ -73,7 +80,9 @@ kraftySnr = do
              (A.rq {controlDefault=3}) * env
   return $ out A.out (pan2 sig' A.pan 1)
 
-
+-- $helper
+--
+-- Helper datatype, type synonyms, and functions.
 
 type RhythmPhrase = Map String [Double]
 
@@ -86,9 +95,42 @@ data RhythmStatus = RhythmStatus
                     rhythmDelta :: RhythmDelta,
                     rhythmSeed :: StdGen }
 
+getDurs :: RhythmPhrase -> Int -> [Double]
+getDurs phr t0 = scanl (+) (fromIntegral t0) .
+                 maybe [] id . 
+                 M.lookup "dur" $ phr
+
+getOSCs :: RhythmPhrase -> SynthName -> [OSC]
+getOSCs phr name = mkSNew' name 1 phr
+
+chooseIndices :: RandomGen g => Int -> Int -> g -> [Int]
+chooseIndices num len g = take num $ fst $ shuffle [0..len] g
+
+inLast4 :: Int -> Bool
+inLast4 n = 12 <= n' && n' < 16 where n' = n `mod` 16
+
+runRhythm :: State RhythmStatus (Event OSC)
+runRhythm = do
+  RhythmStatus current name phr f g <- get
+  let (_, g') = next g
+  put $ RhythmStatus (current + 4) name phr f g'
+  return $ f phr name current g
+
+-- | Current implementation increases cpu usage when repetation
+-- increases. Fix this.
+mkEvent :: Int -> RhythmStatus -> Event OSC
+mkEvent n st = evalState (mconcat <$> replicateM n runRhythm) st
+
+-- $hihat 
+--
+-- Functions for hihat rhythm.
+
 hhInit :: IO RhythmStatus
 hhInit = RhythmStatus 0 "kraftySnr" hhBase hhDelta <$> newStdGen
 
+-- | Base pattern for hihat.
+-- 
+-- Keys other than @amp@ nor @dur@ are repeated infinitly.
 hhBase :: RhythmPhrase
 hhBase = M.fromList $
          [("amp", replicate 16 1),
@@ -98,30 +140,25 @@ hhBase = M.fromList $
           ("freq", repeat 12000)]
 
 hhDelta :: RhythmDelta
-hhDelta phr name t0 g = listE $ zip dur osc
+hhDelta phr name t0 g = listE $ zip durs oscs 
     where
 
-      inLast4 :: Bool
-      inLast4 = 12 <= tR && tR < 16 where tR = t0 `mod` 16
+      durs :: [TimeT]
+      durs = getDurs phr' t0 
+             
+      oscs :: [OSC]
+      oscs = getOSCs phr' name
 
       indices :: Int -> [Int]
-      indices num = take num $ fst $ shuffle [0..len - 1] g
-         where len = length (maybe [] id (M.lookup "dur" phr))
+      indices n = chooseIndices n 15 g
 
       phr' :: RhythmPhrase
-      phr' | inLast4 = scramble 5
+      phr' | inLast4 t0 = scramble 5
            | otherwise = scramble 1
-          where scramble n = M.update (updateDurs (indices n)) "dur" .
-                             M.update (updateAmps (indices n)) "amp" $
+          where scramble n = M.update (updateDurs is) "dur" .
+                             M.update (updateAmps is) "amp" $
                              phr
-
-      dur :: [Double]
-      dur = scanl (+) (fromIntegral t0) .
-            maybe [] id .
-            M.lookup "dur" $ phr'
-
-      osc :: [OSC]
-      osc = mkSNew' name 1 phr'
+                    where is = indices n
 
       updateDurs :: [Int] -> [Double] -> Maybe [Double]
       updateDurs is xs = return xs'
@@ -147,12 +184,87 @@ hhDelta phr name t0 g = listE $ zip dur osc
             f :: IM.Key -> IntMap [Double] -> IntMap [Double]
             f = IM.update (\_ -> return [15,10])
 
-hhPhrase :: State RhythmStatus (Event OSC)
-hhPhrase = do
-  RhythmStatus current name phr f g <- get
-  let (_, g') = next g
-  put $ RhythmStatus (current + 4) name phr f g'
-  return $ f phr name current g
+-- $snare
+-- 
+-- Functions for snare rhythms.
 
-hhEvent :: Int -> IO (Event OSC)
-hhEvent n = evalState (mconcat <$> replicateM n hhPhrase) <$> hhInit
+getRestIndices :: RhythmPhrase -> [Int]
+getRestIndices phr = map fst $ 
+                     filter (\(a,b) -> b == 0) $ 
+                     zip [0..] $ 
+                     maybe [] id $ M.lookup "amp" phr
+
+snrBase :: RhythmPhrase
+snrBase = M.fromList $
+          [("amp", [0, 0, 0, 0, 1, 0, 0, 0,
+                    0, 0, 0, 0, 1, 0, 0, 0]),
+           ("decay", [0, 0, 0, 0, 0.7, 0, 0, 0, 
+                      0, 0, 0, 0, 0.4, 0, 0, 0]),
+           ("freq", repeat 5000),
+           ("dur", replicate 16 0.25)]
+
+snrInit :: IO RhythmStatus
+snrInit = RhythmStatus 0 "kraftySnr" snrBase snrDelta <$> newStdGen
+
+snrDelta :: RhythmDelta
+snrDelta phr name t0 g = listE $ zip durs oscs 
+    where 
+      durs :: [TimeT]
+      durs = getDurs phr' t0
+
+      oscs :: [OSC]
+      oscs = getOSCs phr' name
+
+      phr' :: RhythmPhrase
+      phr' | inLast4 t0 = let is = idx (5, 9) in
+               M.update (updateAmps g is) "amp" . 
+               M.update (updateDecays is) "decay" $ phr
+
+           | otherwise = let is = idx (1, 3) in
+               M.update (updateAmps g is) "amp" . 
+               M.update (updateDecays is) "decay" $ phr
+
+      idx :: (Int,Int) -> [Int]
+      idx range = take (fst $ randomR range g) $ fst $ shuffle xs g
+          where xs = getRestIndices phr
+
+      updateDecays :: [Int] -> [Double] -> Maybe [Double]
+      updateDecays is xs = return xs'
+          where
+            xs' = concat $ IM.elems $ fst $ foldr f v is
+            f i (m,gen) = (m', gen')
+                where m' = IM.update (\_ -> return $ return $ fst $ 
+                                            randomR (0.2, 0.4) gen)
+                           i m
+                      gen' = snd $ next gen
+            v = (IM.fromList $ zip [0..] (map return xs), g)
+
+updateAmps :: StdGen -> [Int] -> [Double] -> Maybe [Double]
+updateAmps g is xs = return xs'
+  where
+    xs' :: [Double]
+    xs' = concat $ IM.elems $ fst $ foldr f v is
+
+    f :: Int 
+      -> (IntMap [Double], StdGen) 
+      -> (IntMap [Double], StdGen)
+    f i (m, gen) = (m', gen')
+      where m' = IM.update (\_ -> return $ return $ fst $ 
+                                  randomR (0.15, 0.3) gen) i m
+            gen' = snd $ next gen
+
+    v :: (IntMap [Double], StdGen)
+    v = (IM.fromList $ zip [0..] (map return xs), g)
+
+-- $kick
+-- 
+-- Functions for kick rhythms
+
+kikBase :: RhythmPhrase
+kikBase = M.empty
+
+kikInit :: IO RhythmStatus
+kikInit = undefined
+
+kikDelta :: RhythmDelta
+kikDelta = undefined
