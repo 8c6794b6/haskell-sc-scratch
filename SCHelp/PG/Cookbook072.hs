@@ -59,7 +59,7 @@ getValues :: String -> Map String [Double] -> [Double]
 getValues k m = maybe [] id . M.lookup k $ m
 
 getRestIndices :: Map String [Double] -> [Int]
-getRestIndices m = map fst . filter (\(a,b) -> b == 0) . 
+getRestIndices m = map fst . filter (\(a,b) -> b == 0) .
                    zip [0..] . getValues "amp" $ m
 
 rhythmDelta :: (StdGen -> a) -> (StdGen -> a) -> State RhythmState a
@@ -71,10 +71,10 @@ rhythmDelta f1 f2 = do
      then return $ f1 gen
      else return $ f2 gen
 
-mkEvent :: Int 
-        -> State RhythmState (Map String [Double]) 
+mkEvent :: Int
+        -> State RhythmState (Map String [Double])
         -> IO (Map String [Double])
-mkEvent n st = 
+mkEvent n st =
     evalState (M.unionsWith (++) <$> replicateM n st) <$>
     initState
 
@@ -108,15 +108,15 @@ hhBase = M.fromList $
           ("freq", repeat 12000)]
 
 snrBase :: Map String [Double]
-snrBase = M.fromList $ 
+snrBase = M.fromList $
           [("amp", [0,0,0,0, 1,0,0,0, 0,0,0,0, 0.7,0,0,0]),
            ("decay", [0,0,0,0, 0.35,0,0,0, 0,0,0,0, 0.2,0,0,0]),
            ("dur", replicate 16 0.25),
            ("freq", replicate 16 5000)]
 
 kikBase :: Map String [Double]
-kikBase = M.fromList $ 
-          [("amp", [1,0,0,0, 0,0,0.7,0, 0,1,0,0, 0,0,0,0]),
+kikBase = M.fromList $
+          [("amp", [1.5,0,0,0, 0,0,1.05,0, 0,1.5,0,0, 0,0,0,0]),
            ("decay", [0.15,0,0,0, 0,0,0.15,0, 0,0.15,0,0, 0,0,0,0]),
            ("preamp", replicate 16 0.4),
            ("dur", replicate 16 0.25)]
@@ -135,17 +135,22 @@ snrPart range g = M.update (updateSnrVal (0.20, 0.40) idx g) "amp" .
                   M.update (updateSnrVal (0.15, 0.30) idx g) "decay" $
                   snrBase
     where
-      idx = take (fst $ randomR range g) 
+      idx = take (fst $ randomR range g)
             (fst $ shuffle (getRestIndices snrBase) g)
+
+hhPart :: RandomGen g => (Int,Int) -> g -> Map String [Double]
+hhPart range g = M.update (updateHHVal [15,10] idx) "amp" .
+                 M.update (updateHHVal [0.125,0.125] idx) "dur" $ hhBase
+    where
+      idx = take (fst $ randomR range g) (fst $ shuffle [0..15] g)
 
 kikPart :: RandomGen g => (Int, Int) -> g -> Map String [Double]
 kikPart range g = M.update (updateSnrVal (0.2, 0.5) idx g) "amp" .
                   M.update (updateSnrVal (0.05, 0.10) idx g) "decay" $
                   kikBase
     where
-      idx = take (fst $ randomR range g) 
+      idx = take (fst $ randomR range g)
             (fst $ shuffle (getRestIndices kikBase) g)
-
 
 updateSnrVal :: RandomGen g => (Double,Double) -> [Int] -> g ->
                 [Double] -> Maybe [Double]
@@ -154,13 +159,6 @@ updateSnrVal range idx g vals = return vals'
       vals' = M.elems $ foldr f v idx
       v = M.fromList $ zip [0..] vals
       f a b = M.update (\_ -> return $ fst $ randomR range g) a b
-
-
-hhPart :: RandomGen g => (Int,Int) -> g -> Map String [Double]
-hhPart range g = M.update (updateHHVal [15,10] idx) "amp" .
-                 M.update (updateHHVal [0.125,0.125] idx) "dur" $ hhBase
-    where
-      idx = take (fst $ randomR range g) (fst $ shuffle [0..15] g)
 
 updateHHVal :: (Ord k, Monad m, Enum k, Num k) =>
                [a] -> [k] -> [a] -> m [a]
