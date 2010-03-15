@@ -29,14 +29,13 @@ NOTES
     * PG_06a_Repetition_Contraint_Patterns (READ)
     * PG_06b_Time_Based_Patterns (READ)
     * PG_06c_Composition_of_Patterns (READ)
-    * PG_06d_Parallel_Patterns
-    * PG_06e_Language_Control
-    * PG_06f_Server_Control
-    * PG_06g_Data_Sharing
-    * PG_07_Value_Conversions
-    * PG_08_Event_Types_and_Parameters
-    * PG_Cookbook01_
-    * ...
+    * PG_06d_Parallel_Patterns (READ)
+    * PG_06e_Language_Control (READ)
+    * PG_06f_Server_Control (READ)
+    * PG_06g_Data_Sharing (READ)
+    * PG_07_Value_Conversions (READ)
+    * PG_08_Event_Types_and_Parameters (READ)
+    * Cookbooks (READ)
 
 * Write DSL for get/set/add/free, or in other word, CRUD.
   * Inspired by realworldhaskel, something like below. (Is it possible?)
