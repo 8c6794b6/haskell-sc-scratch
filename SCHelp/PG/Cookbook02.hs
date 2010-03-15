@@ -20,7 +20,6 @@ module SCHelp.PG.Cookbook02 (
   main,
   -- * Merging (interleaving) independent streams
   -- $mergingIndependent
-  fitInRange,
   mkMelodyLine,
   lowMelody,
   highMelody,
@@ -140,7 +139,7 @@ melodyToNotes vals = do
       f' freq = s_new "simpleSynth" (-1) AddToTail 1 [("freq", freq)]
   return $ listE $ zip (scanl (+) 0 durs) vals'
 
--- | Sends merged melody to scsynth and mekes sound. Synth used to
+-- | Sends merged melody to scsynth and makes sound. Synth used to
 -- play the melody is @simpleSynth@ from Cookbook01.
 spawnMerging :: IO ()
 spawnMerging = do
@@ -157,13 +156,6 @@ melodyWriter chan low high = do
   if isHigh
      then writeChan chan (head high) >> melodyWriter chan low (tail high)
      else writeChan chan (head low) >> melodyWriter chan (tail low) high
-
--- | Fit in specified range with using @mod@.
-fitInRange :: Integral a => a -> a -> a -> a
-fitInRange min max target
-    | target < min = fromIntegral (target `mod` min)
-    | max < target = fromIntegral (target `mod` max)
-    | otherwise = target
 
 -- | Concurrent melody reader.
 melodyReader :: Chan Double -> IO (Event OSC)
