@@ -41,8 +41,8 @@ runRhythmicVariations = do
       bpm = 128
   e1 <- mkEvent nb <$> hhInit
   e2 <- mkEvent nb <$> snrInit
-  -- e3 <- mkEvent nb <$> kikInit
-  spawn 0 bpm $ mconcat [e1, e2] -- , e3]
+  e3 <- mkEvent nb <$> kikInit
+  spawn 0 bpm $ mconcat [e1, e2, e3]
 
 setRhythmicVariations :: IO OSC
 setRhythmicVariations = withSC3 $ \fd -> do
@@ -239,32 +239,84 @@ snrDelta phr name t0 g = listE $ zip durs oscs
                       gen' = snd $ next gen
             v = (IM.fromList $ zip [0..] (map return xs), g)
 
-updateAmps :: StdGen -> [Int] -> [Double] -> Maybe [Double]
-updateAmps g is xs = return xs'
-  where
-    xs' :: [Double]
-    xs' = concat $ IM.elems $ fst $ foldr f v is
+      updateAmps :: StdGen -> [Int] -> [Double] -> Maybe [Double]
+      updateAmps g is xs = return xs'
+        where
+          xs' :: [Double]
+          xs' = concat $ IM.elems $ fst $ foldr f v is
 
-    f :: Int 
-      -> (IntMap [Double], StdGen) 
-      -> (IntMap [Double], StdGen)
-    f i (m, gen) = (m', gen')
-      where m' = IM.update (\_ -> return $ return $ fst $ 
-                                  randomR (0.15, 0.3) gen) i m
-            gen' = snd $ next gen
+          f :: Int 
+            -> (IntMap [Double], StdGen) 
+            -> (IntMap [Double], StdGen)
+          f i (m, gen) = (m', gen')
+            where m' = IM.update (\_ -> return $ return $ fst $ 
+                                        randomR (0.15, 0.3) gen) i m
+                  gen' = snd $ next gen
 
-    v :: (IntMap [Double], StdGen)
-    v = (IM.fromList $ zip [0..] (map return xs), g)
+          v :: (IntMap [Double], StdGen)
+          v = (IM.fromList $ zip [0..] (map return xs), g)
 
 -- $kick
 -- 
 -- Functions for kick rhythms
 
 kikBase :: RhythmPhrase
-kikBase = M.empty
+kikBase = M.fromList $
+          [("amp", [1,0,0,0, 0,0,0.7,0, 
+                    0,1,0,0, 0,0,0,0]),
+           ("decay", [0.15,0,0,0, 0,0,0.15,0,
+                      0,0.15,0,0, 0,0,0,0]),
+           ("preamp", replicate 16 0.4),
+           ("dur", replicate 16  0.25)]
 
 kikInit :: IO RhythmStatus
-kikInit = undefined
+kikInit = RhythmStatus 0 "kik" kikBase kikDelta <$> newStdGen
 
 kikDelta :: RhythmDelta
-kikDelta = undefined
+kikDelta phr name t0 g = listE $ zip durs oscs
+    where
+      durs :: [Double]
+      durs = getDurs phr' t0
+
+      oscs :: [OSC]
+      oscs = getOSCs phr' name
+
+      phr' :: RhythmPhrase
+      phr' | inLast4 t0 = let is = idx (5, 10) in
+                          M.update (updateAmps g is) "amp" .
+                          M.update (updateDecays is) "decay" $ phr
+           | otherwise = let is = idx (0, 2) in
+                         M.update (updateAmps g is) "amp" .
+                         M.update (updateDecays is) "decay" $ phr
+
+      idx :: (Int,Int) -> [Int]
+      idx range = take (fst $ randomR range g) $ 
+                  (fst $ shuffle (getRestIndices phr) g)
+
+      updateDecays :: [Int] -> [Double] -> Maybe [Double]
+      updateDecays is xs = return xs'
+          where
+            xs' = concat $ IM.elems $ fst $ foldr f v is
+            f i (m,gen) = (m', gen')
+                where m' = IM.update (\_ -> return $ return $ fst $ 
+                                            randomR (0.2, 0.5) gen)
+                           i m
+                      gen' = snd $ next gen
+            v = (IM.fromList $ zip [0..] (map return xs), g)
+
+      updateAmps :: StdGen -> [Int] -> [Double] -> Maybe [Double]
+      updateAmps g is xs = return xs'
+        where
+          xs' :: [Double]
+          xs' = concat $ IM.elems $ fst $ foldr f v is
+
+          f :: Int 
+            -> (IntMap [Double], StdGen) 
+            -> (IntMap [Double], StdGen)
+          f i (m, gen) = (m', gen')
+            where m' = IM.update (\_ -> return $ return $ fst $ 
+                                        randomR (0.05, 0.10) gen) i m
+                  gen' = snd $ next gen
+
+          v :: (IntMap [Double], StdGen)
+          v = (IM.fromList $ zip [0..] (map return xs), g)
