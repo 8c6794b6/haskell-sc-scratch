@@ -78,26 +78,25 @@ mkEvent n st =
     evalState (M.unionsWith (++) <$> replicateM n st) <$>
     initState
 
-hhRhythms :: Int -> IO (Event OSC)
-hhRhythms n = do
-  m <- mkEvent n hhDelta
+mkRhythms :: String -> State RhythmState (Map String [Double])
+          -> Int -> IO (Event OSC)
+mkRhythms inst delta n = do
+  m <- mkEvent n delta
   let durs = scanl (+) 0 $ getValues "dur" m
-      oscs = mkSNew' "kraftySnr" 1 m
+      oscs = mkSNew' inst 1 m
   return $ listE $ zip durs oscs
+
+hhRhythms :: Int -> IO (Event OSC)
+hhRhythms = mkRhythms "kraftySnr" $
+            rhythmDelta (hhPart (2,5)) (hhPart (0,2))
 
 snrRhythms :: Int -> IO (Event OSC)
-snrRhythms n = do
-  m <- mkEvent n $ snrDelta
-  let durs = scanl (+) 0 $ getValues "dur" m
-      oscs = mkSNew' "kraftySnr" 1 m
-  return $ listE $ zip durs oscs
+snrRhythms = mkRhythms "kraftySnr" $
+             rhythmDelta (snrPart (5,9)) (snrPart (1,3))
 
 kikRhythms :: Int -> IO (Event OSC)
-kikRhythms n = do
-  m <- mkEvent n kikDelta
-  let durs = scanl (+) 0 $ getValues "dur" m
-      oscs = mkSNew' "kik" 1 m
-  return $ listE $ zip durs oscs
+kikRhythms = mkRhythms "kik" $
+             rhythmDelta (kikPart (5,10)) (kikPart (0,2))
 
 hhBase :: Map String [Double]
 hhBase = M.fromList $
@@ -120,15 +119,6 @@ kikBase = M.fromList $
            ("decay", [0.15,0,0,0, 0,0,0.15,0, 0,0.15,0,0, 0,0,0,0]),
            ("preamp", replicate 16 0.4),
            ("dur", replicate 16 0.25)]
-
-hhDelta :: State RhythmState (Map String [Double])
-hhDelta = rhythmDelta (hhPart (2,5)) (hhPart (0,2))
-
-snrDelta :: State RhythmState (Map String [Double])
-snrDelta = rhythmDelta (snrPart (5,9)) (snrPart (1,3))
-
-kikDelta :: State RhythmState (Map String [Double])
-kikDelta = rhythmDelta (kikPart (5,10)) (kikPart (0,2))
 
 snrPart :: RandomGen g => (Int, Int) -> g -> Map String [Double]
 snrPart range g = M.update (updateSnrVal (0.20, 0.40) idx g) "amp" .
