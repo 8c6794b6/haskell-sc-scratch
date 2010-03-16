@@ -89,7 +89,13 @@ runDseq var = do
   undefined
 
 runBseq :: IO ()
-runBseq = undefined
+runBseq = do
+  let es = undefined
+  spawn 0 130 es
+
+runFx :: MVar (Map String [Double]) -> IO (Event OSC)
+runFx var = do
+  undefined
 
 runDseqMap :: Map String [Double] -> [Maybe OSC]
 runDseqMap m = undefined
@@ -101,7 +107,7 @@ bseq :: Map String [Double]
 bseq = M.fromList $
   [("gate",  [1,1,1,1, 1,1,1,1, 0,1,0,1, 1,1,1,0]),
    ("delta", [1,1,0,2, 1,1,0,0, 2,0,2,0, 1,2,0,4]),
-   ("pitch", map (+32) 
+   ("pitch", map (+38) 
              [-24,-12,0,-12, 0,-12,10,12, 0,7,-7,0, -11,1,13,15])]
 
 dseq0 :: Map String [Double]
@@ -151,20 +157,32 @@ testDseq bpm ds = spawn 0 bpm es
     where
       es = mconcat [k, s, c, h]
       f name = mkEvent durs $
-               map (mkPerc name) . maybe [] id . M.lookup name $ ds
+               map (mkPerc name) $ maybe [] id $ M.lookup name $ ds
       [k,s,c,h] = map f ["kick", "snare", "clap", "hat"]
+
+-- | Plays dseq. Try:
+-- 
+-- > > var <- newMVar dseq1
+-- > > t1 <- forkIO (forever $ playDseq 130 var)
+-- > > swapMVar var dseq2
+-- > > swapMVar var dseq3
+--
+playDseq :: BPM -> MVar (Map String [Double]) -> IO ()
+playDseq bpm var = do
+  m <- readMVar var
+  forkIO $ testDseq bpm m
+  pauseThread (4 * 60 / bpm)
 
 durs :: [Double]
 durs = scanl (+) 0 $ cycle [0.29,0.21,0.27,0.23]
 
 mkEvent :: [Double] -> [Maybe OSC] -> Event OSC
 mkEvent durs oscs = listE $ catMaybes $ zipWith f durs oscs
-    where
-      f d Nothing = Nothing
-      f d (Just o) = Just (d,o)
+    where f a b = pure (,) <*> pure a <*> b
 
 mkPerc :: String -> Double -> Maybe OSC
 mkPerc name amp =
   if amp > 0
      then Just $ s_new name (-1) AddToTail 1 $ [("amp", squared (amp/4))]
      else Nothing
+
