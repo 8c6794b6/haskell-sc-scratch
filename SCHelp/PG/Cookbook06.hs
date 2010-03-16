@@ -14,9 +14,8 @@
 -- 
 -- * Synthdef differs from sclang version.
 --
--- * Message does not sending gate off.
--- 
--- * Message does not sending new synth node creation.
+-- * Free the node when sustain is shorter than duration, and create
+--   new synth node for next event.
 -- 
 
 module SCHelp.PG.Cookbook06 where
@@ -68,7 +67,8 @@ sawpulse = out A.out $ mce [sig, sig]
       plfo = (sinOsc kr plfofreq 0 * A.mw) + 1
       fcurve = mulAdd (fcurve' - 1) 0.7 1 * ffreq
       fcurve' = envGen kr gate 1 0 1 DoNothing shape 
-      shape = envLinen 0 0.3 20 0.1 [EnvCub]
+      -- shape = envLinen 0 0.3 20 0.1 [EnvCub]
+      shape = envCoord' [(0,1), (0.3, 0.1), (20,0)] 1 1 EnvSin
       rq = A.rq {controlDefault = 0.3}
       plfofreq = A.plfofreq {controlDefault = 6}
       ffreq = A.ffreq {controlDefault = 2000}
@@ -86,8 +86,6 @@ testEnv1 = envTest $ envLinen 0 0.3 20 0.1 [EnvCub]
 
 testEnv2 :: IO ()
 testEnv2 = envTest $ envLinen 0.04 0.2 0.6 0.1 [EnvCub]
-
-
 
 -- | BPM tempo.
 phraseTempo :: Num a => a
@@ -113,11 +111,9 @@ data PhraseState = PhraseState
 --
 -- Try:
 --
--- @
--- > setPhrase
--- > runPhrase
--- > cleanPhrase
--- @
+-- > > setPhrase
+-- > > runPhrase
+-- > > cleanPhrase
 -- 
 runPhrase :: IO ()
 runPhrase = playPhrases =<< genPhrases <$> initPhraseState
@@ -188,10 +184,14 @@ phraseMatrix =
 --      (2, [0,2])]
 
 phrases :: [Phrase]
--- phrases = [p01, p02, p03]
 phrases = [phr01, phr02, phr03, phr04, phr05,
            phr06, phr07, phr08, phr09, phr10,
            phr11, phr12, phr13, phr14]
+-- phrases = [p01, p02, p03]
+
+boolToBin :: Num a => Bool -> a
+boolToBin True  = 1
+boolToBin False = 0
 
 pp :: IO ()
 pp = playPhrase =<< 
@@ -211,7 +211,6 @@ p01 = M.fromList $
 -- | Another phrase for testing.
 p02 :: Phrase 
 p02 = M.fromList $ 
---      [("freq", [72, 69, 65, 60, 65, 69]),
       [("freq", [60, 65, 69, 72, 69, 65]),
        ("dur", replicate 6 0.25),
        ("sustain", [0.5, 0.5, 0.25, 0.25, 0.25, 0.25]),
@@ -282,18 +281,6 @@ phr06 = M.fromList $
                   1, 0.5]),
          ("mw", replicate 9 0 ++ [0.03])]
 
--- |
--- @
--- PmonoArtic(\sawpulse,
---      \midinote, Pseq([83, 81, 78, 83, 81, 78, 76, 72, 73, 78, 72, 72, 71], 1),
---      \dur, Pseq(#[0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 
---              0.25, 2], 1),
---      \sustain, Pseq(#[0.3, 0.3, 0.2, 0.3, 0.3, 0.3, 0.2, 0.3, 0.2, 0.3, 0.2, 0.3, 2], 1),
---      \amp, Pseq(#[0.5, 0.5, 0.5, 0.8, 0.5, 0.5, 0.5, 0.8, 0.5, 0.8, 0.5,
---              1, 0.4], 1),
---      \mw, Pseq([Pseq([0], 12), 0.03], 1)
--- ), #[0, 7, 7, 7, 7, 7, 3, 3, 3, 3],
--- @
 phr07 :: Phrase
 phr07 = M.fromList $
         [("freq", [83, 81, 78, 83, 81, 78, 76, 72,
@@ -309,7 +296,8 @@ phr08 = M.fromList $
         [("freq", [69, 71, 72, 71, 69, 66, 64, 69, 71]),
          ("dur", [0.25, 0.25, 0.25, 0.25, 0.166, 0.167, 0.167, 0.25, 0.25]),
          ("sustain", [0.2, 0.2, 0.3, 0.2, 0.2, 0.2, 0.14, 0.3, 0.3]),
-         ("amp", [0.5, 0.5, 0.8, 0.5, 0.5, 0.5, 0.5, 0.8, 0.5])]
+         ("amp", [0.5, 0.5, 0.8, 0.5, 0.5, 0.5, 0.5, 0.8, 0.5]),
+         ("mw", replicate 8 0 ++ [0.03])]
 
 phr09 :: Phrase
 phr09 = M.fromList $

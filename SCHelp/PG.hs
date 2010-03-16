@@ -13,8 +13,16 @@
 
 module SCHelp.PG 
     (module SCHelp.PG.Cookbook01,
-     module SCHelp.PG.Cookbook02
+     module SCHelp.PG.Cookbook02,
+     module SCHelp.PG.Cookbook03,
+     module SCHelp.PG.Cookbook05,
+     module SCHelp.PG.Cookbook06,
+     module SCHelp.PG.Cookbook07
     ) where
 
 import SCHelp.PG.Cookbook01
-import SCHelp.PG.Cookbook02
+import SCHelp.PG.Cookbook02 hiding (main)
+import SCHelp.PG.Cookbook03 hiding (main)
+import SCHelp.PG.Cookbook05 
+import SCHelp.PG.Cookbook06
+import SCHelp.PG.Cookbook07 hiding (getDurs)

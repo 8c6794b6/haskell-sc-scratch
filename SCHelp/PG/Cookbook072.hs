@@ -38,16 +38,16 @@ import SCTree
 
 import SCHelp.PG.Cookbook07 (kik, kraftySnr, setRhythmicVariations)
 
+data RhythmState = RhythmState
+    { rhythmCurrent :: Int,
+      rhythmGen :: StdGen }
+
 runRhythms :: Int -> IO ()
 runRhythms n = do
   hh <- hhRhythms n
   snr <- snrRhythms n
   kik <- kikRhythms n
   spawn 0 128 $ mconcat $ [hh, snr, kik]
-
-data RhythmState = RhythmState
-    { rhythmCurrent :: Int,
-      rhythmGen :: StdGen }
 
 initState :: IO RhythmState
 initState = RhythmState 0 <$> newStdGen
