@@ -19,6 +19,10 @@ detectSilence' :: UGen -> UGen -> UGen -> DoneAction -> UGen
 detectSilence' i a t act = 
     mkFilter "DetectSilence" [i, a, t, from_done_action act] 1
 
+
+sendTrig' :: UGen -> UGen -> UGen -> UGen
+sendTrig' i k v = mkFilterR [KR] "SendTrig" [i, k, v] 0
+
 from_done_action :: DoneAction -> UGen
 from_done_action DoNothing = Constant 0
 from_done_action PauseSynth = Constant 1
