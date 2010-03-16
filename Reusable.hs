@@ -110,6 +110,15 @@ queryTree fd = do
   send fd (Message "/g_queryTree" [Int 0, Int 1])
   wait fd "/g_queryTree.reply"
 
+-- | Sends registration for notify, then query the nodes and shows
+-- returing message.
+queryNode :: Transport t => Int -> (t -> IO OSC)
+queryNode n = \fd -> do
+  send fd (notify True)
+  wait fd "/done"
+  send fd (n_query [n])
+  wait fd "/n_info"                
+
 -- | Dumps root node and show in scsynth.
 dumpTree :: Transport t => t -> IO ()
 dumpTree = send' (Message "/g_dumpTree" [Int 0, Int 1])
