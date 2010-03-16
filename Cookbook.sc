@@ -477,6 +477,8 @@ p = Pbind(
 p.stop;
 b.do(_.free); ~baseBuf.free;
 
+[100,101,102,103,104,105].indexInBetween(105.5);
+
 /**
  * From PG_Cookbook06_Phrase_Network
  */
@@ -487,6 +489,9 @@ a = #[1, 1, 1, 1, 2, 2, 3, 3, 4, 4, 5];
 a = WeighBag.with((1..5), #[4, 2, 2, 2, 1]);
 ({ a.wchoose } ! 100).histo(5, 1, 5);
 
+// Tests for envelope shape
+Env.adsr(0, 0.3, 0.1, 20).test;
+Env.adsr(0.04, 0.2, 0.6, 0.1).test;
 
 (
 // this SynthDef has a strong attack, emphasizing the articulation
@@ -511,6 +516,7 @@ TempoClock.default.tempo = 128/60;
 // and replace it with ~amp * 0.4
 p = Pmul(\amp, 0.4, Pfsm([
 	#[0, 3, 1], // starting places
+	// phrase 1
 	PmonoArtic(\sawpulse,
 		\midinote, Pseq([78, 81, 78, 76, 78, 76, 72, 71, 69, 66], 1),
 		\dur, Pseq(#[0.25, 1.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25], 1),
@@ -518,6 +524,7 @@ p = Pmul(\amp, 0.4, Pfsm([
 		\amp, Pseq(#[1, 0.5, 0.75, 0.5, 0.75, 0.5, 0.75, 0.5, 0.75, 0.5], 1),
 		\mw, Pseq([0, 0.03, Pseq(#[0], inf)], 1)
 	), #[1, 2, 3, 4, 7],
+	// phrase 2
 	PmonoArtic(\sawpulse,
 		\midinote, Pseq([64, 66, 69, 71, 72, 73], 1),
 		\dur, Pseq(#[0.25], 6),
@@ -525,6 +532,7 @@ p = Pmul(\amp, 0.4, Pfsm([
 		\amp, Pseq(#[1, 0.5, 0.5, 0.5, 0.5, 0.5], 1),
 		\mw, 0
 	), #[1, 1, 1, 1, 2, 2, 3, 3, 4, 4, 5],
+	// phrase 3
 	PmonoArtic(\sawpulse,
 		\midinote, Pseq([69, 71, 69, 66, 64, 69, 71, 69], 1),
 		\dur, Pseq(#[0.125, 0.625, 0.25, 0.25, 0.25, 0.25, 0.25, 0.75], 1),
@@ -532,6 +540,7 @@ p = Pmul(\amp, 0.4, Pfsm([
 		\amp, Pseq(#[0.5, 0.75, 0.5, 0.5, 0.5, 1, 0.5, 0.5], 1),
 		\mw, 0
 	), #[0, 1, 1, 1, 1, 3, 3, 3, 3, 5],
+	// phrase 4
 	PmonoArtic(\sawpulse,
 		\midinote, Pseq([72, 73, 76, 72, 71, 69, 66, 71, 69], 1),
 		\dur, Pseq(#[0.25, 0.25, 0.25, 0.083, 0.083, 0.084, 0.25, 0.25, 0.25], 1),
@@ -539,6 +548,7 @@ p = Pmul(\amp, 0.4, Pfsm([
 		\amp, Pseq(#[1, 0.5, 0.5, 1, 0.3, 0.3, 0.75, 0.75, 0.5], 1),
 		\mw, 0
 	), #[1, 1, 1, 1, 3, 3, 4, 4, 4],
+	// phrase 5
 	PmonoArtic(\sawpulse,
 		\midinote, Pseq([64, 66, 69, 71, 72, 73, 71, 69, 66, 71, 69, 66, 64, 69], 1),
 		\dur, Pseq(#[0.25, 0.25, 0.25, 0.25, 0.125, 0.375, 0.166, 0.166, 0.168,
@@ -549,6 +559,7 @@ p = Pmul(\amp, 0.4, Pfsm([
 		\mw, 0
 	), #[0, 1, 1, 1, 1, 3, 3, 5],
 
+	// phrase 6 
 	PmonoArtic(\sawpulse,
 		\midinote, Pseq([72, 73, 76, 78, 81, 78, 83, 81, 84, 85], 1),
 		\dur, Pseq(#[0.25, 0.25, 0.25, 0.25, 0.5, 0.5, 0.5, 0.5, 0.125, 1.125], 1),
@@ -556,6 +567,7 @@ p = Pmul(\amp, 0.4, Pfsm([
 		\amp, Pseq(#[0.7, 0.5, 0.5, 0.5, 0.7, 0.5, 0.8, 0.5, 1, 0.5], 1),
 		\mw, Pseq([Pseq(#[0], 9), 0.03], 1)
 	), #[6, 6, 6, 8, 9, 10, 10, 10, 10, 11, 11, 13, 13],
+	// phrase 7 
 	PmonoArtic(\sawpulse,
 		\midinote, Pseq([83, 81, 78, 83, 81, 78, 76, 72, 73, 78, 72, 72, 71], 1),
 		\dur, Pseq(#[0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 
@@ -565,12 +577,14 @@ p = Pmul(\amp, 0.4, Pfsm([
 			1, 0.4], 1),
 		\mw, Pseq([Pseq([0], 12), 0.03], 1)
 	), #[0, 7, 7, 7, 7, 7, 3, 3, 3, 3],
+	// phrase 8 
 	PmonoArtic(\sawpulse,
 		\midinote, Pseq([69, 71, 72, 71, 69, 66, 64, 69, 71], 1),
 		\dur, Pseq(#[0.25, 0.25, 0.25, 0.25, 0.166, 0.167, 0.167, 0.25, 0.25], 1),
 		\sustain, Pseq(#[0.2, 0.2, 0.3, 0.2, 0.2, 0.2, 0.14, 0.3, 0.2], 1),
 		\amp, Pseq(#[0.5, 0.5, 0.8, 0.5, 0.5, 0.5, 0.5, 0.8, 0.5], 1)
 	), #[3, 3, 3, 4, 4, 5],
+	// phrase 9 
 	PmonoArtic(\sawpulse,
 		\midinote, Pseq([84, 85, 84, 84, 88, 84, 83, 81, 83, 81, 78, 76, 81, 83], 1),
 		\dur, Pseq(#[0.125, 0.535, 0.67, 1.92, 0.25, 0.166, 0.167, 0.167, 
@@ -581,7 +595,7 @@ p = Pmul(\amp, 0.4, Pfsm([
 			1, 0.8], 1),
 		\mw, Pseq([0, 0.005, 0.005, 0.06, Pseq(#[0], 10)], 1)
 	), #[10, 10, 10, 11, 11, 11, 11, 12, 12, 12],
-	// same as #4, 8va
+	// phrase 10, same as #4, 8va
 	PmonoArtic(\sawpulse,
 		\midinote, Pseq(([64, 66, 69, 71, 72, 73, 71, 69, 66, 71, 69, 66, 64, 69]+12), 1),
 		\dur, Pseq(#[0.25, 0.25, 0.25, 0.25, 0.125, 0.375, 0.166, 0.166, 0.168,
@@ -591,7 +605,7 @@ p = Pmul(\amp, 0.4, Pfsm([
 			0.5, 0.5, 0.5, 0.45], 1),
 		\mw, 0
 	), #[11, 11, 11, 11, 11, 12, 12],
-
+	// phrase 11
 	PmonoArtic(\sawpulse,
 		\midinote, Pseq([81, 84, 83, 81, 78, 76, 81, 83], 1),
 		\dur, Pseq(#[0.25], 8),
@@ -599,7 +613,7 @@ p = Pmul(\amp, 0.4, Pfsm([
 		\amp, Pseq(#[0.5, 1, 0.5, 0.5, 0.6, 0.5, 0.8, 0.5], 1),
 		\mw, 0
 	), #[0, 9, 9, 11, 11, 12, 12, 12, 12, 12],
-	// same as #1, 8va
+	// phrase 12, same as #1, 8va
 	PmonoArtic(\sawpulse,
 		\midinote, Pseq(([64, 66, 69, 71, 72, 73]+12), 1),
 		\dur, Pseq(#[0.25], 6),
@@ -607,6 +621,7 @@ p = Pmul(\amp, 0.4, Pfsm([
 		\amp, Pseq(#[1, 0.5, 0.5, 0.5, 0.5, 0.5], 1),
 		\mw, 0
 	), #[6, 6, 8, 9, 9, 9, 9, 10, 10, 10, 10, 13, 13, 13],
+	// phrase 13
 	PmonoArtic(\sawpulse,
 		\midinote, Pseq([78, 81, 83, 78, 83, 84, 78, 84, 85], 1),
 		\dur, Pseq(#[0.25, 0.25, 0.5, 0.25, 0.25, 0.5, 0.25, 0.25, 1.75], 1),
@@ -614,6 +629,7 @@ p = Pmul(\amp, 0.4, Pfsm([
 		\amp, Pseq(#[0.4, 0.8, 0.5, 0.4, 0.8, 0.5, 0.4, 1, 0.8], 1),
 		\mw, Pseq([Pseq([0], 8), 0.03], 1)
 	), #[8, 13, 13],
+	// phrase 14
 	PmonoArtic(\sawpulse, 
 		\midinote, Pseq([88, 84, 83, 81, 83, 81, 78, 76, 81, 83], 1),
 		\dur, Pseq(#[0.25, 0.166, 0.167, 0.167, 
@@ -626,6 +642,8 @@ p = Pmul(\amp, 0.4, Pfsm([
 	), #[10]
 ], inf)).play;
 )
+
+s.dump;
 
 p.stop;
 
@@ -647,8 +665,9 @@ p.stop;
 		\freq, Pif(Pkey(\amp) > 0, 1, \rest)
 	)
 }), inf)).play(quant: 4);
-
 )
+
+~kik.stop;
 
 
 (
@@ -824,3 +843,12 @@ t.schedAbs(t.nextTimeOnGrid(4, -0.001), {
 	[~kik, ~snr, ~hh].do(_.stop);
 });
 
+~hh.play;
+~hh.stop;
+(1..15).scramble[1..5]
+
+~snr.play;
+~snr.stop;
+
+// Event
+10.do { |i| i.linexp(0, 15, 0.5, 1.8).postln; }
