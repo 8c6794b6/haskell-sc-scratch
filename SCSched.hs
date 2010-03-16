@@ -48,6 +48,7 @@ adaptSC f b e = do
            (withTimeE e)
   runE (pauseThreadUntil . (+t0) . toB . exactNB) e'
 
+
 -- | Standby timing of @adaptSC@. Could be used to specify offset of
 -- starting time.
 standby :: BPM -- ^ bpm
