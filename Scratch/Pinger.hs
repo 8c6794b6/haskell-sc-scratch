@@ -32,15 +32,16 @@ pinger :: Double -> Double -> Double -> IO a
 pinger freq a c = do
   now <- utcr
   at (fromIntegral $ ceiling now) (g freq a c)
-    where
-      f t = withSC3 $ \fd -> 
-            do send fd $ bundle t 
-                  [s_new "ping" (-1) AddToTail 1 
-                   [("out",c),("freq",freq),("amp",a)]]
-               putStrLn "Sending ping"
-               return 1
 
-g :: Double -> Double -> Double -> Double -> IO Double
+    -- where
+    --   f t = withSC3 $ \fd -> 
+    --         do send fd $ bundle t 
+    --               [s_new "ping" (-1) AddToTail 1 
+    --                [("out",c),("freq",freq),("amp",a)]]
+    --            putStrLn "Sending ping"
+    --            return 1
+
+g :: Double -> Double -> Double -> (Double -> IO Double)
 g freq a c t = withSC3 $ \fd -> do
   send fd $ bundle t 
        [s_new "ping" (-1) AddToTail 1
