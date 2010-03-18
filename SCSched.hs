@@ -2,7 +2,18 @@
 -- | Playing with scheduling.
 -- Using FRP thingy from reactive package.
 --
-module SCSched where
+module SCSched 
+    ( BPM,
+      Event,
+      spawn,
+      adaptSC,
+      standby,
+      takeE,
+      dropE,
+      shiftE,
+      loopE,
+      listE )
+where
 
 import Control.Applicative
 import Control.Arrow (first,second)
