@@ -199,7 +199,7 @@ mkGates = zipWith f
 mkDeltas :: [Double] -> [Double] -> [Maybe (Double, OSC)]
 mkDeltas = zipWith f
     where
-      f d dt | dt > 0 = Just $ (d*(dt/4)*0.99,
+      f d dt | dt > 0 = Just $ (d+(dt/4)*0.99,
                                 n_set bNodeId [("gate",0)])
              | otherwise = Nothing
 
@@ -219,7 +219,7 @@ playDseq bpm var = do
 
 playSeqs :: BPM 
          -> MVar (Map String [Double]) -- ^ MVar for dseq
-         -> MVar (Map String [Double]) -- ^ MVAr for bseq
+         -> MVar (Map String [Double]) -- ^ MVar for bseq
          -> IO ()
 playSeqs bpm ds bs = do
   d <- readMVar ds
@@ -229,7 +229,7 @@ playSeqs bpm ds bs = do
   pauseThread (4 * 60 / bpm)
        
 durs :: [Double]
-durs = scanl (+) 0 $ cycle [0.29,0.21,0.27,0.23]
+durs = scanl1 (+) $ cycle [0.29,0.21,0.27,0.23]
 
 mkEvent :: [Double] -> [Maybe OSC] -> Event OSC
 mkEvent durs oscs = listE $ catMaybes $ zipWith f durs oscs
