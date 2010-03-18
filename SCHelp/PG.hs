@@ -17,7 +17,8 @@ module SCHelp.PG
      module SCHelp.PG.Cookbook03,
      module SCHelp.PG.Cookbook05,
      module SCHelp.PG.Cookbook06,
-     module SCHelp.PG.Cookbook07
+     module SCHelp.PG.Cookbook07,
+     module SCHelp.PG.Cookbook072
     ) where
 
 import SCHelp.PG.Cookbook01
@@ -25,4 +26,12 @@ import SCHelp.PG.Cookbook02 hiding (main)
 import SCHelp.PG.Cookbook03 hiding (main)
 import SCHelp.PG.Cookbook05 
 import SCHelp.PG.Cookbook06
-import SCHelp.PG.Cookbook07 hiding (getDurs)
+import SCHelp.PG.Cookbook07 hiding 
+    (getDurs, 
+     mkEvent,
+     rhythmDelta,
+     getRestIndices,
+     hhBase,
+     kikBase,
+     snrBase )
+import SCHelp.PG.Cookbook072
