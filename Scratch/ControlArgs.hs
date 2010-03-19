@@ -35,8 +35,10 @@ lfoBus = "lfobus" @= 0
 mul = "mul" @= 0.1
 mw = "mw" @= 0
 out = "out" @= 0 
+outBus = "outBus" @= 0
 pan = "pan" @= 0
 plfofreq = "plfofreq" @= 1
+pitch = "pitch" @= 1
 postGain = "postGain" @= 1
 preamp = "preamp" @= 1
 preGain = "preGain" @= 1
