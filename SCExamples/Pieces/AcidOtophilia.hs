@@ -10,7 +10,8 @@
 -- Exercise for implementing sc3 example code from
 -- /acid_otophilia.scd/.
 --
---
+-- @hat@ synthdef differs from sclang version.
+-- 
 
 module SCExamples.Pieces.AcidOtophilia where
 
@@ -30,6 +31,7 @@ import FRP.Reactive
 import Sound.OpenSoundControl
 import Sound.SC3
 
+import Missing
 import Reusable
 import SCSched
 import SCTree
@@ -38,23 +40,19 @@ import qualified Scratch.ControlArgs as A
 
 runAcidOtophilia :: IO ()
 runAcidOtophilia = do
-  undefined
+  ps 130 >> return ()
 
 setAcidOtophilia :: Transport t => t -> IO ()
 setAcidOtophilia fd = do
+  zipWithM (lsd fd)
+     ["kick", "snare", "clap", "hat", "acid", "fx"]
+     [kick, snare, clap, hat, acid, return fx]
   mkTree acidTree fd
-  -- zipWithM (lsd fd)
-  --    ["kick", "snare", "clap", "hat", "acid"]
-  --    [kick, snare, clap, hat, acid]
-  --   where
-  --     lsd fd name ioUGen =
-  --         ioUGen >>= \ug -> loadSynthdef name ug fd
-
-updateKick :: Transport t => t -> IO OSC
-updateKick fd = do
-  ug <- kick
-  loadSynthdef "kick" ug fd
-
+   where
+     lsd :: Transport t => t -> String -> (IO UGen) -> IO OSC
+     lsd fd name ioUGen =
+         ioUGen >>= \ug -> loadSynthdef name ug fd
+ 
 kick :: IO UGen
 kick = do
   noise <- whiteNoise ar
@@ -106,13 +104,109 @@ snare = do
   return $ out A.outBus $ dup sig0
 
 clap :: IO UGen
-clap = undefined
+clap = do
+  nz1 <- whiteNoise ar
+  nz2 <- whiteNoise ar
+  let sig0 = softClip sig1 * (A.amp {controlDefault=0.5})
+      sig1 = sig2 * 2
+      sig2 = nz11 + nz21
+
+      nz11 = bpf nz12 2000 3 
+      nz12 = hpf nz13 600
+      nz13 = nz1 * env1
+      
+      nz21 = bpf nz22 1200 0.7 * 0.7
+      nz22 = hpf nz23 1000
+      nz23 = nz2 * env2
+
+      env1 = envGen kr 1 1 0 1 DoNothing shp1
+      env2 = envGen kr 1 1 0 1 RemoveSynth shp2
+
+      shp1 = env [0, 1, 0, 1, 0, 1, 0, 1, 0]
+             [0.001, 0.013, 0, 0.01, 0, 0.01, 0, 0.03]
+             (map EnvNum [0, -3, 0, -3, 0, -3, 0, -4]) 1 1
+      shp2 = env [0, 1, 0] [0.02, 0.3]
+             (map EnvNum [0, -4]) 1 1
+                   
+  return $ out A.outBus $ dup sig0
 
 hat :: IO UGen
-hat = undefined
+hat = do
+  let n = 5
+      n2 = 8
+  
+  oscs1 <- mixFillM n $ \k -> do
+              let k' = constant k
+                  n' = constant n
+              f1 <- getStdRandom (randomR (0,4))
+              f2 <- getStdRandom (randomR (0,4))
+              return $ sinOsc ar 
+                     (midiCPS $ linLin k' 0 (n'-1) 42 74 + f1)
+                     (sinOsc ar 
+                      (midiCPS $ linLin k' 0 (n'-1) 78 80 + f2) 0 * 12)
+                     * (1/n')
 
+  noise4 <- whiteNoise ar            
+  noise3 <- mixFillM n2 $ \k -> do
+              fAdd <- getStdRandom (randomR (0,4))
+              let k' = constant k
+                  n2' = constant n2
+                  frq = linLin k' 0 (n2'-1) 40 50 + fAdd
+              return $ combN noise4 0.04 frq 0.1 * (1/n2') + noise4
+
+  let sig0 = softClip sig1 * (A.amp {controlDefault=0.3})
+      sig1 = noise0 + oscs0
+
+      oscs0 = bHiPass oscs1 1000 2 * env1
+
+      noise0 = bHiPass noise1 1000 1.5 * env2
+      noise1 = bLowShelf noise2 3000 0.5 (-6)
+      noise2 = bpf noise3 6000 0.9 * 0.5 + noise3
+
+      env1 = envGen kr 1 1 0 1 DoNothing shp1
+      env2 = envGen kr 1 1 0 1 RemoveSynth shp2
+
+      shp1 = env [0, 1.0, 0] [0.001, 0.2]
+             (map EnvNum [0, -12]) 1 1
+      shp2 = env [0, 1.0, 0.05, 0] [0.002, 0.05, 0.03]
+             (map EnvNum [0, -4, -4]) 1 1 
+
+  return $ out A.outBus $ dup sig0
+  
 acid :: IO UGen
-acid = undefined
+acid = do
+  let sig0 = sig1 * env1
+      sig1 = rlpf sig2 (midiCPS $ ptc0 + env2) 0.3
+      sig2 = lfPulse ar (midiCPS ptc0) 0 0.51 * 2 - 1
+
+      env1 = envGen kr A.gate 1 0 1 DoNothing shp1 * 
+             A.amp {controlDefault=0.1}
+      env2 = envGen kr A.gate 1 0 1 DoNothing shp2 
+
+      shp1 = env [0, 1.0, 0, 0] [0.001, 2.0, 0.04]
+             (map EnvNum [0, -4, -4]) 1 1
+      shp2 = env [0, 70.0, 0.8, 0.8] [0.001, 0.8, 0] 
+             (map EnvNum [-4, -4, -4]) (-1) 1
+
+      ptc0 = lag (A.pitch {controlDefault=50})
+             (0.12 * (1 - trig A.gate 0.001) * A.gate)
+
+  return $ out A.outBus $ dup sig0
+
+fx ::UGen
+fx = out A.outBus sig0
+    where
+      sig0 = limiter sig1 1.0 0.02
+      sig1 = hpf (sig2 *1.2) 40
+      sig2 = freeVerb2 (bpf (mceChannel 0 sig3) 3500 1.5)
+                       (bpf (mceChannel 1 sig3) 3500 1.5)
+                       1.0 0.95 0.15 * 
+             envGen kr gt 1 0 1 DoNothing shp1 +
+             sig3
+      sig3 = in' 2 ar A.outBus
+      shp1 = env [0.02, 0.3, 0.02] [0.4, 0.01] 
+             (map EnvNum [3, -4]) 1 1
+      gt = 1 - trig A.gate 0.01
 
 dup :: UGen -> UGen
 dup a = mce [a,a]
