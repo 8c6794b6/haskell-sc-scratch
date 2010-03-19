@@ -64,6 +64,9 @@ hat = undefined
 acid :: IO UGen
 acid = undefined
 
+dup :: UGen -> UGen
+dup a = mce [a,a]
+
 data Perc = Kick
           | Snare
           | Hat
@@ -82,7 +85,7 @@ playRandom bpm = do
 
 percToOSC :: Perc -> OSC
 percToOSC = f . map toLower . show
-    where f name = s_new name (-1) AddToTail 1 []
+    where f name = s_new name (-1) AddToTail acidGroup []
 
 runDseq :: MVar (Map String [Double]) -> IO (Event OSC)
 runDseq var = do
@@ -98,20 +101,21 @@ runFx var = do
   undefined
 
 acidTree :: SCTree
-acidTree = 
-  Group 0 
-    [Group 1 
-      [Group acidGroup 
+acidTree =
+  Group 0
+    [Group 1
+      [Group acidGroup
         [Synth bNodeId "acid" []],
-       Group fxGroup 
+       Group fxGroup
         [Synth fxNodeId "fx" []]]]
-   
+
 acidGroup :: Num a => a
 acidGroup = 100
 
 fxGroup :: Num a => a
 fxGroup = 101
 
+fxNodeId :: Num a => a
 fxNodeId = 1002
 
 bNodeId :: Num a => a
@@ -123,6 +127,17 @@ bseq = M.fromList $
    ("delta", [1,1,0,2, 1,1,0,0, 2,0,2,0, 1,2,0,4]),
    ("pitch", map (+38)
              [-24,-12,0,-12, 0,-12,10,12, 0,7,-7,0, -11,1,13,15])]
+
+bseqG :: StdGen -> Map String [Double]
+bseqG g = M.fromList $
+  [("gate", take 16 $ choices [0,1,1,1] g1),
+   ("delta", take 16 $ choices [0,1,2] g2),
+   ("pitch", map (+38) $ concat
+           [take 8 $ choices [-24,-12,-11,0,12] g3,
+            take 4 $ choices [0,5,7,-5,-7] g4,
+            take 4 $ choices [-11,1,13,15] g5])]
+    where
+      [g1,g2,g3,g4,g5] = take 5 $ iterate (snd . next) g
 
 dseq0 :: Map String [Double]
 dseq0 = M.fromList $
@@ -166,32 +181,43 @@ dseq4 g = M.fromList $
  where
    [g0,g1,g2,g3,g4] = take 5 $ iterate (snd . next) g
 
+fseq :: Map String [Double]
+fseq = M.fromList 
+       [("gate", [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0])]
+
 dseqToE :: Map String [Double] -> Event OSC
 dseqToE ds = mconcat [k,s,c,h]
     where
       [k,s,c,h] = map f ["kick", "snare", "clap", "hat"]
+      ds' = M.update (return . map (*0.7)) "snare" .
+            M.update (return . map (*0.5)) "clap" .
+            M.update (return . map (*0.32)) "hat" $ ds
       f name = mkEvent durs $
-               map (mkPerc name) $ maybe [] id $ M.lookup name $ ds
+               map (mkPerc name) $ maybe [] id $ M.lookup name $ ds'
 
-loopEvent :: BPM -> MVar (Event OSC) -> IO ThreadId
-loopEvent bpm var = forkIO (forever g)
-    where
-      g = do
-        ev <- readMVar var
-        spawn 0 bpm ev
+mkEvent :: [Double] -> [Maybe OSC] -> Event OSC
+mkEvent durs oscs = listE $ catMaybes $ zipWith f durs oscs
+    where f a b = pure (,) <*> pure a <*> b
+
+mkPerc :: String -> Double -> Maybe OSC
+mkPerc name amp =
+  if amp > 0
+     then Just $ s_new name (-1) AddToTail acidGroup
+              [("amp", squared (amp/4))]
+     else Nothing
 
 bseqToE :: [Double] -> Map String [Double] -> Event OSC
 bseqToE ds ms = mconcat [ptc,gts,dlt]
     where
-      ptc = listE $ zip ds $ mkNSet bNodeId $ 
+      ptc = listE $ zip ds $ mkNSet bNodeId $
             M.filterWithKey (\k _ -> k == "pitch") ms
-      gts = listE $ catMaybes $ mkGates ds $ maybe [] id $ 
+      gts = listE $ catMaybes $ mkGates ds $ maybe [] id $
             M.lookup "gate" ms
-      dlt = listE $ catMaybes $ mkDeltas ds $ maybe [] id $ 
+      dlt = listE $ catMaybes $ mkDeltas ds $ maybe [] id $
             M.lookup "delta" ms
 
 mkGates :: [Double] -> [Double] -> [Maybe (Double, OSC)]
-mkGates = zipWith f 
+mkGates = zipWith f
     where
       f d 1 = Just $ (d, n_set bNodeId [("gate", 1)])
       f d _ = Nothing
@@ -203,44 +229,46 @@ mkDeltas = zipWith f
                                 n_set bNodeId [("gate",0)])
              | otherwise = Nothing
 
--- | Plays dseq. Try:
---
--- > > var <- newMVar dseq1
--- > > t1 <- forkIO (forever $ playDseq 130 var)
--- > > swapMVar var dseq2
--- > > swapMVar var dseq3
--- > > killThread t1
---
 playDseq :: BPM -> MVar (Map String [Double]) -> IO ()
 playDseq bpm var = do
   m <- readMVar var
   _ <- forkIO $ spawn 0 bpm $ dseqToE m
-  pauseThread (4 * 60 / bpm)
+  pauseThread (4*60/bpm)
 
-playSeqs :: BPM 
+
+-- | Plays phrases. Try:
+--
+-- > > var1 <- newMVar dseq1
+-- > > var2 <- newMVar bseq
+-- > > var3 <- newMVar fseq
+-- > > t1 <- forkIO (forever $ playSeqs 130 var1 var2 var3)
+-- > > swapMVar var1 dseq2
+-- > > swapMVar var2 =<< bseqG <$> newStdGen
+-- > > killThread t1
+--
+playSeqs :: BPM
          -> MVar (Map String [Double]) -- ^ MVar for dseq
          -> MVar (Map String [Double]) -- ^ MVar for bseq
+         -> MVar (Map String [Double]) -- ^ MVar for fx
          -> IO ()
-playSeqs bpm ds bs = do
+playSeqs bpm ds bs fs = do
   d <- readMVar ds
   b <- readMVar bs
+  f <- readMVar fs 
   _ <- forkIO $ spawn 0 bpm $ dseqToE d
   _ <- forkIO $ spawn 0 bpm $ bseqToE durs b
+  _ <- forkIO $ spawn 0 bpm $ fseqToE f
   pauseThread (4 * 60 / bpm)
-       
+
+fseqToE :: Map String [Double] -> Event OSC
+fseqToE = listE . zip durs . mkNSet fxNodeId
+
 durs :: [Double]
 durs = scanl1 (+) $ cycle [0.29,0.21,0.27,0.23]
 
-mkEvent :: [Double] -> [Maybe OSC] -> Event OSC
-mkEvent durs oscs = listE $ catMaybes $ zipWith f durs oscs
-    where f a b = pure (,) <*> pure a <*> b
-
-mkPerc :: String -> Double -> Maybe OSC
-mkPerc name amp =
-  if amp > 0
-     then Just $ s_new name (-1) AddToTail acidGroup 
-              [("amp", squared (amp/4))]
-     else Nothing
-
-dup :: UGen -> UGen
-dup a = mce [a,a]
+loopEvent :: BPM -> MVar (Event OSC) -> IO ThreadId
+loopEvent bpm var = forkIO (forever g)
+    where
+      g = do
+        ev <- readMVar var
+        spawn 0 bpm ev
