@@ -34,13 +34,14 @@ import Reusable
 import SCSched
 import SCTree
 import SCQuery
+import qualified Scratch.ControlArgs as A
 
 runAcidOtophilia :: IO ()
 runAcidOtophilia = do
   undefined
 
-setAcidOtophilia :: IO ()
-setAcidOtophilia = withSC3 $ \fd -> do
+setAcidOtophilia :: Transport t => t -> IO ()
+setAcidOtophilia fd = do
   mkTree acidTree fd
   -- zipWithM (lsd fd)
   --    ["kick", "snare", "clap", "hat", "acid"]
@@ -49,11 +50,60 @@ setAcidOtophilia = withSC3 $ \fd -> do
   --     lsd fd name ioUGen =
   --         ioUGen >>= \ug -> loadSynthdef name ug fd
 
+updateKick :: Transport t => t -> IO OSC
+updateKick fd = do
+  ug <- kick
+  loadSynthdef "kick" ug fd
+
 kick :: IO UGen
-kick = undefined
+kick = do
+  noise <- whiteNoise ar
+  let sig0 = clip2 sig1 1
+      sig1 = sig2 * 1.2
+      sig2 = sig3 + (sinOsc ar env1m 0.5 * env0)
+      sig3 = lpf sig4 (env1m*1.5) * env0
+      sig4 = sig5 + noise
+      sig5 = lfPulse ar env1m 0 0.5 * 1 - 0.5
+
+      env0 = envGen ar 1 1 0 1 RemoveSynth shp0
+      env1 = envGen ar 1 1 0 1 RemoveSynth shp1
+      env1m = midiCPS env1
+
+      shp1 = env [110,59,29] [0.005,0.29] 
+             (map EnvNum [-4,-5]) (-1) (-1)
+      shp0 = env [0.5,1,0.5,0] [0.005,0.06,0.26]
+             (map EnvNum [-4,-2,-4]) (-1) (-1)
+
+  return $ out A.outBus $ dup sig0
 
 snare :: IO UGen
-snare = undefined
+snare = do
+  nz <- (*0.2) <$> whiteNoise ar 
+  let sig0 = clip2 sig1 1 * (A.amp {controlDefault=0.8})
+      sig1 = osc0 + nz0
+
+      nz0 = nz1 * env2
+      nz1 = (bpf nz2 6900 0.6 * 3) + nz2
+      nz2 = hpf nz 200 * 2
+ 
+      osc0 = osc1 + (sinOsc ar env1m 0.8 * env0)
+      osc1 = lpf osc2 (env1m*1.2) * env0
+      osc2 = (lfPulse ar env1m 0 0.5 * 1 - 0.5) +
+             (lfPulse ar (env1m*1.6) 0 0.5 * 0.5 - 0.25)
+
+      env0 = envGen kr 1 1 0 1 DoNothing shp0
+      env1 = envGen kr 1 1 0 1 DoNothing shp1
+      env1m = midiCPS env1
+      env2 = envGen kr 1 1 0 1 RemoveSynth shp2
+
+      shp0 = env [0.5, 1, 0.5, 0] [0.005, 0.03, 0.10] 
+             (map EnvNum [-4,-2,-4]) 1 1
+      shp1 = env [110, 60, 49] [0.005, 0.1] 
+             (map EnvNum [-4,-5]) 1 1
+      shp2 = env [1, 0.4, 0] [0.05, 0.13]
+             (map EnvNum [-2,-2]) 1 1
+  
+  return $ out A.outBus $ dup sig0
 
 clap :: IO UGen
 clap = undefined
@@ -83,22 +133,12 @@ playRandom bpm = do
   oscs <- map percToOSC <$> randoms <$> newStdGen
   spawn 0 bpm $ listE $ zip durs oscs
 
+playPerc :: Perc -> IO ()
+playPerc p = withSC3 $ (\fd -> send fd $ percToOSC p)
+
 percToOSC :: Perc -> OSC
 percToOSC = f . map toLower . show
-    where f name = s_new name (-1) AddToTail acidGroup []
-
-runDseq :: MVar (Map String [Double]) -> IO (Event OSC)
-runDseq var = do
-  undefined
-
-runBseq :: IO ()
-runBseq = do
-  let es = undefined
-  spawn 0 130 es
-
-runFx :: MVar (Map String [Double]) -> IO (Event OSC)
-runFx var = do
-  undefined
+    where f name = s_new name (-1) AddToTail 1 []
 
 acidTree :: SCTree
 acidTree =
@@ -120,6 +160,38 @@ fxNodeId = 1002
 
 bNodeId :: Num a => a
 bNodeId = 1001
+
+-- | Plays phrases. Try:
+--
+-- > > var1 <- newMVar dseq1
+-- > > var2 <- newMVar bseq
+-- > > var3 <- newMVar fseq
+-- > > t1 <- forkIO (forever $ playSeqs 130 var1 var2 var3)
+-- > > swapMVar var1 dseq2
+-- > > swapMVar var2 =<< bseqG <$> newStdGen
+-- > > killThread t1
+--
+playSeqs :: BPM
+         -> MVar (Map String [Double]) -- ^ MVar for dseq
+         -> MVar (Map String [Double]) -- ^ MVar for bseq
+         -> MVar (Map String [Double]) -- ^ MVar for fx
+         -> IO ()
+playSeqs bpm ds bs fs = do
+  d <- readMVar ds
+  b <- readMVar bs
+  f <- readMVar fs
+  _ <- forkIO $ spawn 0 bpm $ dseqToE d
+  _ <- forkIO $ spawn 0 bpm $ bseqToE durs b
+  _ <- forkIO $ spawn 0 bpm $ fseqToE f
+  pauseThread (4*60/bpm)
+
+ps :: BPM -> IO (ThreadId, [MVar (Map String [Double])])
+ps bpm = do
+  vd <- newMVar dseq0
+  vb <- newMVar bseq
+  vf <- newMVar fseq
+  t1 <- forkIO (forever $ playSeqs bpm vd vb vf)
+  return (t1,[vd,vb,vf])
 
 bseq :: Map String [Double]
 bseq = M.fromList $
@@ -182,7 +254,7 @@ dseq4 g = M.fromList $
    [g0,g1,g2,g3,g4] = take 5 $ iterate (snd . next) g
 
 fseq :: Map String [Double]
-fseq = M.fromList 
+fseq = M.fromList
        [("gate", [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0])]
 
 dseqToE :: Map String [Double] -> Event OSC
@@ -200,11 +272,10 @@ mkEvent durs oscs = listE $ catMaybes $ zipWith f durs oscs
     where f a b = pure (,) <*> pure a <*> b
 
 mkPerc :: String -> Double -> Maybe OSC
-mkPerc name amp =
-  if amp > 0
-     then Just $ s_new name (-1) AddToTail acidGroup
-              [("amp", squared (amp/4))]
-     else Nothing
+mkPerc name a
+    | a > 0 = Just $ s_new name (-1) AddToTail acidGroup
+              [("amp", squared (a/4))]
+    | otherwise = Nothing
 
 bseqToE :: [Double] -> Map String [Double] -> Event OSC
 bseqToE ds ms = mconcat [ptc,gts,dlt]
@@ -219,8 +290,8 @@ bseqToE ds ms = mconcat [ptc,gts,dlt]
 mkGates :: [Double] -> [Double] -> [Maybe (Double, OSC)]
 mkGates = zipWith f
     where
-      f d 1 = Just $ (d, n_set bNodeId [("gate", 1)])
-      f d _ = Nothing
+      f d n | n > 0 = Just $ (d, n_set bNodeId [("gate",n)])
+            | otherwise = Nothing
 
 mkDeltas :: [Double] -> [Double] -> [Maybe (Double, OSC)]
 mkDeltas = zipWith f
@@ -229,46 +300,8 @@ mkDeltas = zipWith f
                                 n_set bNodeId [("gate",0)])
              | otherwise = Nothing
 
-playDseq :: BPM -> MVar (Map String [Double]) -> IO ()
-playDseq bpm var = do
-  m <- readMVar var
-  _ <- forkIO $ spawn 0 bpm $ dseqToE m
-  pauseThread (4*60/bpm)
-
-
--- | Plays phrases. Try:
---
--- > > var1 <- newMVar dseq1
--- > > var2 <- newMVar bseq
--- > > var3 <- newMVar fseq
--- > > t1 <- forkIO (forever $ playSeqs 130 var1 var2 var3)
--- > > swapMVar var1 dseq2
--- > > swapMVar var2 =<< bseqG <$> newStdGen
--- > > killThread t1
---
-playSeqs :: BPM
-         -> MVar (Map String [Double]) -- ^ MVar for dseq
-         -> MVar (Map String [Double]) -- ^ MVar for bseq
-         -> MVar (Map String [Double]) -- ^ MVar for fx
-         -> IO ()
-playSeqs bpm ds bs fs = do
-  d <- readMVar ds
-  b <- readMVar bs
-  f <- readMVar fs 
-  _ <- forkIO $ spawn 0 bpm $ dseqToE d
-  _ <- forkIO $ spawn 0 bpm $ bseqToE durs b
-  _ <- forkIO $ spawn 0 bpm $ fseqToE f
-  pauseThread (4 * 60 / bpm)
-
 fseqToE :: Map String [Double] -> Event OSC
 fseqToE = listE . zip durs . mkNSet fxNodeId
 
 durs :: [Double]
-durs = scanl1 (+) $ cycle [0.29,0.21,0.27,0.23]
-
-loopEvent :: BPM -> MVar (Event OSC) -> IO ThreadId
-loopEvent bpm var = forkIO (forever g)
-    where
-      g = do
-        ev <- readMVar var
-        spawn 0 bpm ev
+durs = scanl1 (+) $ cycle [0.28,0.22,0.27,0.23]
