@@ -230,12 +230,6 @@ dsTest = do
      ; d = detectSilence' s 0.1 0.2 RemoveSynth }
  audition (mrg [out 0 s, d])
 
--- | Copied from @sendTrig@ hsc3 help file.
-stHelp :: IO ()
-stHelp = do
-  s <- lfNoise0 kr 8
-  let o = sinOsc ar (s * 200 + 500) 0 * 0.1
-  audition $ mrg [sendTrig' s 0 s, out 0 o]
 
 -- $runPitchedMaterial
 --
