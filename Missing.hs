@@ -11,7 +11,6 @@ import Sound.SC3.UGen.UGen
 integrator :: UGen -> UGen -> UGen
 integrator i coef = mkFilter "Integrator" [i, coef] 1
 
-
 -- | In sc help file, @DetectSilence@ ugen has one output, but in
 -- Sound.SC3.UGen.Filters, @detectSilence@ ugen was defined with no
 -- output. This ugen is redefined with having single output.
@@ -19,9 +18,9 @@ detectSilence' :: UGen -> UGen -> UGen -> DoneAction -> UGen
 detectSilence' i a t act = 
     mkFilter "DetectSilence" [i, a, t, from_done_action act] 1
 
-
-sendTrig' :: UGen -> UGen -> UGen -> UGen
-sendTrig' i k v = mkFilterR [KR] "SendTrig" [i, k, v] 0
+-- | Limiter.
+limiter :: UGen -> UGen -> UGen -> UGen
+limiter i l d = mkFilter "Limiter" [i, l, d] 1
 
 from_done_action :: DoneAction -> UGen
 from_done_action DoNothing = Constant 0
