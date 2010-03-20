@@ -12,14 +12,15 @@ import qualified Data.Map as M
 import Sound.OpenSoundControl
 import Sound.SC3
 
-import Reusable
-import SCQuery
-import SCSched
-import SCTree
+-- import Reusable
+-- import SCQuery
+-- import SCSched
+-- import SCTree
 
-import qualified Scratch.ControlArgs as A
+-- import qualified Scratch.ControlArgs as A
 
-type Phrase = Map String [Double]
+import Sound.SC3.Wing
+import qualified Sound.SC3.Wing.ControlArg as A
 
 playGates :: BPM -> IO ()
 playGates bpm = spawn 0 bpm $ mapToE gateNID (M.map cycle gateMap)

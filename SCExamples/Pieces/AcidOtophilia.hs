@@ -31,12 +31,15 @@ import FRP.Reactive
 import Sound.OpenSoundControl
 import Sound.SC3
 
-import Missing
-import Reusable
-import SCSched
-import SCTree
-import SCQuery
-import qualified Scratch.ControlArgs as A
+import Sound.SC3.Wing
+import qualified Sound.SC3.Wing.ControlArg as A
+
+-- import Missing
+-- import Reusable
+-- import SCSched
+-- import SCTree
+-- import SCQuery
+-- import qualified Scratch.ControlArgs as A
 
 runAcidOtophilia :: IO ()
 runAcidOtophilia = do
@@ -310,42 +313,37 @@ dseq0 = M.fromList $
   [("kick",  [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0]),
    ("snare", [0,0,0,0, 4,0,0,2, 0,0,0,0, 4,0,0,0]),
    ("clap",  [0,0,0,0, 0,0,0,0, 0,0,0,0, 4,0,0,0]),
-   ("hat",   [1,2,4,0, 1,0,4,0, 1,2,4,2, 1,0,4,2]),
-   ("fx",    [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0])]
+   ("hat",   [1,2,4,0, 1,0,4,0, 1,2,4,2, 1,0,4,2])]
 
 dseq1 :: Map String [Double]
 dseq1 = M.fromList $
   [("kick",  [1,0,0,0, 0,0,0,0, 1,0,0,1, 0,0,1,0]),
    ("snare", [0,0,0,0, 0,0,0,2, 0,2,1,0, 4,3,3,3]),
    ("clap",  [0,0,0,0, 4,0,0,0, 0,0,0,0, 4,0,0,0]),
-   ("hat",   [1,2,4,0, 1,0,4,0, 1,2,4,2, 1,0,4,2]),
-   ("fx",    [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0])]
+   ("hat",   [1,2,4,0, 1,0,4,0, 1,2,4,2, 1,0,4,2])]
 
 dseq2 :: Map String [Double]
 dseq2 = M.fromList $
   [("kick",  [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0]),
    ("snare", [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0]),
    ("clap",  [0,0,0,0, 4,0,0,0, 0,0,0,0, 4,0,0,0]),
-   ("hat",   [1,2,4,0, 1,0,4,0, 1,2,4,2, 1,0,4,2]),
-   ("fx",    [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0])]
+   ("hat",   [1,2,4,0, 1,0,4,0, 1,2,4,2, 1,0,4,2])]
 
 dseq3 :: Map String [Double]
 dseq3 = M.fromList $
   [("kick",  [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0]),
    ("snare", [0,0,0,0, 0,0,0,2, 0,0,0,0, 0,0,0,0]),
    ("clap",  [0,0,0,0, 4,0,0,0, 0,0,0,0, 4,0,0,0]),
-   ("hat",   [1,2,4,0, 1,0,4,0, 1,2,4,2, 1,0,4,2]),
-   ("fx",    [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0])]
+   ("hat",   [1,2,4,0, 1,0,4,0, 1,2,4,2, 1,0,4,2])]
 
 dseq4 :: RandomGen g => g -> Map String [Double]
 dseq4 g = M.fromList $
   [("kick",  take 16 $ choices [0,1] g0),
    ("snare", take 16 $ choices [0,1,2,4] g1),
    ("clap",  take 16 $ choices [0,4] g2),
-   ("hat",   take 16 $ choices [0,1,2,4] g3),
-   ("fx",    take 16 $ choices [0,1] g4)]
+   ("hat",   take 16 $ choices [0,1,2,4] g3)]
  where
-   [g0,g1,g2,g3,g4] = take 5 $ iterate (snd . next) g
+   [g0,g1,g2,g3] = take 4 $ iterate (snd . next) g
 
 fseq :: Map String [Double]
 fseq = M.fromList
@@ -359,14 +357,14 @@ dseqToE ds = mconcat [k,s,c,h]
             M.update (return . map (*0.5)) "clap" .
             M.update (return . map (*0.32)) "hat" $ ds
       f name = mkEvent durs $
-               map (mkPerc name) $ maybe [] id $ M.lookup name $ ds'
+               map (mkPerc' name) $ maybe [] id $ M.lookup name $ ds'
 
 mkEvent :: [Double] -> [Maybe OSC] -> Event OSC
 mkEvent durs oscs = listE $ catMaybes $ zipWith f durs oscs
     where f a b = pure (,) <*> pure a <*> b
 
-mkPerc :: String -> Double -> Maybe OSC
-mkPerc name a
+mkPerc' :: String -> Double -> Maybe OSC
+mkPerc' name a
     | a > 0 = Just $ s_new name (-1) AddToTail acidGroup
               [("amp", squared (a/4))]
     | otherwise = Nothing
