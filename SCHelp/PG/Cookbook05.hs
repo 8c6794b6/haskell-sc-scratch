@@ -31,7 +31,6 @@ module SCHelp.PG.Cookbook05
       dsTest,
       dsHelp,
       runDsHelp,
-      stHelp,
 
       -- * Using audio samples to play pitched material
       -- $runPitchedMaterial
