@@ -6,6 +6,7 @@
 module Sound.SC3.Wing.Schedule
     ( BPM,
       Event,
+      TimeT,
       spawn,
       adaptSC,
       standby,
