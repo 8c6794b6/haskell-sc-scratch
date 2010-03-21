@@ -1,9 +1,7 @@
 ------------------------------------------------------------------------------
 -- |
--- 
 -- Exercise from /Stream-Patterns-Events1/.
 --
--- 
 
 module SCHelp.SPE.Part1 where
 
@@ -19,7 +17,6 @@ import Sound.OpenSoundControl
 import Sound.SC3
 import Sound.SC3.Wing
 import qualified Sound.SC3.Wing.ControlArg as A
-
 
 main :: IO ()
 main = runPartOne

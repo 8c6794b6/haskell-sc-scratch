@@ -1,7 +1,8 @@
 ------------------------------------------------------------------------------
 -- |
 -- 
--- Exercise from /Stream-Patterns-Events2/.
+-- Exercise from /Stream-Patterns-Events2/. 
+-- Trying to use applicative functor as much as possible.
 --
 -- 
 
@@ -18,8 +19,16 @@ import Sound.SC3
 import Sound.SC3.Wing
 import qualified Sound.SC3.Wing.ControlArg as A
 
+main :: IO ()
+main = runPart2
+
 runPart2 :: IO ()
-runPart2 = undefined
+runPart2 = spawn 0 60 =<< eventPart2
+
+eventPart2 :: IO (Event OSC)
+eventPart2 = mappend <$> 
+             (rtnToE lowerDurs lowerRtn) <*> 
+             (rtnToE higherDurs higherRtn)
 
 -- | Load synthdef used in this example.
 setPart2 :: Transport t => t -> IO OSC
@@ -67,11 +76,6 @@ randomReplicate range rtn = do
   g <- updateGen
   concat <$> replicateM (fst . randomR range $ g) rtn
 
-events :: IO (Event OSC)
-events = mappend <$> 
-         (rtnToE lowerDurs lowerRtn) <*> 
-         (rtnToE higherDurs higherRtn)
-
 rtnToE :: [Double] -> Rtn2 [Double] -> IO (Event OSC)
 rtnToE durs r = listE . zip durs' <$> (zipWith mk_help_SPE2 durs <$> oscs)
     where
@@ -103,3 +107,4 @@ rtn3 = randomReplicate (3,9) rtn3'
 
 rtn3' :: Rtn2 [Double]
 rtn3' = return . fst . chooseOne  [74,75,77,79,81] <$> updateGen
+
