@@ -15,12 +15,14 @@ library
   GHC-Options: -O2
   Exposed-Modules:
     Sound.SC3.Wing
-    Sound.SC3.Wing.ControlArg
     Sound.SC3.Wing.Instance
-    Sound.SC3.Wing.Missing
     Sound.SC3.Wing.Query
     Sound.SC3.Wing.Schedule
     Sound.SC3.Wing.Tree
+    Sound.SC3.Wing.UGen
+    Sound.SC3.Wing.UGen.ControlArg
+    Sound.SC3.Wing.UGen.Factory
+    Sound.SC3.Wing.UGen.Missing
     Sound.SC3.Wing.Util
   Build-depends:
     base == 4.*,

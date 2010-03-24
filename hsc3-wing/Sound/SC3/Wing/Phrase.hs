@@ -14,7 +14,7 @@ import qualified Data.Map as M
 
 import Sound.OpenSoundControl
 import Sound.SC3
-import Sound.SC3.Wing.Schedule (Event, listE)
+import Sound.SC3.Wing.Schedule (Event, TimeT, listE)
 import Sound.SC3.Wing.Tree (NodeId)
 
 -- | Type synonym for phrase.
@@ -24,7 +24,7 @@ type Phrase = Map String [Double]
 -- 
 -- Key of the Phrase would be used as name of synthdef, @[Double]@
 -- values would be used as parameter for @amp@ argument of synthdef.
--- 0 values @amp@ would be rest.
+-- 0 valued @amp@ would be rest.
 -- 
 mkPerc :: NodeId -- ^ Node id of group 
        -> [Double] -- ^ duration
@@ -40,6 +40,29 @@ mkPerc gId durs phr = mconcat $ M.elems $ M.map (mkEvent durs) $
                         [("amp", a)]
               | otherwise = Nothing
 
+-- | Make percussive event with specifying constant parameters.
+mkRhythms :: Map String [(String, Double)] -- ^ Constant parameters.
+          -> NodeId -- ^ Target node id.
+          -> [TimeT] -- ^ Duration
+          -> Phrase  -- ^ Name and amps for percussive synthdef
+          -> Event OSC
+mkRhythms ini gid durs phr = 
+    mconcat . M.elems . M.map (listE . catMaybes . zipWith f durs') .
+    M.mapWithKey g $ phr
+    where
+      f a b = (,) <$> pure a <*> b 
+      durs' = durs
+      g k as = map (fmap (addParam (maybe [] id (M.lookup k ini))) . mkp k) as
+      mkp n a | a > 0 = Just $ s_new n (-1) AddToTail gid [("amp",a)]
+              | otherwise = Nothing
+
+-- | Add parameters to OSC message, intended to use for @/s_new@ and @/n_set@
+-- messages. 
+addParam :: [(String,Double)] -> OSC -> OSC
+addParam qs (Message n ps) = Message n (ps ++ concatMap f qs)
+    where f (s,d) = [String s, Float d]
+addParam qs (Bundle t os)  = Bundle t (map (addParam qs) os)
+
 -- | Makes list of s_new osc messages from Phrase.
 mkSNew :: String -> NodeId -> AddAction -> NodeId -> Phrase -> [OSC]
 mkSNew name nodeId addAction targetId =
@@ -48,6 +71,13 @@ mkSNew name nodeId addAction targetId =
 -- | Variant of mkSNew with nodeId (-1) and AddToTail.
 mkSNew' :: String -> NodeId -> Phrase -> [OSC]
 mkSNew' name targetId = mkSNew name (-1) AddToTail targetId
+
+-- | Makes Event with taking @dur@ from Phrase.
+mkSNewWithDur :: String -> NodeId -> Phrase -> Event OSC
+mkSNewWithDur name targetid phr = listE $ zip dur osc
+    where
+      dur = maybe [] (scanl (+) 0) $ M.lookup "dur" phr
+      osc = mkSNew' name targetid phr
 
 -- | Makes list of n_set osc messages from Phrase.
 mkNSet :: NodeId -> Phrase -> [OSC]
@@ -68,3 +98,4 @@ setMonoEvent nid phr = mappend (listE $ zip dur osc)
       osc = mkNSet nid $ M.insert "gate" (repeat 1) $ phr
       sus = maybe [] id . M.lookup "sustain" $ phr
       closeGate d o = ((d+o), n_set nid [("gate",0)])
+

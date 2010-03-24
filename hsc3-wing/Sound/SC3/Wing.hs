@@ -12,19 +12,19 @@
 
 module Sound.SC3.Wing 
     (module Sound.SC3.Wing.Instance,
-     module Sound.SC3.Wing.Missing, 
      module Sound.SC3.Wing.Phrase,
+     module Sound.SC3.Wing.Query,
      module Sound.SC3.Wing.Schedule,
      module Sound.SC3.Wing.Tree,
-     module Sound.SC3.Wing.Util,
-     module Sound.SC3.Wing.Query
+     module Sound.SC3.Wing.UGen,
+     module Sound.SC3.Wing.Util
     ) where
 
 import Sound.SC3.Wing.Instance
-import Sound.SC3.Wing.Missing
 import Sound.SC3.Wing.Phrase
+import Sound.SC3.Wing.Query
 import Sound.SC3.Wing.Schedule
 import Sound.SC3.Wing.Tree
+import Sound.SC3.Wing.UGen
 import Sound.SC3.Wing.Util
-import Sound.SC3.Wing.Query
 

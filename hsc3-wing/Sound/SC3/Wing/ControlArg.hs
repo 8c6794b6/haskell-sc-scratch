@@ -16,6 +16,7 @@ bufnum = "bufnum" @= 1
 bus = "bus" @= 0
 cut = "cut" @= 4000
 cutoff = "cutoff" @= 10000
+damp = "damp" @= 0
 decay = "decay" @= 4
 decayScale = "decayScale" @= 1
 delay = "delay" @= 0.2
@@ -27,12 +28,15 @@ end = "end" @= 0
 gain = "gain" @= 1
 gate = "gate" @= 0
 in' = "in" @= 0
+inBus = "inBus" @= 0
 i_bus = "i_bus" @= 10
 i_end = "i_end" @= 500
 i_out = "i_out" @= 0
 i_start = "i_start" @= 1000
 i_time = "i_time" @= 1
 lfoBus = "lfobus" @= 0
+mix = "mix" @= 0
+mod = "mod" @= 1
 mul = "mul" @= 0.1
 mw = "mw" @= 0
 out = "out" @= 0 
@@ -47,6 +51,7 @@ range = "range" @= 1
 rate = "rate" @= 1
 rez = "rez" @= 1
 rezz = "rezz" @= 1
+room = "room" @= 0
 rq = "rq" @= 0
 start = "start" @= 0
 stretch = "stretch" @= 1

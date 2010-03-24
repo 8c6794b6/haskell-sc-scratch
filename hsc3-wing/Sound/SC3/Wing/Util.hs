@@ -228,8 +228,8 @@ fitInRange min max target
     | otherwise = target
 
 -- | Print the result of sending "/status".
-dumpStatus :: IO ()
-dumpStatus = mapM_ putStrLn =<< withSC3 serverStatus
+dumpStatus :: Transport t => t -> IO ()
+dumpStatus fd = serverStatus fd >>= mapM_ putStrLn
 
 randomRIOs :: Random a => (a, a) -> IO [a]
 randomRIOs range  = randomRs range `fmap` newStdGen
