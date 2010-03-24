@@ -1,6 +1,7 @@
 ------------------------------------------------------------------------------
 -- | Playing with scheduling.
--- Using FRP thingy from reactive package.
+--
+-- Using FRP from reactive package.
 --
 module SCSched 
     ( BPM,
