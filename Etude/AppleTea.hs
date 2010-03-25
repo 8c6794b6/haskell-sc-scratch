@@ -6,7 +6,7 @@
 -- example.
 --
 -- TODO:
--- 
+--
 -- * Add effects to rhythm track.
 -- * Add sound-effect-ish tracks.
 -- * Add gui for controlling parameters.
@@ -160,21 +160,21 @@ appleLead :: IO UGen
 appleLead = out A.out . (*A.amp) <$> sig
     where
       sig :: IO UGen
-      sig = (*env0) . (+osc0) . flt0 (pulse ar A.freq 0.3) <$> nz0 
+      sig = (*env0) . (+osc0) . flt0 (pulse ar A.freq 0.3) <$> nz0
 
       nz0 :: IO UGen
       nz0 = (*env1) . (*8000) . (+1) . (*0.5) <$> lfNoise1 ar 4
 
       flt0 :: UGen -> UGen -> UGen
       flt0 ug pass = rlpf ug pass 0.5
-                     
+
       osc0, env0, env1 :: UGen
       osc0 = sinOsc ar car0 0
       car0 = A.freq + (A.freq * saw ar (A.freq * 1.5))
-      env0 = envGen kr 1 1 0 1 RemoveSynth $ 
-             env [0, 1, 0.8, 0] [0.001, 0.01, 1.0] 
+      env0 = envGen kr 1 1 0 1 RemoveSynth $
+             env [0, 1, 0.8, 0] [0.001, 0.01, 1.0]
              (map EnvNum [-4, -4, -4]) 1 1
-      env1 = envGen kr 1 1 0 1 DoNothing $ 
+      env1 = envGen kr 1 1 0 1 DoNothing $
              env [1, 0.5, 1, 0.2, 0.1] [0.001, 0.01, 0.02, 0.3]
              (map EnvNum [-4, -4, -3, -4]) 1 1
 
@@ -190,7 +190,7 @@ appleChorus = out A.out . (*A.amp) <$> sig
 
       frq :: UGen
       frq = lag A.freq 0.1
-      
+
 -- | For bass synthdef
 appleBass :: IO UGen
 appleBass = out A.out . (*A.amp) . (*env0) <$> sig
@@ -204,13 +204,13 @@ appleBass = out A.out . (*A.amp) . (*env0) <$> sig
 
       mod :: UGen -> UGen
       mod ug = sinOsc ar (A.freq * env1) 0 * A.freq * ug
-      
+
       env0, env1 :: UGen
       env0 = envGen kr A.gate 1 0 1 RemoveSynth $
-             env [0,1,0.8,0.2,0] [0.03,0.05,1.2] 
+             env [0,1,0.8,0.2,0] [0.03,0.05,1.2]
              (map EnvNum [-4,-5,-4]) 1 (-1)
       env1 = envGen kr 1 1 0 1 DoNothing $
-             env [1,0.5] [0.2] 
+             env [1,0.5] [0.2]
              (map EnvNum [-4]) (-1) (-1)
 
 -- | Simple panner.
@@ -245,12 +245,12 @@ simpleGain = replaceOut A.outBus sig
 -- | Simple low frequency noise for control. Uging lfNoise2.
 simpleLfNoise2 :: IO UGen
 simpleLfNoise2 = out (A.out) <$> sig
-    where 
+    where
       sig :: IO UGen
-      sig = (*A.mul) . (+A.add) <$> lfNoise2 kr A.freq 
+      sig = (*A.mul) . (+A.add) <$> lfNoise2 kr A.freq
 
 playRhythm :: BPM -> Double -> Phrase -> IO ()
-playRhythm bpm t0 = spawn t0 bpm . 
+playRhythm bpm t0 = spawn t0 bpm .
                  mkRhythms rhythmDefault rhythmGroup (scanl (+) 0 rhythmDur)
 
 -- | Synth node mapping.
@@ -258,12 +258,12 @@ appleTeaTree :: SCTree
 appleTeaTree =
   Group 0
    [Group 1
-    [Group controlGroup 
-     [Synth preampId "simpleLfNoise2" 
+    [Group controlGroup
+     [Synth preampId "simpleLfNoise2"
       ["out":=preampBus, "mul":=5, "add":=1, "freq":=2.17],
       Synth panId "simpleLfNoise2"
       ["out":=panBus, "mul":=0.5, "add":=0, "freq":=0.75]],
-     Group sourceGroup 
+     Group sourceGroup
      [Synth chorus1 "appleChorus" ["out":=chorusBus, "amp":=0],
       Synth chorus2 "appleChorus" ["out":=chorusBus, "amp":=0],
       Synth chorus3 "appleChorus" ["out":=chorusBus, "amp":=0],
@@ -271,31 +271,31 @@ appleTeaTree =
       Group rhythmGroup []],
      Group fxGroup
      [Synth (inFxGrp 11) "simpleReverb"
-      ["outBus":=hatBus, "inBus":=hatBus, 
+      ["outBus":=hatBus, "inBus":=hatBus,
        "mix":=0.08, "damp":=0.8, "room":=0.2],
-      Synth (inFxGrp 12) "simpleReverb"
-      ["outBus":=snareBus, "inBus":=snareBus, 
-       "mix":=0.19, "damp":=0.3, "room":=0.4],
-      Synth (inFxGrp 13) "simpleReverb"
-      ["outBus":=kickBus, "inBus":=kickBus, 
-       "mix":=0.02, "damp":=0.7, "room":=0.19],
-
-      Synth (inFxGrp 21) "simpleGain"
+      Synth (inFxGrp 12) "simpleGain"
       ["outBus":=hatBus, "inBus":=hatBus, "preamp":=1, "amp":=1],
+      Synth (inFxGrp 13) "simplePan"
+      ["outBus":=0, "inBus":=hatBus, "pan":=0.11],
+
+      Synth (inFxGrp 21) "simpleReverb"
+      ["outBus":=snareBus, "inBus":=snareBus,
+       "mix":=0.19, "damp":=0.3, "room":=0.4],
       Synth (inFxGrp 22) "simpleGain"
       ["outBus":=snareBus, "inBus":=snareBus, "preamp":=1, "amp":=0.5],
-      Synth (inFxGrp 23) "simpleGain"
-      ["outBus":=kickBus, "inBus":=kickBus, "preamp":=1, "amp":=1],
-
-      Synth (inFxGrp 31) "simplePan" 
-      ["outBus":=0, "inBus":=hatBus, "pan":=0.11],
-      Synth (inFxGrp 32) "simplePan" 
+      Synth (inFxGrp 23) "simplePan"
       ["outBus":=0, "inBus":=snareBus, "pan":=(-0.19)],
-      Synth (inFxGrp 33) "simplePan" 
+
+      Synth (inFxGrp 31) "simpleReverb"
+      ["outBus":=kickBus, "inBus":=kickBus,
+       "mix":=0.02, "damp":=0.7, "room":=0.19],
+      Synth (inFxGrp 32) "simpleGain"
+      ["outBus":=kickBus, "inBus":=kickBus, "preamp":=1, "amp":=1],
+      Synth (inFxGrp 33) "simplePan"
       ["outBus":=0, "inBus":=kickBus, "pan":=0.03],
 
       Synth (inFxGrp 41) "simpleReverb"
-      ["outBus":=leadBus, "inBus":=leadBus, 
+      ["outBus":=leadBus, "inBus":=leadBus,
        "mix":=0.9, "damp":=0.9, "room":=0.9],
       Synth (inFxGrp 42) "simpleGain"
       ["outBus":=leadBus, "inBus":=leadBus, "preamp":=1, "amp":=1],
@@ -303,7 +303,7 @@ appleTeaTree =
       ["outBus":=0, "inBus":=leadBus, "pan":=(-0.1)],
 
       Synth (inFxGrp 51) "simpleGain"
-      ["outBus":=chorusBus, "inBus":=chorusBus, 
+      ["outBus":=chorusBus, "inBus":=chorusBus,
        "preamp":<-preampBus, "amp":=0.2],
       Synth (inFxGrp 52) "simpleReverb"
       ["outBus":=chorusBus, "inBus":=chorusBus,
@@ -338,7 +338,7 @@ bassBus :: Num a => a
 bassBus = 107
 
 preampBus, panBus :: Num a => a
-preampBus = 1001 
+preampBus = 1001
 panBus = 1002
 
 chorus1, chorus2, chorus3 :: Num a => a
@@ -399,7 +399,7 @@ rhythm09 = normalizeR $ M.fromList
    ("appleKick",  [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0])]
 
 rhythmVerse01 :: Phrase
-rhythmVerse01 = M.unionsWith (++) 
+rhythmVerse01 = M.unionsWith (++)
   [rhythm05, rhythm05, rhythm05, rhythm05,
    rhythm05, rhythm05, rhythm05, rhythm05,
    rhythm05, rhythm05, rhythm05, rhythm05,
@@ -419,7 +419,7 @@ rhythmVerse01 = M.unionsWith (++)
    rhythm09, rhythm07, rhythm09, rhythm06,
    rhythm09, rhythm09, rhythm09, rhythm09,
    rhythm09, rhythm09, rhythm05, rhythm08]
-  
+
 rhythmG :: Int -> StdGen -> Phrase
 rhythmG n g0 = normalizeR $ M.fromList
   [("appleHat",   take n $ choices [1..4] g0),
@@ -473,17 +473,34 @@ bassG g0 = M.fromList
    ("amp",  choices [0.2,0.3,0.4] g0),
    ("out",  repeat bassBus)]
 
+-- | Plays each events with forking threads. CPU friendly than playing testE
+-- in single thread.
 testy :: IO [ThreadId]
 testy = do
   let bpm = 130
       e = mkSNewWithDur "appleLead" sourceGroup (M.map cycle melody01)
-          `mappend` 
+          `mappend`
           mkSNewWithDur "appleLead" sourceGroup (M.map cycle melody02)
   t1 <- forkIO . spawn 4 bpm $ e
-  t2 <- forkIO . spawn 4 bpm . mkRhythms rhythmDefault rhythmGroup 
+  t2 <- forkIO . spawn 4 bpm . mkRhythms rhythmDefault rhythmGroup
         (scanl (+) 0 rhythmDur) . M.map cycle $ rhythmVerse01
   t3 <- forkIO . playRhythm bpm 4 . rhythmS =<< newStdGen
   t4 <- forkIO . spawn 4 bpm $ mkChorus
-  t5 <- forkIO . spawn 4 bpm . setMonoEvent bass1 . 
+  t5 <- forkIO . spawn 4 bpm . setMonoEvent bass1 .
         M.map cycle . bassG =<< newStdGen
   return [t1,t2,t3,t4,t5]
+
+-- | Noticed that spawning merged events eats cpu more thatn forking each
+-- events in separate thread.
+testE :: IO (Event OSC)
+testE = do
+  let mkMelody = mkSNewWithDur "appleLead" sourceGroup . M.map cycle
+      e1 = mkMelody melody01
+      e2 = mkMelody melody02
+      e3 = mkRhythms rhythmDefault rhythmGroup (scanl (+) 0 rhythmDur) .
+           M.map cycle $ rhythmVerse01
+      e4 = mkChorus
+  e5 <- mkRhythms rhythmDefault rhythmGroup (scanl (+) 0 rhythmDur) .
+        rhythmS <$> newStdGen
+  e6 <- setMonoEvent bass1 . M.map cycle . bassG <$> newStdGen
+  return $ mconcat [e1,e2,e3,e4,e5,e6]
