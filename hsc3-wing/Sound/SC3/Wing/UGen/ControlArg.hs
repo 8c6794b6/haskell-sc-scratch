@@ -2,7 +2,7 @@
 -- | Common names for controls. Intended to use with @qualified@ import.
 -- 
 
-module Sound.SC3.Wing.ControlArg where
+module Sound.SC3.Wing.UGen.ControlArg where
 
 import Sound.SC3.Wing.Util
 
@@ -21,32 +21,31 @@ decay = "decay" @= 4
 decayScale = "decayScale" @= 1
 delay = "delay" @= 0.2
 dur = "dur" @= 1
+end = "end" @= 0
 ffreq = "ffreq" @= 440
 freq = "freq" @= 440
 freqlag = "freqlag" @= 1
-end = "end" @= 0
 gain = "gain" @= 1
 gate = "gate" @= 0
-in' = "in" @= 0
-inBus = "inBus" @= 0
 i_bus = "i_bus" @= 10
 i_end = "i_end" @= 500
 i_out = "i_out" @= 0
 i_start = "i_start" @= 1000
 i_time = "i_time" @= 1
+in' = "in" @= 0
+inBus = "inBus" @= 0
 lfoBus = "lfobus" @= 0
 mix = "mix" @= 0
-mod = "mod" @= 1
 mul = "mul" @= 0.1
 mw = "mw" @= 0
 out = "out" @= 0 
 outBus = "outBus" @= 0
 pan = "pan" @= 0
-plfofreq = "plfofreq" @= 1
 pitch = "pitch" @= 1
+plfofreq = "plfofreq" @= 1
 postGain = "postGain" @= 1
-preamp = "preamp" @= 1
 preGain = "preGain" @= 1
+preamp = "preamp" @= 1
 range = "range" @= 1
 rate = "rate" @= 1
 rez = "rez" @= 1
