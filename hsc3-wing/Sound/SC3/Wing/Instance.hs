@@ -124,19 +124,19 @@ con_Special = mkConstr ty_Special "Special" [] Prefix
 ty_Special = mkDataType "Sound.SC3.UGen.Special" [con_Special]
 
 
-instance Typeable UGenId where
-    typeOf _ = mkTyConApp tc_UGenId []
+-- instance Typeable UGenId where
+--     typeOf _ = mkTyConApp tc_UGenId []
 
-tc_UGenId = mkTyCon "Sound.SC3.UGen.UGen"
+-- tc_UGenId = mkTyCon "Sound.SC3.UGen.UGen"
 
-instance Data UGenId where
-    gfoldl k z (UGenId a) = z UGenId `k` a
-    gunfold k z c = k (z UGenId)
-    toConstr (UGenId _) = con_UGenId
-    dataTypeOf _ = ty_UGenId
+-- instance Data UGenId where
+--     gfoldl k z (UGenId a) = z UGenId `k` a
+--     gunfold k z c = k (z UGenId)
+--     toConstr (UGenId _) = con_UGenId
+--     dataTypeOf _ = ty_UGenId
 
-con_UGenId = mkConstr ty_UGenId "UGenId" [] Prefix
-ty_UGenId = mkDataType "Sound.SC3.UGen.UGen" [con_UGenId]
+-- con_UGenId = mkConstr ty_UGenId "UGenId" [] Prefix
+-- ty_UGenId = mkDataType "Sound.SC3.UGen.UGen" [con_UGenId]
 
 
 instance Typeable Rate where
@@ -179,7 +179,7 @@ tc_UGen = mkTyCon "Sound.SC3.UGen.UGen"
 
 instance Data UGen where
     gfoldl k z (Constant a) = z Constant `k` a
-    gfoldl k z (Control a b c) = z Control `k` a `k` b `k` c
+    gfoldl k z (Control a b c d) = z Control `k` a `k` b `k` c `k` d
     gfoldl k z (Primitive a b c d e f) =
         z Primitive `k` a `k` b `k` c `k` d `k` e `k` f
     gfoldl k z (Proxy a b) = z Proxy `k` a `k` b
@@ -188,14 +188,14 @@ instance Data UGen where
 
     gunfold k z c = case constrIndex c of
                       1 -> k (z Constant)
-                      2 -> k (k (k (z Control)))
+                      2 -> k (k (k (k (z Control))))
                       3 -> k (k (k (k (k (k (z Primitive))))))
                       4 -> k (k (z Proxy))
                       5 -> k (z MCE)
                       6 -> k (k (z MRG))
 
     toConstr (Constant _) = con_Constant
-    toConstr (Control _ _ _) = con_Control
+    toConstr (Control _ _ _ _) = con_Control
     toConstr (Primitive _ _ _ _ _ _) = con_Primitive
     toConstr (Proxy _ _) = con_Proxy
     toConstr (MCE _) = con_MCE

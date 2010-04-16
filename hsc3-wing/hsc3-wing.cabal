@@ -1,5 +1,5 @@
 Name:		hsc3-wing
-Version:	0.0.0
+Version:	0.0.1
 Synopsis:       Extension to hsc3
 Description:    Extension to hsc3 haskell supercollider3 client language.
                 Still in extremely early stage of development. Terribly scratch.
@@ -16,6 +16,7 @@ library
   Exposed-Modules:
     Sound.SC3.Wing
     Sound.SC3.Wing.Instance
+    Sound.SC3.Wing.Phrase
     Sound.SC3.Wing.Query
     Sound.SC3.Wing.Schedule
     Sound.SC3.Wing.Tree
@@ -32,6 +33,6 @@ library
     random,
     syb,
     mtl,
-    hosc >= 0.7,
-    hsc3 >= 0.7,
+    hosc >= 0.8,
+    hsc3 >= 0.8,
     reactive >= 0.11.4

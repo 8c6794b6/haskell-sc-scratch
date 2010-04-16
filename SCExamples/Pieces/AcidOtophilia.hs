@@ -30,16 +30,10 @@ import qualified Data.Map as M
 import FRP.Reactive
 import Sound.OpenSoundControl
 import Sound.SC3
+import Sound.SC3.Monadic
 
 import Sound.SC3.Wing
-import qualified Sound.SC3.Wing.ControlArg as A
-
--- import Missing
--- import Reusable
--- import SCSched
--- import SCTree
--- import SCQuery
--- import qualified Scratch.ControlArgs as A
+import qualified Sound.SC3.Wing.UGen.ControlArg as A
 
 runAcidOtophilia :: IO ()
 runAcidOtophilia = do

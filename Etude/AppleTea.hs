@@ -26,6 +26,7 @@ import qualified Data.Map as M
 
 import Sound.OpenSoundControl
 import Sound.SC3
+import Sound.SC3.Monadic
 import Sound.SC3.Wing
 import qualified Sound.SC3.Wing.UGen.ControlArg as A
 

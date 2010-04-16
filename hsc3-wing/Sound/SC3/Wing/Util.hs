@@ -56,14 +56,14 @@ reloadSynthdef fd = do
 type SendUDP a = UDP -> IO a
 
 -- | Get rate, name, and default value of controls from given ugen.
-getControls :: UGen -> [(Rate,String,Double)]
+getControls :: UGen -> [(Rate,String,Double,Bool)]
 getControls = nub . getControls'
 
-getControls' :: UGen -> [(Rate,String,Double)]
+getControls' :: UGen -> [(Rate,String,Double,Bool)]
 getControls' ug =
     case ug of
       Constant _ -> []
-      Control rate name def -> [(rate,name,def)]
+      Control rate name def trig -> [(rate,name,def,trig)]
       Primitive _ _ inputs _ _ _ -> concatMap getControls' inputs
       Proxy src _ -> getControls' src
       MCE ugs -> concatMap getControls' ugs
@@ -204,21 +204,21 @@ a @~ b = \c -> lag (a @= b) c
 -- Copied from current head of darcs repository.
 
 -- List of asynchronous server commands.
-async_cmds :: [String]
-async_cmds = ["/d_recv", "/d_load", "/d_loadDir"
-             ,"/b_alloc", "/b_allocRead", "/b_allocReadChannel"
-             ,"/b_free", "/b_close"
-             ,"/b_read", "/b_readChannel"
-             ,"/b_write", "/b_zero"]
+-- async_cmds :: [String]
+-- async_cmds = ["/d_recv", "/d_load", "/d_loadDir"
+--              ,"/b_alloc", "/b_allocRead", "/b_allocReadChannel"
+--              ,"/b_free", "/b_close"
+--              ,"/b_read", "/b_readChannel"
+--              ,"/b_write", "/b_zero"]
 
 -- | Add a completion message to an existing asynchronous command.
-withCM :: OSC -> OSC -> OSC
-withCM (Message c xs) cm =
-    if c `elem` async_cmds
-    then let xs' = xs ++ [Blob (B.unpack (encodeOSC cm))]
-         in Message c xs'
-    else error ("withCM: not async: " ++ c)
-withCM _ _ = error "withCM: not message"
+-- withCM :: OSC -> OSC -> OSC
+-- withCM (Message c xs) cm =
+--     if c `elem` async_cmds
+--     then let xs' = xs ++ [Blob (B.unpack (encodeOSC cm))]
+--          in Message c xs'
+--     else error ("withCM: not async: " ++ c)
+-- withCM _ _ = error "withCM: not message"
 
 -- | Fit in specified range with using @mod@.
 fitInRange :: Integral a => a -> a -> a -> a
