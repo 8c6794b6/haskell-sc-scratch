@@ -10,7 +10,7 @@
 -- MIDI Extension to hsc3.
 --
 
-module Sound.SC3.Wing.MIDI 
+module Sound.SC3.Wing.MIDI
     ( withMIDI
     ) where
 
@@ -22,12 +22,16 @@ import Sound.Alsa.Sequencer
 
 -- | Like @withEvents@ found in Sound.ALSA.Sequencer module, invoke
 -- given action with MIDI input event.
-withMIDI :: String -> String -> (Event -> IO a) -> IO a
-withMIDI clientName portName action = do
+-- Event datatype used here is from Sound.Alsa package.
+--
+withMIDI :: String  -- ^ Name of client exposed to alsa
+         -> (Event -> IO a) -- ^ Action invoked with midi events.
+         -> IO a
+withMIDI clientName action = do
   bracket (getSeq clientName) close worker
     where
       worker aseq = do
-        _ <- getWriteablePort aseq portName
+        _ <- getWriteablePort aseq "input"
         forever (action =<< event_input aseq)
 
 -- | Get sequencer handler with given client name.
@@ -42,6 +46,3 @@ getWriteablePort :: SndSeq -> String -> IO Port
 getWriteablePort s name =
     create_simple_port s name cap type_midi_generic
         where cap = caps [cap_write, cap_subs_write, cap_sync_write]
-
-
-
