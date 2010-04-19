@@ -10,6 +10,7 @@ import qualified Data.IntMap as IM
 import Sound.Alsa.Sequencer
 import Sound.OpenSoundControl
 import Sound.SC3
+import Sound.SC3.ID
 import Sound.SC3.Wing.MIDI
 
 -- | Run this either from ghci or compiled program, and connect with
@@ -99,8 +100,10 @@ setSC fd = do
 gatedSynth :: UGen
 gatedSynth = out 0 $ mce [sig, sig]
     where
-      sig = sinOsc ar f 0 * 0.2 * e
+      sig = sinOsc ar mod 0 * 0.2 * e
+      mod = sinOsc ar (f*1.5) 0 * f + f * ((modMul+1)*0.005)
+      modMul = lfNoise1 'a' ar 4.5
       f = control kr "freq" 440
       e = envGen kr g 1 0 1 RemoveSynth shp
       g = control kr "gate" 1
-      shp = env [0,1,0.5,0] [0.02,0.2,0.1] [EnvCub, EnvLin,EnvSin] 1 0
+      shp = env [0,1,0.5,0] [0.02,0.05,0.1] [EnvCub, EnvLin,EnvSin] 1 0
