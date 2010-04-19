@@ -20,7 +20,7 @@ import Sound.SC3
 -- import qualified Scratch.ControlArgs as A
 
 import Sound.SC3.Wing
-import qualified Sound.SC3.Wing.ControlArg as A
+import qualified Sound.SC3.Wing.UGen.ControlArg as A
 
 playGates :: BPM -> IO ()
 playGates bpm = spawn 0 bpm $ mapToE gateNID (M.map cycle gateMap)
