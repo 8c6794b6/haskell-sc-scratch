@@ -11,6 +11,9 @@
 
 module NoteOnOff where
 
+import Control.Monad.State
+import Data.IntMap (IntMap)
+import qualified Data.IntMap as IM
 import Sound.Alsa.Sequencer
 import Sound.OpenSoundControl
 import Sound.SC3
@@ -19,6 +22,8 @@ import Sound.SC3.Wing.MIDI
 -- | Invoke this code and connect with MIDI keyboard.
 main :: IO ()
 main = withMIDI "NoteOnOff" (worker . ev_data)
+-- main = withMIDI "NoteOnOff" (worker2 initialKeyboardstate . ev_data)
+
 
 -- | Worker of this code.
 worker :: EventData -> IO ()
@@ -34,6 +39,7 @@ mkGated m = do
   withSC3 $ \fd -> send fd $ Bundle (UTCr $ now + ltc)
             [s_new "gatedSynth" (fromIntegral m + nodeIdOffset) AddToTail 1
              [("freq", midiCPS . fromIntegral $ m)]]
+
 
 -- | Free the node related to given MIDI note number.
 freeGated :: Integral n => n -> IO ()
