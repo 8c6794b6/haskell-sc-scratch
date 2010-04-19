@@ -12,11 +12,14 @@ import Sound.OpenSoundControl
 import Sound.SC3
 import Sound.SC3.Wing.MIDI
 
+-- | Run this either from ghci or compiled program, and connect with
+-- MIDI keyboard.
 main :: IO ()
 main = do
   var <- newMVar initialKeyboardState
   withMIDI "NoteOnOff2" (worker var . ev_data)
 
+-- | Datatype to hold the state of 
 data KeyboardState = KeyboardState {kbCurrentNodeId :: Int,
                                     kbCurrentMap :: IntMap Int}
                      deriving (Eq)
@@ -27,15 +30,18 @@ instance Show KeyboardState where
 
 -- | Initial KeyboardState, with scsynth node Id offset and empty IntmMap.
 initialKeyboardState :: KeyboardState
-initialKeyboardState = KeyboardState 10000 IM.empty
+initialKeyboardState = KeyboardState nodeIdOffset IM.empty
+
+nodeIdOffset :: Int
+nodeIdOffset = 10000
 
 -- | Worker that do the task:
 --
 -- * With NoteOn message, send s_new Message and update the current id
 --   and add the (MIDI notenumber, scsynth nodeId) to IntMap in the state
 --
--- * With NoteOff message, send n_free Message and delte the
---   acoompanied elemente IntMap.
+-- * With NoteOff message, send n_set Message set @"gate"@ control
+--   value to 0, and delte the acoompanied elemente IntMap.
 --
 -- * With other message than NoteOn nor NoteOff, print the message.
 --
@@ -45,7 +51,7 @@ worker var (NoteEv NoteOff n) = goFreeNode var n
 worker _ e = print e
 
 -- | Send s_new message to scsynth and update the state.
-sgoNewNode :: MVar KeyboardState -> Note -> IO ()
+goNewNode :: MVar KeyboardState -> Note -> IO ()
 goNewNode var n = do
   now <- utcr
   st@(KeyboardState i _) <- takeMVar var
@@ -55,12 +61,17 @@ goNewNode var n = do
 -- | Add (MIDI note number, sc nodeId) pair into IntMap.
 addNoteToState :: Integral n => KeyboardState -> n -> KeyboardState
 addNoteToState (KeyboardState i m) n =
-    KeyboardState (i+1) $ IM.insert (fromIntegral n) i m
+    KeyboardState (getNextNodeId i) $ IM.insert (fromIntegral n) i m
+
+-- | Make scsynth node id to fit in range from offSet to (offSet+127).
+getNextNodeId :: Int -> Int
+getNextNodeId i = ((i+1-nodeIdOffset) `mod` 128) + nodeIdOffset
 
 -- | Returns OSC message with given pitch in MIDI Note.
 nToO :: Integral n => Int -> n -> OSC
 nToO i n = s_new "gatedSynth" i AddToTail 1
            [("freq", midiCPS . fromIntegral $ n)]
+
 -- | latency
 ltc :: Double
 ltc = 0.05
@@ -84,7 +95,7 @@ setSC fd = do
   send fd $ d_recv $ synthdef "gatedSynth" gatedSynth
   wait fd "/done"
 
--- | Synthdef with envelope controlled with @gate@ value.
+-- | Synthdef with released with changing @gate@ control argument.
 gatedSynth :: UGen
 gatedSynth = out 0 $ mce [sig, sig]
     where
@@ -92,4 +103,4 @@ gatedSynth = out 0 $ mce [sig, sig]
       f = control kr "freq" 440
       e = envGen kr g 1 0 1 RemoveSynth shp
       g = control kr "gate" 1
-      shp = env [0,1,0.5,0] [0.02,0.1,0.05] [EnvCub, EnvLin,EnvSin] 1 0
+      shp = env [0,1,0.5,0] [0.02,0.2,0.1] [EnvCub, EnvLin,EnvSin] 1 0
