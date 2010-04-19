@@ -19,15 +19,17 @@ worker :: Event -> IO ()
 worker ev = 
     case ev_data ev of
       NoteEv ne n -> worker' ne n
-      _ -> return ()
+      _           -> return ()
 
 worker' :: NoteEv -> Note -> IO ()
 worker' NoteOn n = do
   now <- utcr
   withSC3 $ \fd -> send fd $ Bundle (UTCr $ now + latency) [n2o n]
-      where latency = 0.05
-            n2o :: Note -> OSC
-            n2o n = s_new "pitchedSynth" (-1) AddToTail 1 
+      where 
+        latency :: Double
+        latency = 0.05
+        n2o :: Note -> OSC
+        n2o n = s_new "pitchedSynth" (-1) AddToTail 1 
                     [("freq", midiCPS $ fromIntegral $ note_note n)]
 worker' _ _ = return ()
 
