@@ -2,8 +2,12 @@
 -- |
 --
 -- Module to play with NoteOn and NoteOff message.
--- Problem is, not suited to play same note in quickly repeated manner.
---
+-- Problem is, not suited to play same note in quickly repeated
+-- manner.
+-- 
+-- Could this behavior avoided by using state to hold the (key,value)
+-- of node id and MIDI note number ... hmm, try it.  
+-- 
 
 module NoteOnOff where
 
