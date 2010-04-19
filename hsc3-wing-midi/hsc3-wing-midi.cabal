@@ -1,5 +1,5 @@
 Name:		hsc3-wing-midi
-Version:	0.0.0
+Version:	0.0.1
 Synopsis:       Extension to hsc3, MIDI things
 Description:    Extension to hsc3 haskell supercollider3 client language.
                 Still in extremely early stage of development. Terribly scratch.
