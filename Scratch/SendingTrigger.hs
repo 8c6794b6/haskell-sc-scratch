@@ -8,8 +8,7 @@ import Control.Monad (forever)
 
 import Sound.OpenSoundControl
 import Sound.SC3
-
-import SCTree
+import Sound.SC3.Monadic
 
 main :: IO ()
 main = withSC3 $ \fd -> do
