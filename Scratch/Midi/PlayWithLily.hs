@@ -1,3 +1,6 @@
+------------------------------------------------------------------------------
+-- | Playing with midi file created with lilypond.
+
 module Scratch.Midi.PlayWithLily where
 
 import Control.Applicative
@@ -30,10 +33,10 @@ newOrFree (p, 0) = do
   let nid = maybe (-1) id $ IntMap.lookup p m
   return $ n_set nid [("gate", 0)]
 newOrFree (p, _) = do
-  NodeState os m <- get
-  let m' = IntMap.insert p os m
-  put $ NodeState (os+1) m'
-  return $ s_new "simpleGated" os AddToTail 1
+  NodeState cur m <- get
+  let m' = IntMap.insert p cur m
+  put $ NodeState (cur+1) m'
+  return $ s_new "simpleGated" cur AddToTail 1
              [("freq", midiCPS $ fromIntegral p)]
 
 newOrFreeList :: (Num a) => (d, [(Int, a)]) -> State NodeState (d, [OSC])
