@@ -85,6 +85,7 @@ timeBodyToTuple = map f . collectMIDIEvent
     where f (a, b)= (fromInteger . MIDIEvent.fromElapsedTime $ a,
                      catMaybes $ map midiEventToTuple b)
 
+-- | Shift times defined in  midi file to fit to SeqEvent OSC.
 shiftTime :: (Num t) => [(t, a)] -> [(t, a)]
 shiftTime [] = []
 shiftTime ((t1,v1):[]) = [(t1,v1)]
@@ -94,11 +95,13 @@ midiToPV :: (Fractional a, Num b, Num c) => MIDIFile.T -> [(a, [(b, c)])]
 midiToPV = map (first (/ 384)) . shiftTime . concat .
            map timeBodyToTuple . tail . getTracks
 
+-- | Make s_new message for percussive pitched synth.
 percSynthNew :: String -> Int -> (Double, Double) -> Maybe OSC
 percSynthNew _ _ (p,0) = Nothing
 percSynthNew name grp (p,v) = Just osc
     where osc = s_new name (-1) AddToTail grp [("freq", midiCPS p)]
 
+-- | Plays single track midi file with percussive synthdef.
 playPercSynth :: FilePath -> BPM -> String -> IO ()
 playPercSynth file bpm name =
     runSeqOSC bpm =<<
