@@ -1,11 +1,13 @@
 ------------------------------------------------------------------------------
 -- | Scratch to play with command line interface to control node's params.
 --
+-- After adding synth node to scsynth, try giving the node id as argument and
+-- start this code. 
+-- 
 
 module Scratch.CLI.NodeControl where
 
-import Control.Applicative hiding ((<|>), many)
-import Control.Monad.State
+import Control.Monad.State (lift)
 import Data.Generics
 import System.Environment (getArgs)
 import Text.Parsec
@@ -16,23 +18,25 @@ import Sound.SC3.Wing hiding (string)
 import System.Console.Haskeline
 
 main :: IO ()
-main = undefined
+main = do
+  arg <- getArgs
+  nodeControl (read $ head arg) s 
 
 -- | Start a command line interface for controlling specifyed node in synth server.
-nodeControl :: Transport t => Int -> t -> IO ()
-nodeControl nodeId fd = do
+nodeControl :: Transport t => Int -> IO t -> IO ()
+nodeControl nid fd = do
   runInputT setting01 loop
       where
         loop :: InputT IO ()
         loop = do
-          inputLine <- getInputLine ("node:" ++ show nodeId ++ "> ")
+          inputLine <- getInputLine ("nid:" ++ show nid ++ "> ")
           case inputLine of
             Nothing    -> return ()
             Just "q"   -> return ()
             Just "h"   -> lift showHelp >> loop
             Just ""    -> loop
             Just input -> 
-               lift (runCmd nodeId (maybe Free id (parseCmd input)) fd) >> 
+               lift (runCmd nid (maybe Ignore id (parseCmd input)) fd) >> 
                loop
 
 -- | Setting for haskeline cli loop.
@@ -53,6 +57,7 @@ data Cmd = Dump
          | Free
          | Get String
          | Set String Double
+         | Ignore
            deriving (Eq, Show, Read)
 
 -- | Parses input.
@@ -66,7 +71,7 @@ data Cmd = Dump
 -- * dump 
 --   * Dumps the parameter name and value.
 -- * free
---   * Frees the node.
+--   * Free the node.
 -- 
 parseCmd :: String -> Maybe Cmd
 parseCmd xs = case res of 
@@ -75,6 +80,7 @@ parseCmd xs = case res of
     where
       res = runParser cmdParser "" "" xs 
 
+cmdParser :: Parsec String a Cmd
 cmdParser = parseDump <|> parseFree <|> parseGet <|> parseSet
 
 parseDump :: Parsec String a Cmd
@@ -91,10 +97,17 @@ parseGet = do
   return (Get name)
                
 parseSet :: Parsec String a Cmd
-parseSet = undefined
+parseSet = do
+  (n,v) <- do { string "set";
+                spaces;
+                name <- many (alphaNum <|> oneOf "._");
+                spaces ;
+                value <- many (digit <|> oneOf "-.");
+                return (name, value)}
+  return (Set n (read v))
 
 -- | Runs command with given nodeId and given server.
-runCmd :: Transport t => Int -> Cmd -> t -> IO ()
+runCmd :: Transport t => Int -> Cmd -> IO t -> IO ()
 runCmd n Dump t = wT t $ \fd -> do
   osc <- queryTree fd
   let tree = parseOSC osc
@@ -108,6 +121,7 @@ runCmd n (Get p) t = wT t $ \fd -> do
   let [(Float v)] = drop 2 dtms
   print v
 runCmd n (Set p v) t = wT t (\fd -> send fd $ n_set n [(p, v)])
+runCmd _ Ignore _ = return ()
 
 -- | Get specified node from tree.
 getNodeById :: Data a => Int -> a -> [SCTree]
@@ -123,9 +137,8 @@ getParams (Group _ _) = []
 getParams (Synth _ _ ps) = ps
 
 -- | Variant of @withTransport@.
-wT :: (Transport t) => t -> (t -> IO a) -> IO a
-wT t = withTransport (return t)
-
+wT :: (Transport t) => IO t -> (t -> IO a) -> IO a
+wT = withTransport
 
 --
 -- For testing
@@ -137,10 +150,3 @@ addTestNode nid = withSC3 $ \fd -> send fd msg
     where
       msg = s_new "default" nid AddToTail 1 []
 
-tryNQuery :: Int -> IO OSC
-tryNQuery nid =
-    withSC3 $ \fd -> do
-      send fd $ notify True
-      wait fd "/done"
-      send fd $ n_query [nid]
-      wait fd "/n_info"
