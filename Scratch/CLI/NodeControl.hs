@@ -4,7 +4,7 @@
 
 module Scratch.CLI.NodeControl where
 
-import Control.Applicative
+import Control.Applicative hiding ((<|>), many)
 import Control.Monad.State
 import Data.Generics
 import System.Environment (getArgs)
@@ -12,7 +12,7 @@ import Text.Parsec
 
 import Sound.OpenSoundControl
 import Sound.SC3
-import Sound.SC3.Wing
+import Sound.SC3.Wing hiding (string)
 import System.Console.Haskeline
 
 main :: IO ()
@@ -31,7 +31,9 @@ nodeControl nodeId fd = do
             Just "q"   -> return ()
             Just "h"   -> lift showHelp >> loop
             Just ""    -> loop
-            Just input -> lift (runCmd nodeId (parseCmd input) fd) >> loop
+            Just input -> 
+               lift (runCmd nodeId (maybe Free id (parseCmd input)) fd) >> 
+               loop
 
 -- | Setting for haskeline cli loop.
 setting01 :: Settings IO
@@ -54,8 +56,42 @@ data Cmd = Dump
            deriving (Eq, Show, Read)
 
 -- | Parses input.
-parseCmd :: String -> Cmd
-parseCmd xs = undefined
+-- 
+-- Example inputs:
+-- 
+-- * set /NAME/ /VALUE/
+--   * NAME is name of parameter, VALUE is in Double.
+-- * get /NAME/
+--   * NAME is name of parameter.
+-- * dump 
+--   * Dumps the parameter name and value.
+-- * free
+--   * Frees the node.
+-- 
+parseCmd :: String -> Maybe Cmd
+parseCmd xs = case res of 
+                Left _ -> Nothing
+                Right cmd -> Just cmd
+    where
+      res = runParser cmdParser "" "" xs 
+
+cmdParser = parseDump <|> parseFree <|> parseGet <|> parseSet
+
+parseDump :: Parsec String a Cmd
+parseDump = string "dump" >> return Dump
+
+parseFree :: Parsec String a Cmd
+parseFree = string "free" >> return Free
+
+parseGet :: Parsec String a Cmd
+parseGet = do
+  name <- do {string "get"; 
+              spaces; 
+              many (alphaNum <|> oneOf "._")}
+  return (Get name)
+               
+parseSet :: Parsec String a Cmd
+parseSet = undefined
 
 -- | Runs command with given nodeId and given server.
 runCmd :: Transport t => Int -> Cmd -> t -> IO ()
