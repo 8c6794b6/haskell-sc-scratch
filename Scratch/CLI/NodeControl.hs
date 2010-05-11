@@ -6,6 +6,7 @@ module Scratch.CLI.NodeControl where
 
 import Control.Applicative
 import Control.Monad.State
+import Data.Generics
 import System.Environment (getArgs)
 import Text.Parsec
 
@@ -58,7 +59,12 @@ parseCmd xs = undefined
 
 -- | Runs command with given nodeId and given server.
 runCmd :: Transport t => Int -> Cmd -> t -> IO ()
-runCmd n Dump t = undefined
+runCmd n Dump t = wT t $ \fd -> do
+  osc <- queryTree fd
+  let tree = parseOSC osc
+      node = getNodeById n tree
+      params = concatMap getParams node
+  mapM_ print params
 runCmd n Free t = wT t (\fd -> send fd $ n_free [n])
 runCmd n (Get p) t = wT t $ \fd -> do
   send fd $ s_get n [p]
@@ -67,9 +73,27 @@ runCmd n (Get p) t = wT t $ \fd -> do
   print v
 runCmd n (Set p v) t = wT t (\fd -> send fd $ n_set n [(p, v)])
 
+-- | Get specified node from tree.
+getNodeById :: Data a => Int -> a -> [SCTree]
+getNodeById nid a = everything (++) ([] `mkQ` f) a
+    where
+      f s@(Synth _ nid _) = [s]
+      f _ = []
+
+-- | Get parameter name and value from Synth. Empty list would be returned when
+-- Group is given.
+getParams :: SCTree -> [SynthParam]
+getParams (Group _ _) = []
+getParams (Synth _ _ ps) = ps
+
 -- | Variant of @withTransport@.
 wT :: (Transport t) => t -> (t -> IO a) -> IO a
 wT t = withTransport (return t)
+
+
+--
+-- For testing
+--
 
 -- | Adds default synth.
 addTestNode :: Int -> IO ()
