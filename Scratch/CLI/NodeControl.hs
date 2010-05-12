@@ -119,18 +119,18 @@ parseSet = do
 
 -- | Runs command with given nodeId and given server.
 runCmd :: Transport t => Int -> Cmd -> IO t -> IO ()
-runCmd n Dump t = wT t $ \fd -> do
+runCmd n Dump t = withTransport t $ \fd -> do
   osc <- queryTree fd
   let node = getNodeById n (parseOSC osc)
       params = fmap getParams node
   maybe (return ()) (mapM_ print) params
-runCmd n Free t = wT t (\fd -> send fd $ n_free [n])
-runCmd n (Get p) t = wT t $ \fd -> do
+runCmd n Free t = withTransport t (\fd -> send fd $ n_free [n])
+runCmd n (Get p) t = withTransport t $ \fd -> do
   send fd $ s_get n [p]
   Message _ dtms <- wait fd "/n_set"
   let [(Float v)] = drop 2 dtms
   print v
-runCmd n (Set p v) t = wT t (\fd -> send fd $ n_set n [(p, v)])
+runCmd n (Set p v) t = withTransport t (\fd -> send fd $ n_set n [(p, v)])
 runCmd _ Ignore _ = return ()
 
 
@@ -147,10 +147,6 @@ getNodeById nid a = listToMaybe $ everything (++) ([] `mkQ` f) a
 getParams :: SCTree -> [SynthParam]
 getParams (Group _ _) = []
 getParams (Synth _ _ ps) = ps
-
--- | Variant of @withTransport@.
-wT :: (Transport t) => IO t -> (t -> IO a) -> IO a
-wT = withTransport
 
 --
 -- For testing
