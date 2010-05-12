@@ -15,8 +15,9 @@ import qualified Data.Map as M
 import Control.Applicative.State
 import Sound.OpenSoundControl
 import Sound.SC3
+import Sound.SC3.Monadic
 import Sound.SC3.Wing
-import qualified Sound.SC3.Wing.ControlArg as A
+import qualified Sound.SC3.Wing.UGen.ControlArg as A
 
 main :: IO ()
 main = runPartOne
