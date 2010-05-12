@@ -7,8 +7,10 @@
 
 module Scratch.CLI.NodeControl where
 
+import Control.Monad (join)
 import Control.Monad.State (lift)
 import Data.Generics
+import Data.Maybe
 import System.Environment (getArgs)
 import Text.Parsec
 
@@ -49,8 +51,17 @@ defaultScSynth = openUDP "127.0.0.1" 57110
 
 -- | Show help message.
 showHelp :: IO ()
-showHelp = putStrLn "help is not available yet. \
-                     \Wait a bit."
+showHelp = putStrLn helpMessage
+
+helpMessage :: String
+helpMessage = 
+    "Commands:\n\
+    \ dump           - dump the node's param names and values.\n\
+    \ free           - free the node.\n\
+    \ get NAME       - get the value of param.\n\
+    \ set NAME VALUE - set the value of param.\n\
+    \ q              - quit.\n\
+    \ h              - show this help."
 
 -- | Commands for node.
 data Cmd = Dump
@@ -110,10 +121,9 @@ parseSet = do
 runCmd :: Transport t => Int -> Cmd -> IO t -> IO ()
 runCmd n Dump t = wT t $ \fd -> do
   osc <- queryTree fd
-  let tree = parseOSC osc
-      node = getNodeById n tree
-      params = concatMap getParams node
-  mapM_ print params
+  let node = getNodeById n (parseOSC osc)
+      params = fmap getParams node
+  maybe (return ()) (mapM_ print) params
 runCmd n Free t = wT t (\fd -> send fd $ n_free [n])
 runCmd n (Get p) t = wT t $ \fd -> do
   send fd $ s_get n [p]
@@ -123,11 +133,13 @@ runCmd n (Get p) t = wT t $ \fd -> do
 runCmd n (Set p v) t = wT t (\fd -> send fd $ n_set n [(p, v)])
 runCmd _ Ignore _ = return ()
 
+
 -- | Get specified node from tree.
-getNodeById :: Data a => Int -> a -> [SCTree]
-getNodeById nid a = everything (++) ([] `mkQ` f) a
+getNodeById :: Data a => Int -> a -> Maybe SCTree
+getNodeById nid a = listToMaybe $ everything (++) ([] `mkQ` f) a
     where
-      f s@(Synth _ nid _) = [s]
+      f s@(Synth nid' _ _) | nid == nid' = [s]
+                           | otherwise   = []
       f _ = []
 
 -- | Get parameter name and value from Synth. Empty list would be returned when
