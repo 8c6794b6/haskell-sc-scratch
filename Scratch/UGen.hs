@@ -50,6 +50,7 @@ gateOrgan01 = out 0 $ mce [sig, sig]
       a = control kr "amp" 0.05
       g = control kr "gate" 1
 
+-- | Simple gendy1 synthdef.
 simpleGendy1 :: UGen
 simpleGendy1 = out o $ pan2 sig pos 1 where
     sig = gendy1 ar ampDist durDist adParam ddParam minFreq maxFreq
