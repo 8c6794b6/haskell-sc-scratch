@@ -39,6 +39,13 @@ line1 = para [l1, l2, l3]
       l2 = seri [a 6 qn (), g 6 qn (), g 6 qn ()]
       l3 = seri [c 5 qn (), b 4 qn (), c 5 qn ()]
 
+line2 :: MelodyT ()
+line2 = para [l1, l2, l3]
+    where
+      l1 = seri [e 7 sn (), e 7 sn (), e 7 sn (), e 7 sn ()]
+      l2 = seri [g 6 hn (), g 6 hn ()]
+      l3 = seri [c 5 qn ()]
+
 noteToAttr :: MelodyT a -> Maybe a
 noteToAttr (Primitive x) = fmap (getVal noteAttrs) x' where Atom _ x' = x
 noteToAttr _ = Nothing
@@ -48,7 +55,7 @@ noteToBeat (Primitive x) = 4 * toNumber d where Atom d _ = x
 
 type NoteToOSCs a = Double -> Int -> Maybe a -> [OSC]
 
-f1 :: NoteToOSCs ()
+f1 :: NoteToOSCs a
 f1 _ pch _ = [s_new "simplePitched" (-1) AddToTail 1 
               [("freq", midiCPS $ fromIntegral pch)]]
 
