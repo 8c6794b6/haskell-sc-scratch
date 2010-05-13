@@ -1,11 +1,10 @@
 --------------------------------------------------------------------------------
--- | Instances.
+-- | Additional instance declarations for datat types found in Sound.SC3.
 --
--- UGen, OSC, etc. are not instantiated from Data and Typeable, wrote
--- them by hand. 
---
+-- Currently OSC and UGen are instantiated from Data.Typeable, Data.Data.
+-- 
 
-module Sound.SC3.Wing.Instance where
+module Sound.SC3.Wing.Instance () where
 
 import Data.Generics
 import Data.Data
