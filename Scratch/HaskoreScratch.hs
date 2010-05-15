@@ -7,17 +7,20 @@ module Scratch.HaskoreScratch
     ( Melody,
       FromNote,
       noteToSeqEv,
+      noteToSeqEvNew,
+      noteToSeqEvSet,
       noteToSeqEvGated,
       seri,
       para,
       noteToAttr,
       noteToBeat,
-      noteToPitch
+      noteToPitch, 
+      g1,
+      g2
     ) where
 
 import Control.Monad.State
 import Data.IntMap (IntMap)
-
 
 import Data.Accessor (getVal)
 import Haskore.Basic.Duration
@@ -28,16 +31,15 @@ import Medium.Controlled.List (parallel, serial, T(..))
 import qualified Data.IntMap as IM
 import qualified Medium.Controlled.List as MCL
 
-
 import Sound.OpenSoundControl
-import Sound.SC3 (s_new, midiCPS, AddAction(..), withSC3, reset)
+import Sound.SC3 (s_new, n_set, midiCPS, AddAction(..), withSC3, reset)
 import Sound.SC3.Wing.ScheduleSimple
 
 type Melody a = Haskore.Melody.T a
 
 -- | Type synonym for function to convert a Note to list of OSC.
 type FromNote a b = Double -- ^ Duration
-                  -> Int -- ^ Pitch, in MIDI
+                  -> Int -- ^ Just /Pitch in MIDI/ or Nothing for rest.
                   -> Maybe a -- ^ Note attribute
                   -> (Double, [b])
 
@@ -51,14 +53,26 @@ noteToSeqEv f n@(Serial xs) = concatMap (noteToSeqEv f) xs
 noteToSeqEv f n@(Parallel xs) = foldr (//) [] (map (noteToSeqEv f) xs)
 noteToSeqEv f n@(Control x y) = []
 
+-- | Sends s_new with given list of tuples, adding to tale of target group id
+-- with nodeId (-1).
+noteToSeqEvNew :: String -> Int -> FromNote a (String, Double) -> Melody a -> SeqEvent OSC
+noteToSeqEvNew defname gid f n = noteToSeqEv f' n 
+    where f' d p atr = (d', [s_new defname (-1) AddToTail gid ps])
+              where (d', ps) = f d p atr
 
+-- | Sends n_set with given list of tuples, sets the node of given node id.
+-- 
+-- XXX: What should happen with parallel events with single node id specified? 
+-- 
+noteToSeqEvSet :: Int -> FromNote a (String, Double) -> Melody a -> SeqEvent OSC
+noteToSeqEvSet nid f n = noteToSeqEv f' n 
+    where f' d p a = (d', [n_set nid ps])
+              where (d', ps) = f d p a
+
+-- | Sends s_new messages paired with ("gate", 0) set message after the duration
+-- specified by /legato/. Every /legato/ must be @0.0 < legato =< 1.0@.
 noteToSeqEvGated :: FromNote a (String,Double) -> Melody a -> SeqEvent OSC
 noteToSeqEvGated  g melody = evalState (ntse g melody) initialGateState
-
--- noteToSeqEvGated f n@(Primitive x) = undefined
--- noteToSeqEvGated f n@(Serial xs) = concatMap (noteToSeqEvGated f) xs
--- noteToSeqEvGated f n@(Parallel xs) = foldr (//) [] (map (noteToSeqEvGated f) xs)
--- noteToSeqEvGated f n@(Control _ _) = []
 
 data GateState = GateState {
       gsCurrentId :: Int,
@@ -91,6 +105,11 @@ noteToAttr _ = Nothing
 -- | Extracts duration and converts to beat.
 noteToBeat :: Fractional a => Melody b -> a
 noteToBeat (Primitive x) = 4 * toNumber d where Atom d _ = x
+noteToBead _ = 0
+
+-- | Extracts pitch from melody. Just /midi note number/ or Nothing for rest.
+noteToMaybePitch :: Melody a -> Maybe Int
+noteToMaybePitch (Primitive (Atom _ y)) = fmap (toInt . notePitch_) y
 
 
 ------------------------------------------------------------------------------
@@ -110,6 +129,9 @@ f2 d pch _ = (d, [s_new "susOrgan01" (-1) AddToTail 1
 
 g1 :: FromNote a (String, Double)
 g1 d p _ = (d, [("freq", midiCPS $ fromIntegral p)])
+
+g2 :: FromNote a (String, Double)
+g2 d p _ = (d, [("freq", midiCPS $ fromIntegral p), ("duration", d)])
 
 line1 :: Melody ()
 line1 = para [l1, l2, l3]
