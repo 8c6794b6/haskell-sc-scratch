@@ -11,9 +11,14 @@ import Sound.OpenSoundControl
 import Sound.SC3.Wing.ScheduleSimple
 import Scratch.HaskoreScratch
 
-
 main :: IO ()
-main = runSeqOSC id 180 $ noteToSeqEv f2 score
+main = runSeqOSC id 120 $ noteToSeqEvNew "simplePitched" 1 g1 score
+
+main2 :: IO ()
+main2 = runSeqOSC id 120 $ noteToSeqEvGated organ01St g1 score
+
+organ01St :: GateState
+organ01St = defaultGateState {gsSynthdefName="gateOrgan01"}
 
 score :: Melody ()
 score = para [upper, lower]
