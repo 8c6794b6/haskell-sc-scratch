@@ -6,15 +6,17 @@
 module Scratch.HaskoreScratch
     ( Melody,
       FromNote,
+      GateState (..),
       noteToSeqEv,
       noteToSeqEvNew,
       noteToSeqEvSet,
       noteToSeqEvGated,
+      defaultGateState,
       seri,
       para,
       noteToAttr,
       noteToBeat,
-      noteToPitch, 
+      noteToPitch,
       g1,
       g2
     ) where
@@ -39,55 +41,85 @@ type Melody a = Haskore.Melody.T a
 
 -- | Type synonym for function to convert a Note to list of OSC.
 type FromNote a b = Double -- ^ Duration
-                  -> Int -- ^ Just /Pitch in MIDI/ or Nothing for rest.
+                  -> Maybe Int -- ^ Just /Pitch in MIDI/ or Nothing for rest.
                   -> Maybe a -- ^ Note attribute
-                  -> (Double, [b])
+                  -> b
+--                  -> (Double, [b])
 
 -- | Apply a function to each note of melody, and returns SeqEvent.
 --
 -- Ignoreing Control type constructors.
-noteToSeqEv :: FromNote a b -> Melody a -> SeqEvent b
+noteToSeqEv :: FromNote a [b] -> Melody a -> SeqEvent b
 noteToSeqEv f n@(Primitive x) =
-    [f (noteToBeat n) (toInt $ noteToPitch n) (noteToAttr n)]
+   [(noteToBeat n,
+     f (noteToBeat n) (noteToMaybePitch n) (noteToAttr n))]
 noteToSeqEv f n@(Serial xs) = concatMap (noteToSeqEv f) xs
 noteToSeqEv f n@(Parallel xs) = foldr (//) [] (map (noteToSeqEv f) xs)
 noteToSeqEv f n@(Control x y) = []
 
 -- | Sends s_new with given list of tuples, adding to tale of target group id
 -- with nodeId (-1).
-noteToSeqEvNew :: String -> Int -> FromNote a (String, Double) -> Melody a -> SeqEvent OSC
-noteToSeqEvNew defname gid f n = noteToSeqEv f' n 
-    where f' d p atr = (d', [s_new defname (-1) AddToTail gid ps])
-              where (d', ps) = f d p atr
+noteToSeqEvNew :: String -> Int -> FromNote a [(String, Double)] -> Melody a -> SeqEvent OSC
+noteToSeqEvNew defname gid f n = noteToSeqEv f' n
+    where f' d p a = [s_new defname (-1) AddToTail gid (f d p a)]
 
 -- | Sends n_set with given list of tuples, sets the node of given node id.
--- 
--- XXX: What should happen with parallel events with single node id specified? 
--- 
-noteToSeqEvSet :: Int -> FromNote a (String, Double) -> Melody a -> SeqEvent OSC
-noteToSeqEvSet nid f n = noteToSeqEv f' n 
-    where f' d p a = (d', [n_set nid ps])
-              where (d', ps) = f d p a
+--
+-- XXX: What should happen with parallel events with single node id specified?
+--
+noteToSeqEvSet :: Int -> FromNote a [(String, Double)] -> Melody a -> SeqEvent OSC
+noteToSeqEvSet nid f n = noteToSeqEv f' n
+    where f' d p a = [n_set nid (f d p a)]
 
 -- | Sends s_new messages paired with ("gate", 0) set message after the duration
 -- specified by /legato/. Every /legato/ must be @0.0 < legato =< 1.0@.
-noteToSeqEvGated :: FromNote a (String,Double) -> Melody a -> SeqEvent OSC
-noteToSeqEvGated  g melody = evalState (ntse g melody) initialGateState
+noteToSeqEvGated :: GateState -> FromNote a [(String, Double)] -> Melody a -> SeqEvent OSC
+noteToSeqEvGated st f melody = evalState (ntse f melody) st
 
 data GateState = GateState {
-      gsCurrentId :: Int,
+      gsSynthdefName :: String,
+      gsGroupId :: Int,
+      gsCurrentNodeId :: Int,
       gsNodeMap :: IntMap Int,
-      gsLegato :: Double
+      gsLegato :: Double -- ^ Between 0 < gsLegato <= 1 
     } deriving (Eq, Show)
 
-initialGateState :: GateState
-initialGateState = GateState 20000 IM.empty 1.0
+defaultGateState :: GateState
+defaultGateState = 
+    GateState {gsSynthdefName = "default",
+               gsGroupId = 1,
+               gsCurrentNodeId = 20000,
+               gsNodeMap = IM.empty,
+               gsLegato = 0.95}
 
-ntse :: FromNote a (String, Double) -> Melody a -> State GateState [(Double,[OSC])]
-ntse f n@(Primitive x) = undefined
-ntse f n@(Serial xs) = undefined
-ntse f n@(Parallel xs) = undefined
+-- ntse :: String -> Int -> FromNote a (String, Double)
+--      -> Melody a -> State GateState [(Double,[OSC])]
+-- ntse name gid f n@(Primitive x) = do
+--   st <- get
+--   pitch <- return 0 -- maybe 0 id $ noteToMaybePitch x
+--   let cid = gsCurrentNodeId st
+--       newMsg = s_new name (-1) AddToTail gid [(f n)]
+--       releaseMsg = undefined
+--   return [] -- [(0, [newMsg, releaseMsg])]
+
+ntse :: FromNote a [(String, Double)] -> Melody a -> State GateState (SeqEvent OSC)
+ntse f n@(Primitive x) = do
+  st <- get
+  let nodeId = gsCurrentNodeId st
+      newMsg = s_new (gsSynthdefName st) nodeId AddToTail
+               (gsGroupId st) (fromNote f n)
+      rlsMsg = n_set nodeId [("gate", 0)]
+  put $ st {gsCurrentNodeId=nodeId+1}
+  return [(noteToBeat n * gsLegato st, [newMsg]), 
+          (noteToBeat n * (1 - gsLegato st), [rlsMsg])]
+ntse f n@(Serial xs)   = fmap concat . sequence $ map (ntse f) xs
+ntse f n@(Parallel xs) = fmap (foldr (//) []) . sequence $ map (ntse f) xs
 ntse f n@(Control _ _) = return []
+
+fromNote :: FromNote a b -> Melody a -> b
+fromNote f = \n -> f (noteToBeat n) (noteToMaybePitch n) (noteToAttr n)
+
+--    [(noteToBeat n, f (noteToBeat n) (toInt $ noteToPitch n) (noteToAttr n))]
 
 -- | Serial composition for note.
 seri :: [MCL.T control a] -> MCL.T control a
@@ -118,20 +150,23 @@ noteToMaybePitch (Primitive (Atom _ y)) = fmap (toInt . notePitch_) y
 --
 ------------------------------------------------------------------------------
 
-f1 :: FromNote a OSC
-f1 d pch _ = (d, [s_new "simplePitched" (-1) AddToTail 1
-                   [("freq", midiCPS $ fromIntegral pch)]])
+f1 :: FromNote a [OSC]
+f1 d pch _ = [s_new "simplePitched" (-1) AddToTail 1
+                   [("freq",
+                     maybe 0 (midiCPS . fromIntegral) pch)]]
 
-f2 :: FromNote a OSC
-f2 d pch _ = (d, [s_new "susOrgan01" (-1) AddToTail 1
-                   [("freq", midiCPS $ fromIntegral pch),
-                    ("sustain", d * 0.9)]])
+f2 :: FromNote a [OSC]
+f2 d pch _ = [s_new "susOrgan01" (-1) AddToTail 1
+                   [("freq",
+                     maybe 0 (midiCPS . fromIntegral) pch),
+                    ("sustain", d * 0.9)]]
 
-g1 :: FromNote a (String, Double)
-g1 d p _ = (d, [("freq", midiCPS $ fromIntegral p)])
+g1 :: FromNote a [(String, Double)]
+g1 d p _ = [("freq", maybe 0 (midiCPS . fromIntegral) p)]
 
-g2 :: FromNote a (String, Double)
-g2 d p _ = (d, [("freq", midiCPS $ fromIntegral p), ("duration", d)])
+g2 :: FromNote a [(String, Double)]
+g2 d p _ = [("freq", maybe 0 (midiCPS . fromIntegral) p),
+            ("duration", d)]
 
 line1 :: Melody ()
 line1 = para [l1, l2, l3]
