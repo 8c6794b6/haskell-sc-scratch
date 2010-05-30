@@ -3,15 +3,8 @@
 -- | Trying to read midi file created by lilypond and convert it to
 -- data which is sequentially playable by haskell.
 --
--- TODO:
---
--- * Play each individual track with chosing name of synthdef.
---
--- * Modify to work with gated synthdef, with converting 0 velocity
---   message.
---
 
-module Scratch.Midi.FromLily where
+module Scratch.MIDI.FromLily where
 
 import Control.Applicative
 import Control.Arrow
@@ -34,19 +27,19 @@ import Scratch.Scheduling1
 -- | MIDI file created by lilypond.
 theLine :: IO MIDIFile.T
 theLine = MIDIFileLoad.fromFile
-          "/home/atsuro/repos/haskell-sc-scratch/Scratch/Midi/line.midi"
+          "/home/atsuro/repos/haskell-sc-scratch/Scratch/MIDI/line.midi"
 
 theLine2 :: IO MIDIFile.T
 theLine2 = MIDIFileLoad.fromFile
-           "/home/atsuro/repos/haskell-sc-scratch/Scratch/Midi/line2.midi"
+           "/home/atsuro/repos/haskell-sc-scratch/Scratch/MIDI/line2.midi"
 
 theChord :: IO MIDIFile.T
 theChord = MIDIFileLoad.fromFile
-           "/home/atsuro/repos/haskell-sc-scratch/Scratch/Midi/chord.midi"
+           "/home/atsuro/repos/haskell-sc-scratch/Scratch/MIDI/chord.midi"
 
 theTracks :: IO MIDIFile.T
 theTracks = MIDIFileLoad.fromFile
-           "/home/atsuro/repos/haskell-sc-scratch/Scratch/Midi/threeTracks.midi"
+           "/home/atsuro/repos/haskell-sc-scratch/Scratch/MIDI/threeTracks.midi"
 
 -- | Extracts the track from midi file.
 getTracks :: MIDIFile.T -> [MIDIFile.Track]
@@ -56,10 +49,6 @@ getTracks (MIDIFile.Cons _ _ t) = t
 isMIDIEvent :: MIDIEvent.T -> Bool
 isMIDIEvent (MIDIEvent.MIDIEvent _) = True
 isMIDIEvent _ = False
-
--- | Converts MIDIEvent to Maybe OSC message.
-midiToOSC :: MIDIEvent.T -> Maybe OSC
-midiToOSC (MIDIEvent.MIDIEvent _) = undefined
 
 collectMIDIEvent :: TimeBody.T MIDIEvent.ElapsedTime MIDIEvent.T
                  -> [(MIDIEvent.ElapsedTime, [MIDIEvent.T])]
@@ -75,7 +64,7 @@ midiEventToTuple (MIDIEvent.MIDIEvent (Channel.Cons _ body)) =
                 fromIntegral . Voice.fromVelocity $ v)
       Channel.Voice (Voice.NoteOff p v) ->
           Just (fromIntegral . Voice.fromPitch $ p,
-                fromIntegral . Voice.fromVelocity $ v)
+                fromIntegral 0)
       _ -> Nothing
 
 timeBodyToTuple :: (Num a, Num b, Num c) =>
@@ -114,6 +103,12 @@ et :: (Fractional t) =>
       [(t, [OSC])]
 et name = map (second (catMaybes . map (percSynthNew name 1)) .
                first (/ 384)) . shiftTime . timeBodyToTuple
+
+extractTracks :: (Fractional d, Num n1, Num n2) => 
+                 MIDIFile.T -> [[(d, [(n1, n2)])]]
+extractTracks = map (map (first (/384)) . shiftTime . timeBodyToTuple) . 
+                tail . getTracks 
+ 
 
 -- | Plays multi track midi file with single percussive synthdef.
 playTracks :: FilePath -> BPM -> String -> IO ()

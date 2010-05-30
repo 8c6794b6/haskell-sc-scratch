@@ -1,12 +1,8 @@
 ------------------------------------------------------------------------------
 -- | Playing with midi file created with lilypond.
 --
--- Try:
---
--- > runSeqOSC 60 =<< midiToGated "/path/to/midi/file.midi"
---
 
-module Scratch.Midi.PlayWithLily where
+module Scratch.MIDI.PlayWithLily where
 
 import Control.Applicative
 import Control.Arrow
@@ -18,7 +14,7 @@ import Sound.SC3
 import Sound.OpenSoundControl
 import qualified Sound.MIDI.File.Load as MIDIFileLoad
 
-import Scratch.Midi.FromLily
+import Scratch.MIDI.FromLily
 import Scratch.Scheduling1
 import Scratch.UGen
 
@@ -61,7 +57,7 @@ seqTupToOSC st ts = evalState (mapM newOrFreeList ts) st
 -- | Current gated synthdefs written in Scratch/UGen.hs are:
 -- 
 -- * simpleGated
--- * gtdOrgan01
+-- * gateOrgan01
 -- 
 playGated :: FilePath -> String -> BPM -> IO ()
 playGated midi synthname bpm =
