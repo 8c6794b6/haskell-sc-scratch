@@ -4,6 +4,10 @@
 -- After adding synth node to scsynth, try giving the node id as argument and
 -- start this code. 
 -- 
+-- TODO:
+-- 
+--  * Add error handling (use try, catch, etc.)
+-- 
 
 module Scratch.CLI.NodeControl where
 
@@ -152,9 +156,9 @@ getParams (Synth _ _ ps) = ps
 -- For testing
 --
 
--- | Adds default synth.
-addTestNode :: Int -> IO ()
-addTestNode nid = withSC3 $ \fd -> send fd msg
+-- | Adds synth node.
+addNode :: Int -> String -> IO ()
+addNode nid name = withSC3 $ \fd -> send fd msg
     where
-      msg = s_new "default" nid AddToTail 1 []
+      msg = s_new name nid AddToTail 1 []
 
