@@ -8,8 +8,7 @@ Design of database
 
 * Database for searching text
   * id -> Body text
-* Database for other data
-  * id:uri -> uri of the content
-  * id:body -> body text of content
-  * id:html -> html content
+* Database for other data. $(ID) is integer number. 
+  * uri:$(ID) -> uri of the content
+  * text:$(ID) -> body text of content
 
