@@ -1,0 +1,15 @@
+Summary
+===========
+
+Full text search for html files with tokyodystopia.
+
+Design of database
+==================
+
+* Database for searching text
+  * id -> Body text
+* Database for other data
+  * id:uri -> uri of the content
+  * id:body -> body text of content
+  * id:html -> html content
+
