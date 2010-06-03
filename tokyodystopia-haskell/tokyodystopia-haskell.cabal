@@ -1,0 +1,37 @@
+Name:		tokyodystopia-haskell
+Version:	0.0.1
+Synopsis:       Haskell binding to tokyodystopia full text search api.
+Description:    Still in extremely early stage of development. Terribly scratch.
+Author:         8c6794b6
+Maintainer:     8c6794b6@gmail.com
+Cabal-Version:  >= 1.6
+build-type:     Simple
+license:        BSD3
+category:       Sound
+stability:      experimental
+
+library
+  GHC-Options: -O2 -Wall
+  Exposed-Modules:
+    Database.TokyoDystopia
+    Database.TokyoDystopia.Utils
+    Database.TokyoDystopia.TCI
+  Other-Modules:
+    Database.TokyoDystopia.Internal
+    Database.TokyoDystopia.FFI.TCI
+  Extensions: 
+    ForeignFunctionInterface,
+    EmptyDataDecls
+  Extra-libraries: 
+    tokyodystopia
+  Extra-lib-dirs:
+    /usr/local/lib
+  Include-dirs:
+    /usr/local/include
+  Build-depends:
+    base == 4.*,
+    bytestring -any,
+    filepath,
+    random,
+    tokyocabinet-haskell -any,
+    reactive >= 0.11.4
