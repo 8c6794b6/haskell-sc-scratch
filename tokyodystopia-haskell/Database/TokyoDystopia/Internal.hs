@@ -10,32 +10,39 @@
 -- Internal helper functions .
 --
 
-module Database.TokyoDystopia.Internal 
-    ( Cab.OpenMode(..)
+module Database.TokyoDystopia.Internal
+    ( TC.OpenMode(..)
+    , TCT.TuningOption(..)
+    , GetMode(..)
     , modeFromCab
     , openModes
     ) where
 
-import Data.Bits
-import Data.ByteString (ByteString, pack)
-import Data.Char (ord)
+import Data.Bits ((.|.))
 
+import qualified Database.TokyoCabinet as TC
+import qualified Database.TokyoCabinet.TDB as TCT
 import qualified Database.TokyoDystopia.FFI.TCI as TCI
-import qualified Database.TokyoCabinet as Cab
 
 -- | Converter function for OpenMode from TokyoCabinet to TokyoDystopia.
-modeFromCab :: Cab.OpenMode -> TCI.OpenMode
-modeFromCab Cab.OREADER = TCI.omReader
-modeFromCab Cab.OWRITER = TCI.omWriter
-modeFromCab Cab.OCREAT  = TCI.omCreate
-modeFromCab Cab.OTRUNC  = TCI.omTrunc
-modeFromCab Cab.ONOLCK  = TCI.omNolck
-modeFromCab Cab.OLCKNB  = TCI.omLcknb
+modeFromCab :: TC.OpenMode -> TCI.OpenMode
+modeFromCab TC.OREADER = TCI.omReader
+modeFromCab TC.OWRITER = TCI.omWriter
+modeFromCab TC.OCREAT  = TCI.omCreate
+modeFromCab TC.OTRUNC  = TCI.omTrunc
+modeFromCab TC.ONOLCK  = TCI.omNolck
+modeFromCab TC.OLCKNB  = TCI.omLcknb
 
 -- | Bitwise or for OpenMode.
 openModes :: [TCI.OpenMode] -> TCI.OpenMode
 openModes = TCI.OpenMode . foldr (.|.) 0 . map TCI.unOpenMode
 
--- | ByteString String packer
-packString :: String -> ByteString
-packString = pack . (fmap (fromIntegral . ord)) 
+data GetMode = GMSUBSTR
+             | GMPREFIX
+             | GMSUFFIX
+             | GMFULL
+             | GMTOKEN
+             | GMTOKPRE
+             | GMTOKSUF
+               deriving (Eq, Show)
+

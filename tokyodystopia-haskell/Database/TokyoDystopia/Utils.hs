@@ -11,16 +11,25 @@
 --
 
 module Database.TokyoDystopia.Utils 
-    (C.OpenMode(..)
-    )where
+    ( TC.OpenMode(..)
+    , TC.ECODE(..)
+    , I.GetMode(..)
+    , I.TuningOption(..)
+    ) where
 
 import Data.Bits
 
-import Database.TokyoCabinet as C
+import Database.TokyoCabinet
+    ( ECODE(..) )
+import Database.TokyoCabinet as TC
 
-import Database.TokyoDystopia.Internal
+import Database.TokyoDystopia.Internal as I
 import Database.TokyoDystopia.TCI
 import qualified Database.TokyoDystopia.FFI.TCI as IF
+
+-- | Get string message from error code.
+errmsg :: ECODE -> String
+errmsg = TC.errmsg
 
 withTCIDB :: IO TCIDB -> (TCIDB -> IO a) -> IO a 
 withTCIDB = undefined

@@ -10,7 +10,6 @@
 -- Haskell binding for tokyodystopia full text search.
 --
 
-
 module Database.TokyoDystopia
     ( module Database.TokyoDystopia.TCI
     , module Database.TokyoDystopia.Utils
