@@ -12,7 +12,9 @@
 
 module Database.TokyoDystopia.Internal
     ( modeFromCab
+    , toFromCab
     , openModes
+    , bitOr
     ) where
 
 import Data.Bits (Bits, (.|.))

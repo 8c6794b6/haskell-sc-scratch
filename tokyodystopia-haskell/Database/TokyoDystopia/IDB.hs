@@ -110,14 +110,21 @@ del = F.c_del . unTCIDB
 ecode :: TCIDB -> IO ECODE
 ecode db = fmap TCE.cintToError (F.c_ecode $ unTCIDB db)
 
+-- | Tune the database. Must be used before opening database.
 tune :: TCIDB -> Int64 -> Int64 -> Int64 -> [TuningOption] -> IO Bool
-tune db ernum etnum iusuz opts = undefined
+tune db ernum etnum iusuz opts = 
+    F.c_tune (unTCIDB db) ernum etnum iusuz opts'
+    where
+      opts' = fromIntegral $ I.bitOr $ map (F.unTuningOption . I.toFromCab) opts
 
+-- | Set caching parameters. Must be used before opening database.
 setcache :: TCIDB -> Int64 -> Int -> IO Bool
-setcache db icsiz lcnum = undefined
+setcache db icsiz lcnum = F.c_setcache (unTCIDB db) icsiz (fromIntegral lcnum)
 
+-- | Set maximum number of forward matching expansion. Must be used before
+-- opening database.
 setfwmmax :: TCIDB -> Int -> IO Bool
-setfwmmax db fwmmax = undefined
+setfwmmax db fwmmax = F.c_setfwmmax (unTCIDB db) (fromIntegral fwmmax)
 
 -- | Initialize the iterator.
 iterinit :: TCIDB -> IO Bool
