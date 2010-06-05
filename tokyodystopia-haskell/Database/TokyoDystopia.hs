@@ -11,9 +11,9 @@
 --
 
 module Database.TokyoDystopia
-    ( module Database.TokyoDystopia.TCI
+    ( module Database.TokyoDystopia.IDB
     , module Database.TokyoDystopia.Utils
     ) where
 
-import Database.TokyoDystopia.TCI
+import Database.TokyoDystopia.IDB
 import Database.TokyoDystopia.Utils

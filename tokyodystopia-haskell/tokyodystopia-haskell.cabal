@@ -1,6 +1,6 @@
 Name:		tokyodystopia-haskell
 Version:	0.0.1
-Synopsis:       Haskell binding for Tokyo Dystopia full text search api.
+Synopsis:       Haskell binding of Tokyo Dystopia full text search api.
 Description:    Still in extremely early stage of development. Terribly scratch.
 Author:         8c6794b6
 Maintainer:     8c6794b6@gmail.com
@@ -14,11 +14,12 @@ library
   GHC-Options: -O2 -Wall
   Exposed-Modules:
     Database.TokyoDystopia
+    Database.TokyoDystopia.IDB
     Database.TokyoDystopia.Utils
-    Database.TokyoDystopia.TCI
+    Database.TokyoDystopia.Types
   Other-Modules:
+    Database.TokyoDystopia.FFI.IDB
     Database.TokyoDystopia.Internal
-    Database.TokyoDystopia.FFI.TCI
   Extensions: 
     ForeignFunctionInterface,
     EmptyDataDecls

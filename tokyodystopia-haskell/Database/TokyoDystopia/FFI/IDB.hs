@@ -1,7 +1,7 @@
 {-# INCLUDE <dystopia.h> #-}
-{-# LINE 1 "Database/TokyoDystopia/FFI/TCI.hsc" #-}
+{-# LINE 1 "Database/TokyoDystopia/FFI/IDB.hsc" #-}
 {-# LANGUAGE ForeignFunctionInterface,
-{-# LINE 2 "Database/TokyoDystopia/FFI/TCI.hsc" #-}
+{-# LINE 2 "Database/TokyoDystopia/FFI/IDB.hsc" #-}
              EmptyDataDecls,
              CPP #-}
 
@@ -9,7 +9,7 @@
 -- | 
 -- Inner guts of haskell binding for dystopia.h.
 -- 
-module Database.TokyoDystopia.FFI.TCI 
+module Database.TokyoDystopia.FFI.IDB
     ( 
     -- * Types and constants  
 
@@ -36,11 +36,11 @@ module Database.TokyoDystopia.FFI.TCI
     , gmTokSuf
 
     -- ** Tuning options
-    , TuningOpt(..)
-    , tmLarge
-    , tmDeflate
-    , tmBzip
-    , tmTcbs
+    , TuningOption(..)
+    , toLarge
+    , toDeflate
+    , toBzip
+    , toTcbs
 
     -- * C Functions
     , c_close
@@ -75,7 +75,7 @@ import Foreign.C.Types
 import Foreign.C.String
 
 
-{-# LINE 75 "Database/TokyoDystopia/FFI/TCI.hsc" #-}
+{-# LINE 75 "Database/TokyoDystopia/FFI/IDB.hsc" #-}
 
 ------------------------------------------------------------------------------
 -- 
@@ -89,7 +89,7 @@ data OpenMode = OpenMode { unOpenMode :: CInt }
 data GetMode = GetMode { unGetMode :: CInt }
              deriving (Eq, Show)
 
-data TuningOpt = TuningOpt { unTuningOpt :: CInt }
+data TuningOption = TuningOption { unTuningOption :: CInt }
                deriving (Eq, Show)
 
 data TCIDB
@@ -113,7 +113,7 @@ omNolck   = OpenMode 16
 omLcknb   :: OpenMode
 omLcknb   = OpenMode 32
 
-{-# LINE 106 "Database/TokyoDystopia/FFI/TCI.hsc" #-}
+{-# LINE 106 "Database/TokyoDystopia/FFI/IDB.hsc" #-}
 
 gmSubstr  :: GetMode
 gmSubstr  = GetMode 0
@@ -130,18 +130,18 @@ gmTokPre  = GetMode 5
 gmTokSuf  :: GetMode
 gmTokSuf  = GetMode 6
 
-{-# LINE 115 "Database/TokyoDystopia/FFI/TCI.hsc" #-}
+{-# LINE 115 "Database/TokyoDystopia/FFI/IDB.hsc" #-}
 
-tmLarge  :: TuningOpt
-tmLarge  = TuningOpt 1
-tmDeflate  :: TuningOpt
-tmDeflate  = TuningOpt 2
-tmBzip  :: TuningOpt
-tmBzip  = TuningOpt 4
-tmTcbs  :: TuningOpt
-tmTcbs  = TuningOpt 8
+toLarge  :: TuningOption
+toLarge  = TuningOption 1
+toDeflate  :: TuningOption
+toDeflate  = TuningOption 2
+toBzip  :: TuningOption
+toBzip  = TuningOption 4
+toTcbs  :: TuningOption
+toTcbs  = TuningOption 8
 
-{-# LINE 121 "Database/TokyoDystopia/FFI/TCI.hsc" #-}
+{-# LINE 121 "Database/TokyoDystopia/FFI/IDB.hsc" #-}
 
 ------------------------------------------------------------------------------
 -- 
@@ -168,7 +168,7 @@ foreign import ccall "dystopia.h tcidbsetcache"
         c_setcache :: Ptr TCIDB -> Int64 -> Int32 -> IO Bool
 
 foreign import ccall "dystopia.h tcidbsetfwmmax"
-        c_setfwmmax :: Ptr TCIDB -> CString -> CInt -> IO Bool
+        c_setfwmmax :: Ptr TCIDB -> Int32 -> IO Bool
 
 foreign import ccall "dystopia.h tcidbopen"
         c_open :: Ptr TCIDB -> CString -> CInt -> IO Bool

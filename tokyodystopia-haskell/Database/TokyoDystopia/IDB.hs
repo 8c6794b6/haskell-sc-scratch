@@ -1,6 +1,6 @@
 ------------------------------------------------------------------------------
 -- |
--- Module      : Data.TokyoDystopia.TCI
+-- Module      : Data.TokyoDystopia.IDB
 -- Copyright   : 8c6794b6 <8c6794b6@gmail.com>
 -- License     : BSD3
 -- Maintainer  : 8c6794b6
@@ -10,7 +10,7 @@
 -- Haskell binding for tokyodystopia TCIDB interface.
 --
 
-module Database.TokyoDystopia.TCI
+module Database.TokyoDystopia.IDB
     ( TCIDB()
     , close
     , copy
@@ -37,7 +37,7 @@ module Database.TokyoDystopia.TCI
 
 import qualified Data.ByteString as B
 import Data.Int ( Int64 )
-import Foreign (Ptr)
+import Foreign ( Ptr )
 import qualified Foreign.ForeignPtr as FF
 import qualified Foreign as FG
 import Foreign.C.Types as CT
@@ -49,12 +49,13 @@ import qualified Database.TokyoCabinet.Error as TCE
 import qualified Database.TokyoCabinet.Storable as TCS
 
 import Database.TokyoDystopia.Internal
+    ( openModes
+    , modeFromCab )
+import Database.TokyoDystopia.Types
     ( OpenMode(..)
     , GetMode(..)
-    , TuningOption(..)
-    , openModes
-    , modeFromCab )
-import qualified Database.TokyoDystopia.FFI.TCI as F
+    , TuningOption(..) )
+import qualified Database.TokyoDystopia.FFI.IDB as F
 import qualified Database.TokyoDystopia.Internal as I
 
 -- | Newtype wrapper for TCIDB FFI binding.

@@ -11,38 +11,38 @@
 --
 
 module Database.TokyoDystopia.Internal
-    ( TC.OpenMode(..)
-    , TCT.TuningOption(..)
-    , GetMode(..)
-    , modeFromCab
+    ( modeFromCab
     , openModes
     ) where
 
-import Data.Bits ((.|.))
+import Data.Bits (Bits, (.|.))
+
 
 import qualified Database.TokyoCabinet as TC
 import qualified Database.TokyoCabinet.TDB as TCT
-import qualified Database.TokyoDystopia.FFI.TCI as TCI
+import qualified Database.TokyoDystopia.Types as TDT
+import qualified Database.TokyoDystopia.FFI.IDB as IDB
 
--- | Converter function for OpenMode from TokyoCabinet to TokyoDystopia.
-modeFromCab :: TC.OpenMode -> TCI.OpenMode
-modeFromCab TC.OREADER = TCI.omReader
-modeFromCab TC.OWRITER = TCI.omWriter
-modeFromCab TC.OCREAT  = TCI.omCreate
-modeFromCab TC.OTRUNC  = TCI.omTrunc
-modeFromCab TC.ONOLCK  = TCI.omNolck
-modeFromCab TC.OLCKNB  = TCI.omLcknb
+-- | Convert OpenMode from TokyoCabinet to TokyoDystopia.
+modeFromCab :: TC.OpenMode -> IDB.OpenMode
+modeFromCab TC.OREADER = IDB.omReader
+modeFromCab TC.OWRITER = IDB.omWriter
+modeFromCab TC.OCREAT  = IDB.omCreate
+modeFromCab TC.OTRUNC  = IDB.omTrunc
+modeFromCab TC.ONOLCK  = IDB.omNolck
+modeFromCab TC.OLCKNB  = IDB.omLcknb
+
+toFromCab :: TCT.TuningOption -> IDB.TuningOption
+toFromCab TCT.TLARGE = IDB.toLarge
+toFromCab TCT.TDEFLATE = IDB.toDeflate
+toFromCab TCT.TBZIP = IDB.toBzip
+toFromCab TCT.TTCBS = IDB.toTcbs
+
 
 -- | Bitwise or for OpenMode.
-openModes :: [TCI.OpenMode] -> TCI.OpenMode
-openModes = TCI.OpenMode . foldr (.|.) 0 . map TCI.unOpenMode
+openModes :: [IDB.OpenMode] -> IDB.OpenMode
+openModes = IDB.OpenMode . foldr (.|.) 0 . map IDB.unOpenMode
 
-data GetMode = GMSUBSTR
-             | GMPREFIX
-             | GMSUFFIX
-             | GMFULL
-             | GMTOKEN
-             | GMTOKPRE
-             | GMTOKSUF
-               deriving (Eq, Show)
-
+-- | Bitwise or for bits.
+bitOr :: (Bits a) => [a] -> a
+bitOr = foldr (.|.) 0
