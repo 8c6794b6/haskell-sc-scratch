@@ -17,7 +17,7 @@ module Database.TokyoDystopia.FFI.IDB
     , OpenMode(..)
     , omReader
     , omWriter
-    , omCreate
+    , omCreat
     , omTrunc
     , omNolck
     , omLcknb
@@ -99,7 +99,7 @@ data TCIDB
 #{enum OpenMode, OpenMode
  , omReader = IDBOREADER
  , omWriter = IDBOWRITER
- , omCreate = IDBOCREAT
+ , omCreat = IDBOCREAT
  , omTrunc  = IDBOTRUNC
  , omNolck  = IDBONOLCK
  , omLcknb  = IDBOLCKNB }

@@ -15,13 +15,14 @@ library
   Exposed-Modules:
     Database.TokyoDystopia
     Database.TokyoDystopia.Class
+    Database.TokyoDystopia.FFI
+    Database.TokyoDystopia.FFI.IDB
+    Database.TokyoDystopia.FFI.QDB
     Database.TokyoDystopia.IDB
     Database.TokyoDystopia.QDB
     Database.TokyoDystopia.Utils
     Database.TokyoDystopia.Types
   Other-Modules:
-    Database.TokyoDystopia.FFI.IDB
-    Database.TokyoDystopia.FFI.QDB
     Database.TokyoDystopia.Internal
   Extensions: 
     ForeignFunctionInterface,

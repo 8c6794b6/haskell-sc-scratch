@@ -17,7 +17,7 @@ module Database.TokyoDystopia.FFI.QDB
     , OpenMode(..)
     , omReader
     , omWriter
-    , omCreate
+    , omCreat
     , omTrunc
     , omNolck
     , omLcknb
@@ -92,7 +92,7 @@ data TCQDB
 #{enum OpenMode, OpenMode
  , omReader = QDBOREADER
  , omWriter = QDBOWRITER
- , omCreate = QDBOCREAT
+ , omCreat = QDBOCREAT
  , omTrunc  = QDBOTRUNC
  , omNolck  = QDBONOLCK
  , omLcknb  = QDBOLCKNB }

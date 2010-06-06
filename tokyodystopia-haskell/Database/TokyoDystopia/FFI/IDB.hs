@@ -20,7 +20,7 @@ module Database.TokyoDystopia.FFI.IDB
     , OpenMode(..)
     , omReader
     , omWriter
-    , omCreate
+    , omCreat
     , omTrunc
     , omNolck
     , omLcknb
@@ -104,8 +104,8 @@ omReader  :: OpenMode
 omReader  = OpenMode 1
 omWriter  :: OpenMode
 omWriter  = OpenMode 2
-omCreate  :: OpenMode
-omCreate  = OpenMode 4
+omCreat  :: OpenMode
+omCreat  = OpenMode 4
 omTrunc   :: OpenMode
 omTrunc   = OpenMode 8
 omNolck   :: OpenMode

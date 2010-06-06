@@ -42,13 +42,9 @@ newtype TDM a = TDM
 -- | Typeclass for types of database found in tokyo dystopia.
 -- 
 -- * IDB
--- 
 --       * All functions are implemented.
 -- 
---       * Value type is @String@ (better to change this?)
--- 
 -- * QDB 
--- 
 --       * @get@ is not implemented, always returns Nothing.
 -- 
 class TDDB db val | db -> val where
@@ -87,7 +83,7 @@ instance TDDB IDB ByteString where
     del = TDM . IDB.del
 
 
-instance TDDB QDB String where
+instance TDDB QDB ByteString where
 
     new = TDM QDB.new
 

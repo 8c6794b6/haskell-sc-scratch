@@ -75,7 +75,7 @@ open db path modes = do
     where
       f OREADER = F.omReader
       f OWRITER = F.omWriter
-      f OCREAT  = F.omCreate
+      f OCREAT  = F.omCreat
       f OTRUNC  = F.omTrunc
       f ONOLCK  = F.omNolck
       f OLCKNB  = F.omLcknb
