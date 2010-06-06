@@ -59,7 +59,7 @@ import Database.TokyoDystopia.Types
 import qualified Database.TokyoDystopia.FFI.IDB as F
 import qualified Database.TokyoDystopia.Internal as I
 
--- | Newtype wrapper for TCIDB FFI binding.
+-- | Wrapper for TCIDB.
 newtype IDB = IDB { unIDB :: Ptr F.TCIDB }
 
 -- | Creates new IDB.
@@ -153,6 +153,10 @@ sync = F.c_sync . unIDB
 -- | Optimize database.
 optimize :: IDB -> IO Bool
 optimize = F.c_optimize . unIDB
+
+-- | Removes record with given key
+out :: (Storable k) => IDB -> k -> IO Bool
+out db key = F.c_out (unIDB db) (TCS.toInt64 key) 
 
 -- | Delete the database from disk. 
 vanish :: IDB -> IO Bool
