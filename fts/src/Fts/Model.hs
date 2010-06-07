@@ -27,12 +27,12 @@ import qualified Database.TokyoDystopia.IDB as IDB
 
 -- | Path to TokyoDystopia index database.
 tdDBPath :: String
-tdDBPath = "/home/atsuro/repos/haskell-sc-scratch/fts/casket"
+tdDBPath = "/home/atsuro/repos/haskell-sc-scratch/fts/db/casket"
 
 
 -- | Path to TokyoCabinet key value storage.
 tcDBPath :: String
-tcDBPath = "/home/atsuro/repos/haskell-sc-scratch/fts/db.tch"
+tcDBPath = "/home/atsuro/repos/haskell-sc-scratch/fts/db/db.tch"
 
 
 data SearchResult = SearchResult

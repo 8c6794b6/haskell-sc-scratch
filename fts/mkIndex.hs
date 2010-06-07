@@ -11,6 +11,7 @@ import System.Directory
 import System.Environment
 import System.FilePath
 import System.IO.Unsafe (unsafeInterleaveIO)
+import qualified Data.ByteString.Char8 as C8
 import qualified Data.Foldable as F
 import qualified Data.Traversable as T
 
@@ -45,11 +46,12 @@ documentRoot = "localhost:8000/"
 
 -- | Makes index for tokyodystipia from Target.
 mkIndice :: [Target] -> IO Bool
-mkIndice ts = do
-  db <- TD.tcidbnew
-  TD.open db "casket" [TD.OCREAT, TD.OWRITER]
+mkIndice ts = TD.runTDM $ do
+  db <- TD.new :: TD.TDM TD.IDB
+  TD.open db "db/casket" [TD.OCREAT, TD.OWRITER]
   res <- fmap and $ sequence $ 
-         zipWith (TD.put db) (map (fromIntegral . targetId) ts) (map targetText ts)
+         zipWith (TD.put db) (map (fromIntegral . targetId) ts) 
+                     (map (C8.pack . targetText) ts)
   TD.close db
   return res
 
@@ -58,7 +60,7 @@ mkData :: [Target] -> IO Bool
 mkData ts = do
   res <- TC.runTCM $ do
        db <- TC.new :: TC.TCM TC.HDB
-       TC.open db "db.tch" [TC.OCREAT, TC.OWRITER]
+       TC.open db "db/db.tch" [TC.OCREAT, TC.OWRITER]
        let task db t = do
             TC.put db ("url:" ++ (show $ targetId t)) (targetUrl t)
             TC.put db ("text:" ++ (show $ targetId t)) (targetText t)

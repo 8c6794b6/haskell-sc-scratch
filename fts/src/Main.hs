@@ -48,7 +48,7 @@ site tsMVar =
 
 -- | Absolute path to template directory.
 templatePath :: FilePath
-templatePath = "/home/atsuro/repos/haskell-sc-scratch/fts/fts/templates"
+templatePath = "/home/atsuro/repos/haskell-sc-scratch/fts/templates"
 
 
 -- | Serves templates with state in MVar. 
