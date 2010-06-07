@@ -36,28 +36,28 @@ module Database.TokyoDystopia.IDB
     ) where
 
 import Data.ByteString ( ByteString )
-import qualified Data.ByteString as B
-import qualified Data.ByteString.Char8 as C8
 import Data.Int ( Int64 )
 import Foreign ( Ptr, maybePeek )
-import qualified Foreign.ForeignPtr as FF
-import qualified Foreign as FG
-import qualified Foreign.C.Types as CT
-import qualified Foreign.C.String as CS
 import Database.TokyoCabinet.Storable ( Storable )
 import Database.TokyoCabinet ( ECODE(..) ) 
-import qualified Database.TokyoCabinet as TC
-import qualified Database.TokyoCabinet.Error as TCE
-import qualified Database.TokyoCabinet.Storable as TCS
-
-import Database.TokyoDystopia.Internal
-    ( bitOr )
+import Database.TokyoDystopia.Internal ( bitOr )
 import Database.TokyoDystopia.Types
     ( OpenMode(..)
     , GetMode(..)
     , TuningOption(..) )
+
+import qualified Data.ByteString as B
+import qualified Data.ByteString.Char8 as C8
+import qualified Foreign.ForeignPtr as FF
+import qualified Foreign as FG
+import qualified Foreign.C.Types as CT
+import qualified Foreign.C.String as CS
+import qualified Database.TokyoCabinet as TC
+import qualified Database.TokyoCabinet.Error as TCE
+import qualified Database.TokyoCabinet.Storable as TCS
 import qualified Database.TokyoDystopia.FFI.IDB as F
 import qualified Database.TokyoDystopia.Internal as I
+
 
 -- | Wrapper for TCIDB.
 newtype IDB = IDB { unIDB :: Ptr F.TCIDB }
@@ -70,8 +70,8 @@ new = IDB `fmap` F.c_new
 open :: IDB -> FilePath -> [OpenMode] -> IO Bool
 open db path modes = do
   path' <- CS.newCString path
-  let mode = F.OpenMode . bitOr $ fmap (F.unOpenMode . f) modes
-  F.c_open (unIDB db) path' (F.unOpenMode mode)
+  let mode = bitOr $ fmap (F.unOpenMode . f) modes
+  F.c_open (unIDB db) path' mode
     where
       f OREADER = F.omReader
       f OWRITER = F.omWriter
@@ -98,8 +98,21 @@ get db i = do
 
 -- | Search with GetMode options.
 search :: IDB -> String -> [GetMode] -> IO [Int64]
-search db query opt = do
-  undefined
+search db query modes = do
+  counterP <- FG.new 0
+  query' <- CS.newCString query
+  res <- F.c_search (unIDB db) query' mode counterP
+  numResult <- fromIntegral `fmap` FG.peek counterP
+  FG.peekArray numResult res
+      where
+        mode = bitOr (map (F.unGetMode . f) modes)
+        f GMSUBSTR = F.gmSubstr
+        f GMPREFIX = F.gmPrefix
+        f GMSUFFIX = F.gmSuffix
+        f GMFULL   = F.gmFull
+        f GMTOKEN  = F.gmToken
+        f GMTOKPRE = F.gmTokPre
+        f GMTOKSUF = F.gmTokSuf
 
 -- | Search with given query and returns list of id keys.
 search2 :: IDB -> String -> IO [Int64]

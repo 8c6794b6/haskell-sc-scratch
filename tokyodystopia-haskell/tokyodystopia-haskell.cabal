@@ -17,7 +17,9 @@ library
     Database.TokyoDystopia.Class
     Database.TokyoDystopia.FFI
     Database.TokyoDystopia.FFI.IDB
+    Database.TokyoDystopia.FFI.JDB
     Database.TokyoDystopia.FFI.QDB
+    Database.TokyoDystopia.JDB
     Database.TokyoDystopia.IDB
     Database.TokyoDystopia.QDB
     Database.TokyoDystopia.Utils
@@ -31,7 +33,8 @@ library
     PackageImports,
     FunctionalDependencies,
     MultiParamTypeClasses,
-    TypeSynonymInstances
+    TypeSynonymInstances,
+    UndecidableInstances
   Extra-libraries: 
     tokyodystopia
   Extra-lib-dirs:

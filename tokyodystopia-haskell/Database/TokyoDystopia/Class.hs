@@ -2,7 +2,8 @@
              PackageImports,
              FunctionalDependencies,
              MultiParamTypeClasses,
-             TypeSynonymInstances
+             TypeSynonymInstances,
+             UndecidableInstances
   #-}
 ------------------------------------------------------------------------------
 -- |
@@ -23,13 +24,20 @@ import Data.Int ( Int64 )
 import "monads-fd" Control.Monad.Trans
     ( MonadIO )
 
-import Database.TokyoDystopia.Types
-    ( OpenMode )
+import Database.TokyoCabinet.List ( List )
+import Database.TokyoCabinet.Storable ( Storable )
+import qualified Database.TokyoCabinet.List as TCL
 
+import Database.TokyoDystopia.Types 
+    ( OpenMode 
+    , GetMode
+    , TuningOption )
 import Database.TokyoDystopia.IDB ( IDB )
 import Database.TokyoDystopia.QDB ( QDB )
+import Database.TokyoDystopia.JDB ( JDB )
 import qualified Database.TokyoDystopia.IDB as IDB
 import qualified Database.TokyoDystopia.QDB as QDB
+import qualified Database.TokyoDystopia.JDB as JDB
 
 
 -- | Wrapper for Tokyo Dystopia database related computation.
@@ -41,11 +49,11 @@ newtype TDM a = TDM
 
 -- | Typeclass for types of database found in tokyo dystopia.
 -- 
--- * IDB
---       * All functions are implemented.
+-- * IDB : All functions are implemented.
 -- 
--- * QDB 
---       * @get@ is not implemented, always returns Nothing.
+-- * QDB : @get@ is not implemented, always returns Nothing.
+-- 
+-- * JDB : Value must be defined as concrete type.
 -- 
 class TDDB db val | db -> val where
 
@@ -64,6 +72,9 @@ class TDDB db val | db -> val where
     put :: db -> Int64 -> val -> TDM Bool
     put = undefined
 
+    search :: db -> String -> [GetMode] -> TDM [Int64]
+    search = undefined
+
     del :: db -> TDM ()
     del = undefined
 
@@ -79,6 +90,8 @@ instance TDDB IDB ByteString where
     get db key = TDM (IDB.get db key)
 
     put db key val = TDM (IDB.put db key val)
+
+    search db query modes = TDM $ IDB.search db query modes
 
     del = TDM . IDB.del
 
@@ -96,4 +109,15 @@ instance TDDB QDB ByteString where
 
     put db key val = TDM (QDB.put db key val)
 
+    search db query modes = TDM $ QDB.search db query modes
+
     del = TDM . QDB.del
+
+instance (Storable a) => TDDB JDB (List a) where
+    new = TDM JDB.new
+    open db path modes = TDM $ JDB.open db path modes
+    close = TDM . JDB.close
+    get = undefined
+    put = undefined
+    search = undefined
+    del = undefined

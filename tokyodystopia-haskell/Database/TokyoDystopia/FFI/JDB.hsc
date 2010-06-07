@@ -1,7 +1,4 @@
-{-# INCLUDE <laputa.h> #-}
-{-# LINE 1 "Database/TokyoDystopia/FFI/JDB.hsc" #-}
 {-# LANGUAGE ForeignFunctionInterface,
-{-# LINE 2 "Database/TokyoDystopia/FFI/JDB.hsc" #-}
              EmptyDataDecls,
              CPP #-}
 
@@ -79,8 +76,7 @@ import Foreign.C.String
 import Database.TokyoCabinet.List 
     ( List )
 
-
-{-# LINE 80 "Database/TokyoDystopia/FFI/JDB.hsc" #-}
+#include <laputa.h>
 
 ------------------------------------------------------------------------------
 --
@@ -101,42 +97,25 @@ data TCJDB
 
 data LIST
 
-omReader  :: OpenMode
-omReader  = OpenMode 1
-omWriter  :: OpenMode
-omWriter  = OpenMode 2
-omCreat   :: OpenMode
-omCreat   = OpenMode 4
-omTrunc   :: OpenMode
-omTrunc   = OpenMode 8
-omNolck   :: OpenMode
-omNolck   = OpenMode 16
-omLcknb   :: OpenMode
-omLcknb   = OpenMode 32
+#{enum OpenMode, OpenMode
+ , omReader = JDBOREADER
+ , omWriter = JDBOWRITER
+ , omCreat  = JDBOCREAT
+ , omTrunc  = JDBOTRUNC
+ , omNolck  = JDBONOLCK
+ , omLcknb  = JDBOLCKNB }
 
-{-# LINE 107 "Database/TokyoDystopia/FFI/JDB.hsc" #-}
+#{enum GetMode, GetMode
+ , gmSubstr = JDBSSUBSTR
+ , gmPrefix = JDBSPREFIX
+ , gmSuffix = JDBSSUFFIX
+ , gmFull   = JDBSFULL }
 
-gmSubstr  :: GetMode
-gmSubstr  = GetMode 0
-gmPrefix  :: GetMode
-gmPrefix  = GetMode 1
-gmSuffix  :: GetMode
-gmSuffix  = GetMode 2
-gmFull    :: GetMode
-gmFull    = GetMode 3
-
-{-# LINE 113 "Database/TokyoDystopia/FFI/JDB.hsc" #-}
-
-toLarge    :: TuningOption
-toLarge    = TuningOption 1
-toDeflate  :: TuningOption
-toDeflate  = TuningOption 2
-toBzip     :: TuningOption
-toBzip     = TuningOption 4
-toTcbs     :: TuningOption
-toTcbs     = TuningOption 8
-
-{-# LINE 119 "Database/TokyoDystopia/FFI/JDB.hsc" #-}
+#{enum TuningOption, TuningOption
+ , toLarge   = JDBTLARGE
+ , toDeflate = JDBTDEFLATE
+ , toBzip    = JDBTBZIP
+ , toTcbs    = JDBTTCBS }
 
 
 ------------------------------------------------------------------------------
