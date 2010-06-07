@@ -54,11 +54,11 @@ search query = TD.runTDM $ do
   return $ fmap (B.pack . show) ids
 
 
-getResults :: [ByteString] -> IO [SearchResult]
-getResults keys = TC.runTCM $ do
+getResults :: Int -> Int -> [ByteString] -> IO [SearchResult]
+getResults lim offset keys = TC.runTCM $ do
     db <- TC.new :: TCM HDB
     TC.open db tcDBPath [OREADER]
-    vs <- mapM (f db) keys
+    vs <- mapM (f db) (take lim $ drop offset $ keys)
     TC.close db
     return vs
  where 

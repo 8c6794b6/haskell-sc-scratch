@@ -30,21 +30,26 @@ noQuery = ifTop $ writeBS "hello world"
 -- | Show first page of search results.
 queryPhrase :: MVar (TemplateState Snap) -> Snap ()
 queryPhrase tsMVar = do
-  -- q <- getParam "q"
   req <- ST.getRequest
+  ST.modifyResponse $ ST.setContentType "text/html"
   let q = ST.rqParam "q" req
+      p = ST.rqParam "p" req
+      p' = maybe 0 
+           (\x -> if length x > 0 then read (C8.unpack $ head x) else 0)
+           p
   case q of
     Just q' -> do
            keys <- liftIO $ M.search (head q')
-           vals <- liftIO $ M.getResults keys
+           vals <- liftIO $ M.getResults V.perPage (p' * V.perPage) keys
            ts <- liftIO $ readMVar tsMVar
-           let ts' = HE.bindSplice "results" (V.mkResults vals) $ ts
-           ST.modifyResponse $ ST.setContentType "text/html"
+           let ts' = HE.bindSplice "results" (V.mkResults vals) .
+                     HE.bindSplice "summary" (V.mkSummary keys req) .
+                     HE.bindSplice "page_links" (V.mkPageLinks keys req) $
+                     ts
            maybe ST.pass writeBS =<< HE.renderTemplate ts' "search"
     Nothing -> do
            ts <- liftIO $ readMVar tsMVar
            maybe ST.pass writeBS =<< HE.renderTemplate ts "search"
-           -- liftIO (putStrLn "no query" ) >> writeBS ""
 
 -- | Show results with specifying page.
 queryPhrasePage :: Snap ()

@@ -1,6 +1,27 @@
+div#wrapper {
+    margin: 10px;
+    padding: 10px;
+}
+
 div#query {
     text-align: center;
 }
+
+div#summary {
+    font-size: 75%;
+    text-align: center;
+}
+
+div#page_links {
+    padding: 10px 0 20px 0;
+    text-align: center;
+}
+
+span#page_link  {
+    padding: 2px;
+    /* width: 20px; */
+}
+
 
 div#search_results ul {
     list-style: none;
@@ -14,7 +35,7 @@ div#search_results ul li {
 }
 
 div#result {
-    padding: 10px;
-    margin: 10px;
+    padding: 10px 0 10px 0;
+    margin: 10px 0 10px 0;
     border-style: none;
 }
