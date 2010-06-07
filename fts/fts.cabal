@@ -1,0 +1,31 @@
+Name:                fts
+Version:             0.1
+Synopsis:            Project Synopsis Here
+Description:         Project Description Here
+License:             BSD4
+Author:              8c6794b6
+Maintainer:          8c6794b6@gmail.com
+Stability:           Experimental
+Category:            Web
+Build-type:          Simple
+Cabal-version:       >=1.2
+
+Executable fts
+  hs-source-dirs: src
+  main-is: Main.hs
+
+  Build-depends:
+    base >= 4,
+    haskell98,
+    monads-fd >= 0.1 && <0.2,
+    bytestring >= 0.9.1 && <0.10,
+    snap-core >= 0.2 && <0.3,
+    snap-server >= 0.2 && <0.3,
+    heist >= 0.1 && <0.2,
+    filepath >= 1.1 && <1.2,
+    hexpat -any,
+    network -any,
+    tokyodystopia-haskell -any,
+    tokyocabinet-haskell -any
+
+  ghc-options: -O2 -Wall -fwarn-tabs -funbox-strict-fields -threaded -fno-warn-unused-imports -fno-warn-unused-do-bind
