@@ -34,10 +34,10 @@ escape uri = C8.pack (URI.escapeURIString URI.isAllowedInURI (C8.unpack uri))
 
 mkSummary :: [a] -> Request -> Splice Snap
 mkSummary ks req = do
-  return [elem]
+  return [element]
   where
-    elem = EX.mkText $ foldr C8.append C8.empty
-           [num, " hits, page ", cur, " of ", page]
+    element = EX.mkText $ foldr C8.append C8.empty
+              [num, " hits, page ", cur, " of ", page]
     num = C8.pack . show . length $ ks
     cur = maybe (C8.pack "1") head $ ST.rqParam (C8.pack "p") req
     page = C8.pack . show $ page'
