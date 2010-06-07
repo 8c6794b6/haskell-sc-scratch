@@ -34,13 +34,13 @@ queryPhrase tsMVar = do
   ST.modifyResponse $ ST.setContentType "text/html"
   let q = ST.rqParam "q" req
       p = ST.rqParam "p" req
-      p' = maybe 0 
-           (\x -> if length x > 0 then read (C8.unpack $ head x) else 0)
+      p' = maybe 1 
+           (\x -> if length x > 0 then read (C8.unpack $ head x) else 1)
            p
   case q of
     Just q' -> do
            keys <- liftIO $ M.search (head q')
-           vals <- liftIO $ M.getResults V.perPage (p' * V.perPage) keys
+           vals <- liftIO $ M.getResults V.perPage ((p'-1) * V.perPage) keys
            ts <- liftIO $ readMVar tsMVar
            let ts' = HE.bindSplice "results" (V.mkResults vals) .
                      HE.bindSplice "summary" (V.mkSummary keys req) .

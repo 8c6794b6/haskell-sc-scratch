@@ -34,7 +34,6 @@ escape uri = C8.pack (URI.escapeURIString URI.isAllowedInURI (C8.unpack uri))
 
 mkSummary :: [a] -> Request -> Splice Snap
 mkSummary ks req = do
-  liftIO $ print req
   return [elem]
   where
     elem = EX.mkText $ foldr C8.append C8.empty
@@ -56,7 +55,7 @@ mkPageLinks ks req = if length ks > perPage then showIt else dontShowIt
           p = maybe C8.empty head $ ST.rqParam "p" req
 
           currentPage :: Int
-          currentPage = if p' == "" then 0 else read p' 
+          currentPage = if p' == "" then 1 else read p' 
              where p' = C8.unpack p
 
           mkPageLink :: Int -> String -> Node
@@ -94,4 +93,4 @@ numPageLinks :: Int
 numPageLinks = 20
 
 perPage :: Int
-perPage = 20
+perPage = 10
