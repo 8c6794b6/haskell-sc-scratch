@@ -18,8 +18,10 @@ import qualified Text.XML.Expat.Tree as EX
 
 import Fts.Model ( SearchResult(..) )
 
+
 mkResults :: [SearchResult] -> Splice Snap
 mkResults rs = return [EX.mkElement "ul" [] (map mkResult rs)]
+
 
 mkResult :: SearchResult -> Node
 mkResult (SearchResult u t) = 
@@ -27,10 +29,12 @@ mkResult (SearchResult u t) =
       [ EX.mkElement "div" [("id", "result")] 
         [ EX.mkElement "a" [("href", escape u)] [EX.mkText u]
         , EX.mkElement "div" [] 
-                           [EX.mkText $ C8.append (C8.take 200 t) " ..."] ]]
+            [ EX.mkText $ C8.append (C8.take 200 t) " ..."] ]]
+
 
 escape :: ByteString -> ByteString
 escape uri = C8.pack (URI.escapeURIString URI.isAllowedInURI (C8.unpack uri))
+
 
 mkInputQuery :: Maybe [ByteString] -> Splice Snap
 mkInputQuery (Just (q:_)) = return [element]
@@ -38,7 +42,11 @@ mkInputQuery (Just (q:_)) = return [element]
     element = EX.mkElement "input" [ ("type", "text")
                                    , ("name", "q")
                                    , ("value", q) ] []
-mkInputQuery _ = return []
+mkInputQuery _ = return [element]
+  where                  
+    element = EX.mkElement "input" [ ("type", "text")
+                                   , ("name", "q") ] []
+
 
 mkSummary :: [a] -> Request -> Splice Snap
 mkSummary ks req = do
@@ -54,6 +62,7 @@ mkSummary ks req = do
     page' = case quotRem (length ks) perPage of
               (x,0) -> x
               (x,_) -> x + 1
+
 
 mkPageLinks :: [a] -> Request -> Splice Snap
 mkPageLinks ks req = if length ks > perPage then showIt else dontShowIt 
@@ -99,8 +108,10 @@ mkPageLinks ks req = if length ks > perPage then showIt else dontShowIt
                  (x,0) -> x
                  (x,_) -> x + 1
 
+
 numPageLinks :: Int
 numPageLinks = 20
+
 
 perPage :: Int
 perPage = 10

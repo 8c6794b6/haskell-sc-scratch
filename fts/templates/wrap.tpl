@@ -6,7 +6,7 @@
   <div id="wrapper">
     <div id="query">
       <form>
-        <input type="text" name="q" value=""/>
+        <input_query/>
         <input type="submit" value="search"/>
       </form>
     </div>
