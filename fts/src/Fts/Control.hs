@@ -31,25 +31,27 @@ noQuery = ifTop $ writeBS "hello world"
 queryPhrase :: MVar (TemplateState Snap) -> Snap ()
 queryPhrase tsMVar = do
   req <- ST.getRequest
+
   ST.modifyResponse $ ST.setContentType "text/html"
   let q = ST.rqParam "q" req
       p = ST.rqParam "p" req
       p' = maybe 1 
            (\x -> if length x > 0 then read (C8.unpack $ head x) else 1)
            p
+  ts <- liftIO $ readMVar tsMVar
+  let ts' = HE.bindSplice "input_query" (V.mkInputQuery q) ts
   case q of
-    Just q' -> do
-           keys <- liftIO $ M.search (head q')
+    Just (q':_) -> do
+           keys <- liftIO $ M.search q'
            vals <- liftIO $ M.getResults V.perPage ((p'-1) * V.perPage) keys
-           ts <- liftIO $ readMVar tsMVar
-           let ts' = HE.bindSplice "results" (V.mkResults vals) .
-                     HE.bindSplice "summary" (V.mkSummary keys req) .
-                     HE.bindSplice "page_links" (V.mkPageLinks keys req) $
-                     ts
+           let ts'' = HE.bindSplice "results" (V.mkResults vals) .
+                      HE.bindSplice "summary" (V.mkSummary keys req) .
+                      HE.bindSplice "page_links" (V.mkPageLinks keys req) $
+                      ts'
+           maybe ST.pass writeBS =<< HE.renderTemplate ts'' "search"
+
+    _            -> do
            maybe ST.pass writeBS =<< HE.renderTemplate ts' "search"
-    Nothing -> do
-           ts <- liftIO $ readMVar tsMVar
-           maybe ST.pass writeBS =<< HE.renderTemplate ts "search"
 
 -- | Show results with specifying page.
 queryPhrasePage :: Snap ()

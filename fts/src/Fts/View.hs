@@ -32,12 +32,22 @@ mkResult (SearchResult u t) =
 escape :: ByteString -> ByteString
 escape uri = C8.pack (URI.escapeURIString URI.isAllowedInURI (C8.unpack uri))
 
+mkInputQuery :: Maybe [ByteString] -> Splice Snap
+mkInputQuery (Just (q:_)) = return [element]
+  where 
+    element = EX.mkElement "input" [ ("type", "text")
+                                   , ("name", "q")
+                                   , ("value", q) ] []
+mkInputQuery _ = return []
+
 mkSummary :: [a] -> Request -> Splice Snap
 mkSummary ks req = do
   return [element]
   where
-    element = EX.mkText $ foldr C8.append C8.empty
-              [num, " hits, page ", cur, " of ", page]
+    element = if length ks > 0 
+                then EX.mkText $ foldr C8.append C8.empty
+                         [num, " hits, page ", cur, " of ", page]
+                else EX.mkText $ C8.pack "no hits"
     num = C8.pack . show . length $ ks
     cur = maybe (C8.pack "1") head $ ST.rqParam (C8.pack "p") req
     page = C8.pack . show $ page'
