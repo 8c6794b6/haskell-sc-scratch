@@ -15,6 +15,7 @@ module Database.TokyoDystopia
       IDB.IDB 
     , QDB.QDB
     , JDB.JDB
+    , WDB.WDB
     , module Database.TokyoDystopia.Class
     , module Database.TokyoDystopia.Types
     , module Database.TokyoDystopia.Utils
@@ -28,6 +29,7 @@ import Database.TokyoDystopia.Utils
 import qualified Database.TokyoDystopia.QDB as QDB
 import qualified Database.TokyoDystopia.JDB as JDB
 import qualified Database.TokyoDystopia.IDB as IDB
+import qualified Database.TokyoDystopia.WDB as WDB
 
 
 

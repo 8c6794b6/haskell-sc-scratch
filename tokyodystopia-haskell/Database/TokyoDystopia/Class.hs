@@ -35,9 +35,11 @@ import Database.TokyoDystopia.Types
 import Database.TokyoDystopia.IDB ( IDB )
 import Database.TokyoDystopia.QDB ( QDB )
 import Database.TokyoDystopia.JDB ( JDB )
+import Database.TokyoDystopia.WDB ( WDB )
 import qualified Database.TokyoDystopia.IDB as IDB
 import qualified Database.TokyoDystopia.QDB as QDB
 import qualified Database.TokyoDystopia.JDB as JDB
+import qualified Database.TokyoDystopia.WDB as WDB
 
 
 -- | Wrapper for Tokyo Dystopia database related computation.
@@ -51,9 +53,11 @@ newtype TDM a = TDM
 -- 
 -- * IDB : All functions are implemented.
 -- 
--- * QDB : @get@ is not implemented, always returns Nothing.
+-- * QDB : get always return Nothing.
 -- 
--- * JDB : Value must be defined as concrete type.
+-- * JDB : All functions are implemented.
+--
+-- * WDB : get always return Nothing, GetMode in search has no effect.
 -- 
 class TDDB db val | db -> val where
 
@@ -116,7 +120,6 @@ instance TDDB QDB ByteString where
 
     close db = TDM (QDB.close db)
 
-    -- Get is not implemented in QDB.
     get _ _  = return Nothing
 
     put db key val = TDM (QDB.put db key val)
@@ -155,4 +158,19 @@ instance TDDB JDB (List ByteString) where
 -- 
 ------------------------------------------------------------------------------
 
--- TBW
+
+instance TDDB WDB (List ByteString) where
+
+    new = TDM WDB.new
+
+    open db path modes = TDM $ WDB.open db path modes
+
+    close = TDM . WDB.close
+
+    get db k = TDM (return Nothing)
+
+    put db k v = TDM $ WDB.put db k v 
+
+    search db query _ = TDM $ WDB.search db query 
+
+    del = TDM . WDB.del
