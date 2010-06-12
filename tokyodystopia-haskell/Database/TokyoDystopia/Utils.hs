@@ -14,7 +14,6 @@ module Database.TokyoDystopia.Utils
     ( errmsg
     ) where
 
-import Data.Bits ((.|.))
 import Database.TokyoCabinet
     ( ECODE(..) )
 import qualified Database.TokyoCabinet as TC
@@ -22,4 +21,5 @@ import qualified Database.TokyoCabinet as TC
 -- | Get string message from error code.
 errmsg :: ECODE -> String
 errmsg = TC.errmsg
+
 

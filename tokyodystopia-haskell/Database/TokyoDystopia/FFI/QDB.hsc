@@ -58,7 +58,6 @@ module Database.TokyoDystopia.FFI.QDB
     , c_vanish
     ) where
 
-import Data.Word
 import Data.Int
 import Foreign
 import Foreign.C.Types

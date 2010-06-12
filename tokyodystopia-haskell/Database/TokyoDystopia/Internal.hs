@@ -12,15 +12,30 @@
 
 module Database.TokyoDystopia.Internal
     ( bitOr
+    , openDB
     ) where
 
 import Data.Bits (Bits, (.|.))
+import Foreign ( Ptr )
+import Foreign.C.Types ( CInt )
+import Foreign.C.String ( CString )
+import Database.TokyoDystopia.Types 
+    ( OpenMode(..) 
+    , GetMode(..)
+    , TuningOption(..) )
 
-import qualified Database.TokyoCabinet as TC
-import qualified Database.TokyoCabinet.TDB as TCT
-import qualified Database.TokyoDystopia.Types as TDT
-import qualified Database.TokyoDystopia.FFI.IDB as IDB
+import qualified Foreign.C.String as CS
+-- import qualified Database.TokyoCabinet as TC
 
 -- | Bitwise or for bits.
 bitOr :: (Bits a) => [a] -> a
 bitOr = foldr (.|.) 0
+
+-- | Helper function for opening database.
+openDB :: (Ptr a -> CString -> CInt -> IO Bool) 
+       -> (b -> Ptr a) -> (OpenMode -> CInt) 
+       -> b -> FilePath -> [OpenMode] -> IO Bool
+openDB dbFunc unDB modeFunc db path modes = 
+    CS.withCString path $ \path' ->
+        dbFunc (unDB db) path' (bitOr $ fmap modeFunc modes)
+      

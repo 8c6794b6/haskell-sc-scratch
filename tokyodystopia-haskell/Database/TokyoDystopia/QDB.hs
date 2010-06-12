@@ -35,21 +35,20 @@ module Database.TokyoDystopia.QDB
 import Data.ByteString ( ByteString )
 import Data.Int ( Int64 )
 import Foreign ( Ptr )
-import qualified Foreign as FG
-import qualified Data.ByteString.Char8 as C8
-import qualified Foreign.C.String as CS
-
 import Database.TokyoCabinet ( ECODE(..) )
 import Database.TokyoCabinet.Storable ( Storable )
-import qualified Database.TokyoCabinet as TC
-import qualified Database.TokyoCabinet.Error as TCE
-import qualified Database.TokyoCabinet.Storable as TCS
 import Database.TokyoDystopia.Internal ( bitOr )
 import Database.TokyoDystopia.Types
     ( OpenMode(..)
     , TuningOption(..)
     , GetMode(..) )
+import qualified Foreign as FG
+import qualified Data.ByteString.Char8 as C8
+import qualified Foreign.C.String as CS
+import qualified Database.TokyoCabinet.Error as TCE
+import qualified Database.TokyoCabinet.Storable as TCS
 import qualified Database.TokyoDystopia.FFI.QDB as FQ
+import qualified Database.TokyoDystopia.Internal as I
 
 -- | Wrapper for TCQDB.
 newtype QDB = QDB { unQDB :: Ptr FQ.TCQDB }
@@ -60,11 +59,8 @@ close = FQ.c_close . unQDB
 
 -- | Open database from given path and open modes.
 open :: QDB -> FilePath -> [OpenMode] -> IO Bool
-open db path modes = do
-  path' <- CS.newCString path
-  FQ.c_open (unQDB db) path' modes'
-    where
-      modes' = bitOr $ fmap (FQ.unOpenMode . f) modes
+open = I.openDB FQ.c_open unQDB (FQ.unOpenMode . f)
+  where
       f OREADER = FQ.omReader
       f OWRITER = FQ.omWriter
       f OCREAT  = FQ.omCreat
@@ -157,6 +153,6 @@ vanish = FQ.c_vanish . unQDB
 
 -- | Copy the database to given filepath.
 copy :: QDB -> FilePath -> IO Bool
-copy db path = do
-  path' <- CS.newCString path
-  FQ.c_copy (unQDB db) path'
+copy db file = do
+  file' <- CS.newCString file
+  FQ.c_copy (unQDB db) file'

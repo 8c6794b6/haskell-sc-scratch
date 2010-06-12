@@ -65,7 +65,6 @@ module Database.TokyoDystopia.FFI.IDB
     , c_vanish
     ) where
 
-import Data.Word
 import Data.Int
 import Foreign
 import Foreign.C.Types

@@ -47,34 +47,29 @@ import Database.TokyoCabinet.List.C ( List(..) )
 import Database.TokyoCabinet.Sequence ( peekList' )
 import Database.TokyoCabinet.Storable ( Storable )
 
-import qualified Foreign as FG
-import qualified Foreign.C.String as CS
-import qualified Foreign.Marshal as FM
-import qualified Data.ByteString as B
-import qualified Data.ByteString.Char8 as C8
-
-import qualified Database.TokyoCabinet.Error as TCE
-import qualified Database.TokyoCabinet.List as TCL
-import qualified Database.TokyoCabinet.List.C as TCLC
-import qualified Database.TokyoCabinet.Storable as TCS
-
 import Database.TokyoDystopia.Internal ( bitOr )
 import Database.TokyoDystopia.Types
     ( OpenMode(..)
     , GetMode(..)
     , TuningOption(..) )
 
+import qualified Foreign as FG
+import qualified Foreign.C.String as CS
+import qualified Data.ByteString as B
+import qualified Data.ByteString.Char8 as C8
+
+import qualified Database.TokyoCabinet.Error as TCE
+import qualified Database.TokyoCabinet.Storable as TCS
+
 import qualified Database.TokyoDystopia.FFI.JDB as FJ
+import qualified Database.TokyoDystopia.Internal as I
 
 -- | Wrapper for TCJDB
 newtype JDB = JDB { unJDB :: Ptr FJ.TCJDB }
 
 -- | OPen database from given path and open modes.
 open :: JDB -> FilePath -> [OpenMode] -> IO Bool
-open db path modes = do
-  path' <- CS.newCString path
-  let mode = bitOr $ fmap (FJ.unOpenMode . f) modes
-  FJ.c_open (unJDB db) path' mode
+open = I.openDB FJ.c_open unJDB (FJ.unOpenMode . f)
     where
       f OREADER = FJ.omReader
       f OWRITER = FJ.omWriter
@@ -88,9 +83,7 @@ close :: JDB -> IO Bool
 close = FJ.c_close . unJDB
 
 copy :: JDB -> FilePath -> IO Bool
-copy db path = do
-  path' <- CS.newCString path
-  FJ.c_copy (unJDB db) path'
+copy db file = CS.withCString file $ \file' -> FJ.c_copy (unJDB db) file'
 
 del :: JDB -> IO ()
 del = FJ.c_del . unJDB
@@ -138,7 +131,7 @@ put db k vs = do
 put2 :: (Storable k)
      => JDB        -- ^ JDB database
      -> k          -- ^ Key for the record
-     -> ByteString -- ^ Value separated delimiter
+     -> ByteString -- ^ Value separated by delimiter
      -> ByteString -- ^ Delimiter
      -> IO Bool
 put2 db key vs v = do
@@ -151,17 +144,18 @@ rnum = FJ.c_rnum . unJDB
 
 search :: JDB -> String -> [GetMode] -> IO [Int64]
 search db query modes = do
-  counterP <- FG.new 0
-  B.useAsCString (C8.pack query) $ \query' -> do
-    res <- FJ.c_search (unJDB db) query' mode counterP
-    numResult <- fromIntegral `fmap` FG.peek counterP
-    FG.peekArray numResult res
+  FG.with 0 $ \counterP ->
+    B.useAsCString (C8.pack query) $ \query' -> do
+       res <- FJ.c_search (unJDB db) query' mode counterP
+       numResult <- fromIntegral `fmap` FG.peek counterP
+       FG.peekArray numResult res             
   where
     mode = bitOr (map (FJ.unGetMode . f) modes)
     f GMSUBSTR = FJ.gmSubstr
     f GMPREFIX = FJ.gmPrefix
     f GMSUFFIX = FJ.gmSuffix
     f GMFULL   = FJ.gmFull
+    f _        = FJ.GetMode 0
 
 search2 :: JDB -> String -> IO [Int64]
 search2 db query = do

@@ -1,4 +1,6 @@
+{-# LINE 1 "Database/TokyoDystopia/WDB.hs" #-}
 ------------------------------------------------------------------------------
+{-# LINE 2 "Database/TokyoDystopia/WDB.hs" #-}
 -- |
 -- Module      : Data.TokyoDystopia.WDB
 -- Copyright   : 8c6794b6 <8c6794b6@gmail.com>
@@ -12,48 +14,45 @@
 
 module Database.TokyoDystopia.WDB
     ( WDB()
-    , new
+    , close
+    , copy
     , del
     , ecode
-    , tune
+    , fsiz
+    , new
+    , open
+    , optimize
+    , out
+    , path
+    , put
+    , search
     , setcache
     , setfwmmax
-    , cnum
-    , open
-    , close
-    , put
-    , put2
-    , out
-    , out2
-    , search
-    , optimize
-    , vanish
-    , copy
-    , path
-    , tnum
-    , fsiz
     , sync
+    , tnum
+    , tune
+    , vanish
     ) where
 
 import Data.ByteString ( ByteString )
 import Data.Int ( Int64 )
-import Foreign ( Ptr, withForeignPtr )
+import Foreign ( Ptr )
 import qualified Foreign as FG
 import qualified Data.ByteString.Char8 as C8
 import qualified Foreign.C.String as CS
 
 import Database.TokyoCabinet ( ECODE(..) )
-import Database.TokyoCabinet.List.C ( List(..) )
-import Database.TokyoCabinet.Storable ( Storable )
+import Database.TokyoCabinet.Storable
+    ( Storable )
+import qualified Database.TokyoCabinet as TC
 import qualified Database.TokyoCabinet.Error as TCE
 import qualified Database.TokyoCabinet.Storable as TCS
-
 import Database.TokyoDystopia.Internal ( bitOr )
 import Database.TokyoDystopia.Types
     ( OpenMode(..)
-    , TuningOption(..) )
+    , TuningOption(..)
+    , GetMode(..) )
 import qualified Database.TokyoDystopia.FFI.WDB as FW
-import qualified Database.TokyoDystopia.Internal as I
 
 -- | Wrapper for TCWDB.
 newtype WDB = WDB { unWDB :: Ptr FW.TCWDB }
@@ -64,12 +63,11 @@ close = FW.c_close . unWDB
 
 -- | Open database from given path and open modes.
 open :: WDB -> FilePath -> [OpenMode] -> IO Bool
-open = I.openDB FW.c_open unWDB (FW.unOpenMode . f)
--- open db path modes = do
---   path' <- CS.newCString path
---   FW.c_open (unWDB db) path' modes'
+open db path modes = do
+  path' <- CS.newCString path
+  FW.c_open (unWDB db) path' modes'
     where
-      -- modes' = bitOr $ fmap (FW.unOpenMode . f) modes
+      modes' = bitOr $ fmap (FW.unOpenMode . f) modes
       f OREADER = FW.omReader
       f OWRITER = FW.omWriter
       f OCREAT  = FW.omCreat
@@ -103,51 +101,34 @@ out db key val = do
   val' <- CS.newCString val
   FW.c_out (unWDB db) (TCS.toInt64 key) val'
 
--- | Removes record with specifying delimiter.
-out2 :: (Storable k) 
-     => WDB         -- ^ WDB database
-     -> k           -- ^ Key for the record
-     -> ByteString  -- ^ Deleting values separated with delimeter
-     -> ByteString  -- ^ The delimeter
-     -> IO Bool
-out2 db k vs v = 
-  C8.useAsCString vs $ \vs' ->
-    C8.useAsCString v $ \v' ->
-      FW.c_out2 (unWDB db) (TCS.toInt64 k) vs' v'
-
 -- | Get filepath of the database
 path :: WDB -> IO String
 path db = FW.c_path (unWDB db) >>= CS.peekCString
 
 -- | Put data with given key and value.
-put :: (Storable k) => WDB -> k -> List ByteString -> IO Bool
-put db k vs = do
-  withForeignPtr (unTCList vs) (\v -> FW.c_put (unWDB db) (TCS.toInt64 k) v)
-
--- | Put with specifying delimiter.
-put2 :: (Storable k) 
-     => WDB         -- ^ JDB database
-     -> k           -- ^ Key for the record
-     -> ByteString  -- ^ Value separated by delimiter
-     -> ByteString  -- ^ Delimiter
-     -> IO Bool
-put2 db k vs v = do
-  C8.useAsCString vs $ \vs' ->
-    C8.useAsCString v $ \v' ->
-      FW.c_put2 (unWDB db) (TCS.toInt64 k) vs' v'
+put :: (Storable k) => WDB -> k -> ByteString -> IO Bool
+put db k v = C8.useAsCString v
+             (\str -> FW.c_put (unWDB db) (TCS.toInt64 k) str)
 
 -- | Get the number of token from database.
 tnum :: WDB -> IO Int64
 tnum = FW.c_tnum . unWDB
 
 -- | Search phrase with given GetMode.
-search :: WDB -> String -> IO [Int64]
-search db query = do
+search :: WDB -> String -> [GetMode] -> IO [Int64]
+search db query modes = do
   counterP <- FG.new 0
   query' <- CS.newCString query
-  res <- FW.c_search (unWDB db) query' counterP
+  res <- FW.c_search (unWDB db) query' mode counterP
   numResult <- fromIntegral `fmap` FG.peek counterP
   FG.peekArray numResult res
+    where
+      mode = bitOr (map (FW.unGetMode . f) modes)
+      f GMSUBSTR = FW.gmSubstr
+      f GMPREFIX = FW.gmPrefix
+      f GMSUFFIX = FW.gmSuffix
+      f GMFULL   = FW.gmFull
+      f _        = FW.GetMode 0
 
 -- | Set caching parameters. Must be used before opening database.
 setcache :: WDB -> Int64 -> Int -> IO Bool
@@ -158,24 +139,13 @@ setcache db ic lc  = FW.c_setcache (unWDB db) ic (fromIntegral lc)
 setfwmmax :: WDB -> Int -> IO Bool
 setfwmmax db fwm = FW.c_setfwmmax (unWDB db) (fromIntegral fwm)
 
--- | Get the number of chunks
-cnum :: WDB -> IO Int
-cnum db = FW.c_cnum (unWDB db) >>= return . fromIntegral
-
 -- | Sync database.
 sync :: WDB -> IO Bool
 sync = FW.c_sync . unWDB
 
 -- | Tune the database. Must be used before opening database.
 tune :: WDB -> Int64 -> [TuningOption] -> IO Bool
-tune db etnum opts = FW.c_tune (unWDB db) etnum opts'
-  where
-    opts' = fromIntegral . bitOr $ map (FW.unTuningOption . f) opts
-    f TLARGE   = FW.toLarge
-    f TDEFLATE = FW.toDeflate
-    f TBZIP    = FW.toBzip
-    f TTCBS    = FW.toTcbs
-    f _        = FW.TuningOption 0
+tune db etnum opts = undefined
 
 -- | Delete the database from disk.
 vanish :: WDB -> IO Bool
@@ -183,6 +153,6 @@ vanish = FW.c_vanish . unWDB
 
 -- | Copy the database to given filepath.
 copy :: WDB -> FilePath -> IO Bool
-copy db file = do
-  file' <- CS.newCString file
-  FW.c_copy (unWDB db) file'
+copy db path = do
+  path' <- CS.newCString path
+  FW.c_copy (unWDB db) path'

@@ -7,11 +7,12 @@ Maintainer:     8c6794b6@gmail.com
 Cabal-Version:  >= 1.6
 build-type:     Simple
 license:        BSD3
+license-file:   LICENSE
 category:       Sound
 stability:      experimental
 
 library
-  GHC-Options: -O2 -Wall
+  GHC-Options: -Wall -fforce-recomp
   Exposed-Modules:
     Database.TokyoDystopia
     Database.TokyoDystopia.Class

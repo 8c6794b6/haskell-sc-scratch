@@ -23,6 +23,7 @@ module Database.TokyoDystopia.IDB
     , new
     , open
     , optimize
+    , out
     , path
     , put
     , rnum
@@ -46,53 +47,46 @@ import Database.TokyoDystopia.Types
     , GetMode(..)
     , TuningOption(..) )
 
-import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as C8
-import qualified Foreign.ForeignPtr as FF
 import qualified Foreign as FG
-import qualified Foreign.C.Types as CT
 import qualified Foreign.C.String as CS
-import qualified Database.TokyoCabinet as TC
 import qualified Database.TokyoCabinet.Error as TCE
 import qualified Database.TokyoCabinet.Storable as TCS
-import qualified Database.TokyoDystopia.FFI.IDB as F
+import qualified Database.TokyoDystopia.FFI.IDB as FI
 import qualified Database.TokyoDystopia.Internal as I
 
 
 -- | Wrapper for TCIDB.
-newtype IDB = IDB { unIDB :: Ptr F.TCIDB }
+newtype IDB = IDB { unIDB :: Ptr FI.TCIDB }
 
 -- | Creates new IDB.
 new :: IO IDB
-new = IDB `fmap` F.c_new
+new = IDB `fmap` FI.c_new
 
 -- | Open database from given path and open modes.
 open :: IDB -> FilePath -> [OpenMode] -> IO Bool
-open db path modes = do
-  path' <- CS.newCString path
-  let mode = bitOr $ fmap (F.unOpenMode . f) modes
-  F.c_open (unIDB db) path' mode
-    where
-      f OREADER = F.omReader
-      f OWRITER = F.omWriter
-      f OCREAT  = F.omCreat
-      f OTRUNC  = F.omTrunc
-      f ONOLCK  = F.omNolck
-      f OLCKNB  = F.omLcknb
+open = I.openDB FI.c_open unIDB (FI.unOpenMode . f)
+  where
+      f OREADER = FI.omReader
+      f OWRITER = FI.omWriter
+      f OCREAT  = FI.omCreat
+      f OTRUNC  = FI.omTrunc
+      f ONOLCK  = FI.omNolck
+      f OLCKNB  = FI.omLcknb
 
 -- | Closes database
 close :: IDB -> IO Bool
-close = F.c_close . unIDB
+close = FI.c_close . unIDB
 
 -- | Put data with given key and value.
 put :: (Storable k) => IDB -> k -> ByteString -> IO Bool
 put db k v = C8.useAsCString v
-             (\str -> F.c_put (unIDB db) (TCS.toInt64 k) str)
+             (\str -> FI.c_put (unIDB db) (TCS.toInt64 k) str)
 
 -- | Get data with given key.
 get :: (Storable k, Storable v) => IDB -> k -> IO (Maybe v)
 get db i = do
-  val <- F.c_get (unIDB db) (TCS.toInt64 i)
+  val <- FI.c_get (unIDB db) (TCS.toInt64 i)
   str <- maybePeek CS.peekCString val
   return $ fmap TCS.fromString str
 
@@ -101,25 +95,25 @@ search :: IDB -> String -> [GetMode] -> IO [Int64]
 search db query modes = do
   counterP <- FG.new 0
   query' <- CS.newCString query
-  res <- F.c_search (unIDB db) query' mode counterP
+  res <- FI.c_search (unIDB db) query' mode counterP
   numResult <- fromIntegral `fmap` FG.peek counterP
   FG.peekArray numResult res
       where
-        mode = bitOr (map (F.unGetMode . f) modes)
-        f GMSUBSTR = F.gmSubstr
-        f GMPREFIX = F.gmPrefix
-        f GMSUFFIX = F.gmSuffix
-        f GMFULL   = F.gmFull
-        f GMTOKEN  = F.gmToken
-        f GMTOKPRE = F.gmTokPre
-        f GMTOKSUF = F.gmTokSuf
+        mode = bitOr (map (FI.unGetMode . f) modes)
+        f GMSUBSTR = FI.gmSubstr
+        f GMPREFIX = FI.gmPrefix
+        f GMSUFFIX = FI.gmSuffix
+        f GMFULL   = FI.gmFull
+        f GMTOKEN  = FI.gmToken
+        f GMTOKPRE = FI.gmTokPre
+        f GMTOKSUF = FI.gmTokSuf
 
 -- | Search with given query and returns list of id keys.
 search2 :: IDB -> String -> IO [Int64]
 search2 db query = do
   counterP <- FG.new 0 
   query' <- CS.newCString query
-  res <- F.c_search2 (unIDB db) query' counterP
+  res <- FI.c_search2 (unIDB db) query' counterP
   numResult <- fromIntegral `fmap` FG.peek counterP
   FG.free counterP
   res' <- FG.peekArray numResult res
@@ -128,68 +122,69 @@ search2 db query = do
 
 -- | Delete database, from memory.
 del :: IDB -> IO ()
-del = F.c_del . unIDB
+del = FI.c_del . unIDB
 
 -- | Get the last happened error code of an indexed database object.
 ecode :: IDB -> IO ECODE
-ecode db = fmap TCE.cintToError (F.c_ecode $ unIDB db)
+ecode db = fmap TCE.cintToError (FI.c_ecode $ unIDB db)
 
 -- | Tune the database. Must be used before opening database.
 tune :: IDB -> Int64 -> Int64 -> Int64 -> [TuningOption] -> IO Bool
-tune db ernum etnum iusuz opts = 
-    F.c_tune (unIDB db) ernum etnum iusuz opts'
+tune db ernum etnum iusiz opts = 
+    FI.c_tune (unIDB db) ernum etnum iusiz opts'
     where
-      opts' = fromIntegral $ I.bitOr $ map (F.unTuningOption . f) opts
-      f TLARGE   = F.toLarge
-      f TDEFLATE = F.toDeflate
-      f TBZIP    = F.toBzip
-      f TTCBS    = F.toTcbs
+      opts' = fromIntegral $ bitOr $ map (FI.unTuningOption . f) opts
+      f TLARGE   = FI.toLarge
+      f TDEFLATE = FI.toDeflate
+      f TBZIP    = FI.toBzip
+      f TTCBS    = FI.toTcbs
+      f _        = FI.TuningOption 0
 
 -- | Set caching parameters. Must be used before opening database.
 setcache :: IDB -> Int64 -> Int -> IO Bool
-setcache db icsiz lcnum = F.c_setcache (unIDB db) icsiz (fromIntegral lcnum)
+setcache db icsiz lcnum = FI.c_setcache (unIDB db) icsiz (fromIntegral lcnum)
 
 -- | Set maximum number of forward matching expansion. Must be used before
 -- opening database.
 setfwmmax :: IDB -> Int -> IO Bool
-setfwmmax db fwmmax = F.c_setfwmmax (unIDB db) (fromIntegral fwmmax)
+setfwmmax db fwmmax = FI.c_setfwmmax (unIDB db) (fromIntegral fwmmax)
 
 -- | Initialize the iterator.
 iterinit :: IDB -> IO Bool
-iterinit = F.c_iterinit . unIDB
+iterinit = FI.c_iterinit . unIDB
 
 -- | Get next key for iterator
 iternext :: IDB -> IO Int64
-iternext =  F.c_iternext . unIDB
+iternext =  FI.c_iternext . unIDB
 
 -- | Sync database.
 sync :: IDB -> IO Bool
-sync = F.c_sync . unIDB
+sync = FI.c_sync . unIDB
 
 -- | Optimize database.
 optimize :: IDB -> IO Bool
-optimize = F.c_optimize . unIDB
+optimize = FI.c_optimize . unIDB
 
 -- | Removes record with given key
 out :: (Storable k) => IDB -> k -> IO Bool
-out db key = F.c_out (unIDB db) (TCS.toInt64 key) 
+out db key = FI.c_out (unIDB db) (TCS.toInt64 key) 
 
 -- | Delete the database from disk. 
 vanish :: IDB -> IO Bool
-vanish = F.c_vanish . unIDB
+vanish = FI.c_vanish . unIDB
 
 -- | Copy the database to given filepath.
 copy :: IDB -> FilePath -> IO Bool
-copy db path = F.c_copy (unIDB db) =<< CS.newCString path
+copy db file = FI.c_copy (unIDB db) =<< CS.newCString file
 
 -- | Get filepath of the database
 path :: IDB -> IO FilePath
-path db = F.c_path (unIDB db) >>= CS.peekCString
+path db = FI.c_path (unIDB db) >>= CS.peekCString
 
 -- | Get number of records in database.
 rnum :: IDB -> IO Int64
-rnum = F.c_rnum . unIDB
+rnum = FI.c_rnum . unIDB
 
 -- | Get filesize of the database.
 fsiz :: IDB -> IO Int64
-fsiz = F.c_fsiz . unIDB
+fsiz = FI.c_fsiz . unIDB

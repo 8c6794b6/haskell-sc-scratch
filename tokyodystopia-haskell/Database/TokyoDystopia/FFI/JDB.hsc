@@ -47,6 +47,7 @@ module Database.TokyoDystopia.FFI.JDB
     , c_close
     , c_put
     , c_put2
+    , c_out
     , c_get
     , c_get2
     , c_search
@@ -68,7 +69,6 @@ import Foreign ( Ptr )
 import Foreign.C.Types ( CInt , CUInt )
 import Foreign.C.String ( CString )
 
-import Database.TokyoCabinet.List ( List )
 import Database.TokyoCabinet.List.C ( LIST )
 
 #include <laputa.h>

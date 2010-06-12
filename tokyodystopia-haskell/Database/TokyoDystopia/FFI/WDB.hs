@@ -40,25 +40,28 @@ module Database.TokyoDystopia.FFI.WDB
     , toTcbs
 
     -- * C Functions
-    , c_close
-    , c_copy
+    , c_errmsg
+    , c_new
     , c_del
     , c_ecode
-    , c_errmsg
-    , c_fsiz
-    , c_new
-    , c_open
-    , c_optimize
-    , c_out
-    , c_path
-    , c_put
-    , c_tnum
-    , c_search
+    , c_tune
     , c_setcache
     , c_setfwmmax
-    , c_sync
-    , c_tune
+    , c_cnum
+    , c_open
+    , c_close
+    , c_put
+    , c_put2
+    , c_out
+    , c_out2
+    , c_search
+    , c_optimize
     , c_vanish
+    , c_copy
+    , c_path
+    , c_tnum
+    , c_fsiz
+    , c_sync
     ) where
 
 import Data.Int ( Int32, Int64 )
@@ -70,7 +73,7 @@ import Database.TokyoCabinet.List ( List )
 import Database.TokyoCabinet.List.C ( LIST )
 
 
-{-# LINE 70 "Database/TokyoDystopia/FFI/WDB.hsc" #-}
+{-# LINE 73 "Database/TokyoDystopia/FFI/WDB.hsc" #-}
 
 ------------------------------------------------------------------------------
 -- 
@@ -108,7 +111,7 @@ omNolck   = OpenMode 16
 omLcknb   :: OpenMode
 omLcknb   = OpenMode 32
 
-{-# LINE 101 "Database/TokyoDystopia/FFI/WDB.hsc" #-}
+{-# LINE 104 "Database/TokyoDystopia/FFI/WDB.hsc" #-}
 
 gmSubstr  :: GetMode
 gmSubstr  = GetMode 0
@@ -119,7 +122,7 @@ gmSuffix  = GetMode 2
 gmFull  :: GetMode
 gmFull  = GetMode 3
 
-{-# LINE 107 "Database/TokyoDystopia/FFI/WDB.hsc" #-}
+{-# LINE 110 "Database/TokyoDystopia/FFI/WDB.hsc" #-}
 
 toLarge  :: TuningOption
 toLarge  = TuningOption 1
@@ -130,7 +133,7 @@ toBzip  = TuningOption 4
 toTcbs  :: TuningOption
 toTcbs  = TuningOption 8
 
-{-# LINE 113 "Database/TokyoDystopia/FFI/WDB.hsc" #-}
+{-# LINE 116 "Database/TokyoDystopia/FFI/WDB.hsc" #-}
 
 ------------------------------------------------------------------------------
 -- 

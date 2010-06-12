@@ -94,7 +94,6 @@ data TuningOption = TuningOption { unTuningOption :: CInt }
 
 data TCJDB
 
--- data LIST
 
 omReader  :: OpenMode
 omReader  = OpenMode 1
@@ -109,7 +108,7 @@ omNolck   = OpenMode 16
 omLcknb   :: OpenMode
 omLcknb   = OpenMode 32
 
-{-# LINE 102 "Database/TokyoDystopia/FFI/JDB.hsc" #-}
+{-# LINE 101 "Database/TokyoDystopia/FFI/JDB.hsc" #-}
 
 gmSubstr  :: GetMode
 gmSubstr  = GetMode 0
@@ -120,7 +119,7 @@ gmSuffix  = GetMode 2
 gmFull    :: GetMode
 gmFull    = GetMode 3
 
-{-# LINE 108 "Database/TokyoDystopia/FFI/JDB.hsc" #-}
+{-# LINE 107 "Database/TokyoDystopia/FFI/JDB.hsc" #-}
 
 toLarge    :: TuningOption
 toLarge    = TuningOption 1
@@ -131,7 +130,7 @@ toBzip     = TuningOption 4
 toTcbs     :: TuningOption
 toTcbs     = TuningOption 8
 
-{-# LINE 114 "Database/TokyoDystopia/FFI/JDB.hsc" #-}
+{-# LINE 113 "Database/TokyoDystopia/FFI/JDB.hsc" #-}
 
 
 ------------------------------------------------------------------------------

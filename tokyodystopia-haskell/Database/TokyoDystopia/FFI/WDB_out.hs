@@ -1,4 +1,9 @@
+{-# LINE 1 "Database/TokyoDystopia/FFI/WDB.hs" #-}
+{-# INCLUDE <tcwdb.h> #-}
+{-# LINE 2 "Database/TokyoDystopia/FFI/WDB.hs" #-}
+{-# LINE 1 "Database/TokyoDystopia/FFI/WDB.hsc" #-}
 {-# LANGUAGE ForeignFunctionInterface,
+{-# LINE 2 "Database/TokyoDystopia/FFI/WDB.hsc" #-}
              EmptyDataDecls,
              CPP #-}
 
@@ -37,38 +42,35 @@ module Database.TokyoDystopia.FFI.WDB
     , toTcbs
 
     -- * C Functions
-    , c_errmsg
-    , c_new
+    , c_close
+    , c_copy
     , c_del
     , c_ecode
-    , c_tune
+    , c_errmsg
+    , c_fsiz
+    , c_new
+    , c_open
+    , c_optimize
+    , c_out
+    , c_path
+    , c_put
+    , c_tnum
+    , c_search
     , c_setcache
     , c_setfwmmax
-    , c_cnum
-    , c_open
-    , c_close
-    , c_put
-    , c_put2
-    , c_out
-    , c_out2
-    , c_search
-    , c_optimize
-    , c_vanish
-    , c_copy
-    , c_path
-    , c_tnum
-    , c_fsiz
     , c_sync
+    , c_tune
+    , c_vanish
     ) where
 
-import Data.Int ( Int32, Int64 )
-import Foreign ( Ptr )
-import Foreign.C.Types ( CInt, CUInt )
-import Foreign.C.String ( CString )
+import Data.Word
+import Data.Int
+import Foreign
+import Foreign.C.Types
+import Foreign.C.String
 
-import Database.TokyoCabinet.List.C ( LIST )
 
-#include <tcwdb.h>
+{-# LINE 68 "Database/TokyoDystopia/FFI/WDB.hsc" #-}
 
 ------------------------------------------------------------------------------
 -- 
@@ -93,25 +95,42 @@ data TCWDB
 -- 
 ------------------------------------------------------------------------------
 
-#{enum OpenMode, OpenMode
- , omReader = QDBOREADER
- , omWriter = QDBOWRITER
- , omCreat = QDBOCREAT
- , omTrunc  = QDBOTRUNC
- , omNolck  = QDBONOLCK
- , omLcknb  = QDBOLCKNB }
+omReader  :: OpenMode
+omReader  = OpenMode 1
+omWriter  :: OpenMode
+omWriter  = OpenMode 2
+omCreat  :: OpenMode
+omCreat  = OpenMode 4
+omTrunc   :: OpenMode
+omTrunc   = OpenMode 8
+omNolck   :: OpenMode
+omNolck   = OpenMode 16
+omLcknb   :: OpenMode
+omLcknb   = OpenMode 32
 
-#{enum GetMode, GetMode
- , gmSubstr = QDBSSUBSTR
- , gmPrefix = QDBSPREFIX
- , gmSuffix = QDBSSUFFIX
- , gmFull = QDBSFULL }
+{-# LINE 99 "Database/TokyoDystopia/FFI/WDB.hsc" #-}
 
-#{enum TuningOption, TuningOption
- , toLarge = QDBTLARGE
- , toDeflate = QDBTDEFLATE
- , toBzip = QDBTBZIP
- , toTcbs = QDBTTCBS }
+gmSubstr  :: GetMode
+gmSubstr  = GetMode 0
+gmPrefix  :: GetMode
+gmPrefix  = GetMode 1
+gmSuffix  :: GetMode
+gmSuffix  = GetMode 2
+gmFull  :: GetMode
+gmFull  = GetMode 3
+
+{-# LINE 105 "Database/TokyoDystopia/FFI/WDB.hsc" #-}
+
+toLarge  :: TuningOption
+toLarge  = TuningOption 1
+toDeflate  :: TuningOption
+toDeflate  = TuningOption 2
+toBzip  :: TuningOption
+toBzip  = TuningOption 4
+toTcbs  :: TuningOption
+toTcbs  = TuningOption 8
+
+{-# LINE 111 "Database/TokyoDystopia/FFI/WDB.hsc" #-}
 
 ------------------------------------------------------------------------------
 -- 
@@ -140,9 +159,6 @@ foreign import ccall "tcwdb.h tcwdbsetcache"
 foreign import ccall "tcwdb.h tcwdbsetfwmmax"
         c_setfwmmax :: Ptr TCWDB -> Int32 -> IO Bool
 
-foreign import ccall "tcwdb.h tcwdbcnum"
-        c_cnum :: Ptr TCWDB -> IO CUInt
-
 foreign import ccall "tcwdb.h tcwdbopen"
         c_open :: Ptr TCWDB -> CString -> CInt -> IO Bool
 
@@ -150,19 +166,13 @@ foreign import ccall "tcwdb.h tcwdbclose"
         c_close :: Ptr TCWDB -> IO Bool
 
 foreign import ccall "tcwdb.h tcwdbput"
-        c_put :: Ptr TCWDB -> Int64 -> Ptr LIST -> IO Bool
-
-foreign import ccall "tcwdb.h tcwdbput2"
-        c_put2 :: Ptr TCWDB -> Int64 -> CString -> CString -> IO Bool
+        c_put :: Ptr TCWDB -> Int64 -> CString -> IO Bool
 
 foreign import ccall "tcwdb.h tcwdbout"
         c_out :: Ptr TCWDB -> Int64 -> CString -> IO Bool
 
-foreign import ccall "tcwdb.h tcwdbout2"
-        c_out2 :: Ptr TCWDB -> Int64 -> CString -> CString -> IO Bool
-
 foreign import ccall "tcwdb.h tcwdbsearch"
-        c_search :: Ptr TCWDB -> CString -> Ptr CInt -> IO (Ptr Int64)
+        c_search :: Ptr TCWDB -> CString -> CInt -> Ptr CInt -> IO (Ptr Int64)
 
 foreign import ccall "tcwdb.h tcwdbsync"
         c_sync :: Ptr TCWDB -> IO Bool

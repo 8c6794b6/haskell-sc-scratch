@@ -24,8 +24,6 @@ import Data.Int ( Int64 )
 import "monads-fd" Control.Monad.Trans( MonadIO )
 
 import Database.TokyoCabinet.List ( List )
-import Database.TokyoCabinet.Storable ( Storable )
-import qualified Database.TokyoCabinet.List as TCL
 
 import Database.TokyoDystopia.Types 
     ( OpenMode 
@@ -52,11 +50,11 @@ newtype TDM a = TDM
 -- 
 -- * IDB : All functions are implemented.
 -- 
--- * QDB : get always return Nothing.
+-- * QDB : @get@ will always return @Nothing@.
 -- 
 -- * JDB : All functions are implemented.
 --
--- * WDB : get always return Nothing, GetMode in search has no effect.
+-- * WDB : @get@ will always return @Nothing@, and @GetMode@ in search has no effect.
 -- 
 class TDDB db val | db -> val where
 
@@ -81,6 +79,18 @@ class TDDB db val | db -> val where
     del :: db -> TDM ()
     del = undefined
 
+    tune :: db -> Int64 -> Int64 -> Int64 -> [TuningOption] -> TDM Bool
+    tune = undefined
+
+    path :: db -> TDM FilePath
+    path = undefined
+
+    fsiz :: db -> TDM Int64
+    fsiz = undefined
+
+    sync :: db -> TDM Bool
+    sync = undefined
+
 
 ------------------------------------------------------------------------------
 -- 
@@ -92,7 +102,7 @@ instance TDDB IDB ByteString where
 
     new = TDM IDB.new
 
-    open db path modes = TDM (IDB.open db path modes)
+    open db file modes = TDM (IDB.open db file modes)
 
     close db = TDM (IDB.close db)
 
@@ -103,6 +113,14 @@ instance TDDB IDB ByteString where
     search db query modes = TDM $ IDB.search db query modes
 
     del = TDM . IDB.del
+
+    tune db etnum ernum iusiz opts = TDM $ IDB.tune db etnum ernum iusiz opts 
+
+    path = TDM . IDB.path
+
+    fsiz = TDM . IDB.fsiz
+
+    sync = TDM . IDB.sync
 
 
 ------------------------------------------------------------------------------
@@ -115,7 +133,7 @@ instance TDDB QDB ByteString where
 
     new = TDM QDB.new
 
-    open db path modes = TDM (QDB.open db path modes)
+    open db file modes = TDM (QDB.open db file modes)
 
     close db = TDM (QDB.close db)
 
@@ -126,6 +144,14 @@ instance TDDB QDB ByteString where
     search db query modes = TDM $ QDB.search db query modes
 
     del = TDM . QDB.del
+
+    tune db etnum _ _ opts = TDM $ QDB.tune db etnum opts 
+
+    path = TDM . QDB.path
+
+    fsiz = TDM . QDB.fsiz
+
+    sync = TDM . QDB.sync
 
 
 ------------------------------------------------------------------------------
@@ -138,7 +164,7 @@ instance TDDB JDB (List ByteString) where
 
     new = TDM JDB.new
 
-    open db path modes = TDM $ JDB.open db path modes
+    open db file modes = TDM $ JDB.open db file modes
 
     close = TDM . JDB.close
 
@@ -150,6 +176,14 @@ instance TDDB JDB (List ByteString) where
 
     del = TDM . JDB.del
 
+    tune db etnum ernum iusiz opts = TDM $ JDB.tune db etnum ernum iusiz opts 
+
+    path = TDM . JDB.path
+
+    fsiz = TDM . JDB.fsiz
+
+    sync = TDM . JDB.sync
+
 
 ------------------------------------------------------------------------------
 -- 
@@ -157,19 +191,26 @@ instance TDDB JDB (List ByteString) where
 -- 
 ------------------------------------------------------------------------------
 
-
 instance TDDB WDB (List ByteString) where
 
     new = TDM WDB.new
 
-    open db path modes = TDM $ WDB.open db path modes
+    open db file modes = TDM $ WDB.open db file modes
 
     close = TDM . WDB.close
 
-    get db k = TDM (return Nothing)
+    get _ _ = TDM (return Nothing)
 
     put db k v = TDM $ WDB.put db k v 
 
     search db query _ = TDM $ WDB.search db query 
 
     del = TDM . WDB.del
+
+    tune db etnum _ _ opts = TDM $ WDB.tune db etnum opts 
+
+    path = TDM . WDB.path
+
+    fsiz = TDM . WDB.fsiz
+
+    sync = TDM . WDB.sync

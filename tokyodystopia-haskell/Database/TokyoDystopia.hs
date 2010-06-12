@@ -11,8 +11,8 @@
 --
 
 module Database.TokyoDystopia
-    ( 
-      IDB.IDB 
+    (
+      IDB.IDB
     , QDB.QDB
     , JDB.JDB
     , WDB.WDB
@@ -30,6 +30,3 @@ import qualified Database.TokyoDystopia.QDB as QDB
 import qualified Database.TokyoDystopia.JDB as JDB
 import qualified Database.TokyoDystopia.IDB as IDB
 import qualified Database.TokyoDystopia.WDB as WDB
-
-
-
