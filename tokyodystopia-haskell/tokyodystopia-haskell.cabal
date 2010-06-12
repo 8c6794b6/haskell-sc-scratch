@@ -19,9 +19,11 @@ library
     Database.TokyoDystopia.FFI.IDB
     Database.TokyoDystopia.FFI.JDB
     Database.TokyoDystopia.FFI.QDB
+    Database.TokyoDystopia.FFI.WDB
     Database.TokyoDystopia.JDB
     Database.TokyoDystopia.IDB
     Database.TokyoDystopia.QDB
+    Database.TokyoDystopia.WDB
     Database.TokyoDystopia.Utils
     Database.TokyoDystopia.Types
   Other-Modules:

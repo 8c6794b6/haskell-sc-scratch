@@ -21,8 +21,7 @@ module Database.TokyoDystopia.Class where
 
 import Data.ByteString ( ByteString )
 import Data.Int ( Int64 )
-import "monads-fd" Control.Monad.Trans
-    ( MonadIO )
+import "monads-fd" Control.Monad.Trans( MonadIO )
 
 import Database.TokyoCabinet.List ( List )
 import Database.TokyoCabinet.Storable ( Storable )

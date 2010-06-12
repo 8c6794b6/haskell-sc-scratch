@@ -90,7 +90,6 @@ data TuningOption = TuningOption { unTuningOption :: CInt }
 
 data TCJDB
 
--- data LIST
 
 #{enum OpenMode, OpenMode
  , omReader = JDBOREADER

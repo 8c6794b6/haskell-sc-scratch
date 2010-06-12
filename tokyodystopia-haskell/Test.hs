@@ -14,18 +14,21 @@ import Database.TokyoDystopia
     , GetMode(..)
     , IDB
     , JDB
-    , QDB )
+    , QDB 
+    , WDB )
 import qualified Database.TokyoCabinet as TC
 import qualified Database.TokyoCabinet.List as TCL
 import qualified Database.TokyoDystopia as TD
 import qualified Database.TokyoDystopia.IDB as IDB
 import qualified Database.TokyoDystopia.QDB as QDB
 import qualified Database.TokyoDystopia.JDB as JDB
+import qualified Database.TokyoDystopia.WDB as WDB
 
 
 main :: IO ()
 main = do
 
+  -- IDB tests
   idb <- TD.runTDM $ do
            a <- test_read_idb
            b <- test_write_idb
@@ -34,6 +37,7 @@ main = do
            return (a,b,c,d)
   putStrLn "idb tests:" >> print idb
 
+  -- QDB tests
   qdb <- TD.runTDM $ do
            a <- test_write_qdb
            b <- test_read_qdb
@@ -41,12 +45,21 @@ main = do
            return (a, b, c)
   putStrLn "qdb tests:" >> print qdb
 
+  -- JDB tests
   jdb <- TD.runTDM $ do
            a <- test_write_jdb
            b <- test_read_jdb
            c <- test_search_qdb "a"
            return (a, b, c)
   putStrLn "jdb tests:" >> print jdb
+
+  -- WDB tests
+  wdb <- TD.runTDM $ do
+          a <- test_write_wdb
+          b <- test_read_wdb
+          c <- test_search_wdb "foo"
+          return (a, b, c)
+  putStrLn "wdb tests:" >> print wdb
 
 
 ------------------------------------------------------------------------------
@@ -184,12 +197,38 @@ test_search_jdb q = do
 
 test_write_wdb :: TDM Bool
 test_write_wdb = do
-  undefined
+  db <- TD.new :: TDM WDB
+  TD.open db "test/casket.tcw" [OCREAT, OWRITER]
+  l1 <- liftIO $ TCL.new 
+  l2 <- liftIO $ TCL.new
+  l3 <- liftIO $ TCL.new
+  liftIO $ do
+    mapM_ (TCL.push l1 . C8.pack) ["foo", "bar", "buzz"]
+    mapM_ (TCL.push l2 . C8.pack) ["foo", "bar", "apple"]
+    mapM_ (TCL.push l3 . C8.pack) ["foo", "apple", "banana"] 
+  r1 <- TD.put db 1 l1
+  r2 <- TD.put db 2 l2
+  r3 <- TD.put db 3 l3
+  TD.close db
+  TD.del db
+  return $ and [r1, r2, r3]
+  
 
-test_read_wdb :: TDM [ByteString]
+-- | TD.get for WDB will always return empty ByteString.
+test_read_wdb :: TDM (ByteString)
 test_read_wdb = do
-  undefined
+  db <- TD.new :: TDM WDB
+  TD.open db "test/casket.tcw" [OREADER]
+  res <- TD.get db 1 
+  res' <- liftIO $ maybe (return B.empty) TCL.dump res
+  TD.close db >> TD.del db
+  return res'
+
 
 test_search_wdb :: String -> TDM [Int64]
 test_search_wdb q = do
-  undefined
+  db <- TD.new :: TDM WDB
+  TD.open db "test/casket.tcw" [OREADER]
+  ks <- TD.search db q [GMSUBSTR]
+  TD.close db >> TD.del db
+  return ks

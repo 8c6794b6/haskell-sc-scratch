@@ -58,11 +58,13 @@ module Database.TokyoDystopia.FFI.WDB
     , c_vanish
     ) where
 
-import Data.Word
-import Data.Int
-import Foreign
-import Foreign.C.Types
-import Foreign.C.String
+import Data.Int ( Int32, Int64 )
+import Foreign ( Ptr )
+import Foreign.C.Types ( CInt, CUInt )
+import Foreign.C.String ( CString )
+
+import Database.TokyoCabinet.List ( List )
+import Database.TokyoCabinet.List.C ( LIST )
 
 #include <tcwdb.h>
 
@@ -136,6 +138,9 @@ foreign import ccall "tcwdb.h tcwdbsetcache"
 foreign import ccall "tcwdb.h tcwdbsetfwmmax"
         c_setfwmmax :: Ptr TCWDB -> Int32 -> IO Bool
 
+foreign import ccall "tcwdb.h tcwdbcnum"
+        c_cnum :: Ptr TCWDB -> IO CUInt
+
 foreign import ccall "tcwdb.h tcwdbopen"
         c_open :: Ptr TCWDB -> CString -> CInt -> IO Bool
 
@@ -143,7 +148,7 @@ foreign import ccall "tcwdb.h tcwdbclose"
         c_close :: Ptr TCWDB -> IO Bool
 
 foreign import ccall "tcwdb.h tcwdbput"
-        c_put :: Ptr TCWDB -> Int64 -> CString -> IO Bool
+        c_put :: Ptr TCWDB -> Int64 -> Ptr LIST -> IO Bool
 
 foreign import ccall "tcwdb.h tcwdbput2"
         c_put2 :: Ptr TCWDB -> Int64 -> CString -> CString -> IO Bool
@@ -155,7 +160,7 @@ foreign import ccall "tcwdb.h tcwdbout2"
         c_out2 :: Ptr TCWDB -> Int64 -> CString -> CString -> IO Bool
 
 foreign import ccall "tcwdb.h tcwdbsearch"
-        c_search :: Ptr TCWDB -> CString -> CInt -> Ptr CInt -> IO (Ptr Int64)
+        c_search :: Ptr TCWDB -> CString -> Ptr CInt -> IO (Ptr Int64)
 
 foreign import ccall "tcwdb.h tcwdbsync"
         c_sync :: Ptr TCWDB -> IO Bool
