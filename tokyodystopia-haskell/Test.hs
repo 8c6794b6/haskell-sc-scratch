@@ -4,9 +4,6 @@ module Main where
 import Control.Monad
 import "monads-fd" Control.Monad.Trans ( liftIO )
 import Data.Int ( Int64 )
-import Foreign
-import Foreign.C.Types
-import Foreign.C.String
 import Data.ByteString ( ByteString )
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as C8
