@@ -3,7 +3,7 @@
              FunctionalDependencies,
              MultiParamTypeClasses,
              TypeSynonymInstances,
-             UndecidableInstances
+             FlexibleInstances
   #-}
 ------------------------------------------------------------------------------
 -- |
@@ -79,6 +79,12 @@ class TDDB db val | db -> val where
     del = undefined
 
 
+------------------------------------------------------------------------------
+-- 
+-- IDB
+-- 
+------------------------------------------------------------------------------
+
 instance TDDB IDB ByteString where
 
     new = TDM IDB.new
@@ -95,6 +101,12 @@ instance TDDB IDB ByteString where
 
     del = TDM . IDB.del
 
+
+------------------------------------------------------------------------------
+-- 
+-- QDB
+-- 
+------------------------------------------------------------------------------
 
 instance TDDB QDB ByteString where
 
@@ -113,11 +125,34 @@ instance TDDB QDB ByteString where
 
     del = TDM . QDB.del
 
-instance (Storable a) => TDDB JDB (List a) where
+
+------------------------------------------------------------------------------
+-- 
+-- JDB
+-- 
+------------------------------------------------------------------------------
+
+instance TDDB JDB (List ByteString) where
+
     new = TDM JDB.new
+
     open db path modes = TDM $ JDB.open db path modes
+
     close = TDM . JDB.close
-    get = undefined
-    put = undefined
-    search = undefined
-    del = undefined
+
+    get db k = TDM $ fmap return $ JDB.get db k
+
+    put db k v = TDM $ JDB.put db k v 
+
+    search db query modes = TDM $ JDB.search db query modes
+
+    del = TDM . JDB.del
+
+
+------------------------------------------------------------------------------
+-- 
+-- WDB
+-- 
+------------------------------------------------------------------------------
+
+-- TBW

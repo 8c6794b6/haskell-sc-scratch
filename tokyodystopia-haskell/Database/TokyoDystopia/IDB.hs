@@ -121,7 +121,10 @@ search2 db query = do
   query' <- CS.newCString query
   res <- F.c_search2 (unIDB db) query' counterP
   numResult <- fromIntegral `fmap` FG.peek counterP
-  FG.peekArray numResult res
+  FG.free counterP
+  res' <- FG.peekArray numResult res
+  FG.free res
+  return res'
 
 -- | Delete database, from memory.
 del :: IDB -> IO ()

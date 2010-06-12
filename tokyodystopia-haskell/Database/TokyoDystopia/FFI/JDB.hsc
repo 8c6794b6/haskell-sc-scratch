@@ -63,18 +63,13 @@ module Database.TokyoDystopia.FFI.JDB
 
     ) where
 
-import Data.Int
-    ( Int32
-    , Int64 )
+import Data.Int ( Int32, Int64 )
 import Foreign ( Ptr )
-import Foreign.C.Types
-    ( CInt
-    , CUInt )
-import Foreign.C.String
-    ( CString )
+import Foreign.C.Types ( CInt , CUInt )
+import Foreign.C.String ( CString )
 
-import Database.TokyoCabinet.List 
-    ( List )
+import Database.TokyoCabinet.List ( List )
+import Database.TokyoCabinet.List.C ( LIST )
 
 #include <laputa.h>
 
@@ -95,7 +90,7 @@ data TuningOption = TuningOption { unTuningOption :: CInt }
 
 data TCJDB
 
-data LIST
+-- data LIST
 
 #{enum OpenMode, OpenMode
  , omReader = JDBOREADER

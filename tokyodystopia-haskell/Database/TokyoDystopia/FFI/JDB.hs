@@ -66,21 +66,16 @@ module Database.TokyoDystopia.FFI.JDB
 
     ) where
 
-import Data.Int
-    ( Int32
-    , Int64 )
+import Data.Int ( Int32, Int64 )
 import Foreign ( Ptr )
-import Foreign.C.Types
-    ( CInt
-    , CUInt )
-import Foreign.C.String
-    ( CString )
+import Foreign.C.Types ( CInt , CUInt )
+import Foreign.C.String ( CString )
 
-import Database.TokyoCabinet.List 
-    ( List )
+import Database.TokyoCabinet.List ( List )
+import Database.TokyoCabinet.List.C ( LIST )
 
 
-{-# LINE 80 "Database/TokyoDystopia/FFI/JDB.hsc" #-}
+{-# LINE 75 "Database/TokyoDystopia/FFI/JDB.hsc" #-}
 
 ------------------------------------------------------------------------------
 --
@@ -99,7 +94,7 @@ data TuningOption = TuningOption { unTuningOption :: CInt }
 
 data TCJDB
 
-data LIST
+-- data LIST
 
 omReader  :: OpenMode
 omReader  = OpenMode 1
@@ -114,7 +109,7 @@ omNolck   = OpenMode 16
 omLcknb   :: OpenMode
 omLcknb   = OpenMode 32
 
-{-# LINE 107 "Database/TokyoDystopia/FFI/JDB.hsc" #-}
+{-# LINE 102 "Database/TokyoDystopia/FFI/JDB.hsc" #-}
 
 gmSubstr  :: GetMode
 gmSubstr  = GetMode 0
@@ -125,7 +120,7 @@ gmSuffix  = GetMode 2
 gmFull    :: GetMode
 gmFull    = GetMode 3
 
-{-# LINE 113 "Database/TokyoDystopia/FFI/JDB.hsc" #-}
+{-# LINE 108 "Database/TokyoDystopia/FFI/JDB.hsc" #-}
 
 toLarge    :: TuningOption
 toLarge    = TuningOption 1
@@ -136,7 +131,7 @@ toBzip     = TuningOption 4
 toTcbs     :: TuningOption
 toTcbs     = TuningOption 8
 
-{-# LINE 119 "Database/TokyoDystopia/FFI/JDB.hsc" #-}
+{-# LINE 114 "Database/TokyoDystopia/FFI/JDB.hsc" #-}
 
 
 ------------------------------------------------------------------------------
