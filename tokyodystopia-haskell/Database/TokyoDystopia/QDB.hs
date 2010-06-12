@@ -40,8 +40,7 @@ import qualified Data.ByteString.Char8 as C8
 import qualified Foreign.C.String as CS
 
 import Database.TokyoCabinet ( ECODE(..) )
-import Database.TokyoCabinet.Storable
-    ( Storable )
+import Database.TokyoCabinet.Storable ( Storable )
 import qualified Database.TokyoCabinet as TC
 import qualified Database.TokyoCabinet.Error as TCE
 import qualified Database.TokyoCabinet.Storable as TCS
@@ -115,11 +114,11 @@ tnum = FQ.c_tnum . unQDB
 -- | Search phrase with given GetMode.
 search :: QDB -> String -> [GetMode] -> IO [Int64]
 search db query modes = do
-  counterP <- FG.new 0
-  query' <- CS.newCString query
-  res <- FQ.c_search (unQDB db) query' mode counterP
-  numResult <- fromIntegral `fmap` FG.peek counterP
-  FG.peekArray numResult res
+  FG.with 0 $ \counterP -> 
+    CS.withCString query $ \query' -> do
+       res <- FQ.c_search (unQDB db) query' mode counterP
+       numResult <- fromIntegral `fmap` FG.peek counterP
+       FG.peekArray numResult res                   
     where
       mode = bitOr (map (FQ.unGetMode . f) modes)
       f GMSUBSTR = FQ.gmSubstr
@@ -143,7 +142,14 @@ sync = FQ.c_sync . unQDB
 
 -- | Tune the database. Must be used before opening database.
 tune :: QDB -> Int64 -> [TuningOption] -> IO Bool
-tune db etnum opts = undefined
+tune db etnum opts = FQ.c_tune (unQDB db) etnum opts' 
+  where 
+    opts' = fromIntegral . bitOr . map (FQ.unTuningOption . f) $ opts
+    f TLARGE   = FQ.toLarge
+    f TDEFLATE = FQ.toDeflate
+    f TBZIP    = FQ.toBzip
+    f TTCBS    = FQ.toTcbs
+    f _        = FQ.TuningOption 0
 
 -- | Delete the database from disk.
 vanish :: QDB -> IO Bool
