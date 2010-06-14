@@ -64,12 +64,8 @@ close = FW.c_close . unWDB
 
 -- | Open database from given path and open modes.
 open :: WDB -> FilePath -> [OpenMode] -> IO Bool
-open = I.openDB FW.c_open unWDB (FW.unOpenMode . f)
--- open db path modes = do
---   path' <- CS.newCString path
---   FW.c_open (unWDB db) path' modes'
+open = I.mkOpen FW.c_open unWDB (FW.unOpenMode . f)
     where
-      -- modes' = bitOr $ fmap (FW.unOpenMode . f) modes
       f OREADER = FW.omReader
       f OWRITER = FW.omWriter
       f OCREAT  = FW.omCreat
@@ -143,11 +139,13 @@ tnum = FW.c_tnum . unWDB
 -- | Search phrase with given GetMode.
 search :: WDB -> String -> IO [Int64]
 search db query = do
-  counterP <- FG.new 0
-  query' <- CS.newCString query
-  res <- FW.c_search (unWDB db) query' counterP
-  numResult <- fromIntegral `fmap` FG.peek counterP
-  FG.peekArray numResult res
+  FG.with 0 $ \counterP ->
+    CS.withCString query $ \query' -> do
+       res <- FW.c_search (unWDB db) query' counterP
+       numResult <- fromIntegral `fmap` FG.peek counterP
+       res' <- FG.peekArray numResult res
+       FG.free res
+       return res'
 
 -- | Set caching parameters. Must be used before opening database.
 setcache :: WDB -> Int64 -> Int -> IO Bool

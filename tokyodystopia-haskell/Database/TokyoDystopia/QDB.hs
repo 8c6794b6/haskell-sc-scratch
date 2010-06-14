@@ -59,7 +59,7 @@ close = FQ.c_close . unQDB
 
 -- | Open database from given path and open modes.
 open :: QDB -> FilePath -> [OpenMode] -> IO Bool
-open = I.openDB FQ.c_open unQDB (FQ.unOpenMode . f)
+open = I.mkOpen FQ.c_open unQDB (FQ.unOpenMode . f)
   where
       f OREADER = FQ.omReader
       f OWRITER = FQ.omWriter
@@ -109,14 +109,9 @@ tnum = FQ.c_tnum . unQDB
 
 -- | Search phrase with given GetMode.
 search :: QDB -> String -> [GetMode] -> IO [Int64]
-search db query modes = do
-  FG.with 0 $ \counterP -> 
-    CS.withCString query $ \query' -> do
-       res <- FQ.c_search (unQDB db) query' mode counterP
-       numResult <- fromIntegral `fmap` FG.peek counterP
-       FG.peekArray numResult res                   
+search = I.mkSearch FQ.c_search unQDB g
     where
-      mode = bitOr (map (FQ.unGetMode . f) modes)
+      g = bitOr . map (FQ.unGetMode . f)
       f GMSUBSTR = FQ.gmSubstr
       f GMPREFIX = FQ.gmPrefix
       f GMSUFFIX = FQ.gmSuffix

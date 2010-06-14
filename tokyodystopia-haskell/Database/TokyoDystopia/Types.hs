@@ -25,11 +25,11 @@ import qualified Database.TokyoCabinet as TC
 import qualified Database.TokyoCabinet.TDB as TCT
 
 -- | Options for searching.
-data GetMode = GMSUBSTR
-             | GMPREFIX
-             | GMSUFFIX
-             | GMFULL
-             | GMTOKEN
-             | GMTOKPRE
-             | GMTOKSUF
-               deriving (Eq, Show)
+data GetMode = GMSUBSTR  -- ^ substring matching
+             | GMPREFIX  -- ^ prefix matching
+             | GMSUFFIX  -- ^ suffix matching
+             | GMFULL    -- ^ full matching
+             | GMTOKEN   -- ^ token matching
+             | GMTOKPRE  -- ^ token prefix matching
+             | GMTOKSUF  -- ^ token suffix matching
+               deriving (Eq, Ord, Show)

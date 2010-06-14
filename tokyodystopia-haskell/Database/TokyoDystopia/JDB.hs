@@ -69,7 +69,7 @@ newtype JDB = JDB { unJDB :: Ptr FJ.TCJDB }
 
 -- | OPen database from given path and open modes.
 open :: JDB -> FilePath -> [OpenMode] -> IO Bool
-open = I.openDB FJ.c_open unJDB (FJ.unOpenMode . f)
+open = I.mkOpen FJ.c_open unJDB (FJ.unOpenMode . f)
     where
       f OREADER = FJ.omReader
       f OWRITER = FJ.omWriter
@@ -143,14 +143,9 @@ rnum :: JDB -> IO Int64
 rnum = FJ.c_rnum . unJDB
 
 search :: JDB -> String -> [GetMode] -> IO [Int64]
-search db query modes = do
-  FG.with 0 $ \counterP ->
-    B.useAsCString (C8.pack query) $ \query' -> do
-       res <- FJ.c_search (unJDB db) query' mode counterP
-       numResult <- fromIntegral `fmap` FG.peek counterP
-       FG.peekArray numResult res             
+search = I.mkSearch FJ.c_search unJDB g
   where
-    mode = bitOr (map (FJ.unGetMode . f) modes)
+    g = bitOr . map (FJ.unGetMode . f)
     f GMSUBSTR = FJ.gmSubstr
     f GMPREFIX = FJ.gmPrefix
     f GMSUFFIX = FJ.gmSuffix
@@ -158,15 +153,7 @@ search db query modes = do
     f _        = FJ.GetMode 0
 
 search2 :: JDB -> String -> IO [Int64]
-search2 db query = do
-  counterP <- FG.new 0
-  CS.withCString query $ \query' -> do
-    res <- FJ.c_search2 (unJDB db) query' counterP
-    numResult <- fromIntegral `fmap` FG.peek counterP
-    FG.free counterP
-    res' <- FG.peekArray numResult res
-    FG.free res
-    return res'
+search2 = I.mkSearch2 FJ.c_search2 unJDB
 
 setcache :: JDB -> Int64 -> Int -> IO Bool
 setcache db icsiz lcnum = FJ.c_setcache (unJDB db) icsiz (fromIntegral lcnum)

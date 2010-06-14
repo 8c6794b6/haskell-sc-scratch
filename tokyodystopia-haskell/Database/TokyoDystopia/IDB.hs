@@ -65,7 +65,7 @@ new = IDB `fmap` FI.c_new
 
 -- | Open database from given path and open modes.
 open :: IDB -> FilePath -> [OpenMode] -> IO Bool
-open = I.openDB FI.c_open unIDB (FI.unOpenMode . f)
+open = I.mkOpen FI.c_open unIDB (FI.unOpenMode . f)
   where
       f OREADER = FI.omReader
       f OWRITER = FI.omWriter
@@ -92,14 +92,9 @@ get db i = do
 
 -- | Search with GetMode options.
 search :: IDB -> String -> [GetMode] -> IO [Int64]
-search db query modes = do
-  counterP <- FG.new 0
-  query' <- CS.newCString query
-  res <- FI.c_search (unIDB db) query' mode counterP
-  numResult <- fromIntegral `fmap` FG.peek counterP
-  FG.peekArray numResult res
+search = I.mkSearch FI.c_search unIDB g 
       where
-        mode = bitOr (map (FI.unGetMode . f) modes)
+        g = bitOr . map (FI.unGetMode . f)
         f GMSUBSTR = FI.gmSubstr
         f GMPREFIX = FI.gmPrefix
         f GMSUFFIX = FI.gmSuffix
@@ -110,15 +105,7 @@ search db query modes = do
 
 -- | Search with given query and returns list of id keys.
 search2 :: IDB -> String -> IO [Int64]
-search2 db query = do
-  counterP <- FG.new 0 
-  query' <- CS.newCString query
-  res <- FI.c_search2 (unIDB db) query' counterP
-  numResult <- fromIntegral `fmap` FG.peek counterP
-  FG.free counterP
-  res' <- FG.peekArray numResult res
-  FG.free res
-  return res'
+search2 = I.mkSearch2 FI.c_search2 unIDB
 
 -- | Delete database, from memory.
 del :: IDB -> IO ()
