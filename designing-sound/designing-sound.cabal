@@ -1,0 +1,49 @@
+name:          designing-sound
+version:       0.1
+synopsis:      Rewrite of wikibook Designing Sound in SuperCollider with haskell
+author:        8c6794b6
+maintainer:    8c6794b6@gmail.com
+cabal-version: >= 1.4
+build-type:    Simple
+license:       BSD3
+license-file:  LICENSE
+category:      Sound
+stability:     experimental
+description:
+  Wikibook Designing Sound in SuperCollider rewrite with haskell. The sound
+  synthesis was done originally with pure data. The book has partially rewritten
+  to SuperCollider, with sclang. This module is yet again rewrite of sclang
+  codes to haskell, with using hsc3 module.
+
+executable dial
+  main-is: dial.hs
+  hs-source-dirs: src
+
+library
+  ghc-options: -Wall -fno-warn-unused-do-bind -O2
+  hs-source-dirs: src
+  exposed-modules:
+    DesigningSound
+    DesigningSound.AdditiveSynthesis
+    DesigningSound.Alarms
+    DesigningSound.Boing
+    DesigningSound.BouncingBall
+    DesigningSound.Bubbles
+    DesigningSound.CreakingDoor
+    DesigningSound.DTMF
+    DesigningSound.Fire
+    DesigningSound.Pedestrians
+    DesigningSound.PhoneTones
+    DesigningSound.Rain
+    DesigningSound.RollingCan
+    DesigningSound.RunningWater
+    DesigningSound.SchroederReverb
+    DesigningSound.Sirens
+    DesigningSound.TelephoneBell
+    DesigningSound.Util
+  build-depends:
+    base >= 2.0 && < 5.0,
+    containers >= 0.3.0.0,
+    hosc >= 0.8,
+    hsc3 >= 0.8,
+    random -any
