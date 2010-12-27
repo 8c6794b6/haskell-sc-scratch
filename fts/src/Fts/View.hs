@@ -1,58 +1,48 @@
-{-# LANGUAGE OverloadedStrings,
-             PackageImports
-  #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PackageImports #-}
 module Fts.View where
 
 import Data.ByteString ( ByteString )
 import Data.Maybe ( catMaybes )
-import Snap.Types ( Snap, Request ) 
-import Text.Templating.Heist ( Splice, Node )
-
-import "monads-fd" Control.Monad.Trans ( liftIO )
-import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as C8
+
+import Snap.Types ( Snap, Request )
+import Text.Templating.Heist ( Splice, Node )
 import qualified Network.URI as URI
 import qualified Snap.Types as ST
-import qualified Text.Templating.Heist as HE
 import qualified Text.XML.Expat.Tree as EX
 
 import Fts.Model ( SearchResult(..) )
 
-
 mkResults :: [SearchResult] -> Splice Snap
 mkResults rs = return [EX.mkElement "ul" [] (map mkResult rs)]
 
-
 mkResult :: SearchResult -> Node
-mkResult (SearchResult u t) = 
+mkResult (SearchResult u t) =
     EX.mkElement "li" []
-      [ EX.mkElement "div" [("id", "result")] 
+      [ EX.mkElement "div" [("id", "result")]
         [ EX.mkElement "a" [("href", escape u)] [EX.mkText u]
-        , EX.mkElement "div" [] 
+        , EX.mkElement "div" []
             [ EX.mkText $ C8.append (C8.take 200 t) " ..."] ]]
-
 
 escape :: ByteString -> ByteString
 escape uri = C8.pack (URI.escapeURIString URI.isAllowedInURI (C8.unpack uri))
 
-
 mkInputQuery :: Maybe [ByteString] -> Splice Snap
 mkInputQuery (Just (q:_)) = return [element]
-  where 
+  where
     element = EX.mkElement "input" [ ("type", "text")
                                    , ("name", "q")
                                    , ("value", q) ] []
 mkInputQuery _ = return [element]
-  where                  
+  where
     element = EX.mkElement "input" [ ("type", "text")
                                    , ("name", "q") ] []
 
-
 mkSummary :: [a] -> Request -> Splice Snap
-mkSummary ks req = do
-  return [element]
+mkSummary ks req = return [element]
   where
-    element = if length ks > 0 
+    element = if length ks > 0
                 then EX.mkText $ foldr C8.append C8.empty
                          [num, " hits, page ", cur, " of ", page]
                 else EX.mkText $ C8.pack "no hits"
@@ -63,10 +53,9 @@ mkSummary ks req = do
               (x,0) -> x
               (x,_) -> x + 1
 
-
 mkPageLinks :: [a] -> Request -> Splice Snap
-mkPageLinks ks req = if length ks > perPage then showIt else dontShowIt 
-  where 
+mkPageLinks ks req = if length ks > perPage then showIt else dontShowIt
+  where
     dontShowIt = return []
 
     showIt = do
@@ -74,44 +63,42 @@ mkPageLinks ks req = if length ks > perPage then showIt else dontShowIt
           p = maybe C8.empty head $ ST.rqParam "p" req
 
           currentPage :: Int
-          currentPage = if p' == "" then 1 else read p' 
+          currentPage = if p' == "" then 1 else read p'
              where p' = C8.unpack p
 
           mkPageLink :: Int -> String -> Node
-          mkPageLink num txt = 
+          mkPageLink num txt =
               EX.mkElement "span"
-                [("id", "page_link")] 
-                [ EX.mkElement "a" 
-                   [("href", C8.pack $ 
-                             C8.unpack (ST.rqContextPath req) ++ "?" ++ 
+                [("id", "page_link")]
+                [ EX.mkElement "a"
+                   [("href", C8.pack $
+                             C8.unpack (ST.rqContextPath req) ++ "?" ++
                              "q=" ++ C8.unpack q ++ "&p=" ++ show num)]
                      [EX.mkText $ C8.pack (' ' : txt ++ " ")]]
 
           mkPageLink' :: Int -> Maybe Node
           mkPageLink' n = return $ mkPageLink n (' ':(show n)++" ")
 
-      return [EX.mkElement "div" [("id", "page_links")] $ catMaybes $ 
+      return [EX.mkElement "div" [("id", "page_links")] $ catMaybes $
                 [ if p == "1" || p == C8.empty
-                    then Nothing 
+                    then Nothing
                     else Just (mkPageLink (currentPage - 1) "<< ") ]
-                ++ map mkPageLink' 
+                ++ map mkPageLink'
                        (filter (\x -> x > 0 && x <= lastPage)
-                         (enumFromTo (currentPage - (numPageLinks `div` 2)) 
+                         (enumFromTo (currentPage - (numPageLinks `div` 2))
                                      (currentPage + (numPageLinks `div` 2))))
-                ++ 
+                ++
                 [ if p == (C8.pack $ show lastPage)
                     then Nothing
                     else Just $ mkPageLink (currentPage + 1) " >>" ] ]
 
-    lastPage :: Int 
+    lastPage :: Int
     lastPage = case quotRem (length ks) perPage of
                  (x,0) -> x
                  (x,_) -> x + 1
 
-
 numPageLinks :: Int
 numPageLinks = 20
-
 
 perPage :: Int
 perPage = 10

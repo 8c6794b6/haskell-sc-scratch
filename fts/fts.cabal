@@ -1,7 +1,6 @@
 Name:                fts
 Version:             0.1
-Synopsis:            Project Synopsis Here
-Description:         Project Description Here
+Synopsis:            Example web app for full text search with tokyo dystopia
 License:             BSD4
 Author:              8c6794b6
 Maintainer:          8c6794b6@gmail.com
@@ -13,21 +12,24 @@ Cabal-version:       >=1.2
 Executable fts
   hs-source-dirs: src
   main-is: Main.hs
-
-  Build-depends:
+  ghc-options:
+    -O2
+    -Wall
+    -threaded
+    -funbox-strict-fields
+    -fno-warn-unused-do-bind
+  build-depends:
     base >= 4,
     haskell98,
     monads-fd >= 0.1 && <0.2,
     bytestring >= 0.9.1 && <0.10,
     containers -any,
     directory -any,
-    snap-core >= 0.2 && <0.3,
-    snap-server >= 0.2 && <0.3,
-    heist >= 0.1 && <0.2,
+    snap-core >= 0.3.0,
+    snap-server >= 0.3.0,
+    heist >= 0.4.0,
     filepath >= 1.1 && <1.2,
     hexpat -any,
     network -any,
-    tokyodystopia-haskell -any,
+    tokyodystopia-haskell >= 0.0.2,
     tokyocabinet-haskell -any
-
-  ghc-options: -O2 -Wall -fwarn-tabs -funbox-strict-fields -threaded -fno-warn-unused-imports -fno-warn-unused-do-bind

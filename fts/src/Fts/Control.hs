@@ -1,37 +1,25 @@
-{-# LANGUAGE OverloadedStrings,
-             PackageImports #-}
-
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PackageImports #-}
 module Fts.Control where
 
-import Control.Concurrent ( MVar, readMVar, modifyMVar_ )
-import "monads-fd" Control.Monad.Trans ( liftIO )
+import Control.Concurrent (MVar, readMVar)
+import qualified Data.ByteString.Char8 as C8
+
+import "monads-fd" Control.Monad.Trans (liftIO)
 import Snap.Types
     ( Snap
-    , ifTop
-    , writeBS
-    , getParam )
+    , writeBS )
 import Text.Templating.Heist ( TemplateState )
-import Fts.Model ( SearchResult(..) )
-
 import qualified Snap.Types as ST
-import qualified Snap.Util.FileServe as FS
 import qualified Text.Templating.Heist as HE
-import qualified Text.Templating.Heist.Splices as HES 
-import qualified Data.ByteString as B
-import qualified Data.ByteString.Char8 as C8
 
 import qualified Fts.Model as M
 import qualified Fts.View as V
-
--- | Just show input interface, without results.
-noQuery :: Snap ()
-noQuery = ifTop $ writeBS "hello world"
 
 -- | Show first page of search results.
 queryPhrase :: MVar (TemplateState Snap) -> Snap ()
 queryPhrase tsMVar = do
   req <- ST.getRequest
-
   ST.modifyResponse $ ST.setContentType "text/html"
   let q = ST.rqParam "q" req
       p = ST.rqParam "p" req
@@ -42,17 +30,12 @@ queryPhrase tsMVar = do
   let ts' = HE.bindSplice "input_query" (V.mkInputQuery q) ts
   case q of
     Just (q':_) -> do
-           keys <- liftIO $ M.search q'
-           vals <- liftIO $ M.getResults V.perPage ((p'-1) * V.perPage) keys
-           let ts'' = HE.bindSplice "results" (V.mkResults vals) .
-                      HE.bindSplice "summary" (V.mkSummary keys req) .
-                      HE.bindSplice "page_links" (V.mkPageLinks keys req) $
-                      ts'
-           maybe ST.pass writeBS =<< HE.renderTemplate ts'' "search"
-
+      keys <- liftIO $ M.search q'
+      vals <- liftIO $ M.getResults V.perPage ((p'-1) * V.perPage) keys
+      let ts'' = HE.bindSplice "results" (V.mkResults vals) .
+                 HE.bindSplice "summary" (V.mkSummary keys req) .
+                 HE.bindSplice "page_links" (V.mkPageLinks keys req) $
+                 ts'
+      maybe ST.pass writeBS =<< HE.renderTemplate ts'' "search"
     _            -> do
-           maybe ST.pass writeBS =<< HE.renderTemplate ts' "search"
-
--- | Show results with specifying page.
-queryPhrasePage :: Snap ()
-queryPhrasePage = undefined
+      maybe ST.pass writeBS =<< HE.renderTemplate ts' "search"
