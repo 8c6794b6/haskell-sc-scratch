@@ -26,7 +26,7 @@ executable fts
     bytestring >= 0.9.1 && <0.10,
     containers -any,
     directory -any,
-    regex-compat >= 0.93.1,
+    directory-tree >= 0.9.1,
     snap-core >= 0.3.0,
     snap-server >= 0.3.0,
     heist >= 0.4.0,

@@ -1,32 +1,39 @@
 module Fts.Command.Index where
 
-import Control.Applicative
-import Control.Monad
-    ( forM
-    , join )
+import Control.Applicative (ZipList(..), (<*>), (<$>))
+import Control.Monad (join, when)
 import Data.List (isSuffixOf)
-import System.Directory
-import System.FilePath
+import System.Directory (createDirectory, doesDirectoryExist)
 import System.IO.Unsafe (unsafeInterleaveIO)
+import qualified Data.Foldable as F
 import qualified Data.ByteString.Char8 as C8
 
+import Text.HTML.TagSoup (Tag(..), (~==), innerText, parseTags, sections)
 import qualified Database.TokyoCabinet as TC
 import qualified Database.TokyoDystopia as TD
-import Text.HTML.TagSoup
-import Text.Regex (subRegex, mkRegex)
+import qualified System.Directory.Tree as T
+import qualified Text.XML.Expat.Tree as X
 
 import qualified Fts.Model as M
 
 -- | Index html file under specified directory and make indexed data.
 run :: FilePath -- ^ Database path
-    -> FilePath -- ^ Template path
+    -> FilePath -- ^ Target path
     -> IO ()
-run dbPath templatePath= do
-  ts <- mkTargets templatePath
-  i <- mkIndice dbPath ts
+run dbPath targetPath = do
+  putStrLn $ "Output: " ++ dbPath
+  putStrLn $ "Target: " ++ targetPath
+  mkOutDirectories dbPath
+  ts <- mkTargets targetPath
+  putStrLn "Creating key-value database ..."
   d <- mkData dbPath ts
-  print [("index creation:", i),
-         ("data insertion:", d)]
+  putStrLn "Creating index ... "
+  i <- mkIndice dbPath ts
+  let message | i && d      = "Done"
+              | not i && d  = "Index creation failed"
+              | i && not d  = "Key value database creation failed"
+              | otherwise   = "Index and key value database creation failed"
+  putStrLn message
 
 -- | Datatype to hold information of target.
 data Target = Target {
@@ -34,6 +41,14 @@ data Target = Target {
       targetUrl :: String,
       targetText :: String
     } deriving (Eq, Show, Read)
+
+-- | Make output director if not exist
+mkOutDirectories :: FilePath -> IO ()
+mkOutDirectories dbPath = mapM_ go [dbPath, M.tdDBPath dbPath]
+  where
+    go path = do
+      exist <- doesDirectoryExist path
+      when (not exist) (createDirectory path)
 
 -- | Makes index for tokyodystipia from Target.
 mkIndice :: FilePath -> [Target] -> IO Bool
@@ -60,20 +75,19 @@ mkData dbPath ts = do
        return res
   return $ and res
 
--- | Makes Target from given filepath.
+-- | Make Target from given filepath.
 mkTargets :: FilePath -> IO [Target]
 mkTargets root = do
   htmls <- filter ("html" `isSuffixOf`) <$> recurseDirectory root
   bodies <- unsafeInterleaveMapIO (fmap bodyText . readFile) htmls
   return . getZipList $
-         Target <$> ZipList [1..] <*> ZipList htmls <*> ZipList bodies
+    Target <$> ZipList [1..] <*> ZipList htmls <*> ZipList bodies
 
 -- | Read html strings and extract body text.
 bodyText :: String -> String
-bodyText html = tidy (parse html)
-    where
-      parse = innerText . join . sections (~== (TagOpen "body" [])) . parseTags
-      tidy a = subRegex (mkRegex "\\\n+") a "\n"
+bodyText html = parse html
+  where
+    parse = innerText . join . sections (~== (TagOpen "body" [])) . parseTags
 
 -- | From:
 --
@@ -86,15 +100,7 @@ unsafeInterleaveMapIO f (x:xs) = unsafeInterleaveIO $ do
   return (y:ys)
 unsafeInterleaveMapIO _ [] = return []
 
--- | From RWH's I/O Case Study chapter.
+-- | Recurse under given directory and return list of filepath.
 recurseDirectory :: FilePath -> IO [FilePath]
-recurseDirectory root = do
-  paths <- getDirectoryContents root
-  let paths' = filter (`notElem` [".", ".."]) paths
-  paths'' <- forM paths' $ \name -> do
-    let path = root </> name
-    directoryExists <- doesDirectoryExist path
-    if directoryExists
-      then recurseDirectory path
-      else return [path]
-  return $ concat paths''
+recurseDirectory root =
+  T.readDirectoryWithL return root >>= return . F.toList . T.free
