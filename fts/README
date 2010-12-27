@@ -1,14 +1,25 @@
+fts - full text search
+======================
+
 Summary
-===========
+-------
+Full text search for html files with tokyodystopia and snap web framework.
 
-Full text search for html files with tokyodystopia.
+Commands overview
+-----------------
+For detailed argument, run `fts --help`.
 
-Design of database
-==================
+* `fts index`
+    * Index html files under given directory, and write indexed data.
 
+* `fts serve`
+    * Run server program with given template path and db path.
+
+Database schema
+---------------
 * Database for searching text
   * id -> Body text
-* Database for other data. $(ID) is integer number. 
+
+* Database for other data. $(ID) is integer number.
   * uri:$(ID) -> uri of the content
   * text:$(ID) -> body text of content
-

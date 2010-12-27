@@ -8,7 +8,9 @@
 module Fts.Model where
 
 import Data.ByteString ( ByteString )
+import System.FilePath ((</>))
 import qualified Data.ByteString.Char8 as B
+
 
 import "monads-fd" Control.Monad.Trans ( liftIO )
 import Database.TokyoCabinet
@@ -23,12 +25,12 @@ import qualified Database.TokyoDystopia as TD
 import qualified Database.TokyoDystopia.IDB as IDB
 
 -- | Path to TokyoDystopia index database.
-tdDBPath :: String
-tdDBPath = "/home/atsuro/repos/git/haskell-sc-scratch/fts/db/casket"
+tdDBPath :: FilePath -> FilePath
+tdDBPath root = root </> "casket"
 
 -- | Path to TokyoCabinet key value storage.
-tcDBPath :: String
-tcDBPath = "/home/atsuro/repos/git/haskell-sc-scratch/fts/db/db.tch"
+tcDBPath :: FilePath -> FilePath
+tcDBPath root = root </> "db.tch"
 
 -- | Data type for search result.
 --
@@ -43,19 +45,19 @@ noRecord :: SearchResult
 noRecord = SearchResult B.empty B.empty
 
 -- | Searches given query.
-search :: ByteString -> IO [ByteString]
-search query = TD.runTDM $ do
+search :: FilePath -> ByteString -> IO [ByteString]
+search dbRoot query = TD.runTDM $ do
   db <- TD.new :: TDM IDB
-  TD.open db tdDBPath [OREADER]
+  TD.open db (tdDBPath dbRoot) [OREADER]
   ids <- liftIO $ IDB.search2 db (B.unpack query)
   TD.close db >> TD.del db
   return $ fmap (B.pack . show) ids
 
 -- | Retrieve document data from tokyocabinet database.
-getResults :: Int -> Int -> [ByteString] -> IO [SearchResult]
-getResults lim offset keys = TC.runTCM $ do
+getResults :: FilePath -> Int -> Int -> [ByteString] -> IO [SearchResult]
+getResults dbRoot lim offset keys = TC.runTCM $ do
     db <- TC.new :: TCM HDB
-    TC.open db tcDBPath [OREADER]
+    TC.open db (tcDBPath dbRoot) [OREADER]
     vs <- mapM (f db) (take lim $ drop offset $ keys)
     TC.close db
     return vs

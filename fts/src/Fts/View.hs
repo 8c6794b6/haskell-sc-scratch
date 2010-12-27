@@ -33,11 +33,13 @@ mkInputQuery (Just (q:_)) = return [element]
   where
     element = EX.mkElement "input" [ ("type", "text")
                                    , ("name", "q")
-                                   , ("value", q) ] []
+                                   , ("value", q)
+                                   , ("size", "50") ] []
 mkInputQuery _ = return [element]
   where
     element = EX.mkElement "input" [ ("type", "text")
-                                   , ("name", "q") ] []
+                                   , ("name", "q")
+                                   , ("size", "50") ] []
 
 mkSummary :: [a] -> Request -> Splice Snap
 mkSummary ks req = return [element]

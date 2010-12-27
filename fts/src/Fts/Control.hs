@@ -17,8 +17,8 @@ import qualified Fts.Model as M
 import qualified Fts.View as V
 
 -- | Show first page of search results.
-queryPhrase :: MVar (TemplateState Snap) -> Snap ()
-queryPhrase tsMVar = do
+queryPhrase :: FilePath -> MVar (TemplateState Snap) -> Snap ()
+queryPhrase dbPath tsMVar = do
   req <- ST.getRequest
   ST.modifyResponse $ ST.setContentType "text/html"
   let q = ST.rqParam "q" req
@@ -30,8 +30,8 @@ queryPhrase tsMVar = do
   let ts' = HE.bindSplice "input_query" (V.mkInputQuery q) ts
   case q of
     Just (q':_) -> do
-      keys <- liftIO $ M.search q'
-      vals <- liftIO $ M.getResults V.perPage ((p'-1) * V.perPage) keys
+      keys <- liftIO $ M.search dbPath q'
+      vals <- liftIO $ M.getResults dbPath V.perPage ((p'-1) * V.perPage) keys
       let ts'' = HE.bindSplice "results" (V.mkResults vals) .
                  HE.bindSplice "summary" (V.mkSummary keys req) .
                  HE.bindSplice "page_links" (V.mkPageLinks keys req) $

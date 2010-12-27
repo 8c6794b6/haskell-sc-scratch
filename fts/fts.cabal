@@ -1,15 +1,15 @@
-Name:                fts
-Version:             0.1
-Synopsis:            Example web app for full text search with tokyo dystopia
-License:             BSD4
-Author:              8c6794b6
-Maintainer:          8c6794b6@gmail.com
-Stability:           Experimental
-Category:            Web
-Build-type:          Simple
-Cabal-version:       >=1.2
+name:                fts
+version:             0.2
+synopsis:            Example web app for full text search with tokyo dystopia
+license:             BSD4
+author:              8c6794b6
+maintainer:          8c6794b6@gmail.com
+stability:           Experimental
+category:            Web
+build-type:          Simple
+cabal-version:       >=1.2
 
-Executable fts
+executable fts
   hs-source-dirs: src
   main-is: Main.hs
   ghc-options:
@@ -21,14 +21,17 @@ Executable fts
   build-depends:
     base >= 4,
     haskell98,
+    cmdargs >= 0.6.4,
     monads-fd >= 0.1 && <0.2,
     bytestring >= 0.9.1 && <0.10,
     containers -any,
     directory -any,
+    regex-compat >= 0.93.1,
     snap-core >= 0.3.0,
     snap-server >= 0.3.0,
     heist >= 0.4.0,
     filepath >= 1.1 && <1.2,
+    tagsoup >= 0.11.1,
     hexpat -any,
     network -any,
     tokyodystopia-haskell >= 0.0.2,

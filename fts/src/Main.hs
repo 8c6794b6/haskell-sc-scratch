@@ -1,48 +1,36 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PackageImports #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 module Main where
 
-import System
-import Control.Applicative ((<|>))
-import Control.Concurrent ( MVar, newMVar, readMVar )
-import qualified Data.ByteString.Char8 as C8
+import Data.Data (Data, Typeable)
 
-import "monads-fd" Control.Monad.Trans ( liftIO )
-import Snap.Http.Server
-import Snap.Types
-import Text.Templating.Heist ( TemplateState )
-import qualified Snap.Util.FileServe as FS
-import qualified Text.Templating.Heist as HE
+import System.Console.CmdArgs (cmdArgs, modes)
 
-import qualified Fts.Control as C
+import qualified Fts.Command.Index as I
+import qualified Fts.Command.Serve as S
 
+-- | Data type for parsing command line args.
+data Fts
+  = Serve { port :: Int
+          , dbPath :: FilePath
+          , templatePath :: FilePath }
+  | Index { dbPath :: FilePath
+          , targetPath :: FilePath }
+  deriving (Eq, Show, Data, Typeable)
 
+-- | Parse args, run command.
 main :: IO ()
 main = do
-    args <- getArgs
-    ets <- HE.loadTemplates templatePath (HE.emptyTemplateState "")
-    let ts = either error id ets
-        port | null args = 8000
-             | otherwise = read $ head args
-        conf = addListen (ListenHttp "127.0.0.1" port) defaultConfig
-    tsMVar <- newMVar ts
-    httpServe conf (site tsMVar)
+    arg <- cmdArgs $ modes [server, indexer]
+    case arg of
+      Index d t   -> I.run d t
+      Serve p d t -> S.run p d t
 
--- | Main url mapping.
-site :: MVar (TemplateState Snap) -> Snap ()
-site tsMVar =
-  FS.fileServe "./"
-  <|> route [("", C.queryPhrase tsMVar)]
-  <|> templateServe tsMVar
+-- | Default setting for @fts serve@.
+server :: Fts
+server = Serve 8000 "db" "templates"
 
--- | Absolute path to template directory.
-templatePath :: FilePath
-templatePath = "/home/atsuro/repos/git/haskell-sc-scratch/fts/templates"
-
--- | Serves templates with state in MVar.
-templateServe :: MVar (TemplateState Snap) -> Snap ()
-templateServe tsMVar = do
-  ts <- liftIO $ readMVar tsMVar
-  urlPath <- return . maybe "search" id . urlDecode . C8.pack =<< FS.getSafePath
-  maybe pass writeBS =<< HE.renderTemplate ts urlPath
-  modifyResponse $ setContentType "text/html"
+-- | Default setting for @fts index@.
+indexer :: Fts
+indexer = Index "db" "target"
