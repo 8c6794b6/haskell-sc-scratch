@@ -95,7 +95,7 @@ recurseDirectory root =
 
 -- | From:
 --
--- http://www.haskell.org/pipermail/haskell-cafe/2006-October/019064.html
+-- * <http://www.haskell.org/pipermail/haskell-cafe/2006-October/019064.html>
 --
 unsafeInterleaveMapIO :: (a -> IO b) -> [a] -> IO [b]
 unsafeInterleaveMapIO f (x:xs) = unsafeInterleaveIO $ do

@@ -1,7 +1,28 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE PackageImports #-}
 {-# LANGUAGE DeriveDataTypeable #-}
-module Main where
+------------------------------------------------------------------------------
+-- |
+-- Module      : $Header$
+-- CopyRight   : (c) 8c6794b6
+-- License     : BSD3
+-- Maintainer  : 8c6794b6@gmail.com
+-- Stability   : unstable
+-- Portability : non-portable
+--
+-- Command line interface for building indexed database and serving the site.
+--
+-- To show help:
+--
+-- > $ fts --help
+--
+-- To build the indexed database for the site:
+--
+-- > $ fts index -t target -d db
+--
+-- To serve the site:
+--
+-- > $ fts serve -p 8000 -d db -t templates
+--
+module Main (main) where
 
 import Data.Data (Data, Typeable)
 

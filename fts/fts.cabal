@@ -11,10 +11,9 @@ cabal-version: >=1.2
 description:
   Example web app for full text searching with using tokyo dystopia and snap web
   framework. CLI has command for indexing and serving the site.
-
 executable fts
   hs-source-dirs: src
-  main-is: Main.hs
+  main-is: fts.hs
   ghc-options:
     -O2
     -Wall
