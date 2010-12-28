@@ -1,13 +1,16 @@
-name:                fts
-version:             0.2
-synopsis:            Example web app for full text search with tokyo dystopia
-license:             BSD4
-author:              8c6794b6
-maintainer:          8c6794b6@gmail.com
-stability:           Experimental
-category:            Web
-build-type:          Simple
-cabal-version:       >=1.2
+name:          fts
+version:       0.2
+synopsis:      Example web app with tokyo dystopia
+license:       BSD4
+author:        8c6794b6
+maintainer:    8c6794b6@gmail.com
+stability:     Experimental
+category:      Web
+build-type:    Simple
+cabal-version: >=1.2
+description:
+  Example web app for full text searching with using tokyo dystopia and snap web
+  framework. CLI has command for indexing and serving the site.
 
 executable fts
   hs-source-dirs: src
@@ -32,7 +35,7 @@ executable fts
     heist >= 0.4.0,
     filepath >= 1.1 && <1.2,
     tagsoup >= 0.11.1,
-    hexpat -any,
-    network -any,
+    hexpat >= 0.19.5,
+    network >= 2.3,
     tokyodystopia-haskell >= 0.0.2,
-    tokyocabinet-haskell -any
+    tokyocabinet-haskell >= 0.0.5

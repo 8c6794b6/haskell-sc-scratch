@@ -12,7 +12,6 @@ import Text.HTML.TagSoup (Tag(..), (~==), innerText, parseTags, sections)
 import qualified Database.TokyoCabinet as TC
 import qualified Database.TokyoDystopia as TD
 import qualified System.Directory.Tree as T
-import qualified Text.XML.Expat.Tree as X
 
 import qualified Fts.Model as M
 
@@ -89,6 +88,11 @@ bodyText html = parse html
   where
     parse = innerText . join . sections (~== (TagOpen "body" [])) . parseTags
 
+-- | Recurse under given directory and return list of filepath.
+recurseDirectory :: FilePath -> IO [FilePath]
+recurseDirectory root =
+  T.readDirectoryWithL return root >>= return . F.toList . T.free
+
 -- | From:
 --
 -- http://www.haskell.org/pipermail/haskell-cafe/2006-October/019064.html
@@ -99,8 +103,3 @@ unsafeInterleaveMapIO f (x:xs) = unsafeInterleaveIO $ do
   ys <- unsafeInterleaveMapIO f xs
   return (y:ys)
 unsafeInterleaveMapIO _ [] = return []
-
--- | Recurse under given directory and return list of filepath.
-recurseDirectory :: FilePath -> IO [FilePath]
-recurseDirectory root =
-  T.readDirectoryWithL return root >>= return . F.toList . T.free
