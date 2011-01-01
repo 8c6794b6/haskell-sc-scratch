@@ -1,0 +1,39 @@
+name:		hsc3-lepton
+version:	0.0.1
+synopsis:       Client side utility collection for scsynth.
+author:         8c6794b6
+maintainer:     8c6794b6@gmail.com
+cabal-version:  >= 1.6
+build-type:     Simple
+license:        BSD3
+category:       Sound
+stability:      experimental
+description:    
+  Client side utility collection for scsynth.
+  Still in extremely early stage of development. Terribly scratch.
+
+library
+  ghc-options: 
+    -O2 -Wall -fno-warn-unused-do-bind
+  hs-source-dirs:
+    src
+  exposed-modules:
+    Sound.SC3.Lepton
+    Sound.SC3.Lepton.Instance
+    Sound.SC3.Lepton.Query
+    Sound.SC3.Lepton.Tree
+    Sound.SC3.Lepton.UGen
+    Sound.SC3.Lepton.UGen.ControlArg
+    Sound.SC3.Lepton.UGen.Factory
+    Sound.SC3.Lepton.UGen.Missing
+    Sound.SC3.Lepton.Util
+  build-depends:
+    base == 4.*,
+    bytestring,
+    containers,
+    filepath,
+    random,
+    syb,
+    mtl,
+    hosc >= 0.8,
+    hsc3 >= 0.8
