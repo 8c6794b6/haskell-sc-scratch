@@ -1,5 +1,7 @@
+{-# LANGUAGE PackageImports #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 ------------------------------------------------------------------------------
--- | 
+-- |
 -- Module      : $Header$
 -- CopyRight   : (c) 8c6794b6
 -- License     : BSD3
@@ -14,17 +16,20 @@
 -- > > query s allNodes
 -- > > query s freeAll
 -- > > query s (add 1 $ Synth 1001 "foo" [])
--- > > query s (free 1001)
+-- > > query s (nfree 1001)
 -- > > query s (select $ name ==? "fm1")
 -- > > query s (select $ nodeId ==? 1001)
 -- > > query s (select $ paramNames `has` "freq" &&? name ==? "fm")
--- 
+--
 module Sound.SC3.Lepton.Query where
 
-import Control.Exception
-import Control.Monad.Reader
-import Data.Generics
+import Control.Exception (bracket)
+import "mtl" Control.Monad.Reader
+  ( ReaderT(..)
+  , MonadReader(..)
+  , MonadIO(..) )
 
+import Data.Generics.Uniplate.Data (universe)
 import Sound.SC3 hiding
     ( free,
       select )
@@ -34,20 +39,17 @@ import Sound.SC3.Lepton.Tree
 import Sound.SC3.Lepton.Util
 import Sound.SC3.Lepton.Instance
 
-type Query a = ReaderT UDP IO a
+-- | Query for udp connection.
+newtype Query a = Query {runQuery :: ReaderT UDP IO a}
+                deriving (Functor, Monad, MonadIO, MonadReader UDP)
 
 -- | Send query to given connection.
 query :: IO UDP -> Query a -> IO a
-query fd q = bracket fd close (runReaderT q)
+query fd q = bracket fd close (runReaderT (runQuery q))
 
 -- | Default server on localhost, UDP port 57110.
 s :: IO UDP
 s = openUDP "127.0.0.1" 57110
-
-test :: Query ()
-test = do
-  fd <- ask
-  lift $ send fd $ Message "/n_trace" [Int 0]
 
 -- | Latency.
 latency :: Double
@@ -59,27 +61,27 @@ bundle time ms = Bundle (UTCr (time + latency)) ms
 allNodes :: Query SCTree
 allNodes = do
   fd <- ask
-  lift $ do
+  liftIO $ do
     send fd (Message "/g_queryTree" [Int 0,Int 1])
     m <- wait fd "/g_queryTree.reply"
     return $ parseOSC m
 
 dump :: Query ()
 dump = do
-  tree <- allNodes
-  lift $ putStr $ drawSCTree tree
+  fd <- ask
+  liftIO $ printTree fd
 
 load :: String -> UGen -> Query OSC
 load n ugen = do
   fd <- ask
-  lift $ do
+  liftIO $ do
     writeSynthdef n ugen
     async fd $ d_recv (synthdef n ugen)
 
 add :: NodeId -> SCTree -> Query ()
 add nId node = do
   fd <- ask
-  lift $ do
+  liftIO $ do
     now <- utcr
     send fd $
        case node of
@@ -104,7 +106,7 @@ freeAll = msg $ g_freeAll [1]
 msg :: OSC -> Query ()
 msg oscMsg = do
   fd <- ask
-  lift $ do
+  liftIO $ do
     now <- utcr
     send fd $ bundle now [oscMsg]
 
@@ -116,10 +118,7 @@ type Condition = NodeInfo Bool
 select :: Condition -> Query [SCTree]
 select p = do
   tree <- allNodes
-  return $ everything (++) ([] `mkQ` f) tree
-    where
-      f x | p x       = [x]
-          | otherwise = []
+  return $ [n | n <- universe tree, p n]
 
 nodeId :: NodeInfo Int
 nodeId (Group i _) = i
@@ -180,10 +179,7 @@ liftParam _ _ = False
 param :: ParamName -> Query [SCTree]
 param n = do
   tree <- allNodes
-  return $ everything (++) ([] `mkQ` f) tree
-    where
-      f x@(Synth _ _ ps) | n `elem` (map getParamName ps) = [x]
-                         | otherwise = []
-      f _ = []
-      getParamName (n:=_) = n
-      getParamName (n:<-_) = n
+  return $ [x | x@(Synth _ _ ps) <- universe tree, n `elem` map f ps]
+  where
+    f (x:=_)  = x
+    f (x:<-_) = x
