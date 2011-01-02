@@ -10,11 +10,25 @@
 --
 -- Representation of scsynth node tree.
 --
--- /Example/:
+-- /Examples/:
 --
--- > > withSC3 printTree
+-- Dump the contents of running synth nodes.
+--
+-- > > :m + Sound.SC3
+-- > > withSC3 reset
+-- > > withSC3 queryAllNodes
+-- > > audition $ out 0 $ sinOsc ar (control kr "freq" 440) 0 * 0.3
+-- > > audition $ out 0 $ sinOsc ar (control kr "freq" 330) 0 * 0.3
+-- > > withSC3 queryAllNodes
+--
+-- Changing synthdef name with using @everywhere@ from syb. After above, run:
+--
+-- > > :m + Data.Generics
 -- > > t <- withSC3 getTree
 -- > > print $ treeToOSC t
+-- > > withSC3 reset
+-- > > let f (Synth i n ps) = Synth (1000 + abs i) "default" ps; f x = x
+-- > > withSC3 $ mkTree $ everywhere (mkT f) t
 --
 module Sound.SC3.Lepton.Tree
   ( -- * Types
@@ -33,6 +47,7 @@ module Sound.SC3.Lepton.Tree
     -- * Converter
   , treeToOSC
   , paramToTuple
+  , drawSCTree
 
     -- * Communicating with server
   , getTree
@@ -177,7 +192,9 @@ parseParamValue name = do
 ------------------------------------------------------------------------------
 
 -- | SCTree to [OSC].
--- Implementation is done with recursing by hand.
+--
+-- OSC list contains \"g_new\", \"s_new\", and \"n_map\" messages to build
+-- the given SCTree.
 treeToOSC :: SCTree -> [OSC]
 treeToOSC tree = tail $ f 0 tree
   where
@@ -199,6 +216,37 @@ paramToMap :: NodeId -> SynthParam -> [OSC]
 paramToMap i (n :<- b) = [n_map i [(n,b)]]
 paramToMap _ _ = []
 
+-- | For converting SCTree to Tree datatype in Data.Tree.Tree.
+-- Data.Tree.Tree is a rose tree, but SCTree datatype is not.
+type SCTree' = Tree SCNode
+
+-- | Wrapper for SCTree.
+data SCNode = G NodeId
+            | S NodeId SynthName
+            | P [SynthParam]
+              deriving (Eq)
+
+instance Show SCNode where
+    show (G nid) = "Group " ++ show nid
+    show (S nid name) = "Synth " ++ show nid ++ " " ++ name
+    show (P ps) = show ps
+
+-- | Draw SCTree data hierarchy.
+drawSCTree :: SCTree -> String
+drawSCTree = unlines . draw . fmap show . toRose
+
+toRose :: SCTree -> SCTree'
+toRose (Group nid ns)   = Node (G nid) (map toRose ns)
+toRose (Synth nid name ps) = Node (S nid name) [Node (P ps) []]
+
+draw :: Tree String -> [String]
+draw (Node x ts0) = x:drawSubTrees ts0
+  where
+    drawSubTrees []     = []
+    drawSubTrees (t:[]) = shift "`-" "  " (draw t)
+    drawSubTrees (t:ts) = shift "+-" "| " (draw t) ++ drawSubTrees ts
+    shift first other = zipWith (++) (first:repeat other)
+
 ------------------------------------------------------------------------------
 --
 -- Communicating with server
@@ -215,26 +263,6 @@ mkTree t = \fd -> do
   t0 <- utcr
   send fd (Bundle (UTCr (t0 + 0.1)) (treeToOSC t))
 
--- | For converting SCTree to Tree datatype in Data.Tree.Tree.
--- Data.Tree.Tree is a rose tree, but SCTree datatype is not.
-type SCTree' = Tree SCNode
-
--- | Wrapper for SCTree.
-data SCNode = G NodeId
-            | S NodeId SynthName [SynthParam]
-              deriving (Eq)
-
-instance Show SCNode where
-    show (G nid) = "Group " ++ show nid
-    show (S nid name ps) = "Synth " ++ show nid ++ " " ++ name ++ " " ++ show ps
-
-toRose :: SCTree -> SCTree'
-toRose (Group nid ns)      = Node (G nid) (map toRose ns)
-toRose (Synth nid name ps) = Node (S nid name ps) []
-
-drawSCTree :: SCTree -> String
-drawSCTree = drawTree . fmap show . toRose
-
 -- | Prints current SCTree.
 printTree :: Transport t => t -> IO ()
 printTree fd = getTree fd >>= putStr . drawSCTree
@@ -242,136 +270,3 @@ printTree fd = getTree fd >>= putStr . drawSCTree
 -- | Alias to @printTree@.
 queryAllNodes :: Transport t => t -> IO ()
 queryAllNodes = \fd -> getTree fd >>= putStr . drawSCTree
-
-------------------------------------------------------------------------------
---
--- Scratch
---
-------------------------------------------------------------------------------
-
--- | Sample message returned from scsynth server, without group other
--- than default.
-oscList1 :: OSC
-oscList1 = Message "/g_queryTree.reply"
-                [Int 1, -- containing control parameters
-                 Int 1,Int 2, -- default group, with 2 child elements
-                 Int 1000,Int (-1),
-                 String "simplePercSine",Int 5,
-                 String "sustain",Float 0.800000011920929,
-                 String "trig",Float 0.0,
-                 String "amp",Float 0.10000000149011612,
-                 String "freq",Float 440.0,
-                 String "out",Float 0.0,
-                 Int 1001,Int (-1),
-                 String "simplePercSine",Int 5,
-                 String "sustain",Float 0.800000011920929,
-                 String "trig",Float 0.0,
-                 String "amp",Float 0.10000000149011612,
-                 String "freq",Float 440.0,
-                 String "out",Float 0.0]
-
-tree1 :: SCTree
-tree1 =
-  Group 0
-    [Group 1
-      [Synth 1000 "simplePercSine"
-        ["sustain" := 0.800000011920929,
-         "trig" :<- 101,
-         "amp" := 0.10000000149011612,
-         "freq" := 440,
-         "out" := 0],
-       Group 10
-         [Group 100
-           [Group 101
-             [Synth 1011 "simplePercSine"
-              ["sustain" := 0.8,
-               "trig" :<- 102,
-               "amp" := 0.1,
-               "freq" := 330,
-               "out" := 0]]]],
-       Synth 1001 "simplePercSine"
-         ["sustain" := 0.800000011920929,
-          "trig" :<- 103,
-          "amp" := 0.10000000149011612,
-          "freq" := 440,
-          "out" := 0]]]
-
-oscList2 :: OSC
-oscList2 =
-    Message "/g_queryTree.reply"
-                [Int 1, -- containing control parameters
-                 Int 0,Int 1, -- root node, with 1 child element
-                 Int 1,Int 5, -- default group, with 5 child element
-                 Int 2,Int 0, -- group 2, no child element
-                 Int 3,Int 4, -- group 3, 4 child elements.
-                 Int 1002,Int (-1), -- node 1002,
-                 String "param",Int 4, -- name is "param", 4 control params.
-                 String "idx",String "c103", -- idx, from control bus 103.
-                 String "parambuf",Float 10.0,
-                 String "trig",String "c102",
-                 String "out",Float 100.0,
-                 Int 1003,Int (-1),
-                 String "param",Int 4,
-                 String "idx",String "c103",
-                 String "parambuf",Float 12.0,
-                 String "trig",String "c102",
-                 String "out",Float 101.0,
-                 Int 1004,Int (-1),
-                 String "param",Int 4,
-                 String "idx",String "c203",
-                 String "parambuf",Float 20.0,
-                 String "trig",String "c202",
-                 String "out",Float 200.0,
-                 Int 1005,Int (-1),
-                 String "param",Int 4,
-                 String "idx",String "c203",
-                 String "parambuf",Float 22.0,
-                 String "trig",String "c202",
-                 String "out",Float 201.0,
-                 Int 4,Int 2,
-                 Int 1000,Int (-1),
-                 String "para4",Int 5,
-                 String "sustain",Float 0.800000011920929,
-                 String "trig",String "c102",
-                 String "amp",String "c100",
-                 String "freq",String "c101",
-                 String "out",Float 104.0,
-                 Int 1001,Int (-1),
-                 String "para4",Int 5,
-                 String "sustain",Float 2.0,
-                 String "trig",String "c202",
-                 String "amp",String "c200",
-                 String "freq",String "c201",
-                 String "out",Float 204.0,
-                 Int 5,Int 2,
-                 Int 1006,Int (-1),
-                 String "simpleReverb",Int 4,
-                 String "damp",Float 0.5,
-                 String "room",Float 0.8999999761581421,
-                 String "mix",Float 0.5,
-                 String "in",Float 104.0,
-                 Int 1007,Int (-1),
-                 String "simpleReverb",Int 4,
-                 String "damp",Float 0.8999999761581421,
-                 String "room",Float 0.5,
-                 String "mix",Float 0.5,
-                 String "in",Float 204.0,
-                 Int 6,Int 2,
-                 Int 1008,Int (-1),
-                 String "simplePanGain",Int 3,
-                 String "pan",Float (-0.800000011920929),
-                 String "gain",Float 1.0,
-                 String "bus",Float 104.0,
-                 Int 1009,Int (-1),
-                 String "simplePanGain",Int 3,
-                 String "pan",Float 0.800000011920929,
-                 String "gain",Float 1.0,
-                 String "bus",Float 204.0]
-
-oscList3 :: OSC
-oscList3 =
-    Message "/g_queryTree.reply"
-    [Int 1,
-     Int 1, Int 2,
-     Int 2, Int 0,
-     Int 3, Int 0]
