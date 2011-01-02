@@ -14,11 +14,11 @@
 --
 -- > $ fts --help
 --
--- To build the indexed database for the site:
+-- Build the indexed database for the site.
 --
 -- > $ fts index -t target -d db
 --
--- To serve the site:
+-- Serve the site.
 --
 -- > $ fts serve -p 8000 -d db -t templates
 --

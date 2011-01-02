@@ -1,3 +1,7 @@
+input {
+    border: 1px solid #868686;
+}
+
 div#wrapper {
     margin: 10px;
     padding: 10px;
