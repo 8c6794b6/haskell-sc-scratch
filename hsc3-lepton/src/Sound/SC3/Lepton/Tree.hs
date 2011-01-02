@@ -254,7 +254,9 @@ drawSCTree = unlines . draw . fmap show . toRose
 
 toRose :: SCTree -> SCTree'
 toRose (Group nid ns)   = Node (G nid) (map toRose ns)
-toRose (Synth nid name ps) = Node (S nid name) [Node (P ps) []]
+toRose (Synth nid name ps)
+  | null ps   = Node (S nid name) []
+  | otherwise = Node (S nid name) [Node (P ps) []]
 
 draw :: Tree String -> [String]
 draw (Node x ts0) = x:drawSubTrees ts0
