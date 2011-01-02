@@ -10,28 +10,11 @@
 --
 -- Representation of scsynth node tree.
 --
--- /Examples/:
---
--- Dump the contents of running synth nodes.
---
--- > > :m + Sound.SC3
--- > > withSC3 reset
--- > > withSC3 queryAllNodes
--- > > audition $ out 0 $ sinOsc ar (control kr "freq" 440) 0 * 0.3
--- > > audition $ out 0 $ sinOsc ar (control kr "freq" 330) 0 * 0.3
--- > > withSC3 queryAllNodes
---
--- Changing synthdef name with using @everywhere@ from syb. After above, run:
---
--- > > :m + Data.Generics
--- > > t <- withSC3 getTree
--- > > print $ treeToOSC t
--- > > withSC3 reset
--- > > let f (Synth i n ps) = Synth (1000 + abs i) "default" ps; f x = x
--- > > withSC3 $ mkTree $ everywhere (mkT f) t
---
 module Sound.SC3.Lepton.Tree
-  ( -- * Types
+  ( -- * Examples
+    -- $examples
+
+    -- * Types
     SCTree(..)
   , NodeId
   , SynthName
@@ -53,7 +36,6 @@ module Sound.SC3.Lepton.Tree
   , getTree
   , mkTree
   , printTree
-  , queryAllNodes
   )  where
 
 import Control.Monad
@@ -66,6 +48,41 @@ import Sound.OpenSoundControl
 
 import Sound.SC3.Lepton.Util (queryTree)
 import Sound.SC3.Lepton.Instance ()
+
+-- $examples
+--
+-- Dump the contents of running synth nodes.
+--
+-- > > :m + Sound.SC3
+-- > > withSC3 reset
+-- > > withSC3 printTree
+-- > Group 0
+-- > `-Group 1
+-- > > audition $ out 0 $ sinOsc ar (control kr "freq" 440) 0 * 0.3
+-- > > audition $ out 0 $ sinOsc ar (control kr "freq" 330) 0 * 0.3
+-- > > withSC3 printTree
+-- > Group 0
+-- > `-Group 1
+-- >   +-Synth -48 Anonymous
+-- >   | `-[freq := 440.00]
+-- >   `-Synth -56 Anonymous
+-- >     `-[freq := 330.00]
+--
+-- Changing synthdef name with using @everywhere@ from syb. After above, run:
+--
+-- > > :m + Data.Generics
+-- > > t <- withSC3 getTree
+-- > > withSC3 reset
+-- > > let f (Synth i n ps) = Synth (1000 + abs i) "default" ps; f x = x
+-- > > withSC3 $ mkTree $ everywhere (mkT f) t
+--
+-- Or using @transform@ from uniplate:
+--
+-- > > :m + Data.Generics.Uniplate.Data
+-- > > t <- withSC3 getTree
+-- > > let g (Synth i n ps) = Synth (2000 + abs i) "default" ps; f x = x
+-- > > withSC3 $ mkTree $ transform g t
+--
 
 ------------------------------------------------------------------------------
 --
@@ -231,7 +248,7 @@ instance Show SCNode where
     show (S nid name) = "Synth " ++ show nid ++ " " ++ name
     show (P ps) = show ps
 
--- | Draw SCTree data hierarchy.
+-- | Draw SCTree data.
 drawSCTree :: SCTree -> String
 drawSCTree = unlines . draw . fmap show . toRose
 
@@ -257,7 +274,7 @@ draw (Node x ts0) = x:drawSubTrees ts0
 getTree :: (Transport t) => t -> IO SCTree
 getTree fd = queryTree fd >>= return . parseOSC
 
--- | Send node mapping OSC message scsynth, defined by @SCTree@.
+-- | Send OSC message for constructing given @SCTree@.
 mkTree :: (Transport t) => SCTree -> t -> IO ()
 mkTree t = \fd -> do
   t0 <- utcr
@@ -266,7 +283,3 @@ mkTree t = \fd -> do
 -- | Prints current SCTree.
 printTree :: Transport t => t -> IO ()
 printTree fd = getTree fd >>= putStr . drawSCTree
-
--- | Alias to @printTree@.
-queryAllNodes :: Transport t => t -> IO ()
-queryAllNodes = \fd -> getTree fd >>= putStr . drawSCTree
