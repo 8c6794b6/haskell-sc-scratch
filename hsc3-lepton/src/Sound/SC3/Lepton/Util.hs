@@ -31,8 +31,8 @@ import Sound.SC3
 import Sound.OpenSoundControl
 
 -- | Environmental variable for synthdefs.
-hsc3SynthdefDirEnvVar :: String
-hsc3SynthdefDirEnvVar = "HSC3_SYNTHDEF_DIR"
+scSynthdefPath :: String
+scSynthdefPath = "SC_SYNTHDEF_PATH"
 
 -- | This function writes the synthdef file to directory specifyed by
 -- environmental variable @HSC3_SYNTHDEF_DIR@. Though, to use the
@@ -41,7 +41,7 @@ hsc3SynthdefDirEnvVar = "HSC3_SYNTHDEF_DIR"
 writeSynthdef :: String -> UGen -> IO ()
 writeSynthdef name ugen = do
   envir <- getEnvironment
-  let dir = maybe "./" id $ lookup hsc3SynthdefDirEnvVar envir
+  let dir = maybe "./" id $ lookup scSynthdefPath envir
       path = dir </> name <.> "scsyndef"
       contents = B.pack $ synthdef name ugen
   B.writeFile path contents
@@ -52,7 +52,7 @@ writeSynthdef name ugen = do
 reloadSynthdef :: (Transport t) => t -> IO ()
 reloadSynthdef fd = do
   envir <- getEnvironment
-  let dir = maybe "./" id $ lookup hsc3SynthdefDirEnvVar envir
+  let dir = maybe "./" id $ lookup scSynthdefPath envir
       path = dir </> ""
   send fd (d_loadDir path)
 

@@ -80,7 +80,7 @@ import Sound.SC3.Lepton.Instance ()
 --
 -- > > :m + Data.Generics.Uniplate.Data
 -- > > t <- withSC3 getTree
--- > > let g (Synth i n ps) = Synth (2000 + abs i) "default" ps; f x = x
+-- > > let g (Synth i n ps) = Synth (2000 + abs i) "default" ps; g x = x
 -- > > withSC3 $ mkTree $ transform g t
 --
 
