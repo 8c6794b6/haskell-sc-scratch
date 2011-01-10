@@ -35,7 +35,7 @@ scSynthdefPath :: String
 scSynthdefPath = "SC_SYNTHDEF_PATH"
 
 -- | This function writes the synthdef file to directory specifyed by
--- environmental variable @HSC3_SYNTHDEF_DIR@. Though, to use the
+-- environmental variable @SC3_SYNTHDEF_PATH@. Though, to use the
 -- synthdef, one must load the synthdef file explicitly, or execute
 -- @withSC3 reloadSynthdef@ action.
 writeSynthdef :: String -> UGen -> IO ()
@@ -49,12 +49,12 @@ writeSynthdef name ugen = do
 -- | Reload synthdef directory. If specified, path to the
 -- @HSC3_SYNTHDEF_DIR@ would be used. Otherwise, current directory
 -- would be used.
-reloadSynthdef :: (Transport t) => t -> IO ()
+reloadSynthdef :: (Transport t) => t -> IO OSC
 reloadSynthdef fd = do
   envir <- getEnvironment
   let dir = maybe "./" id $ lookup scSynthdefPath envir
       path = dir </> ""
-  send fd (d_loadDir path)
+  async fd (d_loadDir path)
 
 -- | Type synonym for sending osc message to scsynth.
 type SendUDP a = UDP -> IO a

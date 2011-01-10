@@ -17,9 +17,9 @@
 -- > > query s freeAll
 -- > > query s (add 1 $ Synth 1001 "foo" [])
 -- > > query s (nfree 1001)
--- > > query s (select $ name ==? "fm1")
--- > > query s (select $ nodeId ==? 1001)
--- > > query s (select $ paramNames `has` "freq" &&? name ==? "fm")
+-- > > query s (sel $ name ==? "fm1")
+-- > > query s (sel $ nodeId ==? 1001)
+-- > > query s (sel $ paramNames `has` "freq" &&? name ==? "fm")
 --
 module Sound.SC3.Lepton.Query where
 
@@ -30,9 +30,7 @@ import "mtl" Control.Monad.Reader
   , MonadIO(..) )
 
 import Data.Generics.Uniplate.Data (universe)
-import Sound.SC3 hiding
-    ( free,
-      select )
+import Sound.SC3 hiding (free)
 import Sound.OpenSoundControl
 
 import Sound.SC3.Lepton.Tree
@@ -115,8 +113,8 @@ type Condition = NodeInfo Bool
 
 
 -- | Select with given condition.
-select :: Condition -> Query [SCTree]
-select p = do
+sel :: Condition -> Query [SCTree]
+sel p = do
   tree <- allNodes
   return $ [n | n <- universe tree, p n]
 

@@ -54,6 +54,5 @@ simpleFMSynth = out 0 $ mce [sig, sig]
 
 setSC :: Transport t => t -> IO ()
 setSC fd = do
-    send fd $ d_recv $ synthdef "simpleFMSynth" simpleFMSynth
-    wait fd "/done"
+    async fd $ d_recv $ synthdef "simpleFMSynth" simpleFMSynth
     send fd $ s_new "simpleFMSynth" pitchedNodeId AddToTail 1 []

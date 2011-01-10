@@ -1,3 +1,4 @@
+{-# LANGUAGE PackageImports #-}
 ------------------------------------------------------------------------------
 -- | Scratch to play with command line interface to control node's params.
 --
@@ -12,7 +13,7 @@
 module Scratch.CLI.NodeControl where
 
 import Control.Monad (join)
-import Control.Monad.State (lift)
+import "transformers" Control.Monad.Trans.Class (MonadTrans(..))
 import Data.Generics
 import Data.Maybe
 import System.Environment (getArgs)
@@ -20,7 +21,7 @@ import Text.Parsec
 
 import Sound.OpenSoundControl
 import Sound.SC3
-import Sound.SC3.Wing hiding (string)
+import Sound.SC3.Lepton
 import System.Console.Haskeline
 
 main :: IO ()
@@ -30,20 +31,19 @@ main = do
 
 -- | Start a command line interface for controlling specifyed node in synth server.
 nodeControl :: Transport t => Int -> IO t -> IO ()
-nodeControl nid fd = do
-  runInputT setting01 loop
-      where
-        loop :: InputT IO ()
-        loop = do
-          inputLine <- getInputLine ("nid:" ++ show nid ++ "> ")
-          case inputLine of
-            Nothing    -> return ()
-            Just "q"   -> return ()
-            Just "h"   -> lift showHelp >> loop
-            Just ""    -> loop
-            Just input -> 
-               lift (runCmd nid (maybe Ignore id (parseCmd input)) fd) >> 
-               loop
+nodeControl nid fd = runInputT setting01 loop
+  where
+     loop :: InputT IO ()
+     loop = do
+       inputLine <- getInputLine ("nid:" ++ show nid ++ "> ")
+       case inputLine of
+         Nothing    -> return ()
+         Just "q"   -> return ()
+         Just "h"   -> outputStrLn helpMessage >> loop
+         Just ""    -> loop
+         Just input -> do
+            lift (runCmd nid (maybe Ignore id (parseCmd input)) fd)
+            loop
 
 -- | Setting for haskeline cli loop.
 setting01 :: Settings IO
