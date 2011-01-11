@@ -18,13 +18,13 @@ import Data.List (nub)
 import System.Environment (getEnvironment)
 import System.FilePath ((</>), (<.>))
 import System.Random 
-  (Random, 
-   RandomGen, 
-   getStdRandom,
-   next,
-   randomR, 
-   randomRs, 
-   newStdGen)
+  ( Random
+  , RandomGen
+  , getStdRandom
+  , next
+  , randomR
+  , randomRs
+  , newStdGen )
 import qualified Data.ByteString.Lazy as B
 
 import Sound.SC3
@@ -116,8 +116,7 @@ queryTree fd = do
 -- returing message.
 queryNode :: Transport t => Int -> (t -> IO OSC)
 queryNode n = \fd -> do
-  send fd (notify True)
-  wait fd "/done"
+  async fd (notify True)
   send fd (n_query [n])
   wait fd "/n_info"                
 
@@ -202,25 +201,6 @@ name @= val = control kr name val
 -- | Returns Control ugen, with lag.
 (@~) :: String -> Double -> UGen -> UGen
 a @~ b = \c -> lag (a @= b) c
-
--- Copied from current head of darcs repository.
-
--- List of asynchronous server commands.
--- async_cmds :: [String]
--- async_cmds = ["/d_recv", "/d_load", "/d_loadDir"
---              ,"/b_alloc", "/b_allocRead", "/b_allocReadChannel"
---              ,"/b_free", "/b_close"
---              ,"/b_read", "/b_readChannel"
---              ,"/b_write", "/b_zero"]
-
--- | Add a completion message to an existing asynchronous command.
--- withCM :: OSC -> OSC -> OSC
--- withCM (Message c xs) cm =
---     if c `elem` async_cmds
---     then let xs' = xs ++ [Blob (B.unpack (encodeOSC cm))]
---          in Message c xs'
---     else error ("withCM: not async: " ++ c)
--- withCM _ _ = error "withCM: not message"
 
 -- | Fit in specified range with using @mod@.
 fitInRange :: Integral a => a -> a -> a -> a

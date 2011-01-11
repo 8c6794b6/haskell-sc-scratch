@@ -24,7 +24,6 @@ module Sound.SC3.Lepton.Tree
   , BusId
 
     -- * Parser
-  , DatumParser(..)
   , parseOSC
 
     -- * Converter
@@ -46,8 +45,9 @@ import Text.Printf (printf)
 import Sound.SC3
 import Sound.OpenSoundControl
 
-import Sound.SC3.Lepton.Util (queryTree)
 import Sound.SC3.Lepton.Instance ()
+import Sound.SC3.Lepton.Parser
+import Sound.SC3.Lepton.Util (queryTree)
 
 -- $examples
 --
@@ -114,60 +114,23 @@ type BusId = Int
 infixr 5 :=
 infixr 5 :<-
 
-------------------------------------------------------------------------------
---
--- Parser
---
-------------------------------------------------------------------------------
-
--- | Parser for datum.
-newtype DatumParser a = DatumParser {parse::[Datum] -> [(a,[Datum])]}
-
-instance Monad DatumParser where
-    return a = DatumParser $ \ds -> [(a,ds)]
-    p >>= f = DatumParser $ \cs ->
-              concat [parse (f a) cs' | (a,cs') <- parse p cs]
-
-instance MonadPlus DatumParser where
-    mzero = DatumParser $ \_ -> []
-    p `mplus` q = DatumParser $ \cs -> parse p cs ++ parse q cs
-
-manyN :: Int -> DatumParser a -> DatumParser [a]
-manyN 0 _ = return []
-manyN n p = do
-  x <- p
-  xs <- manyN (n-1) p
-  return (x:xs)
-
-datum :: DatumParser Datum
-datum = DatumParser $ \cs ->
-       case cs of
-         []     -> []
-         (d:ds) -> [(d,ds)]
-
-int :: DatumParser Int
-int = do {d <- datum; case d of {Int x -> return x; _ -> mzero}}
-
-double :: DatumParser Double
-double = do {d <- datum; case d of {Double x -> return x; _ -> mzero}}
-
-float :: DatumParser Double
-float = do {d <- datum; case d of {Float x -> return x; _ -> mzero}}
-
-string :: DatumParser String
-string = do {d <- datum; case d of {String x -> return x; _ -> mzero}}
-
 -- | Parse osc message returned from \"/g_queryTree\" and returns haskell
 -- representation of scsynth node tree.
 -- Only working with osc message including synth control parameters.
 parseOSC :: OSC -> SCTree
-parseOSC (Message s ds)
-    | s == "/g_queryTree.reply" = parseDatum ds
-    | otherwise                 = error "not a /g_queryTree.reply message"
-parseOSC _ = error "not a Message response"
+parseOSC o = case o of
+  Message "/g_queryTree.reply" ds -> case parse parseGroup (tail ds) of
+    Right tree -> tree
+    Left err   -> error $ show err
+  _                               -> error "not a /g_queryTree.reply response"
 
-parseDatum :: [Datum] -> SCTree
-parseDatum ds = fst $ head $ parse parseGroup $ tail ds
+--
+-- With using simple parser without parsec
+--
+-- parseOSC :: OSC -> SCTree
+-- parseOSC o = case o of
+--   Message "/g_queryTree.reply" ds -> fst $ head $ parse parseGroup (tail ds)
+--   _                               -> error "not a g_queryTree.reply message"
 
 parseGroup :: DatumParser SCTree
 parseGroup = do
@@ -176,31 +139,26 @@ parseGroup = do
   if numChild < 0
     then parseSynth nId
     else do
-      ts <- manyN numChild parseGroup
+      ts <- replicateM numChild parseGroup
       return $ Group nId ts
 
 parseSynth :: Int -> DatumParser SCTree
 parseSynth nId = do
   name <- string
   numParams <- int
-  params <- manyN numParams parseParam
+  params <- replicateM numParams parseParam
   return $ Synth nId name params
 
 parseParam :: DatumParser SynthParam
 parseParam = do
     name <- string
-    val <- parseParamValue name
-    return val
-
-parseParamValue :: String -> DatumParser SynthParam
-parseParamValue name = do
-  val <- datum
-  case val of
-    Float x  -> return $ name := x
-    Double x -> return $ name := x
-    String x -> return $ name :<- (read $ tail x)
-    Int x    -> return $ name := fromIntegral x
-    e        -> error $ "Cannot make param from: " ++ show e
+    val <- datum
+    case val of
+      Float x  -> return $ name := x
+      Double x -> return $ name := x
+      String x -> return $ name :<- (read $ tail x)
+      Int x    -> return $ name := fromIntegral x
+      e        -> error $ "Cannot make param from: " ++ show e
 
 ------------------------------------------------------------------------------
 --

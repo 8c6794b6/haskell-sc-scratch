@@ -8,18 +8,21 @@ build-type:     Simple
 license:        BSD3
 category:       Sound
 stability:      experimental
-description:    
-  Client side utility collection for scsynth.
+description:
+  Collection of client side utility for scsynth using hsc3.
   Still in extremely early stage of development. Terribly scratch.
 
 library
-  ghc-options: 
-    -O2 -Wall -fno-warn-unused-do-bind
+  ghc-options:
+    -O2
+    -Wall
+    -fno-warn-unused-do-bind
   hs-source-dirs:
     src
   exposed-modules:
     Sound.SC3.Lepton
     Sound.SC3.Lepton.Instance
+    Sound.SC3.Lepton.Parser
     Sound.SC3.Lepton.Query
     Sound.SC3.Lepton.Tree
     Sound.SC3.Lepton.UGen
@@ -33,6 +36,7 @@ library
     containers,
     filepath,
     random,
+    parsec >= 3.0,
     syb,
     mtl,
     hosc >= 0.8,
