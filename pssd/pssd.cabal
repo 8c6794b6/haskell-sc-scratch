@@ -1,0 +1,86 @@
+name:          pssd
+version:       0.1
+synopsis:      Sample codes written while reading Practical synthetic sound design
+author:        8c6794b6
+maintainer:    8c6794b6@gmail.com
+cabal-version: >= 1.4
+build-type:    Simple
+license:       BSD3
+license-file:  LICENSE
+category:      Sound
+stability:     experimental
+description:
+  Sample codes for supercollider with hsc3 written while reading
+  Pracctical synthetic sound design - by Andi Farnell.
+  <http://obiwannabe.co.uk/tutorials/html/tutorial_main.html>
+
+executable dial
+  ghc-options:
+    -Wall
+    -fno-warn-unused-do-bind
+  hs-source-dirs:
+    src
+  main-is:
+    run/dial.hs
+
+executable oldstyle
+  ghc-options:
+    -Wall
+    -fno-warn-unused-do-bind
+  hs-source-dirs:
+    src
+  main-is:
+    run/oldstyle.hs
+
+executable pssdgui
+  ghc-options:
+    -Wall
+    -fno-warn-unused-do-bind
+  hs-source-dirs:
+    src
+  main-is:
+    run/pssdgui.hs
+
+library
+  ghc-options:
+    -Wall
+    -fno-warn-unused-do-bind
+  hs-source-dirs:
+    src
+  exposed-modules:
+    Pssd.Earth.Fire
+    Pssd.Earth.Bubbles
+    Pssd.Earth.Stream
+    Pssd.Earth.StormyDay
+    Pssd.Earth.Rain
+    Pssd.Earth.Tea
+    Pssd.Earth.Thunder
+    Pssd.Engineering.Clock
+    Pssd.Engineering.Motors
+    Pssd.Engineering.Switches
+    Pssd.Future.Droids
+    Pssd.Future.LaserBeam
+    Pssd.Future.Acid
+    Pssd.Mayhem.AK47
+    Pssd.Monster.FootSteps
+    Pssd.Monster.Applause
+    Pssd.Monster.Roar
+    Pssd.Monster.Birds
+    Pssd.TelephoneBells.Eighties
+    Pssd.TelephoneBells.OldStyle
+    Pssd.TelephoneBells.YetMoreBloody
+    Pssd.GUI
+    Pssd.Util
+  build-depends:
+    base >= 2.0 && < 5.0,
+    containers >= 0.3.0.0,
+    cmdargs >= 0.6.4,
+    gtk >= 0.12.0,
+    hosc >= 0.8,
+    hsc3 >= 0.8,
+    hsc3-lepton -any,
+    hsc3-lepton-gui -any,
+    mtl -any,
+    uniplate >= 1.6,
+    syb >= 0.1.0.2,
+    random -any
