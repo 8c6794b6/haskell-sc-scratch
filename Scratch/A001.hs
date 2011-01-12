@@ -31,6 +31,7 @@ setup :: (Transport t) => t -> IO ()
 setup fd = do
   mapM_ (\(n,u) -> writeSynthdef n u)
     [("aosc",aosc)
+    ,("bosc",bosc)
     ,("fControl",fControl)
     ,("pControl",pControl)
     ,("lin",lin)
@@ -58,7 +59,9 @@ afp = [Synth 1001 "ac1"
           "tfreq":=0.8,"tmul":=3,"tos":=0.6,
           "t_trig":=1]
       ,Synth 1002 "fc1"
-         ["vc":=5200,"vd":=5000,"fc":=1,"fd":=0.5,"t_trig":=1]
+         ["vc":=5200,"vd":=5000,"fc":=1,"fd":=0.5,
+          "mix":=0,
+          "ptc":=0,"vib":=0,"t_trig":=1]
       ,Synth 1003 "pControl"
          ["fc":=1,"fd":=0.5,"vc":=0,"vd":=1,"t_trig":=1]]
 
@@ -81,8 +84,11 @@ hints = M.fromList
  ,("fc1",
    [ParamRange "vc" 0 8000
    ,ParamRange "vd" 0 (1-1e-9)
+   ,ParamRange "mix" 0 1
    ,ParamRange "fc" 0 3
    ,ParamRange "fd" 0 1
+   ,ParamRange "ptc" 0 12
+   ,ParamRange "vib" 0 10
    ,ParamRange "t_trig" 0 1])
  ,("pControl",
    [ParamRange "vc" (-1) 1
@@ -125,6 +131,14 @@ aosc = out 0 (pan2 sig pan 1)
     amp = ctrl "amp" 0.3
     freq = ctrl "freq" 440
 
+bosc :: UGen
+bosc = out 0 $ pan2 sig pan 1
+  where
+    sig = mix (sinOsc ar freq 0) * amp
+    freq = ctrls "freq" [100,330,440,880]
+    amp = ctrl "amp" 0.1
+    pan = ctrl "pan" 0
+
 -- | Controller for amplitude of oscillators.
 ac1 :: UGen
 ac1 = mrg outs
@@ -165,25 +179,32 @@ fc1 :: UGen
 fc1 = mrg outs
   where
     outs = zipWith out (map fromIntegral fBusses) sigs
-    sigs = map f ['a'..]
-    f i = noise i + offset * val i
-    noise j = linExp (lfdNoise3 j kr (freq j) * 0.5 + 0.5 + 1e-9) 1e-9 1 vMin vMax
+    sigs = map f fBusses
+    f i = (noise i * mx) + ((pitched' i + (nfreq i * vib)) * (1-mx))
+    noise j = linExp (lfdNoise3 j kr (nfreq j) * 0.5 + 0.5 + 1e-9)
+              1e-9 1 vMin vMax
               * noiseC
+    pitched' j = clip (pitched j) vMin vMax
+    pitched j = select (tiRand j 0 (fromIntegral $ length partials - 1) t_trig)
+                (mce $ pitches j)
+    pitches j = zipWith (\a b -> midiCPS (a + b)) (repeat ptc) partials
+    partials = take (length fBusses) $
+               zipWith (\f c -> f * 12 + c)
+               (concatMap (replicate 4) [0,1..12]) (cycle [0,4,7,11,14])
     val j = tExpRand j vMin vMax t_trig
     vMin = vc - (vc * vd)
     vMax = vc + (vc * vd)
-    freq j = tExpRand j fMin fMax t_trig
+    nfreq j = tExpRand j fMin fMax t_trig
     fMin = fc - (fc * fd)
-    fMax = fc - (fc * fd)
-    e = linen t_trig atk 1 rel DoNothing
-    offset = ctrl "offset" 0
+    fMax = fc + (fc * fd)
     vc = ctrl "vc" 1
     vd = ctrl "vd" 0.5
     fc = ctrl "fc" 2
     fd = ctrl "fd" 0.5
+    mx = ctrl "mix" 1
+    ptc = ctrl "ptc" 0
+    vib = ctrl "vib" 0
     noiseC = ctrl "noise" 1
-    atk = ctrl "atk" 500e-3
-    rel = ctrl "rel" 800-2
     t_trig = ctrl "t_trig" 1
 
 -- | Controller for pan of oscillators.
@@ -216,10 +237,11 @@ mkControl bs rUGen= mrg outs
     rel = ctrl "rel" 5e-2
     t_trig = ctrl "t_trig" 1
 
-
 ------------------------------------------------------------------------------
 --
+--
 -- Client side control
+--
 --
 ------------------------------------------------------------------------------
 
