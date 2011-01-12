@@ -22,12 +22,12 @@ module Sound.SC3.Lepton.GUI
   , makeGUIWindow
   ) where
 
-import Control.Monad (forM, replicateM, zipWithM_)
+import Control.Monad (forM_, replicateM, zipWithM_)
 import "mtl" Control.Monad.Trans (liftIO)
 import qualified Control.Exception as E
 import qualified Data.Map as M
 
-import Data.Generics.Uniplate.Data
+import Data.Generics.Uniplate.Data (universe)
 import Sound.OpenSoundControl
 import Sound.SC3
 import Sound.SC3.Lepton (SCTree(..), paramToTuple)
@@ -116,7 +116,7 @@ makeGUIWindow tree hints fd = do
   buttonBox <- G.vBoxNew True 10
   sliderBox <- G.vBoxNew True 10
   hBoxes <- replicateM (length ps) (G.hBoxNew True 3)
-  zipWithM_ (setSliders fd hints buttonBox) hBoxes ps
+  zipWithM_ (mkSynthControl fd hints buttonBox) hBoxes ps
   G.set sliderBox (map (G.containerChild G.:=) hBoxes)
   G.set hPaned [G.containerChild G.:= buttonBox
                ,G.containerChild G.:= sliderBox]
@@ -125,35 +125,49 @@ makeGUIWindow tree hints fd = do
   window `G.on` G.deleteEvent $ liftIO G.mainQuit >> return False
   return window
 
--- | Add sliders to hBox.
-setSliders :: (Transport t)
-           => t
-           -> Hints
-           -> G.VBox
-           -> G.HBox
-           -> (Int, String, [(String,Double)])
-           -> IO G.HBox
-setSliders fd hints bb box (i,n,ps) = do
-  sliders <- forM ps $ \(n',v) -> do
-    let (lo,hi) = rangeFromHints hints n n'
-    mkVSlider i n' v lo hi fd
+-- | Make control for a synth node.
+mkSynthControl :: (Transport t)
+               => t
+               -> Hints                            -- ^ Gui building hints
+               -> G.VBox                           -- ^ Box on right side
+               -> G.HBox                           -- ^ Box on left side
+               -> (Int, String, [(String,Double)]) -- ^ Nid, name, and params
+               -> IO G.HBox
+mkSynthControl fd hints bb box (i,n,ps) = do
   frame <- G.frameNew
   G.frameSetLabel frame (n ++ ":" ++ show i)
-  innerBox <- G.hBoxNew True 5
   sliderBox <- G.hBoxNew True 5
+  G.set sliderBox [G.boxSpacing G.:= 5, G.containerBorderWidth G.:= 5]
+  forM_ ps $ \(n',v) -> do
+    let (lo,hi) = rangeFromHints hints n n'
+    G.containerAdd sliderBox =<< mkVSlider i n' v lo hi fd
+  G.containerAdd frame sliderBox
+  G.containerAdd box frame
+  mkButtons fd hints bb i n ps
+  return box
+
+-- | Make buttons for synth.
+mkButtons :: (Transport t)
+          => t
+          -> Hints
+          -> G.VBox
+          -> Int
+          -> String
+          -> [(String,Double)]
+          -> IO ()
+mkButtons fd hints box i n ps = do
   pauseButton <- G.toggleButtonNewWithLabel "pause"
-  G.widgetSetSizeRequest pauseButton 20 20
   pauseButton `G.on` G.toggled $ do
     st <- G.toggleButtonGetActive pauseButton
     (send fd $ n_run [(i,not st)]) `E.catch` printIOError
-  G.set sliderBox ([G.boxSpacing G.:= 5
-                   ,G.containerBorderWidth G.:= 5])
-  G.containerAdd bb pauseButton
-  mapM_ (G.containerAdd sliderBox) sliders
-  G.containerAdd innerBox sliderBox
-  G.containerAdd frame innerBox
-  G.containerAdd box frame
-  return box
+  dumpButton <- G.buttonNewWithLabel "dump"
+  dumpButton `G.on` G.buttonActivated $ do
+    E.handle printIOError $ do
+      let o = s_get i $ map fst ps
+      m <- send fd o >> wait fd "/n_set"
+      print m
+  G.set box [G.containerChild G.:= pauseButton
+            ,G.containerChild G.:= dumpButton]
 
 -- | Simple error handler for IOError.
 printIOError :: IOError -> IO ()
