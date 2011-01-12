@@ -35,7 +35,7 @@ import Sound.OpenSoundControl
 
 import Sound.SC3.Lepton.Tree
 import Sound.SC3.Lepton.Util
-import Sound.SC3.Lepton.Instance
+import Sound.SC3.Lepton.Instance ()
 
 -- | Query for udp connection.
 newtype Query a = Query {runQuery :: ReaderT UDP IO a}

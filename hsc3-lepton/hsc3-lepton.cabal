@@ -17,6 +17,7 @@ library
     -O2
     -Wall
     -fno-warn-unused-do-bind
+    -fno-warn-orphans
   hs-source-dirs:
     src
   exposed-modules:

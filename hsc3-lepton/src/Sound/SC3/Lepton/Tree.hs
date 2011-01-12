@@ -151,14 +151,14 @@ parseSynth nId = do
 
 parseParam :: DatumParser SynthParam
 parseParam = do
-    name <- string
-    val <- datum
-    case val of
-      Float x  -> return $ name := x
-      Double x -> return $ name := x
-      String x -> return $ name :<- (read $ tail x)
-      Int x    -> return $ name := fromIntegral x
-      e        -> error $ "Cannot make param from: " ++ show e
+  name <- string
+  val <- datum
+  case val of
+    Float x  -> return $ name := x
+    Double x -> return $ name := x
+    String x -> return $ name :<- (read $ tail x)
+    Int x    -> return $ name := fromIntegral x
+    e        -> error $ "Cannot make param from: " ++ show e
 
 ------------------------------------------------------------------------------
 --
@@ -186,10 +186,6 @@ treeToOSC tree = tail $ f 0 tree
 paramToTuple :: SynthParam -> [(String,Double)]
 paramToTuple (name := val) = [(name,val)]
 paramToTuple _ = []
-
-paramToMap :: NodeId -> SynthParam -> [OSC]
-paramToMap i (n :<- b) = [n_map i [(n,b)]]
-paramToMap _ _ = []
 
 -- | For converting SCTree to Tree datatype in Data.Tree.Tree.
 -- Data.Tree.Tree is a rose tree, but SCTree datatype is not.
