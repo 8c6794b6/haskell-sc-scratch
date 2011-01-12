@@ -10,7 +10,7 @@
 --
 -- Helper to build simple GUI from SCTree with GTK.
 --
-module Sound.SC3.Lepton.GUI 
+module Sound.SC3.Lepton.GUI
   ( -- * Example
     -- $example
 
@@ -112,11 +112,16 @@ makeGUIWindow tree hints fd = do
   let ps = [(i,n,qs) | Synth i n vs <- universe tree
                      , let qs = concatMap paramToTuple vs]
   window <- G.windowNew
-  vBox <- G.vBoxNew True 10
+  hPaned <- G.hPanedNew
+  buttonBox <- G.vBoxNew True 10
+  sliderBox <- G.vBoxNew True 10
   hBoxes <- replicateM (length ps) (G.hBoxNew True 3)
-  zipWithM_ (setSliders fd hints) hBoxes ps
-  G.set vBox (map (G.containerChild G.:=) hBoxes)
-  G.set window [G.containerBorderWidth G.:= 5,G.containerChild G.:= vBox]
+  zipWithM_ (setSliders fd hints buttonBox) hBoxes ps
+  G.set sliderBox (map (G.containerChild G.:=) hBoxes)
+  G.set hPaned [G.containerChild G.:= buttonBox
+               ,G.containerChild G.:= sliderBox]
+  G.set window [G.containerBorderWidth G.:= 5
+               ,G.containerChild G.:= hPaned]
   window `G.on` G.deleteEvent $ liftIO G.mainQuit >> return False
   return window
 
@@ -124,36 +129,36 @@ makeGUIWindow tree hints fd = do
 setSliders :: (Transport t)
            => t
            -> Hints
+           -> G.VBox
            -> G.HBox
            -> (Int, String, [(String,Double)])
            -> IO G.HBox
-setSliders fd hints box (i,n,ps) = do
-  sliders <- forM ps $ \(n',_) -> do
+setSliders fd hints bb box (i,n,ps) = do
+  sliders <- forM ps $ \(n',v) -> do
     let (lo,hi) = rangeFromHints hints n n'
-    mkVSlider i n' lo hi fd
+    mkVSlider i n' v lo hi fd
   frame <- G.frameNew
   G.frameSetLabel frame (n ++ ":" ++ show i)
   innerBox <- G.hBoxNew True 5
   sliderBox <- G.hBoxNew True 5
   pauseButton <- G.toggleButtonNewWithLabel "pause"
-  G.widgetSetSizeRequest pauseButton 20 20 
+  G.widgetSetSizeRequest pauseButton 20 20
   pauseButton `G.on` G.toggled $ do
     st <- G.toggleButtonGetActive pauseButton
     (send fd $ n_run [(i,not st)]) `E.catch` printIOError
   G.set sliderBox ([G.boxSpacing G.:= 5
                    ,G.containerBorderWidth G.:= 5])
-  --                 ,G.containerChild G.:= pauseButton])
-  G.containerAdd sliderBox pauseButton
+  G.containerAdd bb pauseButton
   mapM_ (G.containerAdd sliderBox) sliders
-  G.containerAdd innerBox sliderBox  
+  G.containerAdd innerBox sliderBox
   G.containerAdd frame innerBox
   G.containerAdd box frame
   return box
-  
+
 -- | Simple error handler for IOError.
-printIOError :: IOError -> IO ()  
+printIOError :: IOError -> IO ()
 printIOError = print
-  
+
 -- | Get range for slider.
 rangeFromHints :: Hints  -- ^ Hints
                -> String -- ^ Synth name
@@ -171,12 +176,14 @@ rangeFromHints hints synName paramName
 mkVSlider :: (Transport t)
           => Int    -- ^ Node Id
           -> String -- ^ Param name
+          -> Double -- ^ Initial value
           -> Double -- ^ Min value
           -> Double -- ^ Max value
           -> t      -- ^ scsynth connection
           -> IO G.Frame
-mkVSlider nid name lo hi fd = do
+mkVSlider nid name val lo hi fd = do
   v <- G.vScaleNewWithRange lo hi ((hi-lo)/128)
+  G.rangeSetValue v val
   frame <- G.frameNew
   G.frameSetLabel frame name
   G.rangeSetInverted v True
