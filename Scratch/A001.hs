@@ -52,7 +52,7 @@ oscTree =
 -- | Controller synth nodes.
 afp :: [SCTree]
 afp = [Synth 1001 "ac1"
-         ["vc":=8e-3,"vd":=5e-3,
+         ["vc":=3e-2,"vd":=50e-3,
           "mix":=0,"nfreq":=1,
           "edgey":=1,"edur":=500e-3,"crv":=(-12),
           "del":=0.01,"chaos":=0.5,
@@ -105,7 +105,7 @@ oscs = o allIds aBusses fBusses pBusses
 
 -- | Number of oscillators
 numOsc :: Num a => a
-numOsc = 64
+numOsc = 128
 
 allIds :: [Int]
 allIds = [20001.. 20001+numOsc]
@@ -145,7 +145,7 @@ ac1 = mrg outs
   where
     outs = zipWith zf aBusses aBusses
     zf o u = out (fromIntegral o)
-             (delayN (sig u) 1 (del * tRand u 1e-2 1 t_trig))
+             (delayN (sig u) 1 (del * tRand u 1e-3 800e-3 t_trig))
     sig j = ((lin j * (1-mx)) + (lfn j * mx)) * val j
     lin j = envGen kr (linTrig j) 1 0 edur' DoNothing $
             env [1e-9,1e-9,1,1e-9] [0,atk,rel] [EnvNum curve] (-1) 0
@@ -184,13 +184,14 @@ fc1 = mrg outs
     noise j = linExp (lfdNoise3 j kr (nfreq j) * 0.5 + 0.5 + 1e-9)
               1e-9 1 vMin vMax
               * noiseC
-    pitched' j = clip (pitched j) vMin vMax
+    pitched' j = clip (pitched j) 0 vMax
     pitched j = select (tiRand j 0 (fromIntegral $ length partials - 1) t_trig)
                 (mce $ pitches j)
     pitches j = zipWith (\a b -> midiCPS (a + b)) (repeat ptc) partials
     partials = take (length fBusses) $
                zipWith (\f c -> f * 12 + c)
-               (concatMap (replicate 4) [0,1..12]) (cycle [0,4,7,11,14])
+               (concatMap (replicate 4) [0,1..12]) (cycle overtones)
+    overtones = [0,4,7,11,14]
     val j = tExpRand j vMin vMax t_trig
     vMin = vc - (vc * vd)
     vMax = vc + (vc * vd)
