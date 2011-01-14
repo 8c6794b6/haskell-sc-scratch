@@ -35,6 +35,7 @@ setup fd = do
     ,("fControl",fControl)
     ,("pControl",pControl)
     ,("lin",lin)
+    ,("piece1",piece1)
     ,("ac1",ac1)
     ,("fc1",fc1)
     ,("metro",metro)]
@@ -51,23 +52,27 @@ oscTree =
 
 -- | Controller synth nodes.
 afp :: [SCTree]
-afp = [Synth 1001 "ac1"
-         ["vc":=3e-2,"vd":=50e-3,
-          "mix":=0,"nfreq":=1,
-          "edgey":=1,"edur":=500e-3,"crv":=(-12),
-          "del":=0.01,"chaos":=0.5,
-          "tfreq":=0.8,"tmul":=3,"tos":=0.6,
+afp = [Synth 1000 "piece1"
+         ["bpm":=360]
+      ,Synth 1001 "ac1"
+         ["vc":=20e-3,"vd":=0.125,
+          "mix":<-104,"nfreq":=0.68,
+          "edgey":<-103,"edur":<-106,"crv":=(-12),
+          "del":<-108,"chaos":<-107,
+          "tfreq":<-110,"tmul":<-109,"tos":=8.1,
           "t_trig":=1]
       ,Synth 1002 "fc1"
-         ["vc":=5200,"vd":=5000,"fc":=1,"fd":=0.5,
-          "mix":=0,
-          "ptc":=0,"vib":=0,"t_trig":=1]
+         ["vc":=8000,"vd":=0.9999,"fc":=3,"fd":=0.9999,
+          "mix":<-102,
+          "ptc":<-100,"vib":=0,"t_trig":<-101]
       ,Synth 1003 "pControl"
-         ["fc":=1,"fd":=0.5,"vc":=0,"vd":=1,"t_trig":=1]]
+         ["fc":=1,"fd":=0.5,"vc":=0,"vd":=1,"t_trig":<-105]]
 
 hints :: Hints
 hints = M.fromList
- [("ac1",
+ [("piece1",
+   [ParamRange "bpm" 120 480])
+ ,("ac1",
    [ParamRange "vc" 0 1e-1
    ,ParamRange "vd" 0 1
    ,ParamRange "mix" 0 1
@@ -105,7 +110,7 @@ oscs = o allIds aBusses fBusses pBusses
 
 -- | Number of oscillators
 numOsc :: Num a => a
-numOsc = 128
+numOsc = 256 -- 128
 
 allIds :: [Int]
 allIds = [20001.. 20001+numOsc]
@@ -139,6 +144,106 @@ bosc = out 0 $ pan2 sig pan 1
     amp = ctrl "amp" 0.1
     pan = ctrl "pan" 0
 
+piece1 :: UGen
+piece1 = mrg outs
+  where
+    outs = [out pitchTrigBus pitchTrig
+           ,out sweepTrigBus sweep
+           ,out ftrigBus ftrig
+           ,out edgeyBus edgey
+           ,out edurBus edur
+           ,out tmulBus tmul
+           ,out tfreqBus tfreq
+           ,out aMixBus aMix
+           ,out chaosBus chaos
+           ,out delBus del
+           ,out panBus panChange
+           ,freeTheSound ]
+           ++ hits
+
+    hits = map hitFunc aBusses
+    hitFunc k
+      | r 0 = replaceOut (fromIntegral k) (decay2 pitchTrig 5e-3 300e-3 * 30e-3 * wholeEnv)
+      | r 1 = replaceOut (fromIntegral k) (decay2 metro 5e-3 150e-3 * 20e-3 * wholeEnv)
+      | otherwise = 0
+      where
+        r l = k `mod` 8 == l
+
+    edgey = clip (lfdNoise3 'l' kr (1/(beat*128)) * 30) 0 1
+    aMix = cubed (cubed (lfTri kr (1/(beat*512)) 0))
+    edur = (950e-3 * (1.001 - eInvertedNoise)) * wholeEnv + 1e-3
+    eInvertedNoise = squared $ lfdNoise3 'z' kr (1/(64*beat))
+    chaos = gate chaosVal startChaos
+    chaosVal = tRand 'n' 0 0.8 (lfNoise0 'o' kr (1/(beat*256)))
+    startChaos = tDelay (512 <* pulseCount metro 0) 0
+    del = gate delVal startDel
+    delVal = tRand 'p' 1e-3 100e-3 (lfNoise0 'q' kr (1/(beat*256)))
+    startDel = tDelay (756 <* pulseCount metro 0) 0
+    tmul = tmulTransit initialTmul (tmulVal+0.5)
+    tfreq = tmulTransit initialTfreq (tfreqVal+0.5)
+    initialTmul = 5
+    initialTfreq = 2.74
+    tmulVal = squared $ squared $ lfdNoise3 't' kr (1/(beat*128)) * 1.7
+    tfreqVal = squared $ lfdNoise3 'u' kr (1/(beat*256)) * 1.4
+    tmulTransit a b = a * (1-tmulTransitEnv) + b * tmulTransitEnv
+    tmulTransitEnv = envGen kr startTmul 1 0 1 DoNothing $
+                     env [0,0,1] [0,1] [EnvLin] (-1) 0
+    startTmul = tDelay (1024 <* pulseCount metro 0) 0
+
+
+    -- freqs
+    pitchTrig = tDuty kr (dseq 'a' dinf (mce $ map (*beat) bars))
+                0 DoNothing 1 0
+    sweep = clip (randSweep + periodicSweep) 0 1
+    randSweep = envGen kr sweepTrigR 1 0 1 DoNothing $
+                env [0,0,1,1,0] [0,sweepAtk,sweepSus,sweepRel]
+                [EnvSin] (-1) 0
+    sweepAtk = tExpRand 'b' (1*beat) (12*beat) sweepTrigR
+    sweepSus = tExpRand 'c' (9*beat) (36*beat) sweepTrigR
+    sweepRel = tExpRand 'd' (1*beat) (12*beat) sweepTrigR
+    sweepTrigR = dust 'e' kr (1/(beat*96))
+    periodicSweep = shortSweep + longSweep
+    shortSweep = 0
+    longSweep = envGen kr sweepTrigPLong 1 0 1 DoNothing $
+                env [0,0,1,0] [0,beat*3,beat*3] [EnvSin] (-1) 0
+    sweepTrigPLong = pulseDivider metro (mce [32]) 2
+    ftrig = select (stepper stepTrig 0 0 11 1 0) (mce pary)
+    stepTrig = pulseDivider metro 64 1 +
+               pulseDivider metro 256 44 +
+               pulseDivider metro 256 45 +
+               pulseDivider metro 256 48 +
+               pulseDivider metro 256 52 +
+               pulseDivider metro 256 56 +
+               pulseDivider metro 256 60
+
+    -- pan
+    panChange = dust 'd' kr (1/(beat*128))
+
+    -- common
+    metro = impulse kr (bpm/60) 0
+    freeTheSound = free (2048 <* pulseCount metro 0) 20
+    beat = 60/bpm
+    wholeEnv = squared $ envGen kr t_trig 1 0 1 DoNothing $
+               env [0,0,1,1,0] [0,128*beat,1664*beat,256*beat] [EnvSin] (-1) 0
+
+    pary = [0,  4, 11,  3, 10,  2,  9,  1,  8,  0,  7, 11,
+            6, 10,  5,  9,  4,  8,  3,  7,  2,  6,  1,  5]
+    bars = [3,3,2, 6,1,1, 3,3,2, 3,5]
+
+    bpm = ctrl "bpm" 300
+    pitchTrigBus = ctrl "pitch" 101
+    sweepTrigBus = ctrl "sweep" 102
+    ftrigBus = ctrl "ftrig" 100
+    edgeyBus = ctrl "edgey" 103
+    edurBus = ctrl "envDur" 106
+    tmulBus = ctrl "tmul" 109
+    tfreqBus = ctrl "tfreq" 110
+    aMixBus = ctrl "aMix" 104
+    chaosBus = ctrl "chaos" 107
+    delBus = ctrl "del" 108
+    panBus = ctrl "pan" 105
+    t_trig = ctrl "t_trig" 1
+
 -- | Controller for amplitude of oscillators.
 ac1 :: UGen
 ac1 = mrg outs
@@ -170,8 +275,8 @@ ac1 = mrg outs
     curve = ctrl "crv" 1
     chaos = ctrl "chaos" 0.5
     tfreq = ctrl "tfreq" 0.125
-    tmul = ctrl "tmul" 2
-    toffset = ctrl "tos" 1
+    tmul = ctrl "tmul" 5.5
+    toffset = ctrl "tos" 0
     t_trig = ctrl "t_trig" 1
 
 -- | Controller for frequency of oscillators.
@@ -191,15 +296,15 @@ fc1 = mrg outs
     partials = take (length fBusses) $
                zipWith (\f c -> f * 12 + c)
                (concatMap (replicate 4) [0,1..12]) (cycle overtones)
-    overtones = [0,4,7,11,14]
+    overtones = [-12,-10,-7,-5,0,2,5,7,12]
     val j = tExpRand j vMin vMax t_trig
     vMin = vc - (vc * vd)
     vMax = vc + (vc * vd)
     nfreq j = tExpRand j fMin fMax t_trig
     fMin = fc - (fc * fd)
     fMax = fc + (fc * fd)
-    vc = ctrl "vc" 1
-    vd = ctrl "vd" 0.5
+    vc = ctrl "vc" 8000
+    vd = ctrl "vd" (1-(1e-9))
     fc = ctrl "fc" 2
     fd = ctrl "fd" 0.5
     mx = ctrl "mix" 1
@@ -352,7 +457,7 @@ ws d fd = w1 d fd >> w2 d fd >> w3 d fd
 -- | Worker for amp.
 w1 :: (Transport t) => Double -> t -> IO ()
 w1 n fd
-  | at 0 = hit (const True) >> print n --even
+  | at 0 = hit (const True) >> print n
   | at 1 = hit odd
   | at 2 = hit even
   | at 3 = hit even
@@ -421,14 +526,3 @@ w3 n fd
   | otherwise = return ()
   where
     at k = floor n `mod` 7 == k
-
-toA ugs fd = toB aBusses ugs fd
-toF ugs fd = toB fBusses ugs fd
-toP ugs fd = toB pBusses ugs fd
-
-toB :: (Transport t) => [Int] -> [UGen] -> t -> IO ()
-toB bs ugs fd = do
-  async fd $ d_recv $ synthdef "anon" (mrg outs)
-  send fd $ s_new "anon" (-1) AddToTail 10 []
-  where
-    outs = zipWith out (map fromIntegral bs) (cycle ugs)
