@@ -67,7 +67,7 @@ allNodes = do
 dump :: Query ()
 dump = do
   fd <- ask
-  liftIO $ printTree fd
+  liftIO $ printRootNode fd
 
 load :: String -> UGen -> Query OSC
 load n ugen = do

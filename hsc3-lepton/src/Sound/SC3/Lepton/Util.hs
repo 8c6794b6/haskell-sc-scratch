@@ -106,11 +106,14 @@ async' = flip async
 wait' :: Transport t => String -> (t -> IO OSC)
 wait' = flip wait
 
--- | Sends "/g_queryTree" and shows returning message.
-queryTree :: Transport t => t -> IO OSC
-queryTree fd = do
+queryRootNode :: (Transport t) => t -> IO OSC
+queryRootNode fd = do
   send fd (Message "/g_queryTree" [Int 0, Int 1])
   wait fd "/g_queryTree.reply"
+
+-- | Sends "/g_queryTree" and shows returning message.
+queryTree :: Int -> OSC
+queryTree n = Message "/g_queryTree" [Int n, Int 1]
 
 -- | Sends registration for notify, then query the nodes and shows
 -- returing message.

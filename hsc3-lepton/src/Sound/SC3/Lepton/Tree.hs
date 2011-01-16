@@ -33,8 +33,10 @@ module Sound.SC3.Lepton.Tree
 
     -- * Communicating with server
   , getTree
+  , getRootNode
   , mkTree
   , printTree
+  , printRootNode
   )  where
 
 import Control.Monad
@@ -226,9 +228,16 @@ draw (Node x ts0) = x:drawSubTrees ts0
 --
 ------------------------------------------------------------------------------
 
--- | Get current node mapping representation of @SCTree@.
-getTree :: (Transport t) => t -> IO SCTree
-getTree fd = queryTree fd >>= return . parseOSC
+-- | Get root node.
+getRootNode :: (Transport t) => t -> IO SCTree
+getRootNode = getTree 0
+
+-- | Get node with specifying node id.
+getTree :: (Transport t) => Int -> t -> IO SCTree
+getTree n fd = do
+  send fd (queryTree n)
+  m <- wait fd "/g_queryTree.reply"
+  return $ parseOSC m
 
 -- | Send OSC message for constructing given @SCTree@.
 mkTree :: (Transport t) => SCTree -> t -> IO ()
@@ -236,6 +245,10 @@ mkTree t = \fd -> do
   t0 <- utcr
   send fd (Bundle (UTCr (t0 + 0.1)) (treeToOSC t))
 
--- | Prints current SCTree.
-printTree :: Transport t => t -> IO ()
-printTree fd = getTree fd >>= putStr . drawSCTree
+-- | Print current SCTree entirely.
+printRootNode :: (Transport t) => t -> IO ()
+printRootNode = printTree 1
+
+-- | Prints current SCTree with specifying node id.
+printTree :: Transport t => Int -> t -> IO ()
+printTree n fd = getTree n fd >>= putStr . drawSCTree
