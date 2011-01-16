@@ -39,7 +39,7 @@ main = do
     case arg of
       Motors -> go Motors.motorGraph
       Droid  -> go Droids.droidGraph
-      Birds  -> go Birds.b2Tree
+      Birds  -> go Birds.birds3Node
 
 hints :: Hints
 hints = M.fromList

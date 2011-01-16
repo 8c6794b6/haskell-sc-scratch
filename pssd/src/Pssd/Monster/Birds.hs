@@ -13,12 +13,13 @@
 --
 module Pssd.Monster.Birds where
 
+import Data.List (isPrefixOf)
 import qualified Data.Map as M
 
 import Data.Generics.Uniplate.Data
 import Sound.OpenSoundControl
-import Sound.SC3
-import Sound.SC3.ID
+import Sound.SC3 hiding (sweep)
+import Sound.SC3.ID hiding (sweep)
 import Sound.SC3.Lepton
 import Sound.SC3.Lepton.GUI
 
@@ -97,9 +98,12 @@ b2Tree =
 
 -- | Hints used by gui of bird2 synth.
 b2Hints :: Hints
-b2Hints = M.fromList $ [("bird2", map (\x -> ParamRange x 0 1) ns)]
+b2Hints = M.fromList $
+          [("bird2", map (\x -> ParamRange x 0 1) ns)] ++
+          [("birds3", map (\x -> ParamRange x 0 1) ms)]
   where
     ns = [n | n := _ <- universeBi b2Tree]
+    ms = [n | n := _ <- universeBi birds3Node]
 
 -- | Helper for sending n_set to bird2 synth
 setBird2 :: (Transport t) => [(String,Double)] -> t -> IO ()
@@ -132,6 +136,91 @@ lesserSpottedGrinchwarbler = setBird2
     ,("aa",0.6530),("aaatk",0.8163),("aadcy",0.653)
     ,("t_trig",1)]
 
+playBirds3 :: (Transport t) => t -> IO ()
+playBirds3 fd = do
+  let dusty = out (ctrl "out" 100) (dust 'd' kr (ctrl "freq" 1))
+  mapM_ (\(n,u) -> loadSynthdef n u fd) [("birds3",birds3),("dusty",dusty)]
+  mkTree birds3Node fd
+
+birds3Node :: SCTree
+birds3Node =
+  Group 0
+    [Group 1
+       [Synth 1001 "dusty" ["out":=100,"freq":=4]
+       ,Synth 1002 "birds3" (("t_trig":<-100):cs) ]]
+  where
+    cs = [n := 0.5 | NodeK _ _ n _ _ <- controls $ synth birds3
+                   , not (n `isPrefixOf` "t_")]
+
 -- | Birds, take 3.
 birds3 :: UGen
-birds3 = undefined
+birds3 = out2 (sig * 2 * amp)
+  where
+    -- last object just above dac
+    sig = resonz sig0 (sqrt atweet * 2000) 0.2
+
+    -- inlet to vcf above last outlet~
+    sig0 = lpf (sig1*0.5) 5000
+    sig1 = resonz sig2 ctr5 ctr7 + resonz sig2 ctr6 ctr7
+    sig2 = sinOsc ar sig3 0
+    sig3 = (sig4 * sig4) * ctr3 + ctr4
+    sig4 = sinOsc ar ctr1 0 * sinOsc ar ctr2 0
+
+    -- ctr1 to ctr7 are inlet in tweetypie sub patch.
+    ctr1 = syr1aE + syr2aE
+    ctr2 = syr1aE + syr1mE + syr2aE + syr2mE
+    ctr3 = modaE * modbE
+    ctr4 = basefE + sweepE
+    ctr5 = (tf1E + tb1E) + 1e-3
+    ctr6 = (tf2E + tb2E) + 1e-3
+    ctr7 = resonE
+
+    syr1aE = moveTo syr1a 3000 300e-3
+    syr1mE = moveTo syr1m 200 500e-3
+    syr2aE = moveTo syr2a 3000 300e-3
+    syr2mE = moveTo syr2m 200 500e-3
+    basefE = moveTo basef 5000 300e-3
+    sweepE = moveTo sweep 3000 300e-3
+    modaE = moveTo moda 2000 300e-3
+    modbE = moveTo modb 50 300e-3
+    tf1E = moveTo tf1 3000 300e-3
+    tb1E = moveTo tb1 3000 300e-3
+    tf2E = moveTo tf2 3000 300e-3
+    tb2E = moveTo tb2 3000 300e-3
+    resonE = moveTo reson 0.98 100e-3 + 0.02
+
+    moveTo c v t = c * linen flipTrig t v t DoNothing
+
+    flipTrig = toggleFF t_trig
+
+    -- left part patch conrolling tweet.
+    atweet = cos (clip2 at0 0.5 * pi) ^ 2
+    at0 = at1 - at2
+    at1 = envGen kr t_trig 1 0 1 DoNothing $
+          env [0,0,artic] [0,300e-3] [EnvLin] (-1) 0
+    at2 = lpf (saw ar (sinOsc kr (abs (lfdNoise3 't' kr 0.01) * 1000) 0)) 2
+
+    amp = ctrl "amp" 0.5
+    t_trig = ctrl "t_trig" 1
+
+    artic = ctrl "artic" 0.5
+    tweet = ctrl "tweet" 0.5
+    syr1a = ctrl "syr1a" 0.5
+    syr1m = ctrl "syr1m" 0.5
+    syr2a = ctrl "syr2a" 0.5
+    syr2m = ctrl "syr2m" 0.5
+    basef = ctrl "basef" 0.5
+    sweep = ctrl "sweep" 0.5
+    moda = ctrl "moda" 0.5
+    modb = ctrl "modb" 0.5
+    tf1 = ctrl "tf1" 0.5
+    tb1 = ctrl "tb1" 0.5
+    tf2 = ctrl "tf2" 0.5
+    tb2 = ctrl "tb2" 0.5
+    reson = ctrl "reson" 0.5
+
+
+
+f n = putStrLn $ n ++ " = ctrl \"" ++ n ++ "\" 0.5"
+cs = ["artic", "tweet", "syr1a", "syr1m", "syr2a", "syr2m"
+     ,"basef", "sweep", "moda", "modb", "tf1", "tb1", "tf2", "tb2", "reson"]
