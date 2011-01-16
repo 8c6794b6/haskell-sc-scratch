@@ -7,7 +7,7 @@
 -- Stability   : unstable
 -- Portability : non-portable
 --
--- Playing with additive synth, take 1.
+-- Playing with a pile of oscillators, take 1.
 --
 module Sound.Study.ForAPileOfOscillators.A001 where
 

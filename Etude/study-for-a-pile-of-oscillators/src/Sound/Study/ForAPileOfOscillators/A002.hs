@@ -7,7 +7,7 @@
 -- Stability   : unstable
 -- Portability : non-portable
 --
--- Playing with additive synthesis, take 2
+-- Playing with a pile of oscillators, take 2
 --
 module Sound.Study.ForAPileOfOscillators.A002 where
 
@@ -87,7 +87,7 @@ piece2 = mrg outs
            ,outI atos $ mkEnv EnvLin 1 tosE
            ,outI atrig (impulse kr 1 0)
 
-           ,outI fvc $ mkEnv (EnvNum (-2)) 9000 fvcE
+           ,outI fvc $ mkEnv (EnvNum (-2)) 14000 fvcE
            ,outI fvd $ mkEnv EnvCub 1 fvdE
            ,outI ffc $ mkEnv EnvLin 1 ffcE
            ,outI ffd $ mkEnv EnvLin 1 ffdE
@@ -97,10 +97,10 @@ piece2 = mrg outs
            ,outI fnoise (1 * line kr 0 1 4 DoNothing)
            ,outI ftrig (impulse kr 1 0)
 
-           ,outI pvc $ dummyEnv 0.0
-           ,outI pvd $ dummyEnv 0.99
-           ,outI pfc $ dummyEnv 0.11
-           ,outI pfd $ dummyEnv 0.9
+           ,outI pvc $ constEnv 0.0
+           ,outI pvd $ constEnv 0.99
+           ,outI pfc $ constEnv 0.11
+           ,outI pfd $ constEnv 0.9
            ,outI ptrig (impulse kr 1 0)]
 
     outI :: Int -> UGen -> UGen
@@ -140,13 +140,13 @@ type BreakPoints = [(UGen,UGen)]
 -- | Write txt file used as input of tplot.
 --
 -- For more about tplot, see: <http://www.haskell.org/haskellwiki/Timeplot>
--- 
+--
 -- Below is an example command to create image file of envelopes.
 -- Assuming that breakpoint data has been written to \"a002.txt\":
 --
--- > $ tplot -if a002.txt -o a002.png -or 1920x1080 -tf 'num' \\ 
+-- > $ tplot -if a002.txt -o a002.png -or 1920x1080 -tf 'num' \\
 -- > > -k amix lines -k achaos lines -k del lines -k edur lines \\
--- > > -k tmul lines -k tfreq lines -k tos lines \\ 
+-- > > -k tmul lines -k tfreq lines -k tos lines \\
 -- > > -k fvc lines -k fvd lines -k ffc lines -k ffd lines
 --
 writeBreakPoints :: FilePath -> IO ()
@@ -216,7 +216,7 @@ tmulE =
 tfreqE :: BreakPoints
 tfreqE =
   [(0,0),(3,0.8),(90,0.8)
-  ,(98,2.1),(180,8)
+  ,(98,2.1),(180,3)
   ,(192,1.76)
   ,(250,0.97)]
 
@@ -240,11 +240,11 @@ fvcE =
 fvdE :: BreakPoints
 fvdE =
   [(0,0),(32,0),(48,0.5)
-  ,(69,0.999)
-  ,(96,0.999)
-  ,(128,0.999), (136,0.75), (142,0.998), (150,0.85), (152,0.999)
-  ,(162,0.999)
-  ,(296,0.999)]
+  ,(69,0.9999)
+  ,(96,0.9999)
+  ,(128,0.9999), (136,0.75), (142,0.998), (150,0.85), (152,0.9999)
+  ,(162,0.9999)
+  ,(296,0.9999)]
 
 ffcE :: BreakPoints
 ffcE =
@@ -258,5 +258,5 @@ ffdE =
   ,(198,0.5)
   ,(202,0.99)]
 
-dummyEnv :: UGen -> UGen
-dummyEnv val = mkEnv EnvLin 1 [(0,val),(1,val)]
+constEnv :: UGen -> UGen
+constEnv val = mkEnv EnvLin 1 [(0,val),(1,val)]
