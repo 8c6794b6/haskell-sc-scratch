@@ -72,7 +72,7 @@ loadThunder = \fd -> do
 -- | Synth node graph for bolt, afterImages, and boom.
 --
 -- All synthdefs are triggered with output from dust ugen.
-thunderGraph :: SCTree
+thunderGraph :: SCNode
 thunderGraph =
   Group 0
     [Group 1

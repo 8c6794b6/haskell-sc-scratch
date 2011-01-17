@@ -68,7 +68,7 @@ playAcid fd = do
   mkTree acidGraph fd
 
 -- | Node graph for acid.
-acidGraph :: SCTree
+acidGraph :: SCNode
 acidGraph =
   Group 0
     [Group 1

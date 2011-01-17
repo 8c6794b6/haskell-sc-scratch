@@ -43,7 +43,7 @@ playFootSteps fd = do
                    ,("wood",wood i)]
   mkTree footStepGraph fd
 
-footStepGraph :: SCTree
+footStepGraph :: SCNode
 footStepGraph =
   Group 0
     [Group 1

@@ -118,7 +118,7 @@ motorMachine fd = do
   mapM_ dr [("motor3",motor3),("turnMotor",turnMotor)]
   mkTree motorGraph fd
 
-motorGraph :: SCTree
+motorGraph :: SCNode
 motorGraph =
   Group 0
     [Group 1

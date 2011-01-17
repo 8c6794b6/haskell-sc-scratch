@@ -107,4 +107,3 @@ rtn3 = randomReplicate (3,9) rtn3'
 
 rtn3' :: Rtn2 [Double]
 rtn3' = return . fst . chooseOne  [74,75,77,79,81] <$> updateGen
-

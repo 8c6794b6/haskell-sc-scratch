@@ -37,7 +37,7 @@ writeA002Score path = do
   writeNRT path $ os ++ [end]
 
 -- | Synth nodes for this piece.
-a002Tree :: SCTree
+a002Tree :: SCNode
 a002Tree =
   Group 0
     [Group 1
@@ -45,7 +45,7 @@ a002Tree =
        ,Group 11 afp2
        ,Group 12 oscs]]
 
-afp2 :: [SCTree]
+afp2 :: [SCNode]
 afp2 =
   [Synth 1001 "ac1"
      ["vc":=18e-3,"vd":=0.125,
@@ -144,9 +144,9 @@ type BreakPoints = [(UGen,UGen)]
 -- Below is an example command to create image file of envelopes.
 -- Assuming that breakpoint data has been written to \"a002.txt\":
 --
--- > $ tplot -if a002.txt -o a002.png -or 1920x1080 -tf 'num' \\
--- > > -k amix lines -k achaos lines -k del lines -k edur lines \\
--- > > -k tmul lines -k tfreq lines -k tos lines \\
+-- > $ tplot -if a002.txt -o a002.png -or 1920x1080 -tf 'num' \
+-- > > -k amix lines -k achaos lines -k del lines -k edur lines \
+-- > > -k tmul lines -k tfreq lines -k tos lines \
 -- > > -k fvc lines -k fvd lines -k ffc lines -k ffd lines
 --
 writeBreakPoints :: FilePath -> IO ()

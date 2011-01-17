@@ -9,31 +9,31 @@
 --
 -- Common codes used by study of a pile of oscillators.
 --
-module Sound.Study.ForAPileOfOscillators.Common 
-  ( 
+module Sound.Study.ForAPileOfOscillators.Common
+  (
     -- * Actions
-    showGUI  
-  , updateSynthdefs  
+    showGUI
+  , updateSynthdefs
 
     -- * UGens
   , aosc
-  , ac1  
-  , fc1  
-  , pc1  
-    
+  , ac1
+  , fc1
+  , pc1
+
     -- * Node ids and bus ids
   , oscIds
-  , aBusses  
-  , fBusses  
-  , pBusses  
-    
+  , aBusses
+  , fBusses
+  , pBusses
+
     -- * Synth nodes
-  , oscs  
+  , oscs
   , afpDefault
-    
+
     -- * GUI data
   , hints
-    
+
     -- * Value referred from elsewhere
   , numOsc
   ) where
@@ -53,6 +53,11 @@ showGUI fd = do
   treeToGui (Group 0 afpDefault) hints fd
 
 -- | Write synthdefs and reload them.
+--
+-- Note that, ac1, fc1, and pc1 synthdefs are too large to send in a single
+-- UDP connection. From this reason, synthdefs are written to file once and
+-- then reloaded.
+--
 updateSynthdefs :: (Transport t) => t -> IO OSC
 updateSynthdefs fd = do
   mapM_ (\(n,u) -> writeSynthdef n u)
@@ -62,7 +67,7 @@ updateSynthdefs fd = do
     ,("pc1",pc1)]
   reloadSynthdef fd
 
--- | Simple single sin oscillator.
+-- | Simple single sine oscillator.
 aosc :: UGen
 aosc = out 0 (pan2 sig pan 1)
   where
@@ -70,7 +75,7 @@ aosc = out 0 (pan2 sig pan 1)
     pan = ctrl "pan" 0
     amp = ctrl "amp" 0.3
     freq = ctrl "freq" 440
-    
+
 -- | Controller for amplitude of oscillators.
 ac1 :: UGen
 ac1 = mrg outs
@@ -164,7 +169,7 @@ pc1 = mrg outs
     tickC = ctrl "tick" 0
     sinC = ctrl "sin" 0
     t_trig = ctrl "t_trig" 1
-    
+
 -- | Number of oscillators
 numOsc :: Num a => a
 numOsc = 256
@@ -186,7 +191,7 @@ pBusses :: [Int]
 pBusses = [3001..3001+numOsc]
 
 -- | Synth nodes for ac1, fc1, and pc1, with default params taken from ugen.
-afpDefault :: [SCTree]
+afpDefault :: [SCNode]
 afpDefault =
   [Synth 1001 "ac1" (f ac1)
   ,Synth 1002 "fc1" (f fc1)
@@ -195,7 +200,7 @@ afpDefault =
    f = map (\(NodeK _ _ n v _) -> n:=v) . controls . synth
 
 -- | Oscillator synth nodes.
-oscs :: [SCTree]
+oscs :: [SCNode]
 oscs = o oscIds aBusses fBusses pBusses
   where
     o = zipWith4 (\x a f p-> Synth x "aosc" ["amp":<-a,"freq":<-f,"pan":<-p])
@@ -225,7 +230,7 @@ hints = M.fromList
    ,ParamRange "fd" 0 1
    ,ParamRange "ptc" 0 12
    ,ParamRange "vib" 0 10
-   ,ParamRange "noise" 0 1 
+   ,ParamRange "noise" 0 1
    ,ParamRange "t_trig" 0 1])
  ,("pc1",
    [ParamRange "vc" (-1) 1
@@ -233,4 +238,3 @@ hints = M.fromList
    ,ParamRange "fc" 0 3
    ,ParamRange "fd" 0 1
    ,ParamRange "t_trig" 0 1])]
-

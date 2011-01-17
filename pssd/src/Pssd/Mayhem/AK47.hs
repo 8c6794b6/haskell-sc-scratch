@@ -214,7 +214,7 @@ loadAK47 fd = do
   mkTree ak47graph fd
 
 -- | Synth graph for fireing AK47.
-ak47graph :: SCTree
+ak47graph :: SCNode
 ak47graph =
   Group 0
     [Group 1

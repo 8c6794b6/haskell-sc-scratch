@@ -43,7 +43,7 @@ stormyDay = do
     mkTree graph fd
 
 -- | Synthdef graph.
-graph :: SCTree
+graph :: SCNode
 graph =
   Group 0
     [Group 1

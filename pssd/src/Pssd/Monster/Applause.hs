@@ -47,7 +47,7 @@ playClap fd = do
                    ,("master",master)]
   mkTree clappers fd
 
-clappers :: SCTree
+clappers :: SCNode
 clappers =
   Group 0
     [Group 1

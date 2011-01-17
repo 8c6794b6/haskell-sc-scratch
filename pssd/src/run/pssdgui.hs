@@ -24,7 +24,7 @@ import qualified Pssd.Engineering.Motors as Motors
 import qualified Pssd.Future.Droids as Droids
 import qualified Pssd.Monster.Birds as Birds
 
--- | Data type to choose SCTree from other Pssd modules.
+-- | Data type to choose SCNode from other Pssd modules.
 data Pssd
   = Motors
   | Droid

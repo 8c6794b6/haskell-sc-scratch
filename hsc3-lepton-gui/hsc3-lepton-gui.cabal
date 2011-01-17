@@ -1,5 +1,5 @@
 name:		hsc3-lepton-gui
-version:	0.0.1
+version:	0.0.2
 synopsis:       GUI for scsynth using hsc3-lepton and gtk2
 author:         8c6794b6
 maintainer:     8c6794b6@gmail.com
@@ -26,4 +26,4 @@ library
     uniplate >= 1.6,
     mtl -any,
     hsc3 >= 0.8,
-    hsc3-lepton -any
+    hsc3-lepton >= 0.0.2

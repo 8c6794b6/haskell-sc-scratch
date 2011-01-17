@@ -45,7 +45,7 @@ oscList1 = Message "/g_queryTree.reply"
                  String "freq",Float 440.0,
                  String "out",Float 0.0]
 
-tree1 :: SCTree
+tree1 :: SCNode
 tree1 =
   Group 0
     [Group 1

@@ -83,7 +83,7 @@ b2nid :: Int
 b2nid = 1000
 
 -- | Synth node for single bird2 synth.
-b2Tree :: SCTree
+b2Tree :: SCNode
 b2Tree =
   Group 0
     [Group 1
@@ -142,7 +142,7 @@ playBirds3 fd = do
   mapM_ (\(n,u) -> loadSynthdef n u fd) [("birds3",birds3),("dusty",dusty)]
   mkTree birds3Node fd
 
-birds3Node :: SCTree
+birds3Node :: SCNode
 birds3Node =
   Group 0
     [Group 1

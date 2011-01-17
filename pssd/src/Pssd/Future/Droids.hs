@@ -88,7 +88,7 @@ playDroid fd = do
   mkTree droidGraph fd
 
 -- | Graph for playing droid sound.
-droidGraph :: SCTree
+droidGraph :: SCNode
 droidGraph =
   Group 0
     [ Group 1

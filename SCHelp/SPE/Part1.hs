@@ -1,3 +1,4 @@
+{-# LANGUAGE PackageImports #-}
 ------------------------------------------------------------------------------
 -- |
 -- Exercise from /Stream-Patterns-Events1/.
@@ -7,34 +8,36 @@ module SCHelp.SPE.Part1 where
 
 import Control.Applicative
 import Control.Arrow
-import Control.Monad.State
+import Control.Concurrent (threadDelay)
+import "mtl" Control.Monad.State
 import Data.Map (Map)
 import System.Random
 import qualified Data.Map as M
 
-import Control.Applicative.State
 import Sound.OpenSoundControl
 import Sound.SC3
 import Sound.SC3.Monadic
-import Sound.SC3.Wing
-import qualified Sound.SC3.Wing.UGen.ControlArg as A
+import Sound.SC3.Lepton
+import qualified Sound.SC3.Lepton.UGen.ControlArg as A
 
 main :: IO ()
-main = runPartOne
+main = go =<< newStdGen
 
 -- | Sends synthdef used in this example.
 setPartOne :: Transport t => t -> IO OSC
 setPartOne fd = do
-  ug <- help_SPE1 
+  ug <- help_SPE1
   loadSynthdef "help_SPE1" ug fd
 
 -- | Runs the sound example shown in SPE sc help file Part 1.
-runPartOne :: IO ()
-runPartOne = spawn 0 120 . listE . 
-             zip durs . evalState oscs =<< newStdGen
-    where
-      durs = scanl (+) 0 $ repeat 0.25
-      oscs = concat <$> (sequence $ repeat r00)
+go :: StdGen -> IO ()
+go seed = zipWithM_ f (repeat 0.25) os
+  where
+    f t o = do
+      withSC3 $ \fd -> send fd o
+      threadDelay (floor $ (60/bpm) * t * 1e6)
+    bpm = 120
+    os = evalState (fmap concat $ sequence $ repeat r00) seed
 
 -- | The only synthdef used in this example
 help_SPE1 :: IO UGen
@@ -51,7 +54,7 @@ help_SPE1 = do
 
 -- | Makes osc message from midi note pitch.
 new_help_SPE1 :: Double -> OSC
-new_help_SPE1 note = s_new "help_SPE1" (-1) AddToTail 1 
+new_help_SPE1 note = s_new "help_SPE1" (-1) AddToTail 1
                      [("freq", midiCPS note)]
 
 -- | Updates StdGen seed.
@@ -75,7 +78,7 @@ r01 = do
   return $ map new_help_SPE1 notes
 
 r02 :: State StdGen [OSC]
-r02 = repeatFor (2,5) r02' 
+r02 = repeatFor (2,5) r02'
 
 r03 :: State StdGen [OSC]
 r03 = repeatFor (3,9) r03'
@@ -83,7 +86,7 @@ r03 = repeatFor (3,9) r03'
 r02' :: State StdGen [OSC]
 r02' = do
   gen <- updateGen
-  let notes = 60 : fst (chooseOne [63,65] gen) : 67 : 
+  let notes = 60 : fst (chooseOne [63,65] gen) : 67 :
               fst (chooseOne [70,72,74] gen) : []
   return $ map new_help_SPE1 notes
 
@@ -92,4 +95,3 @@ r03' = do
   gen <- updateGen
   let notes = fst $ chooseOne [74,75,77,79,81] gen
   return $ map new_help_SPE1 [notes]
-

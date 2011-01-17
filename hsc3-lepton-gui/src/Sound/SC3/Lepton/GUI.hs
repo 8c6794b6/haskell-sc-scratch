@@ -8,7 +8,7 @@
 -- Stability   : unstable
 -- Portability : non-portable
 --
--- Helper to build simple GUI from SCTree with GTK.
+-- Helper to build simple GUI from SCNode with GTK.
 --
 module Sound.SC3.Lepton.GUI
   ( -- * Example
@@ -30,7 +30,7 @@ import qualified Data.Map as M
 import Data.Generics.Uniplate.Data (universe)
 import Sound.OpenSoundControl
 import Sound.SC3
-import Sound.SC3.Lepton (SCTree(..), paramToTuple)
+import Sound.SC3.Lepton (SCNode(..), paramToTuple)
 import qualified Graphics.UI.Gtk as G
 
 -- $example
@@ -63,7 +63,7 @@ import qualified Graphics.UI.Gtk as G
 -- >   where
 -- >     amp = ctrl "amp" 1
 -- >
--- > tree :: SCTree
+-- > tree :: SCNode
 -- > tree =
 -- >   Group 0
 -- >     [Group 1
@@ -88,11 +88,11 @@ data ParamRange = ParamRange
   , prMax :: Double  -- ^ Max value
   } deriving (Eq, Show)
 
--- | Make simple GUI from SCTree.
+-- | Make simple GUI from SCNode.
 --
 -- Ignoring mapped controls.
 --
-treeToGui :: (Transport t) => SCTree -> Hints -> t -> IO ()
+treeToGui :: (Transport t) => SCNode -> Hints -> t -> IO ()
 treeToGui tree hints fd = do
   G.initGUI
   window <- makeGUIWindow tree hints fd
@@ -101,10 +101,10 @@ treeToGui tree hints fd = do
 
 -- | Inner guts of gui builder.
 --
--- Makes a window from given SCTree and Hints.
+-- Makes a window from given SCNode and Hints.
 --
 makeGUIWindow :: (Transport t)
-              => SCTree
+              => SCNode
               -> Hints
               -> t
               -> IO G.Window

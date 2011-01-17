@@ -36,7 +36,7 @@ setup fd = do
   mkTree a001Tree fd
 
 -- | Main synth node tree.
-a001Tree :: SCTree
+a001Tree :: SCNode
 a001Tree =
   Group 0
     [Group 1
@@ -45,7 +45,7 @@ a001Tree =
       ,Group 20 oscs]]
 
 -- | Controller synth nodes.
-afp :: [SCTree]
+afp :: [SCNode]
 afp = [Synth 1001 "ac1"
          ["vc":=18e-3,"vd":=0.125,
           "mix":<-104,"nfreq":=0.68,

@@ -56,7 +56,7 @@ latency = 0.01
 bundle :: Double -> [OSC] -> OSC
 bundle time ms = Bundle (UTCr (time + latency)) ms
 
-allNodes :: Query SCTree
+allNodes :: Query SCNode
 allNodes = do
   fd <- ask
   liftIO $ do
@@ -76,7 +76,7 @@ load n ugen = do
     writeSynthdef n ugen
     async fd $ d_recv (synthdef n ugen)
 
-add :: NodeId -> SCTree -> Query ()
+add :: NodeId -> SCNode -> Query ()
 add nId node = do
   fd <- ask
   liftIO $ do
@@ -108,12 +108,12 @@ msg oscMsg = do
     now <- utcr
     send fd $ bundle now [oscMsg]
 
-type NodeInfo a  = SCTree -> a
+type NodeInfo a  = SCNode -> a
 type Condition = NodeInfo Bool
 
 
 -- | Select with given condition.
-sel :: Condition -> Query [SCTree]
+sel :: Condition -> Query [SCNode]
 sel p = do
   tree <- allNodes
   return $ [n | n <- universe tree, p n]
@@ -174,7 +174,7 @@ liftParam :: ([SynthParam] -> Bool) -> NodeInfo Bool
 liftParam f (Synth _ _ ps) = f ps
 liftParam _ _ = False
 
-param :: ParamName -> Query [SCTree]
+param :: ParamName -> Query [SCNode]
 param n = do
   tree <- allNodes
   return $ [x | x@(Synth _ _ ps) <- universe tree, n `elem` map f ps]

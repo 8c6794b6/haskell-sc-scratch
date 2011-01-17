@@ -84,7 +84,7 @@ noMrBond fd = do
            ,("my",my)]
   mkTree laserGraph fd
 
-laserGraph :: SCTree
+laserGraph :: SCNode
 laserGraph =
   Group 0
     [Group 1
