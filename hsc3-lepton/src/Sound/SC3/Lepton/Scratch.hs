@@ -1,5 +1,6 @@
+{-# LANGUAGE NoMonomorphismRestriction #-}
 ------------------------------------------------------------------------------
--- | 
+-- |
 -- Module      : $Header$
 -- CopyRight   : (c) 8c6794b6
 -- License     : BSD3
@@ -7,20 +8,80 @@
 -- Stability   : unstable
 -- Portability : non-portable
 --
--- 
 -- Scratch!!!
--- 
+--
 
 module Sound.SC3.Lepton.Scratch where
 
+import Control.Concurrent (forkIO, threadDelay)
+import System.Random (newStdGen, randomRs)
+
 import Sound.OpenSoundControl
 import Sound.SC3
+import Sound.SC3.ID
 
+import Sound.SC3.Lepton.Pattern
 import Sound.SC3.Lepton.Tree
 
 ------------------------------------------------------------------------------
 --
--- Scratch
+-- Patterns
+--
+------------------------------------------------------------------------------
+
+main = withSC3 go
+
+-- | Load synth def and play the pattern.
+go :: (Transport t) => t -> IO ()
+go fd = do
+  async fd . d_recv . synthdef "speSynth" =<< speSynth
+  mapM_ f =<< runPIO pspe'
+  where
+    f v = do
+      send fd $ s_new "speSynth" (-1) AddToTail 1 [("freq",midiCPS v)]
+      threadDelay (floor $ 0.13 * 1e6)
+
+-- | Synthdef for spe example.
+speSynth :: IO UGen
+speSynth = do
+  dl <- randomRs (0,0.05) `fmap` newStdGen
+  dr <- randomRs (0,0.05) `fmap` newStdGen
+  return $ out 0 $ mkSig dl dr
+  where
+    mkSig dl dr = foldr f v (take 4 $ zipWith mce2 dl dr)
+    v = rlpf (lfSaw ar freq 0 * evl) nz 0.1
+    f a b = allpassN b 0.05 a 4
+    evl = envGen kr 1 1 0 1 RemoveSynth shp * 0.3
+    shp = envPerc 10e-3 1
+    nz = midiCPS (lfNoise1 'z' kr 1 * 36 + 110)
+    freq = control kr "freq" 440
+
+pspe' =
+  pcycle
+  [prand 1 [pempty, plist [24,31,36,43,48,55]]
+  ,pseq (prand 1 ([2..5]))
+   [60, prand 1 [63, 65], 67, prand 1 [70,72,74]]
+  ,prand (prand 1 [3..9]) [74,75,77,79,81]]
+
+pspe =
+  pcycle
+    [prand (pval 1)
+     [pempty, plist [24,31,36,43,48,55]]
+
+    ,pseq (prand (pval 1) [pval 2, pval 3, pval 4, pval 5])
+     [pval 60
+     ,prand (pval 1) [pval 63, pval 65]
+     ,pval 67
+     ,prand (pval 1) [pval 70, pval 72, pval 74]]
+
+    ,prand (prand (pval 1)
+            [pval 3, pval 4, pval 5, pval 6, pval 7, pval 8, pval 9])
+     [pval 74, pval 75, pval 77, pval 79, pval 81]]
+
+
+------------------------------------------------------------------------------
+--
+-- Synth Nodes
 --
 ------------------------------------------------------------------------------
 

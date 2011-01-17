@@ -57,12 +57,12 @@ import Sound.SC3.Lepton.Util (queryTree)
 --
 -- > > :m + Sound.SC3
 -- > > withSC3 reset
--- > > withSC3 printTree
+-- > > withSC3 printRootNode
 -- > Group 0
 -- > `-Group 1
 -- > > audition $ out 0 $ sinOsc ar (control kr "freq" 440) 0 * 0.3
 -- > > audition $ out 0 $ sinOsc ar (control kr "freq" 330) 0 * 0.3
--- > > withSC3 printTree
+-- > > withSC3 printRootNode
 -- > Group 0
 -- > `-Group 1
 -- >   +-Synth -48 Anonymous
@@ -73,7 +73,7 @@ import Sound.SC3.Lepton.Util (queryTree)
 -- Changing synthdef name with using @everywhere@ from syb. After above, run:
 --
 -- > > :m + Data.Generics
--- > > t <- withSC3 getTree
+-- > > t <- withSC3 getRootNode
 -- > > withSC3 reset
 -- > > let f (Synth i n ps) = Synth (1000 + abs i) "default" ps; f x = x
 -- > > withSC3 $ mkTree $ everywhere (mkT f) t
@@ -81,7 +81,7 @@ import Sound.SC3.Lepton.Util (queryTree)
 -- Or using @transform@ from uniplate:
 --
 -- > > :m + Data.Generics.Uniplate.Data
--- > > t <- withSC3 getTree
+-- > > t <- withSC3 getRootNode
 -- > > let g (Synth i n ps) = Synth (2000 + abs i) "default" ps; g x = x
 -- > > withSC3 $ mkTree $ transform g t
 --
