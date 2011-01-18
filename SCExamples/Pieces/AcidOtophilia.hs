@@ -45,7 +45,7 @@ setAcidOtophilia fd = do
   zipWithM (lsd fd)
      ["kick", "snare", "clap", "hat", "acid", "fx"]
      [kick, snare, clap, hat, acid, return fx]
-  mkTree acidTree fd
+  addNode 0 acidTree fd
    where
      lsd :: Transport t => t -> String -> (IO UGen) -> IO OSC
      lsd fd name ioUGen =

@@ -12,7 +12,12 @@
 --
 module Sound.SC3.Lepton.Tree
   ( -- * Examples
-    -- $examples
+
+    -- ** Quick interaction
+    -- $example_interactive
+
+    -- ** Routing nodes
+    -- $example_declarative
 
     -- * Types
     SCNode(..)
@@ -26,17 +31,21 @@ module Sound.SC3.Lepton.Tree
     -- * Parser
   , parseOSC
 
+    -- * Communicating with server
+  , addNode
+  , getNode
+  , setNode
+  , delNode
+  , modifyNode
+  , printNode
+  , getRootNode
+  , printRootNode
+
     -- * Converter
-  , treeToOSC
+  , treeToNew
+  , treeToSet
   , paramToTuple
   , drawSCNode
-
-    -- * Communicating with server
-  , getTree
-  , getRootNode
-  , mkTree
-  , printTree
-  , printRootNode
   )  where
 
 import Control.Monad
@@ -51,15 +60,18 @@ import Sound.SC3.Lepton.Instance ()
 import Sound.SC3.Lepton.Parser
 import Sound.SC3.Lepton.Util (queryTree)
 
--- $examples
+-- $example_interactive
 --
--- Dump the contents of running synth nodes.
+-- Dump the contents of running synth nodes from ghci:
 --
 -- > > :m + Sound.SC3
 -- > > withSC3 reset
 -- > > withSC3 printRootNode
 -- > Group 0
 -- > `-Group 1
+--
+-- Dump again after adding synth nodes:
+--
 -- > > audition $ out 0 $ sinOsc ar (control kr "freq" 440) 0 * 0.3
 -- > > audition $ out 0 $ sinOsc ar (control kr "freq" 330) 0 * 0.3
 -- > > withSC3 printRootNode
@@ -70,21 +82,63 @@ import Sound.SC3.Lepton.Util (queryTree)
 -- >   `-Synth -56 Anonymous
 -- >     `-[freq := 330.00]
 --
--- Changing synthdef name with using @everywhere@ from syb. After above, run:
---
--- > > :m + Data.Generics
--- > > t <- withSC3 getRootNode
--- > > withSC3 reset
--- > > let f (Synth i n ps) = Synth (1000 + abs i) "default" ps; f x = x
--- > > withSC3 $ mkTree $ everywhere (mkT f) t
---
--- Or using @transform@ from uniplate:
+-- Updating synth nodes with using @transform@ from uniplate package:
 --
 -- > > :m + Data.Generics.Uniplate.Data
 -- > > t <- withSC3 getRootNode
--- > > let g (Synth i n ps) = Synth (2000 + abs i) "default" ps; g x = x
--- > > withSC3 $ mkTree $ transform g t
+-- > > let f (Synth i n ps) = Synth (2000 + abs i) "default" ps; f x = x
+-- > > withSC3 $ addNode 0 $ transform f t
 --
+-- Using @transformBi@:
+--
+-- > > let g ("freq":=f) = "freq":=(f*2); g x = x
+-- > > withSC3 reset
+-- > > withSC3 $ addNode 0 $ transformBi g t
+--
+
+-- $example_declarative
+--
+-- Write node structure and send it to scsynth. \"fmod\" parameters
+-- in synth \"bar\" are mapped from outputs of synth \"foo\".
+--
+-- > import Sound.OpenSoundControl
+-- > import Sound.SC3
+-- > import Sound.SC3.Lepton
+-- >
+-- > main :: IO ()
+-- > main = withSC3 playFooBar
+-- >
+-- > playFooBar :: (Transport t) => t -> IO ()
+-- > playFooBar fd = do
+-- >   mapM (\(n,u) -> async fd . d_recv $ synthdef n u) [("foo",foo),("bar",bar)]
+-- >   addNode 0 nodes fd
+-- >
+-- > nodes :: SCNode
+-- > nodes =
+-- >   Group 1
+-- >     [Group 10
+-- >       [Synth 1000 "foo"
+-- >          ["out":=100,"amp":=100,"pan":=0,"freq":=1.66]
+-- >       ,Synth 1001 "foo"
+-- >          ["out":=101,"amp":=80,"pan":=0.2,"freq":=3.33]]
+-- >     ,Group 11
+-- >       [Synth 1100 "bar"
+-- >          ["amp":=0.1,"pan":=1,"freq":=110,"fmod":<-100]
+-- >       ,Synth 1101 "bar"
+-- >          ["amp":=0.1,"pan":=(-1),"freq":=330,"fmod":<-101]]]
+-- >
+-- > foo :: UGen
+-- > foo = out outBus (sinOsc kr freq 0 * amp)
+-- >
+-- > bar :: UGen
+-- > bar = out 0 $ pan2 (saw ar (fmod + freq) * amp) pan 1
+-- >
+-- > outBus, amp, freq, pan, fmod :: UGen
+-- > outBus = control kr "out" 0
+-- > amp = control kr "amp" 0.3
+-- > freq = control kr "freq" 440
+-- > pan = control kr "pan" 0
+-- > fmod = control kr "fmod" 0
 
 ------------------------------------------------------------------------------
 --
@@ -164,16 +218,92 @@ parseParam = do
 
 ------------------------------------------------------------------------------
 --
+-- Communicating with server
+--
+------------------------------------------------------------------------------
+
+-- | Send OSC message for constructing given @SCNode@.
+-- New node will be added to tail of target id.
+addNode :: (Transport t)
+        => NodeId -- ^ Traget node id to add
+        -> SCNode -- ^ New node
+        -> t      -- ^ Scsynth connection
+        -> IO ()
+addNode tId tree = \fd -> do
+  t0 <- utcr
+  send fd (Bundle (UTCr (t0 + 0.1)) (treeToNew tId tree))
+
+-- | Get node with specifying node id.
+getNode :: (Transport t)
+        => NodeId     -- ^ Node id to get
+        -> t          -- ^ Connection
+        -> IO SCNode
+getNode n fd = do
+  send fd (queryTree n)
+  m <- wait fd "/g_queryTree.reply"
+  return $ parseOSC m
+
+-- | Send OSC message for setting given @SCNode@.
+setNode :: (Transport t)
+        => SCNode -- ^ Node with new parameters
+        -> t
+        -> IO ()
+setNode tree = \fd -> do
+  send fd $ Bundle immediately (treeToSet tree)
+
+-- | Free the nodes specified with given node ids.
+delNode :: (Transport t)
+        => [NodeId]      -- ^ Node ids to free
+        -> t
+        -> IO ()
+delNode ns = \fd -> send fd $ n_free ns
+
+-- | Experimental.
+--
+-- Modify running node with given function.
+--
+-- Implemented with freeing all nodes and adding transformed new nodes.
+--
+modifyNode :: (Transport t)
+           => (SCNode -> SCNode) -- ^ Function to apply
+           -> t
+           -> IO ()
+modifyNode f = \fd -> do
+  t <- getRootNode fd
+  reset fd
+  send fd $ Bundle immediately (treeToNew 0 (f t))
+
+-- | Prints current SCNode with specifying node id.
+printNode :: Transport t => Int -> t -> IO ()
+printNode n fd = getNode n fd >>= putStr . drawSCNode
+
+--
+-- Variants for root node
+--
+
+-- | Get root node.
+getRootNode :: (Transport t) => t -> IO SCNode
+getRootNode = getNode 0
+
+-- | Print current SCNode entirely.
+printRootNode :: (Transport t) => t -> IO ()
+printRootNode = printNode 0
+
+------------------------------------------------------------------------------
+--
 -- Converting functions
 --
 ------------------------------------------------------------------------------
 
--- | SCNode to [OSC].
+-- | SCNode to [OSC] for creating new nodes.
 --
 -- OSC list contains \"g_new\", \"s_new\", and \"n_map\" messages to build
--- the given SCNode.
-treeToOSC :: SCNode -> [OSC]
-treeToOSC tree = tail $ f 0 tree
+-- the given SCNode. New node will be added to tail of target id.
+--
+treeToNew :: NodeId  -- ^ Target node id
+          -> SCNode  -- ^ New nodes
+          -> [OSC]
+treeToNew tId tree = f tId tree
   where
     f i t = case t of
       Group j ns   -> g_new [(j,AddToTail,i)]:concatMap (f j) ns
@@ -185,9 +315,29 @@ treeToOSC tree = tail $ f 0 tree
       (name:<-bus) -> (name,bus):b
       _            -> b
 
+-- | SCNode to [OSC] for updating nodes.
+--
+-- OSC list contains \"n_set\" and \"n_map\" messages to set parameters.
+--
+treeToSet :: SCNode -- ^ Node with new parameters for already exisitng nodes.
+          -> [OSC]
+treeToSet tree = f tree
+  where
+    f t = case t of
+      Group _ ns   -> concatMap f ns
+      Synth _ _ [] -> []
+      Synth j _ ps -> n_set j (concatMap paramToTuple ps):g j ps
+    g k ps | not $ null qs = [n_map k qs]
+           | otherwise     = []
+      where qs = foldr h [] ps
+    h a b = case a of
+      (name:<-bus) -> (name,bus):b
+      _            -> b
+
 paramToTuple :: SynthParam -> [(String,Double)]
 paramToTuple (name := val) = [(name,val)]
 paramToTuple _ = []
+
 
 -- | For converting SCNode to Tree datatype in Data.Tree.Tree.
 -- Data.Tree.Tree is a rose tree, but SCNode datatype is not.
@@ -221,34 +371,3 @@ draw (Node x ts0) = x:drawSubTrees ts0
     drawSubTrees (t:[]) = shift "`-" "  " (draw t)
     drawSubTrees (t:ts) = shift "+-" "| " (draw t) ++ drawSubTrees ts
     shift first other = zipWith (++) (first:repeat other)
-
-------------------------------------------------------------------------------
---
--- Communicating with server
---
-------------------------------------------------------------------------------
-
--- | Get root node.
-getRootNode :: (Transport t) => t -> IO SCNode
-getRootNode = getTree 0
-
--- | Get node with specifying node id.
-getTree :: (Transport t) => Int -> t -> IO SCNode
-getTree n fd = do
-  send fd (queryTree n)
-  m <- wait fd "/g_queryTree.reply"
-  return $ parseOSC m
-
--- | Send OSC message for constructing given @SCNode@.
-mkTree :: (Transport t) => SCNode -> t -> IO ()
-mkTree t = \fd -> do
-  t0 <- utcr
-  send fd (Bundle (UTCr (t0 + 0.1)) (treeToOSC t))
-
--- | Print current SCNode entirely.
-printRootNode :: (Transport t) => t -> IO ()
-printRootNode = printTree 1
-
--- | Prints current SCNode with specifying node id.
-printTree :: Transport t => Int -> t -> IO ()
-printTree n fd = getTree n fd >>= putStr . drawSCNode

@@ -85,7 +85,7 @@ playDroid :: (Transport t) => t -> IO ()
 playDroid fd = do
   let dr (n,u) = async fd $ d_recv $ synthdef n u
   mapM_ dr [("droid",droid),("hitDroid",hitDroid)]
-  mkTree droidGraph fd
+  addNode 0 droidGraph fd
 
 -- | Graph for playing droid sound.
 droidGraph :: SCNode

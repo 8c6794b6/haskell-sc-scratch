@@ -41,7 +41,7 @@ playFootSteps fd = do
                    ,("snow", snow i)
                    ,("gravel", gravel i)
                    ,("wood",wood i)]
-  mkTree footStepGraph fd
+  addNode 0 footStepGraph fd
 
 footStepGraph :: SCNode
 footStepGraph =

@@ -12,15 +12,13 @@
 --
 -- Pattern DSL.
 --
--- Concept was inspired from sclang, implementation was inspired from
--- Oleg Kiselyov's TTF (<http://okmij.org/ftp/tagless-final/>).
+-- Concept was inspired from sclang, and Sound.SC3.Pattern in
+-- hsc3-lang. Implementation was inspired from  Oleg Kiselyov's TTF
+-- (<http://okmij.org/ftp/tagless-final/>).
 --
 -- There is no intention to translate entire set of Pattern
 -- classes found in sclang. Lazy pure functional language like haskell has
--- different style for handling sequential data, compared to OOP language like sclang.
---
--- Rank2Types and FlexibleContexts language pragmes are used for making instance
--- of newtype S with types deriving Show class.
+-- different style for handling sequential data from OOP language like sclang.
 --
 module Sound.SC3.Lepton.Pattern
   ( -- * Examples
@@ -35,7 +33,11 @@ module Sound.SC3.Lepton.Pattern
     -- $example_low_level
 
     -- * Interpreters
+
+    -- ** Running patterns
     R(..), runP, runPIO,
+
+    -- ** Showing patterns
     S(..), viewP,
 
     -- * Expressions
@@ -44,21 +46,30 @@ module Sound.SC3.Lepton.Pattern
   ) where
 
 import Control.Applicative
-import Control.Monad (ap)
 import Data.Char (isDigit)
+import Data.Ratio ((%))
 import Data.List (intersperse)
 import System.Random
 
 -- $example_intro
 --
--- In ghci:
+-- Making pattern in ghci:
 --
 -- > > :set -XNoMonomorphismRestriction
 -- > > let p1 = prand (pval 3) [pval 10, plist [1..5]]
+--
+-- Viewing the pattern:
+--
 -- > > viewP p1
--- > "prand (pval 3) [pval 10, plist [1,2,3,4,5]]"
+-- > "prand (pval 3) [pval 10,plist [1,2,3,4,5]]"
+--
+-- And running it:
+--
 -- > > runPIO p1 -- try several times
 -- > [10,1,2,3,4,5,10]
+--
+-- The type of this pattern is:
+--
 -- > > :t p1
 -- > p1 :: (Pval p, Num t, Enum t, Plist p, Prand p) => p t
 --
@@ -107,6 +118,10 @@ import System.Random
 -- >     freq = control kr "freq" 440
 -- >
 -- > -- Pattern used for pitches of sound.
+-- > -- It's type is:
+-- > -- pspe
+-- > --  :: (Pval p, Pempty p, Num a, Plist p, Prand p, Pseq p, Pcycle p) =>
+-- > --     p a
 -- > pspe =
 -- >   pcycle
 -- >     [prand 1 [pempty, plist [24,31,36,43,48,55]]
@@ -128,12 +143,15 @@ import System.Random
 
 -- $example_low_level
 --
--- Writing funcsions for R and S directlry:
+-- Directly writing function for R:
 --
--- > > runPIO $ prand 3 [1,2,R $ \_ -> [999,1024]]
--- > [1,1,999,1024]
--- > > viewP $ prand (S $ \_ -> "blah blah blah") [1..5]
--- > "prand (blah blah blah) [pval 1,pval 2,pval 3,pval 4,pval 5]"
+-- > > runPIO $ pseq 3 [1,2,R $ \_ -> [999,1024]]
+-- > [1,2,999,1024,1,2,999,1024,1,2,999,1024]
+--
+-- For S:
+--
+-- > > viewP $ prand (S $ \_ -> "foo bar buzz") [1..5]
+-- > "prand (foo bar buzz) [pval 1,pval 2,pval 3,pval 4,pval 5]"
 --
 
 ------------------------------------------------------------------------------
@@ -143,11 +161,12 @@ import System.Random
 ------------------------------------------------------------------------------
 
 -- | \"R\" for running patterns.
+--
 newtype R a = R {unR :: StdGen -> [a]}
 
 instance (Eq a) => Eq (R a) where
   -- undefined !!
-  a == b = undefined
+  (==) = undefined
 
 instance (Show a) => Show (R a) where
   show _ = "R"
@@ -159,7 +178,7 @@ instance Monad R where
   return a = R $ \_ -> [a]
   (R r) >>= k = R $ \g -> concatMap (\x -> unR (k x) g) (r g)
 
--- | Behaves like ZipList.
+-- | Behaves same as ZipList.
 instance Applicative R where
   pure x = R $ \_ -> repeat x
   R rf <*> R rv = R $ \g -> zipWith id (rf g) (rv g)
@@ -176,6 +195,17 @@ instance (Fractional a) => Fractional (R a) where
   a / b = (/) <$> a <*> b
   fromRational = return . fromRational
 
+-- | Note that enumeration for floating point values are not working,
+--
+-- e.g: When getting single random element from @[0.1,0.2 .. 2.0]@, below will
+-- not work:
+--
+-- > runPIO $ prand 1 [0.1,0.2..2.0]
+---
+-- In above case, explicitly use pattern language to make desired value:
+--
+-- > runPIO $ prand 1 $ map pval [0.1,0.2..1.0]
+--
 instance (Enum a) => Enum (R a) where
   succ = fmap succ
   pred = fmap pred
@@ -192,7 +222,7 @@ runPIO p = unR p `fmap` newStdGen
 
 
 -- | \"S\" for showing patterns.
-newtype S a = S {unS :: Show a => forall a. a -> String}
+newtype S s = S {unS :: Show s => forall s. s -> String}
 
 instance (Show a, Eq a) => Eq (S a) where
   a == b = viewP a == viewP b
@@ -200,24 +230,29 @@ instance (Show a, Eq a) => Eq (S a) where
 instance (Show a) => Show (S a) where
   show _ = "S"
 
+
+-- Plain numbers would be shown as pval.
 instance (Num a) => Num (S a) where
   a + b = S $ \_ -> viewP a ++ " + " ++ viewP b
   a * b = S $ \_ -> viewP a ++ " * " ++ viewP b
   abs n = S $ \_ -> "abs (" ++ viewP n ++ ")"
   negate n = S $ \_ -> "negate (" ++ viewP n ++ ")"
   signum n = S $ \_ -> "signum (" ++ viewP n ++ ")"
-  -- Plain numbers would be shown as pval.
   fromInteger n = S $ \_ -> "pval " ++ show (fromInteger n)
 
 instance (Fractional a) => Fractional (S a) where
   a / b = S $ \_ -> viewP a ++ " / " ++ viewP b
-  fromRational n = S $ \_ -> "fromRational " ++ show n
+  fromRational n = S $ \_ -> "pval " ++ show (fromRational n)
 
+-- | Enumeration for floating points are now working here also.
 instance (Show a, Enum a) => Enum (S a) where
   pred n = S $ \_ -> "pred (" ++ viewP n ++ ")"
   succ n = S $ \_ -> "succ (" ++ viewP n ++ ")"
   -- fromEnum assuming "pval" only.
-  fromEnum n = read $ filter isDigit (viewP n)
+  fromEnum n = case words $ viewP n of
+    [x]         -> read x
+    ["pval", x] -> fromEnum $ (read x :: Double) -- XXX: how to know the type?
+    e           -> error $ "fromEnum: " ++ show e
   -- toEnum assuming "pval" only.
   toEnum n = S $ \_ -> "pval " ++ show n
 
@@ -225,15 +260,13 @@ instance (Show a, Enum a) => Enum (S a) where
 viewP :: (Show a) => S a -> String
 viewP p = unS p ()
 
-
 ------------------------------------------------------------------------------
 --
 -- Expressions
 --
 ------------------------------------------------------------------------------
 
--- | Lifts given value as pattern.
---
+-- | Lifts given value to pattern.
 class Pval p where
   pval :: a -> p a
 

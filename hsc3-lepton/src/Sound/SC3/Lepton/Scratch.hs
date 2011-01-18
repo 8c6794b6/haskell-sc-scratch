@@ -14,6 +14,7 @@
 module Sound.SC3.Lepton.Scratch where
 
 import Control.Concurrent (forkIO, threadDelay)
+import Control.Monad (zipWithM_)
 import System.Random (newStdGen, randomRs)
 
 import Sound.OpenSoundControl
@@ -35,11 +36,11 @@ main = withSC3 go
 go :: (Transport t) => t -> IO ()
 go fd = do
   async fd . d_recv . synthdef "speSynth" =<< speSynth
-  mapM_ f =<< runPIO pspe'
+  zipWithM_ f (repeat 1) =<< runPIO pspe'
   where
-    f v = do
+    f t v = do
       send fd $ s_new "speSynth" (-1) AddToTail 1 [("freq",midiCPS v)]
-      threadDelay (floor $ 0.13 * 1e6)
+      threadDelay (floor $ t * 0.13 * 1e6)
 
 -- | Synthdef for spe example.
 speSynth :: IO UGen
@@ -62,6 +63,22 @@ pspe' =
   ,pseq (prand 1 ([2..5]))
    [60, prand 1 [63, 65], 67, prand 1 [70,72,74]]
   ,prand (prand 1 [3..9]) [74,75,77,79,81]]
+
+-- like glass?
+p2 =
+  pcycle [a, b, c]
+  where
+    a = pseq (prand 1 [2,4])
+        [pseq (prand 1 [2,4,8]) [plist [60,63]]
+        ,pseq (prand 1 [2,4,8]) [plist [58,60,63]]
+        ,pseq (prand 1 [2,4,8]) [plist [63,60]]
+        ,pseq (prand 1 [2,4,8]) [plist [58,63,60]]
+        ,pseq (prand 1 [4,8]) [plist [63]]
+        ,pseq (prand 1 [2,4,8]) [plist [58,63]]
+        ,pseq (prand 1 [2,4,8]) [plist [60,58]]
+        ,pseq (prand 1 [4,8]) [plist [60]]]
+    b = fmap (+(-2)) a
+    c = fmap (+3) a
 
 pspe =
   pcycle
@@ -211,3 +228,38 @@ oscList3 =
      Int 1, Int 2,
      Int 2, Int 0,
      Int 3, Int 0]
+
+
+-- example for Tree module
+
+playFooBar :: (Transport t) => t -> IO ()
+playFooBar fd = do
+  mapM (\(n,u) -> async fd . d_recv $ synthdef n u) [("foo",foo),("bar",bar)]
+  addNode 0 nodes fd
+
+nodes :: SCNode
+nodes =
+  Group 1
+    [Group 10
+      [Synth 1000 "foo"
+         ["out":=100,"amp":=100,"pan":=0,"freq":=1.66]
+      ,Synth 1001 "foo"
+         ["out":=101,"amp":=80,"pan":=0.2,"freq":=3.33]]
+    ,Group 11
+      [Synth 1100 "bar"
+         ["amp":=0.1,"pan":=1,"freq":=110,"fmod":<-100]
+      ,Synth 1101 "bar"
+         ["amp":=0.1,"pan":=(-1),"freq":=330,"fmod":<-101]]]
+
+foo :: UGen
+foo = out outBus (sinOsc kr freq 0 * amp)
+
+bar :: UGen
+bar = out 0 $ pan2 (saw ar (fmod + freq) * amp) pan 1
+
+outBus, amp, freq, pan, fmod :: UGen
+outBus = control kr "out" 0
+amp = control kr "amp" 0.3
+freq = control kr "freq" 440
+pan = control kr "pan" 0
+fmod = control kr "fmod" 0

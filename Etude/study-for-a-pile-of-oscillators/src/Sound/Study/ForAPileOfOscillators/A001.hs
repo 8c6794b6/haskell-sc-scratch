@@ -33,7 +33,7 @@ setup :: (Transport t) => t -> IO ()
 setup fd = do
   mapM_ (\(n,u) -> writeSynthdef n u) [("piece1",piece1)]
   reloadSynthdef fd
-  mkTree a001Tree fd
+  addNode 0 a001Tree fd
 
 -- | Main synth node tree.
 a001Tree :: SCNode

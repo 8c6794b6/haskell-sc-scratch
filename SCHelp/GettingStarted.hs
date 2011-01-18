@@ -259,7 +259,7 @@ groupAsGroup = do
        [Group 1
         [Group 2
          (map (\n -> Synth (-1) ("temp_" ++ show n) []) [1..4])]]
-  withSC3 $ mkTree tree
+  withSC3 $ addNode 0 tree
 
 tutorial_PlayBuf :: UGen
 tutorial_PlayBuf = out ("out" @= 0) $
@@ -338,7 +338,7 @@ echoplex = do
   return $ replaceOut 0 echoed
 
 -- | Run:
--- > > withSC3 $ mkTree fmTree
+-- > > withSC3 $ addNode 0 fmTree
 fmTree :: SCTree
 fmTree =
  Group 0

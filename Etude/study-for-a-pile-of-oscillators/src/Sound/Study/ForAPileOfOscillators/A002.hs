@@ -27,7 +27,7 @@ import Sound.Study.ForAPileOfOscillators.Common
 setup :: (Transport t) => t -> IO ()
 setup fd = do
   loadSynthdef "piece2" piece2 fd
-  mkTree a002Tree fd
+  addNode 0 a002Tree fd
 
 -- | Write OSC message to file.
 writeA002Score :: FilePath -> IO ()

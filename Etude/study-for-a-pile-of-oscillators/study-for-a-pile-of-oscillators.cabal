@@ -44,5 +44,5 @@ Library
     random >= 1.0.0.2,
     hosc -any,
     hsc3 -any,
-    hsc3-lepton -any,
-    hsc3-lepton-gui -any
+    hsc3-lepton >= 0.0.2,
+    hsc3-lepton-gui >= 0.0.2

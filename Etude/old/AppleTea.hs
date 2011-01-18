@@ -36,7 +36,7 @@ runAppleTea = undefined
 setAppleTea :: Transport t => t -> IO ()
 setAppleTea fd = do
   updateAppleSynthdefs fd
-  mkTree appleTeaTree fd
+  addNode 0 appleTeaTree fd
 
 -- | Update synthdefs.
 updateAppleSynthdefs :: Transport t => t -> IO OSC

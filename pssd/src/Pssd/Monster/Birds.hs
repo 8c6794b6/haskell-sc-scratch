@@ -76,7 +76,7 @@ playBird2 :: (Transport t) => t -> IO ()
 playBird2 fd = do
   let dusty = out (ctrl "out" 0) (dust 'd' kr (ctrl "freq" 1))
   mapM_ (\(n,u) -> sendSynthdef n u fd) [("bird2",bird2),("dusty",dusty)]
-  mkTree b2Tree fd
+  addNode 0 b2Tree fd
 
 -- | Node id for bird2 synth.
 b2nid :: Int
@@ -140,7 +140,7 @@ playBirds3 :: (Transport t) => t -> IO ()
 playBirds3 fd = do
   let dusty = out (ctrl "out" 100) (dust 'd' kr (ctrl "freq" 1))
   mapM_ (\(n,u) -> loadSynthdef n u fd) [("birds3",birds3),("dusty",dusty)]
-  mkTree birds3Node fd
+  addNode 0 birds3Node fd
 
 birds3Node :: SCNode
 birds3Node =

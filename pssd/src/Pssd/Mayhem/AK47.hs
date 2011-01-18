@@ -211,7 +211,7 @@ loadAK47 fd = do
            ,("tinkle",tinkle)
            ,("shooter",shooter)
            ,("reload",reload)]
-  mkTree ak47graph fd
+  addNode 0 ak47graph fd
 
 -- | Synth graph for fireing AK47.
 ak47graph :: SCNode

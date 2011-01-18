@@ -116,7 +116,7 @@ motorMachine :: (Transport t) => t -> IO ()
 motorMachine fd = do
   let dr (n,u) = async fd $ d_recv $ synthdef n u
   mapM_ dr [("motor3",motor3),("turnMotor",turnMotor)]
-  mkTree motorGraph fd
+  addNode 0 motorGraph fd
 
 motorGraph :: SCNode
 motorGraph =

@@ -40,7 +40,7 @@ stormyDay = do
              ,("bolt2",bolt2)
              ,("afterImages",afterImages)
              ,("boom",boom)]
-    mkTree graph fd
+    addNode 0 graph fd
 
 -- | Synthdef graph.
 graph :: SCNode

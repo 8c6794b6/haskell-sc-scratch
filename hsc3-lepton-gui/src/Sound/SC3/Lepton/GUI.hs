@@ -49,7 +49,7 @@ import qualified Graphics.UI.Gtk as G
 -- > main = withsC3 $ \fd -> do
 -- >   async fd $ d_recv $ synthdef "foo" foo
 -- >   async fd $ d_recv $ synthdef "bar" bar
--- >   mkTree tree fd
+-- >   addNode 0 tree fd
 -- >   treeToGui tree hints fd
 -- >
 -- > foo :: UGen

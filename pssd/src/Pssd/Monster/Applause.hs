@@ -45,7 +45,7 @@ playClap fd = do
                    ,("applause",applause)
                    ,("sineEnv",sineEnv)
                    ,("master",master)]
-  mkTree clappers fd
+  addNode 0 clappers fd
 
 clappers :: SCNode
 clappers =

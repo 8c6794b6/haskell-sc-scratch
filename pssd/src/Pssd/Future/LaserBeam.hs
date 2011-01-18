@@ -82,7 +82,7 @@ noMrBond fd = do
            ,("laserFilter",laserFilter)
            ,("mx",mx)
            ,("my",my)]
-  mkTree laserGraph fd
+  addNode 0 laserGraph fd
 
 laserGraph :: SCNode
 laserGraph =

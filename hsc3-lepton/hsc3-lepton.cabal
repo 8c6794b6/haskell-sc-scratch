@@ -10,7 +10,6 @@ category:       Sound
 stability:      experimental
 description:
   Collection of client side utility for scsynth using hsc3.
-  Still in extremely early stage of development. Terribly scratch.
 
 library
   ghc-options:

@@ -16,7 +16,7 @@ import Data.Generics (Data, Typeable)
 import qualified Data.Map as M
 
 import Sound.SC3 (withSC3)
-import Sound.SC3.Lepton (mkTree)
+import Sound.SC3.Lepton (addNode)
 import Sound.SC3.Lepton.GUI
 import System.Console.CmdArgs (cmdArgs, modes)
 
@@ -35,7 +35,7 @@ main :: IO ()
 main = do
   arg <- cmdArgs $ modes [Motors .. Birds]
   withSC3 $ \fd -> do
-    let go tree = mkTree tree fd >> treeToGui tree hints fd
+    let go tree = addNode 0 tree fd >> treeToGui tree hints fd
     case arg of
       Motors -> go Motors.motorGraph
       Droid  -> go Droids.droidGraph

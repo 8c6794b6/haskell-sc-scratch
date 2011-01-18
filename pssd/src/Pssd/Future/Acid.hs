@@ -65,7 +65,7 @@ playAcid fd = do
   mapM_ dr [("acid1",acid1)
            ,("acid2",acid2)
            ,("acidTrig",acidTrig)]
-  mkTree acidGraph fd
+  addNode 0 acidGraph fd
 
 -- | Node graph for acid.
 acidGraph :: SCNode
