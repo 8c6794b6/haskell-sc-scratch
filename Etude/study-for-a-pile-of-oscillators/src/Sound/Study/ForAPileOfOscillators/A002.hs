@@ -23,6 +23,10 @@ import Sound.SC3.Lepton.GUI
 
 import Sound.Study.ForAPileOfOscillators.Common
 
+main :: IO ()
+main = withSC3 $ \fd -> do
+  treeToGui (Group 0 [Group 1 afp2]) hints fd
+
 -- | Write synthdef, reload them, make nodes.
 setup :: (Transport t) => t -> IO ()
 setup fd = do
@@ -32,7 +36,7 @@ setup fd = do
 -- | Write OSC message to file.
 writeA002Score :: FilePath -> IO ()
 writeA002Score path = do
-  let os = zipWith (\t m -> Bundle (NTPr t) [m]) (repeat 0) (treeToOSC a002Tree)
+  let os = zipWith (\t m -> Bundle (NTPr t) [m]) (repeat 0) (treeToNew 0 a002Tree)
       end = Bundle (NTPr $ 321 * 60 / bpm) []
   writeNRT path $ os ++ [end]
 

@@ -16,7 +16,7 @@ Build-type:          Simple
 -- Constraint on the version of Cabal needed to build this package.
 Cabal-version:       >=1.2
 
-Executable study-for-a-pile-of-oscillators
+Executable sfapoo
   ghc-options:
     -Wall
     -fno-warn-unused-do-bind
@@ -25,6 +25,8 @@ Executable study-for-a-pile-of-oscillators
     src
   main-is:
     run/main.hs
+  build-depends:
+    cmdargs >= 0.6.4
 
 Library
   ghc-options:
@@ -36,6 +38,7 @@ Library
   exposed-modules:
     Sound.Study.ForAPileOfOscillators.A001
     Sound.Study.ForAPileOfOscillators.A002
+    Sound.Study.ForAPileOfOscillators.A003
     Sound.Study.ForAPileOfOscillators.Common
   build-depends:
     base >= 2.0 && < 5.0,

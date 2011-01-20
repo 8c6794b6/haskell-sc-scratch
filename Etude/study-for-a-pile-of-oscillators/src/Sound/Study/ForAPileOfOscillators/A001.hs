@@ -66,7 +66,7 @@ afp = [Synth 1001 "ac1"
 -- | Write osc data for non-realtime synthesis.
 writeA001Score :: FilePath -> IO ()
 writeA001Score path = do
-  let os = zipWith (\t m -> Bundle (NTPr t) [m]) (repeat 0) (treeToOSC a001Tree)
+  let os = zipWith (\t m -> Bundle (NTPr t) [m]) (repeat 0) (treeToNew 0 a001Tree)
       end = Bundle (NTPr 342) []
   writeNRT path $ os ++ [end]
 
