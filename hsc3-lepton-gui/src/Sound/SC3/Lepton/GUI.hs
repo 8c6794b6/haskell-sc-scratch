@@ -22,7 +22,7 @@ module Sound.SC3.Lepton.GUI
   , makeGUIWindow
   ) where
 
-import Control.Monad (forM_, replicateM, zipWithM_)
+import Control.Monad (forM, replicateM, zipWithM_)
 import "mtl" Control.Monad.Trans (liftIO)
 import qualified Control.Exception as E
 import qualified Data.Map as M
@@ -138,36 +138,64 @@ mkSynthControl fd hints bb box (i,n,ps) = do
   G.frameSetLabel frame (n ++ ":" ++ show i)
   sliderBox <- G.hBoxNew True 5
   G.set sliderBox [G.boxSpacing G.:= 5, G.containerBorderWidth G.:= 5]
-  forM_ ps $ \(n',v) -> do
+  sliderMaps <- forM ps $ \(n',v) -> do
     let (lo,hi) = rangeFromHints hints n n'
-    G.containerAdd sliderBox =<< mkVSlider i n' v lo hi fd
+    (sframe,slider) <- mkVSlider i n' v lo hi fd
+    G.containerAdd sliderBox sframe
+    return (n',slider)
   G.containerAdd frame sliderBox
   G.containerAdd box frame
-  mkButtons fd hints bb i n ps
+  mkButtons fd hints bb i n ps sliderMaps
   return box
 
 -- | Make buttons for synth.
 mkButtons :: (Transport t)
           => t
-          -> Hints
-          -> G.VBox
-          -> Int
-          -> String
-          -> [(String,Double)]
+          -> Hints               -- ^ GUI hints
+          -> G.VBox              -- ^ Container for button box
+          -> Int                 -- ^ Node id
+          -> String              -- ^ Synth name
+          -> [(String,Double)]   -- ^ Params
+          -> [(String,G.VScale)] -- ^ Param name and vscales
           -> IO ()
-mkButtons fd hints box i n ps = do
+mkButtons fd _ box i _ ps vs = do
+-- mkButtons fd hints box i n ps vs = do
   pauseButton <- G.toggleButtonNewWithLabel "pause"
   pauseButton `G.on` G.toggled $ do
     st <- G.toggleButtonGetActive pauseButton
     (send fd $ n_run [(i,not st)]) `E.catch` printIOError
+
   dumpButton <- G.buttonNewWithLabel "dump"
   dumpButton `G.on` G.buttonActivated $ do
     E.handle printIOError $ do
       let o = s_get i $ map fst ps
       m <- send fd o >> wait fd "/n_set"
       print m
+
+  setButton <- G.buttonNewWithLabel "set"
+  setButton `G.on` G.buttonActivated $ do
+    let f (name,vscl) = do
+          d <- G.rangeGetValue vscl
+          (send fd $ n_set i [(name,d)]) `E.catch` printIOError
+    mapM_ f vs
+
+  getButton <- G.buttonNewWithLabel "get"
+  getButton `G.on` G.buttonActivated $ do
+    let f (name,vscl) = do
+          msg <- send fd (s_get i [name]) >> wait fd "/n_set"
+          G.rangeSetValue vscl (extractVal msg)
+    mapM_ f vs
+
   G.set box [G.containerChild G.:= pauseButton
-            ,G.containerChild G.:= dumpButton]
+            ,G.containerChild G.:= dumpButton
+            ,G.containerChild G.:= setButton
+            ,G.containerChild G.:= getButton]
+
+-- | Extracts value from OSC Message.
+extractVal :: OSC -> Double
+extractVal msg = case msg of
+  (Message "/n_set" (_:_:Float v:_)) -> v
+  _                                  -> 0
 
 -- | Simple error handler for IOError.
 printIOError :: IOError -> IO ()
@@ -184,7 +212,7 @@ rangeFromHints hints synName paramName
   where
     ps = filter (\x -> prName x == paramName) $
          maybe [] id (M.lookup synName hints)
-    defaultValue = (0, 127)
+    defaultValue = (0, 1)
 
 -- | Add hslider for control param
 mkVSlider :: (Transport t)
@@ -194,7 +222,7 @@ mkVSlider :: (Transport t)
           -> Double -- ^ Min value
           -> Double -- ^ Max value
           -> t      -- ^ scsynth connection
-          -> IO G.Frame
+          -> IO (G.Frame, G.VScale)
 mkVSlider nid name val lo hi fd = do
   v <- G.vScaleNewWithRange lo hi ((hi-lo)/128)
   G.rangeSetValue v val
@@ -205,4 +233,4 @@ mkVSlider nid name val lo hi fd = do
     d <- G.rangeGetValue v
     (send fd $ n_set nid [(name,d)]) `E.catch` printIOError
   G.containerAdd frame v
-  return frame
+  return (frame, v)
