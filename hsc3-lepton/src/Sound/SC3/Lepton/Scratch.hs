@@ -13,9 +13,14 @@
 
 module Sound.SC3.Lepton.Scratch where
 
+import Control.Arrow (second)
 import Control.Concurrent (forkIO, threadDelay)
 import Control.Monad (zipWithM_)
 import System.Random (newStdGen, randomRs)
+import Data.Map ((!))
+import Data.Traversable (sequenceA)
+import qualified Data.Map as M
+
 
 import Sound.OpenSoundControl
 import Sound.SC3
@@ -30,13 +35,14 @@ import Sound.SC3.Lepton.Tree
 --
 ------------------------------------------------------------------------------
 
+main :: IO ()
 main = withSC3 go
 
 -- | Load synth def and play the pattern.
 go :: (Transport t) => t -> IO ()
 go fd = do
   async fd . d_recv . synthdef "speSynth" =<< speSynth
-  zipWithM_ f (repeat 1) =<< runPIO pspe'
+  zipWithM_ f (repeat 1) =<< runPIO pspe2
   where
     f t v = do
       send fd $ s_new "speSynth" (-1) AddToTail 1 [("freq",midiCPS v)]
@@ -59,10 +65,21 @@ speSynth = do
 
 pspe' =
   pcycle
-  [prand 1 [pempty, plist [24,31,36,43,48,55]]
-  ,pseq (prand 1 ([2..5]))
-   [60, prand 1 [63, 65], 67, prand 1 [70,72,74]]
-  ,prand (prand 1 [3..9]) [74,75,77,79,81]]
+    [prand 1
+       [pempty, plist [24,31,36,43,48,55]]
+    ,pseq (prand 1 [2..5])
+       [60, prand 1 [63, 65], 67, prand 1 [70,72,74]]
+    ,prand (prand 1 [3..9])
+       [74,75,77,79,81]]
+
+pspe2 =
+  pcycle
+    [pchoose 1
+       [pempty, plist [24,31,36,43,48,55]]
+    ,pseq (prange 2 5)
+       [60, pchoose 1 [63,65], 67, pchoose 1 [70,72,74]]
+    ,pchoose (prange 3 9)
+       [74,75,77,79,81]]
 
 -- like glass?
 p2 =
@@ -94,6 +111,7 @@ pspe =
     ,prand (prand (pval 1)
             [pval 3, pval 4, pval 5, pval 6, pval 7, pval 8, pval 9])
      [pval 74, pval 75, pval 77, pval 79, pval 81]]
+
 
 
 ------------------------------------------------------------------------------
@@ -237,19 +255,58 @@ playFooBar fd = do
   mapM (\(n,u) -> async fd . d_recv $ synthdef n u) [("foo",foo),("bar",bar)]
   addNode 0 nodes fd
 
+-- | Node graph for playing foos and bars.
+-- Two fmod control synthes are implicitly added with sending to same bus.
 nodes :: SCNode
 nodes =
-  Group 1
-    [Group 10
+  Group 10
+    [Group 100
       [Synth 1000 "foo"
-         ["out":=100,"amp":=100,"pan":=0,"freq":=1.66]
+         ["out":=100,"amp":=100,"freq":=1.66]
       ,Synth 1001 "foo"
-         ["out":=101,"amp":=80,"pan":=0.2,"freq":=3.33]]
-    ,Group 11
+         ["out":=101,"amp":=80,"freq":=3.33]
+      ,Synth 1002 "foo"
+         ["out":=101,"amp":=233,"freq":=0.05]]
+    ,Group 110
       [Synth 1100 "bar"
-         ["amp":=0.1,"pan":=1,"freq":=110,"fmod":<-100]
+         ["amp":=0.05,"pan":=0.5,"freq":=110,"fmod":<-100]
       ,Synth 1101 "bar"
-         ["amp":=0.1,"pan":=(-1),"freq":=330,"fmod":<-101]]]
+         ["amp":=0.05,"pan":=(-0.5),"freq":=330,"fmod":<-101]]]
+
+
+n2 :: SCNode
+n2 =
+  Group 20
+    [Group 200
+      [Synth 2000 "foo"
+        ["out":=200,"amp":=8.1,"freq":=1.3]
+      ,Synth 2001 "foo"
+        ["out":=201,"amp":=3.4,"freq":=3.03]
+      ,Synth 2002 "foo"
+        ["out":=202,"amp":=13,"freq":=2.3]]
+    ,Group 210
+      [Synth 2100 "bar"
+        ["amp":=0.05,"pan":=0.8,"freq":=220,"fmod":<-200]
+      ,Synth 2101 "bar"
+        ["amp":=0.05,"pan":=0.2,"freq":=330,"fmod":<-201]
+      ,Synth 2102 "bar"
+        ["amp":=0.05,"pan":=(-0.7),"freq":=440,"fmod":<-202]]]
+
+nTrace :: (Transport t) => NodeId -> t -> IO OSC
+nTrace nid fd = do
+  async fd $ notify True
+  send fd $ n_query [nid]
+  wait fd "/n_info"
+
+replaceNode :: (Transport t) => NodeId -> SCNode -> t -> IO ()
+replaceNode nid new fd = do
+  let (h:rest) = treeToNew nid new
+  send fd $ Bundle immediately (f h:rest)
+  where
+    f x = case x of
+      Message "/s_new" (n:i:a:r) -> Message "/s_new" (n:i:Int 4:r)
+      Message "/g_new" (i:a:r)   -> Message "/g_new" (i:Int 4:r)
+      _                          -> error $ "cannot replace" ++ show x
 
 foo :: UGen
 foo = out outBus (sinOsc kr freq 0 * amp)
@@ -263,3 +320,39 @@ amp = control kr "amp" 0.3
 freq = control kr "freq" 440
 pan = control kr "pan" 0
 fmod = control kr "fmod" 0
+
+-- | Play the pattern.
+goBuzz :: (Transport t) => t -> IO ()
+goBuzz fd = do
+  async fd $ d_recv $ synthdef "buzz" buzz
+  pms <- runPIO . sequenceA . M.fromList $ pBuzz
+  mapM_ f pms
+  where
+    f m = do
+      send fd $ s_new "buzz" (-1) AddToTail 1 (M.assocs m)
+      threadDelay $ floor $ (m ! "dur") * 1e6 * (60/bpm)
+    bpm = 160
+
+-- | UGen for buzz.
+buzz :: UGen
+buzz = out 0 $ pan2 sig pan 1
+  where
+    sig = sinOsc ar freq 0 * amp * e
+    e = linen tr 5e-3 1 (10e-3+(220/freq)) RemoveSynth ^ 2
+    amp = control kr "amp" 0.3
+    freq = control kr "freq" 440
+    pan = control kr "pan" 0
+    tr = tr_control "t_trig" 1
+
+-- Pattern for amp, dur, freq, and pan.
+pBuzz =
+  [("amp", pcycle [0.3, 0.1,  0.1,   0.3,  0.1,  0.1,  0.1])
+  ,("dur", pcycle [1,   0.55, 0.45,  0.54, 0.46, 0.53, 0.47])
+  ,("freq", fmap midiCPS $
+            pcycle [48, pchoose 13 cm, 53, pchoose 13 fm
+                   ,48, pchoose 13 cm, 43, pchoose 13 g7])
+  ,("pan", pcycle [plist [-1,-0.9..1], plist [1,0.9..(-1)]])]
+  where
+    cm = [55, 67,72,75,79]
+    fm = [60, 68,72,77,80]
+    g7 = [50, 67,71,74,77]

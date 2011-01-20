@@ -118,14 +118,14 @@ import Sound.SC3.Lepton.Util (queryTree)
 -- >   Group 1
 -- >     [Group 10
 -- >       [Synth 1000 "foo"
--- >          ["out":=100,"amp":=100,"pan":=0,"freq":=1.66]
+-- >          ["out":=100,"amp":=100,"freq":=1.66]
 -- >       ,Synth 1001 "foo"
--- >          ["out":=101,"amp":=80,"pan":=0.2,"freq":=3.33]]
+-- >          ["out":=101,"amp":=80,"freq":=3.33]]
 -- >     ,Group 11
 -- >       [Synth 1100 "bar"
--- >          ["amp":=0.1,"pan":=1,"freq":=110,"fmod":<-100]
+-- >          ["amp":=0.1,"pan":=0.5,"freq":=110,"fmod":<-100]
 -- >       ,Synth 1101 "bar"
--- >          ["amp":=0.1,"pan":=(-1),"freq":=330,"fmod":<-101]]]
+-- >          ["amp":=0.1,"pan":=(-0.5),"freq":=330,"fmod":<-101]]]
 -- >
 -- > foo :: UGen
 -- > foo = out outBus (sinOsc kr freq 0 * amp)
