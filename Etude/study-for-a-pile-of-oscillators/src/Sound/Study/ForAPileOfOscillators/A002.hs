@@ -80,21 +80,21 @@ afp2 =
 piece2 :: UGen
 piece2 = mrg outs
   where
-    outs = [outI amix $ mkEnv EnvLin 1 amixE
+    outs = [outI amix $ e EnvLin 1 amixE
            ,outI anfreq (0.68 * line kr 0 1 30e-3 DoNothing)
            ,outI aedgey $ clip (sinOsc kr (1/(9*60/bpm)) 0 + 1) 1 0.5
-           ,outI aedur $ mkEnv EnvLin 1 edurE
-           ,outI adel $ mkEnv EnvLin 1 delE
-           ,outI achaos $ mkEnv EnvLin 1 achaosE
-           ,outI atfreq $ mkEnv EnvLin 1 tfreqE
-           ,outI atmul $ mkEnv EnvLin 1 tmulE
-           ,outI atos $ mkEnv EnvLin 1 tosE
+           ,outI aedur $ e EnvLin 1 edurE
+           ,outI adel $ e EnvLin 1 delE
+           ,outI achaos $ e EnvLin 1 achaosE
+           ,outI atfreq $ e EnvLin 1 tfreqE
+           ,outI atmul $ e EnvLin 1 tmulE
+           ,outI atos $ e EnvLin 1 tosE
            ,outI atrig (impulse kr 1 0)
 
-           ,outI fvc $ mkEnv (EnvNum (-2)) 14000 fvcE
-           ,outI fvd $ mkEnv EnvCub 1 fvdE
-           ,outI ffc $ mkEnv EnvLin 1 ffcE
-           ,outI ffd $ mkEnv EnvLin 1 ffdE
+           ,outI fvc $ e (EnvNum (-2)) 14000 fvcE
+           ,outI fvd $ e EnvCub 1 fvdE
+           ,outI ffc $ e EnvLin 1 ffcE
+           ,outI ffd $ e EnvLin 1 ffdE
            ,outI fmix (1 * line kr 0 1 4 DoNothing)
            ,outI fptc 7
            ,outI fvib 0.1
@@ -110,23 +110,16 @@ piece2 = mrg outs
     outI :: Int -> UGen -> UGen
     outI k ug = out (fromIntegral k) ug
 
+    e :: EnvCurve -> UGen -> BreakPoints -> UGen
+    e c ls bps = mkEnv c ls (60/bpm) bps
+
 -- | Beats per metre.
 bpm :: (Num a) => a
 bpm = 80
 
--- | Helper for making envelope.
-mkEnv :: EnvCurve      -- ^ Curve shape
-      -> UGen          -- ^ Level scale
-      -> [(UGen,UGen)] -- ^ Break points of (time,value)
-      -> UGen
-mkEnv curve ls bps =
-  envGen kr (ctrl "t_trig" 1) ls 0 ts DoNothing $ envCoord bps 1 1 curve
-  where
-    ts = 60/bpm
-
 ------------------------------------------------------------------------------
 --
--- For convinience, make every envelope values from between 0 to 1.
+-- For convinience, make every envelope values between from 0 to 1.
 --
 ------------------------------------------------------------------------------
 --
@@ -138,8 +131,6 @@ mkEnv curve ls bps =
 -- 192: tmul, tfreq, tos calm down. chaos is 0.2, del is 1.
 -- 224: tmul rise to 6.7
 -- 252: edur drop to 5e-3
-
-type BreakPoints = [(UGen,UGen)]
 
 -- | Write txt file used as input of tplot.
 --
@@ -263,4 +254,4 @@ ffdE =
   ,(202,0.99)]
 
 constEnv :: UGen -> UGen
-constEnv val = mkEnv EnvLin 1 [(0,val),(1,val)]
+constEnv val = mkEnv EnvLin 1 (60/bpm) [(0,val),(1,val)]

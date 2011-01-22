@@ -39,7 +39,7 @@ writeScore path p = do
   case p of
     A001 -> A001M.writeA001Score path
     A002 -> A002M.writeA002Score path
-    A003 -> putStrLn "No score ready of a003"
+    A003 -> A003M.writeA003Score path
 
 showGui :: Piece -> IO ()
 showGui p = do

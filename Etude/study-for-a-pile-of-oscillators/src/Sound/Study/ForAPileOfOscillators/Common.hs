@@ -20,6 +20,11 @@ module Sound.Study.ForAPileOfOscillators.Common
   , ac1
   , fc1
   , pc1
+  , smaster
+
+    -- * Function to make UGen
+  , mkEnv
+  , BreakPoints
 
     -- * Node ids and bus ids
   , oscIds
@@ -165,10 +170,33 @@ pc1 = mrg outs
     vd = ctrl "vd" 0.5
     fc = ctrl "fc" 2
     fd = ctrl "fd" 0.999
-    noiseC = ctrl "noise" 1
+    noiseC = ctrl "noise" 0
     tickC = ctrl "tick" 0
     sinC = ctrl "sin" 0
     t_trig = ctrl "t_trig" 1
+
+
+-- | BreakPoints for (time, value)
+type BreakPoints = [(UGen,UGen)]
+
+-- | Helper for making envelope.
+mkEnv :: EnvCurve      -- ^ Curve shape
+      -> UGen          -- ^ Level scale
+      -> UGen          -- ^ Time scale
+      -> [(UGen,UGen)] -- ^ Break points of (time,value)
+      -> UGen
+mkEnv curve ls ts bps =
+  envGen kr (ctrl "t_trig" 1) ls 0 ts DoNothing $ envCoord bps 1 1 curve
+
+-- | Simple mixer
+smaster :: UGen
+smaster = replaceOut 0 (sig * amp)
+  where
+    sig = freeVerb2 (in' 1 ar 0) (in' 1 ar 1) rmix rroom rdamp
+    amp = ctrl "amp" 1
+    rmix = ctrl "rmix" 0.5
+    rroom = ctrl "rroom" 0.5
+    rdamp = ctrl "rdamp" 0.5
 
 -- | Number of oscillators
 numOsc :: Num a => a
