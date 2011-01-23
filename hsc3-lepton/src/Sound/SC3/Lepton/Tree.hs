@@ -11,7 +11,7 @@
 -- Representation of scsynth node tree.
 --
 module Sound.SC3.Lepton.Tree
-  ( -- * Examples
+  ( -- * Usage Examples
 
     -- ** Quick interaction
     -- $example_interactive
@@ -82,7 +82,8 @@ import Sound.SC3.Lepton.Util (queryTree)
 -- >   `-Synth -56 Anonymous
 -- >     `-[freq := 330.00]
 --
--- Updating synth nodes with using @transform@ from uniplate package:
+-- Updating synth nodes with using generic transforming function, for instance
+-- @transform@ from uniplate package:
 --
 -- > > :m + Data.Generics.Uniplate.Data
 -- > > t <- withSC3 getRootNode
@@ -99,7 +100,7 @@ import Sound.SC3.Lepton.Util (queryTree)
 -- $example_declarative
 --
 -- Write node structure and send it to scsynth. \"fmod\" parameters
--- in synth \"bar\" are mapped from outputs of synth \"foo\".
+-- in synth \"bar\" are mapped from control rate outputs of synth \"foo\".
 --
 -- > import Sound.OpenSoundControl
 -- > import Sound.SC3

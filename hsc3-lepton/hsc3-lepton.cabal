@@ -23,6 +23,8 @@ library
     Sound.SC3.Lepton
     Sound.SC3.Lepton.Instance
     Sound.SC3.Lepton.Pattern
+    Sound.SC3.Lepton.Pattern.Expression
+    Sound.SC3.Lepton.Pattern.Interpreter
     Sound.SC3.Lepton.Parser
     Sound.SC3.Lepton.Query
     Sound.SC3.Lepton.Tree
