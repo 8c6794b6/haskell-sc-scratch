@@ -330,3 +330,9 @@ p p fd = mapM_  g =<< runPIO p
 --        ,0.125, 0.25
 --        ,0.333, 0.25
 --        ,0.125, 1e-3, 0.125, 0.75, 1e-3]
+
+--
+-- Another idea i tried a bit was, sending pattern with periodic edgey, edur, del
+-- parameters to ac1 synth. Though, haven't get so much inspiration from this.
+-- It sounded bit scary, though.
+--

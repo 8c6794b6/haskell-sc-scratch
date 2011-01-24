@@ -17,6 +17,7 @@ import System.Console.CmdArgs
 import qualified Sound.Study.ForAPileOfOscillators.A001 as A001M
 import qualified Sound.Study.ForAPileOfOscillators.A002 as A002M
 import qualified Sound.Study.ForAPileOfOscillators.A003 as A003M
+import qualified Sound.Study.ForAPileOfOscillators.A004 as A004M
 
 main :: IO ()
 main = do
@@ -30,7 +31,7 @@ data SFAPOO
   | GUI {piece :: Piece}
   deriving (Eq, Show, Data, Typeable)
 
-data Piece = A001 | A002 | A003
+data Piece = A001 | A002 | A003 | A004
            deriving (Eq, Show, Data, Typeable, Enum)
 
 writeScore :: FilePath -> Piece -> IO ()
@@ -40,6 +41,8 @@ writeScore path p = do
     A001 -> A001M.writeA001Score path
     A002 -> A002M.writeA002Score path
     A003 -> A003M.writeA003Score path
+    A004 -> A004M.writeA004Score path
+    -- _    -> error "not yet written"
 
 showGui :: Piece -> IO ()
 showGui p = do
@@ -48,3 +51,5 @@ showGui p = do
     A001 -> A001M.main
     A002 -> A002M.main
     A003 -> A003M.main
+    A004 -> A004M.main
+    -- _    -> error "not yet written"

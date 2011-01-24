@@ -21,7 +21,7 @@ import Sound.SC3.ID
 import Sound.SC3.Lepton
 import Sound.SC3.Lepton.GUI
 
-import Sound.Study.ForAPileOfOscillators.Common
+import Sound.Study.ForAPileOfOscillators.Common hiding (ampBus)
 
 -- | For showing gui
 main :: IO ()
@@ -57,6 +57,9 @@ writeA003Score path = do
     initial = map (\m -> Bundle (NTPr 0) [m]) (treeToNew 0 a003Nodes)
     last = [Bundle (NTPr 422) []]
     bundleTime m = case m of Bundle (NTPr t) _ -> t; _ -> 0
+
+bpm :: (Num a) => a
+bpm = 48
 
 -- | Make a bundled OSC message.
 aBundle :: Double -> Double -> [OSC]
@@ -96,41 +99,17 @@ afp3 =
      ["vd":=0.7, "vc":=0.0, "offset":=0, "sin":=0, "noise":=0.5
      ,"fc":=0.33, "fd":=0.05, "t_trig":=1]]
 
-fnoiseBus :: (Num a) => a
 fnoiseBus = 100
-
-amixBus :: (Num a) => a
 amixBus = 101
-
-tmulBus :: (Num a) => a
 tmulBus = 102
-
-tosBus :: (Num a) => a
 tosBus = 103
-
-tfreqBus :: (Num a) => a
 tfreqBus = 104
-
-edurBus :: (Num a) => a
 edurBus = 105
-
-chaosBus :: (Num a) => a
 chaosBus = 106
-
-delBus :: (Num a) => a
 delBus = 107
-
-nfreqBus :: (Num a) => a
 nfreqBus = 108
-
-edgeyBus :: (Num a) => a
 edgeyBus = 109
-
-ampBus :: (Num a) => a
 ampBus = 110
-
-bpm :: (Num a) => a
-bpm = 48
 
 -- | Ugen for controlling a003 piece.
 k003 :: UGen

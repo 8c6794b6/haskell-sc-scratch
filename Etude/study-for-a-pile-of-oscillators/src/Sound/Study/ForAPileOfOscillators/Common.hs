@@ -31,6 +31,9 @@ module Sound.Study.ForAPileOfOscillators.Common
   , aBusses
   , fBusses
   , pBusses
+  , ampBus
+  , freqBus
+  , panBus
 
     -- * Synth nodes
   , oscs
@@ -217,6 +220,24 @@ fBusses = [2001..2001+numOsc]
 -- | Bus ids for mapping pans.
 pBusses :: [Int]
 pBusses = [3001..3001+numOsc]
+
+-- | Control bus used for amp of the oscillator
+ampBus :: (Num a)
+       => Int  -- ^ Node id of oscillator synth node
+       -> a
+ampBus k = 1001 + (fromIntegral k - 20001)
+
+-- | Control bus used for freq of the oscillator
+freqBus :: (Num a)
+        => Int     -- ^ Node id of oscillator synth node
+        -> a
+freqBus k = 2001 + (fromIntegral k - 20001)
+
+-- | Control bus used for pan of the oscillator
+panBus :: (Num a)
+       => Int     -- ^ Node id of oscillator synth node
+       -> a
+panBus k = 3001 + (fromIntegral k - 20001)
 
 -- | Synth nodes for ac1, fc1, and pc1, with default params taken from ugen.
 afpDefault :: [SCNode]
