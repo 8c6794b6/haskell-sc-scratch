@@ -41,8 +41,8 @@ main = withSC3 $ \fd ->
 writeA004Score :: FilePath -> IO ()
 writeA004Score path = do
   ps <- runPIO $ pat000
-  m1s <- runPIO $ sequenceA pat001
-  m2s <- runPIO $ sequenceA pat012
+  m1s <- runPIO $ sequenceA patA00
+  m2s <- runPIO $ sequenceA patF01
   writeNRT path $ initial ++ zipWith3 f (take 1664 ps) m1s m2s ++ last
   where
     f p m1 m2 = Bundle (NTPr (0.5+(p*(1/4)*beat))) (oscAddition p msgs)
@@ -53,7 +53,7 @@ writeA004Score path = do
               (b_alloc pitchBuf (length pitches) 1:
                b_setn pitchBuf [(0,pitches)]:
                treeToNew 0 a004Nodes)
-    last = [Bundle (NTPr 350) []]
+    last = [Bundle (NTPr ((1664 * beat * (1/4))+1)) []]
 
 setup :: (Transport t) => t -> IO OSC
 setup fd = do
@@ -87,8 +87,8 @@ goPitchBuf f fd = do
   send fd $ b_setn pitchBuf [(0,map f pitches)]
 
 goTrig fd = do
-  m1s <- runPIO $ sequenceA pat001
-  m2s <- runPIO $ sequenceA pat012
+  m1s <- runPIO $ sequenceA patA00
+  m2s <- runPIO $ sequenceA patF01
   ps <- runPIO $ pat000
   let z = ZipList
   sequence_ $ getZipList $ playPat fd <$> z ps <*> z m1s <*> z m2s
@@ -220,31 +220,55 @@ oscAddition p ms = case p of
 
 pat000 = plist [0,1..]
 
-pat001 =
+patA00 =
   fmap pforever $ M.unionsWith pappend
-  [fmap (\xs -> pseq 7 [plist xs]) pat002
-  ,fmap plist pat003]
+  [fmap (\xs -> pseq 7 [plist xs]) patA02
+  ,fmap plist patA01
+  ,fmap (\xs -> pseq 7 [plist xs]) patA03
+  ,fmap plist patA01
+  ,fmap (\xs -> pseq 7 [plist xs]) patA04
+  ,fmap plist patA01
+  ,fmap (\xs -> pseq 7 [plist xs]) patA05
+  ,fmap plist patA01]
 
-pat002 = M.fromList
-   [("t_t1", [0,1,0,0, 1,0,0,0, 0,0,1,0, 0,0,0,1])
-   ,("t_t2", [1,0,0,0, 0,0,1,0, 0,0,0,1, 0,1,0,0])
-   ,("t_t3", [0,0,0,1, 0,1,0,0, 1,0,0,0, 0,0,1,0])
-   ,("t_t4", [0,0,1,0, 0,0,0,1, 0,1,0,0, 1,0,0,0])]
-
-pat003 = M.fromList
+patA01 = M.fromList
    [("t_t1", [0,1,0,0, 1,0,0,0, 1,1,0,1, 1,1,1,0])
    ,("t_t2", [1,0,0,0, 0,0,1,0, 1,1,1,0, 1,0,1,1])
    ,("t_t3", [0,0,0,1, 0,1,0,0, 0,1,1,1, 1,1,0,1])
    ,("t_t4", [0,0,1,0, 0,0,0,1, 1,0,1,1, 0,1,1,1])]
 
-pat012 = M.fromList
+patA02 = M.fromList
+   [("t_t1", [0,1,0,0, 1,0,0,0, 0,0,1,0, 0,0,0,1])
+   ,("t_t2", [1,0,0,0, 0,0,1,0, 0,0,0,1, 0,1,0,0])
+   ,("t_t3", [0,0,0,1, 0,1,0,0, 1,0,0,0, 0,0,1,0])
+   ,("t_t4", [0,0,1,0, 0,0,0,1, 0,1,0,0, 1,0,0,0])]
+
+patA03 = M.fromList
+   [("t_t1", [0,0,1,0, 0,1,0,0, 0,0,0,0, 0,0,0,0])
+   ,("t_t2", [0,1,0,0, 1,0,0,1, 1,0,0,1, 0,0,1,0])
+   ,("t_t3", [1,0,0,1, 0,0,1,0, 0,1,0,0, 1,0,0,1])
+   ,("t_t4", [0,0,0,0, 0,0,0,0, 0,0,1,0, 0,1,0,0])]
+
+patA04 = M.fromList
+   [("t_t1", [0,1,0,0, 0,0,0,1, 0,0,1,0, 1,0,0,0])
+   ,("t_t2", [1,0,0,0, 0,0,1,0, 0,0,0,1, 0,1,0,0])
+   ,("t_t3", [0,0,0,1, 0,1,0,0, 1,0,0,0, 0,0,1,0])
+   ,("t_t4", [0,0,1,0, 1,0,0,0, 0,1,0,0, 0,0,0,1])]
+
+patA05 = M.fromList
+   [("t_t1", [0,1,0,1, 0,0,0,1, 0,0,0,0, 1,0,0,0])
+   ,("t_t2", [1,0,1,0, 0,0,1,0, 0,0,0,0, 0,1,0,0])
+   ,("t_t3", [0,0,0,0, 0,1,0,0, 1,0,1,0, 0,0,1,0])
+   ,("t_t4", [0,0,0,0, 1,0,0,0, 0,1,0,1, 0,0,0,1])]
+
+patF01 = M.fromList
   [("t_trig", pcycle [pseq 60 [0], plist [0,1,0,0]])]
 
 --
 -- UGens
 --
 
-t0041 = mrg (hit : longAttack : gremlin : trigs ++ outs)
+t0041 = mrg (hit:longAttack:gremlin:trigs ++ outs)
   where
     outs = map (\i -> out (fromIntegral $ ampBus i) csig) bank2
     csig = lag camp clag
@@ -302,7 +326,7 @@ ac2 = mrg . concatMap mkO
              env [0,0,1,0] [0,atk,rel] [EnvCub] (-1) 0
     atk = ctrl "atk" 5e-3
     rel = ctrl "rel" 300e-3
-    ampC i = ctrl "amp" 0.05 * tRand i 0.95 1.05 t_trig
+    ampC i = ctrl "amp" 0.05 * tRand i 0.5 1.5 t_trig
     master = ctrl "master" 1
     pan = ctrl "pan" 0
     t_trig = ctrl "t_trig" 0
@@ -314,11 +338,9 @@ ac3 = mrg . concatMap mkO
     mkO i = [out (ampBus i) amp, out (freqBus i) freq,out (panBus i) pan]
       where
         amp = envGen kr tr vc 0 edur DoNothing $
-              env [1e-9,1e-9,1,1e-9] [0,atk,dec] [EnvNum ecurve] (-1) 0
+              env [1e-9,1e-9,1,1e-9] [0,1-edgey,edgey] [EnvNum ecurve] (-1) 0
         edur = linExp dur 1e-9 1 1e-4 2
         ecurve = linLin curve 0 1 (-12) 12
-        atk = 1 - edgey
-        dec = edgey
         tr = impulse kr trf 1
         trf = cubed (clip2 (lfdNoise3 'a' kr dmf' * 0.5 + 0.5) 1 * dmi') + dense'
         dmf' = linLin dmf 0 1 0 10
