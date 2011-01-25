@@ -43,7 +43,7 @@ writeA004Score path = do
   ps <- runPIO $ pat000
   m1s <- runPIO $ sequenceA pat001
   m2s <- runPIO $ sequenceA pat012
-  writeNRT path $ initial ++ zipWith3 f (take 1536 ps) m1s m2s ++ last
+  writeNRT path $ initial ++ zipWith3 f (take 1664 ps) m1s m2s ++ last
   where
     f p m1 m2 = Bundle (NTPr (0.5+(p*(1/4)*beat))) (oscAddition p msgs)
       where
@@ -53,7 +53,7 @@ writeA004Score path = do
               (b_alloc pitchBuf (length pitches) 1:
                b_setn pitchBuf [(0,pitches)]:
                treeToNew 0 a004Nodes)
-    last = [Bundle (NTPr 321) []]
+    last = [Bundle (NTPr 350) []]
 
 setup :: (Transport t) => t -> IO OSC
 setup fd = do
@@ -70,7 +70,6 @@ go fd = do
   addNode 0 a004Nodes fd
   goTrig fd
 
--- | Change values of pitch buffer.
 --
 -- Try:
 --
@@ -78,6 +77,8 @@ go fd = do
 -- * 0 (+4) (-3) 0 (+4) (-3) (+1) (+3) (-1) (+6) (+4) 0
 -- * 0 +6 -1 +5 -2 +4 -3 +3 -4 +2 -5 +1 -6
 --
+
+-- | Change values of pitch buffer.
 goPitchBuf :: (Transport t)
            => (Double -> Double) -- ^ Function mapped to pitches
            -> t -> IO ()
@@ -209,7 +210,10 @@ oscAddition p ms = case p of
   1280 -> pch (+(-4)):ms
   1284 -> n_set 1001 [("camp",0),("clag",64)]:ms
   1408 -> pch (+2):ms
-  1410 -> n_set 1001 [("gamp",0),("lamp",0)]:ms
+  1410 -> n_set 1001 [("lamp",0)]:ms
+  1528 -> n_set 1001 [("gamp",0)]:ms
+  1536 -> pch (+(-5)):n_set 1001 [("camp",0.006),("clag",beat*120)]:ms
+  1660 -> n_set 1001 [("camp",0),("clag",beat*4)]:ms
   _    -> ms
   where
     pch f = b_setn pitchBuf [(0,map f pitches)]
@@ -217,7 +221,7 @@ oscAddition p ms = case p of
 pat000 = plist [0,1..]
 
 pat001 =
-  fmap ploop $ M.unionsWith (\a b -> pseq 1 [a,b])
+  fmap pforever $ M.unionsWith pappend
   [fmap (\xs -> pseq 7 [plist xs]) pat002
   ,fmap plist pat003]
 
