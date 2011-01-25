@@ -44,9 +44,13 @@ module Sound.Study.ForAPileOfOscillators.Common
 
     -- * Value referred from elsewhere
   , numOsc
+
+    -- * Util
+  , w
+  , packBy
   ) where
 
-import Data.List (zipWith4)
+import Data.List (zipWith4, transpose)
 import qualified Data.Map as M
 
 import Sound.OpenSoundControl
@@ -287,3 +291,19 @@ hints = M.fromList
    ,ParamRange "fc" 0 3
    ,ParamRange "fd" 0 1
    ,ParamRange "t_trig" 0 1])]
+
+
+-- Util
+
+w :: (UDP -> IO a) -> IO a
+w = withSC3
+
+packBy :: Int -> [a] -> [[a]]
+packBy n xs = transpose $ g n xs
+  where
+    g n xs = case xs of
+      [] -> []
+      _  -> xs'
+      where
+        xs' = as : g n ass
+        (as,ass) = splitAt n xs
