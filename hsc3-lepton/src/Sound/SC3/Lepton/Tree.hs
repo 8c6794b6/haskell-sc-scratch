@@ -82,7 +82,7 @@ import Sound.SC3.Lepton.Util (queryTree)
 -- >   `-Synth -56 Anonymous
 -- >     `-[freq := 330.00]
 --
--- Updating synth nodes with using generic transforming function, for instance
+-- Updating synth nodes with using generic transforming function, e.g.
 -- @transform@ from uniplate package:
 --
 -- > > :m + Data.Generics.Uniplate.Data

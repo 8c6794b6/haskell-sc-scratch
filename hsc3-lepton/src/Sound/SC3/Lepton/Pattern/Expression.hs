@@ -11,10 +11,13 @@
 --
 module Sound.SC3.Lepton.Pattern.Expression
   ( -- * Fundamental
-    Pval(..), Pempty(..), Plist(..), Pconcat(..),
+    Pval(..), Plist(..),
+
+    -- * Monoid alike
+    Pempty(..), Pappend(..), Pconcat(..),
 
     -- * Looping
-    Pseq(..), Pcycle(..), Ploop(..), Prepeat(..), Preplicate(..),
+    Pseq(..), Pcycle(..), Pforever(..), Prepeat(..), Preplicate(..),
 
     -- * Random
     Prandom(..), Prange(..), Pchoose(..), Prand(..),
@@ -47,6 +50,9 @@ class Plist p where
 class Pconcat p where
   pconcat :: [p a] -> p a
 
+class Pappend p where
+  pappend :: p a -> p a -> p a
+
 class Pseq p where
   pseq :: p Int -> [p a] -> p a
 
@@ -59,8 +65,8 @@ class Pcycle p where
 class Prepeat p where
   prepeat :: a -> p a
 
-class Ploop p where
-  ploop :: p a -> p a
+class Pforever p where
+  pforever :: p a -> p a
 
 class Prandom p where
   prandom :: (Random r) => p r

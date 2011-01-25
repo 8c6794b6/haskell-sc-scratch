@@ -118,6 +118,9 @@ instance Plist R where
 instance Pconcat R where
   pconcat ps = R $ \g -> concat $ zipWith unR ps (gens g)
 
+instance Pappend R where
+  pappend pa pb = R $ \g -> unR pa g ++ unR pb g
+
 -- | Repeats the list of pattern with given number.
 instance Pseq R where
   pseq n ps = R $ \g ->
@@ -154,8 +157,8 @@ instance Pcycle R where
 instance Prepeat R where
   prepeat a = R $ \_ -> repeat a
 
-instance Ploop R where
-  ploop p = R $ \g -> concatMap (unR p) (gens g)
+instance Pforever R where
+  pforever p = R $ \g -> concatMap (unR p) (gens g)
 
 -- | Same as @(<*>)@.
 instance Papp R where
@@ -241,6 +244,9 @@ instance Plist S where
 instance Pconcat S where
   pconcat ps = S $ \_ -> "pconcat " ++ showList ps ""
 
+instance Pappend S where
+  pappend a b = S $ \_ -> "pappend (" ++ showP a ++ ") (" ++ showP b ++ ")"
+
 instance Pseq S where
   pseq n ps = S $ \_ -> "pseq (" ++ showP n ++ ") " ++ showList ps ""
 
@@ -265,8 +271,8 @@ instance Pcycle S where
 instance Prepeat S where
   prepeat a = S $ \_ -> "prepeat " ++ show a
 
-instance Ploop S where
-  ploop p = S $ \_ -> "ploop (" ++ show p ++ ")"
+instance Pforever S where
+  pforever p = S $ \_ -> "pforever (" ++ show p ++ ")"
 
 instance Papp S where
   papp a b = S $ \x -> "papp "
@@ -350,8 +356,8 @@ instance Pcycle V where
 instance Prepeat V where
   prepeat p = V $ "prepeat " ++ show p
 
-instance Ploop V where
-  ploop (V p) = V $ "ploop (" ++ p ++ ")"
+instance Pforever V where
+  pforever (V p) = V $ "pforever (" ++ p ++ ")"
 
 ------------------------------------------------------------------------------
 --
