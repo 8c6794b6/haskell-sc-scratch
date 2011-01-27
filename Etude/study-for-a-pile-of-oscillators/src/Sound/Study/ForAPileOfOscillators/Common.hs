@@ -48,15 +48,17 @@ module Sound.Study.ForAPileOfOscillators.Common
     -- * Util
   , w
   , packBy
+  , (=:)
+
   ) where
 
-import Data.List (zipWith4, transpose)
+import Data.List (isPrefixOf, zipWith4, transpose)
 import qualified Data.Map as M
 
 import Sound.OpenSoundControl
 import Sound.SC3
 import Sound.SC3.ID
-import Sound.SC3.Lepton
+import Sound.SC3.Lepton hiding (bufSampleRate)
 import Sound.SC3.Lepton.GUI
 
 -- | Show GUI.
@@ -307,3 +309,19 @@ packBy n xs = transpose $ g n xs
       where
         xs' = as : g n ass
         (as,ass) = splitAt n xs
+
+-- | Makes different control ugen depending on its name prefix.
+--
+-- As how SynthDef class in sclang behaves:
+--
+-- * "a_" would be ar rate control ugen
+-- * "i_" would be ir rate control ugen
+-- * "t_" would be tr rate control ugen
+-- * Other wise, kr rate control ugen
+--
+(=:) :: String -> Double -> UGen
+(=:) name v
+  | "a_" `isPrefixOf` name = control ar name v
+  | "i_" `isPrefixOf` name = control ir name v
+  | "t_" `isPrefixOf` name = tr_control name v
+  | otherwise              = control kr name v

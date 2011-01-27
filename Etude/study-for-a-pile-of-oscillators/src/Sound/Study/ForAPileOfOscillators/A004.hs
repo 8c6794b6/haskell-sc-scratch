@@ -110,7 +110,7 @@ k004s =
   [Synth 1001 "t0041"
      ["gbus":=t1001g,"lbus":=t1001l,"hbus":=t1001h,"hamp":=1]
   ,Synth 1003 "t0043_1"
-     ["freq":=2,"fidx":=8,"amp":<-t1001l]]
+     ["freq":=4,"fidx":=16,"fmod":=1,"amp":<-t1001l]]
 
 afp4 =
   [Synth 1101 "ac2_1"
@@ -193,7 +193,7 @@ playPat fd p0 m1 m2 = do
 
 oscAddition :: Double -> [OSC] -> [OSC]
 oscAddition p ms = case p of
-  161  -> n_set 1001 [("camp",0.006),("clag",beat*95)]:ms
+  129  -> n_set 1001 [("camp",0.006),("clag",beat*128)]:ms
   240  -> n_set 1001 [("gamp",0.03)]:ms
   256  -> n_set 1001 [("lamp",1)]:ms
   512  -> pch (+6):ms
@@ -213,7 +213,7 @@ oscAddition p ms = case p of
   1410 -> n_set 1001 [("lamp",0)]:ms
   1528 -> n_set 1001 [("gamp",0)]:ms
   1536 -> pch (+(-5)):n_set 1001 [("camp",0.006),("clag",beat*120)]:ms
-  1660 -> n_set 1001 [("camp",0),("clag",beat*4)]:ms
+  1664 -> n_set 1001 [("camp",0),("clag",beat)]:ms
   _    -> ms
   where
     pch f = b_setn pitchBuf [(0,map f pitches)]
@@ -267,32 +267,22 @@ patF01 = M.fromList
 --
 -- UGens
 --
-
-t0041 = mrg (hit:longAttack:gremlin:trigs ++ outs)
+t0041 = t0041' ("t_t1"=:0) ("t_t2"=:0) ("t_t3"=:0) ("t_t4"=:0)
+  ("hamp"=:1) ("hlag"=:1) ("hbus"=:0) ("camp"=:0) ("clag"=:1e-3)
+  ("lamp"=:0) ("lbus"=:0) ("llag"=:1) ("gamp"=:0) ("gbus"=:0)
+t0041' t_t1 t_t2 t_t3 t_t4 hamp hlag hbus camp clag lamp lbus llag gamp gbus =
+  mrg (hit:longAttack:gremlin:trigs ++ outs)
   where
     outs = map (\i -> out (fromIntegral $ ampBus i) csig) bank2
     csig = lag camp clag
-    trigs = [out t1101b t1, out t1102b t2, out t1103b t3, out t1104b t4]
+    trigs = [out t1101b t_t1, out t1102b t_t2, out t1103b t_t3, out t1104b t_t4]
     longAttack = out lbus (lag lamp llag)
     hit = out hbus (lag hamp hlag)
     gremlin = out gbus (lag gamp 10e-3)
-    t1 = ctrl "t_t1" 0
-    t2 = ctrl "t_t2" 0
-    t3 = ctrl "t_t3" 0
-    t4 = ctrl "t_t4" 0
-    hamp = ctrl "hamp" 1
-    hlag = ctrl "hlag" 1
-    hbus = ctrl "hbus" 0
-    camp = ctrl "camp" 0
-    clag = ctrl "clag" 1e-3
-    lamp = ctrl "lamp" 0
-    lbus = ctrl "lbus" 0
-    llag = ctrl "llag" 1
-    gamp = ctrl "gamp" 0
-    gbus = ctrl "gbus" 0
 
 t0043_1 = t0043 bank1
-t0043 ids = out outBus sig
+t0043 ids = t0043' ids ("amp"=:0) ("freq"=:1) ("fmod"=:1) ("fidx"=:1)
+t0043' ids amp freq fmod fidx = out outBus sig
   where
     outBus = select idx (mce $ map ampBus ids)
     idx = tiRand 'i' 0 (fromIntegral $ length ids) tr
@@ -301,10 +291,6 @@ t0043 ids = out outBus sig
     atk = tExpRand 'x' 100e-3 2 tr
     tr = dust 'a' kr dfreq
     dfreq = clip (freq + (lfdNoise3 'f' kr fmod) * fidx) 0 (freq+fidx)
-    amp = ctrl "amp" 0
-    freq = ctrl "freq" 1
-    fmod = ctrl "fmod" 1
-    fidx = ctrl "fidx" 1
 
 (ac2_1:ac2_2:ac2_3:ac2_4:_) = map ac2 [bank1a,bank1b,bank1c,bank1d]
 ac3_1 = ac3 bank3
@@ -318,22 +304,22 @@ fc2_2 = fc2 bank2
 
 -- | Controls amp and pan of oscillator specified with node id.
 ac2 :: [NodeId] -> UGen
-ac2 = mrg . concatMap mkO
+ac2 ids = ac2' ids ("master"=:1) ("amp"=:0.05) ("atk"=:5e-3) ("rel"=:300e-3)
+  ("pan"=:0) ("t_trig"=:0)
+ac2' ids master amp atk rel pan t_trig = mrg (concatMap mkO ids)
   where
-    mkO i = [out (ampBus i) (amp i), out (panBus i) pan]
-    amp i = ampEnv * ampC i * master
+    mkO i = [out (ampBus i) (amp' i), out (panBus i) pan]
+    amp' i = ampEnv * amp * master * tRand i 0.5 1.5 t_trig
     ampEnv = envGen kr t_trig 1 0 1 DoNothing $
              env [0,0,1,0] [0,atk,rel] [EnvCub] (-1) 0
-    atk = ctrl "atk" 5e-3
-    rel = ctrl "rel" 300e-3
-    ampC i = ctrl "amp" 0.05 * tRand i 0.5 1.5 t_trig
-    master = ctrl "master" 1
-    pan = ctrl "pan" 0
-    t_trig = ctrl "t_trig" 0
 
 -- | Rapid envelope with envgen triggered by impulse.
 ac3 :: [NodeId] -> UGen
-ac3 = mrg . concatMap mkO
+ac3 ids = ac3' ids ("edgey"=:999e-3) ("dur"=:1) ("fc"=:8000) ("fd"=:1)
+  ("dense"=:1) ("dmf"=:1) ("dmi"=:0) ("ffreq"=:0.5) ("fpan"=:0.125)
+  ("vc"=:0.001) ("curve"=:(-12)) ("t_trig"=:1)
+ac3' ids edgey dur fc fd dense dmf dmi ffreq fpan vc curve t_trig =
+  mrg $ concatMap mkO ids
   where
     mkO i = [out (ampBus i) amp, out (freqBus i) freq,out (panBus i) pan]
       where
@@ -351,22 +337,11 @@ ac3 = mrg . concatMap mkO
         flo = 1e-3 + (fc/2) - (fd*(fc/2))
         fhi = (fc/2) + (fd*(fc/2))
         pan = lfdNoise3 'p' kr fpan
-    edgey = ctrl "edgey" 999e-3
-    dur = ctrl "dur" 1
-    fc = ctrl "fc" 8000
-    fd = ctrl "fd" 1
-    dense = ctrl "dense" 1
-    dmf = ctrl "dmf" 1
-    dmi = ctrl "dmi" 0
-    ffreq = ctrl "ffreq" 0.5
-    fpan = ctrl "fpan" 0.125
-    vc = ctrl "vc" 0.001
-    curve = ctrl "curve" (-12)
-    t_trig = ctrl "t_trig" 1
 
 -- | Look up a buffer for pitch value and use for each oscillators.
 fc2 :: [NodeId] -> UGen
-fc2 = mrg . map mkO
+fc2 ids = fc2' ids ("bufn"=:1) ("lagt"=:(2*60/bpm)) ("t_trig"=:0)
+fc2' ids bufn lagt t_trig = mrg $ map mkO ids
   where
     mkO i = out (freqBus i) (freq i)
     freq i = lag (targetFreq i) (lagt * tExpRand i 0.25 4 t_trig)
@@ -374,6 +349,3 @@ fc2 = mrg . map mkO
     detune i = tRand i 0.9998 1.0002 t_trig
     idx i = tiRand i 0 (fromIntegral $ length pitches - 1)
             (tDelay t_trig (tExpRand (succ i) 0.25 4 t_trig))
-    bufn = ctrl "bufnum" 1
-    lagt = ctrl "lagt" (2*60/bpm)
-    t_trig = ctrl "t_trig" 0
