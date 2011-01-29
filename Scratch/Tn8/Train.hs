@@ -19,7 +19,7 @@ import Sound.SC3.Lepton
 
 sendTrain :: (Transport t) => t -> IO OSC
 sendTrain fd = async fd $ d_recv $ synthdef "train" train
-  
+
 newTrain :: [(String,Double)] -> IO ()
 newTrain ps = withSC3 $ \fd -> send fd $ s_new "train" (-1) AddToTail 1 ps
 
@@ -40,8 +40,7 @@ train = out 0 $ pan2 (sig*ampEnv) pan 1
     sig2 = sinOsc ar 80 0 * 0.3
     sig3 = bpf (whiteNoise 'a' ar + pinkNoise 'a' ar * 0.5) 800 1 * saw ar 0.1
     sig4 = lpf (whiteNoise 'b' ar + pinkNoise 'b' ar * 0.25) 100 * sinOsc ar 1 0
-    ampEnv = envGen ar 1 1 0 1 RemoveSynth $
-             envPerc attack 1
+    ampEnv = envGen ar 1 1 0 1 RemoveSynth $ envPerc attack 1
     pan = ctrl "pan" 0
     amp = ctrl "amp" 1
     revMix = ctrl "revMix" 0.5

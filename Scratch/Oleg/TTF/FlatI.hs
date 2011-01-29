@@ -12,13 +12,13 @@
 -- Lecture: <http://okmij.org/ftp/tagless-final/course/FlatI.hs>
 --
 -- The goal is to convert the addition tree to the right-skewed form
--- 
+--
 -- * (A + B) + R => A + (B + R)
 --
 -- Previouslly, expressions were constructed according to this grammer:
 --
 -- > e ::= lit | neg e | add e e
--- 
+--
 -- Restricted grammer now:
 --
 -- > e ::= factor | add factor e
@@ -28,7 +28,7 @@
 --
 module FlatI where
 
-import Intro1 
+import Intro1
 import PushNegI as Neg
 
 flata :: Exp -> Exp

@@ -48,6 +48,14 @@ go fd = do
       send fd $ s_new "speSynth" (-1) AddToTail 1 [("freq",midiCPS v)]
       threadDelay (floor $ t * 0.13 * 1e6)
 
+go2 n fd = do
+  async fd . d_recv . synthdef "speSynth" =<< speSynth
+  zipWithM_ f [n..] =<< runPIO pspe2
+  where
+    f nid pch = do
+      send fd $ s_new "speSynth" nid AddToTail 1 [("freq",midiCPS pch)]
+      threadDelay (floor $ 0.13 * 1e6)
+
 -- | Synthdef for spe example.
 speSynth :: IO UGen
 speSynth = do
@@ -111,8 +119,6 @@ pspe =
     ,prand (prand (pval 1)
             [pval 3, pval 4, pval 5, pval 6, pval 7, pval 8, pval 9])
      [pval 74, pval 75, pval 77, pval 79, pval 81]]
-
-
 
 ------------------------------------------------------------------------------
 --
@@ -350,9 +356,12 @@ pBuzz =
   ,("dur", pcycle [1,   0.55, 0.45,  0.54, 0.46, 0.53, 0.47])
   ,("freq", fmap midiCPS $
             pcycle [48, pchoose 13 cm, 53, pchoose 13 fm
-                   ,48, pchoose 13 cm, 43, pchoose 13 g7])
+                   ,48, pchoose 13 cm, 43, pchoose 13 g7
+                   ,48, pchoose 13 cm, 53, pchoose 13 fm
+                   ,50, pchoose 6 fm, 43, pchoose 6 g7
+                   ,48, pchoose 6 cm, 55, pchoose 6 cm])
   ,("pan", pcycle [plist [-1,-0.9..1], plist [1,0.9..(-1)]])]
   where
-    cm = [55, 67,72,75,79]
-    fm = [60, 68,72,77,80]
-    g7 = [50, 67,71,74,77]
+    cm = [55, 67,72,75,79,84,87]
+    fm = [60, 68,72,77,80,84,89]
+    g7 = [50, 67,71,74,77,79,83]

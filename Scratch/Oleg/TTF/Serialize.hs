@@ -17,12 +17,12 @@ import Intro2
 data Tree = Leaf String
           | Node String [Tree]
             deriving (Eq, Read, Show)
-                     
-instance ExpSYM Tree where                     
+
+instance ExpSYM Tree where
   lit n = Node "Lit" [Leaf $ show n]
   neg e = Node "Neg" [e]
   add e1 e2 = Node "Add" [e1,e2]
-  
+
 toTree :: Tree -> Tree
 toTree = id
 
@@ -34,7 +34,7 @@ fromTreeExt self t = case t of
   Node "Neg" [e]      -> neg (self e)
   Node "Add" [e1,e2]  -> add (self e1) (self e2)
   _                   -> error $ "Invalid tree: " ++ show t
-    
+
 fix :: (t -> t) -> t
 fix f = f (fix f)
 

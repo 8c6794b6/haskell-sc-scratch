@@ -10,16 +10,16 @@
 -- Lecture: <http://okmij.org/ftp/tagless-final/course/PushNegI.hs>
 --
 -- What we want to do is, change the grammer from:
--- 
+--
 -- > e ::= lit | neg e | add e e
--- 
--- to: 
+--
+-- to:
 --
 -- > e ::= factor | add e e
 -- > factor ::= lit | neg lit
 --
 -- Only integer literals can be negated, and only once.
--- 
+--
 module PushNegI where
 
 import Intro1
@@ -33,5 +33,3 @@ push_neg e = case e of
   Add e1 e2       -> Add (push_neg e1) (push_neg e2)
 
 ti1_norm_view = view $ push_neg ti1
-
-

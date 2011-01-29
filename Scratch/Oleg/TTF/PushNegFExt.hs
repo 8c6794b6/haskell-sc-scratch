@@ -21,4 +21,3 @@ instance MulSYM repr => MulSYM (Ctx -> repr) where
   mul e1 e2 = \c -> case c of
     Pos -> mul (e1 Pos) (e2 Pos)
     Neg -> mul (e1 Neg) (e2 Pos)
-    

@@ -34,16 +34,16 @@ pinger freq a c = do
   at (fromIntegral $ ceiling now) (g freq a c)
 
     -- where
-    --   f t = withSC3 $ \fd -> 
-    --         do send fd $ bundle t 
-    --               [s_new "ping" (-1) AddToTail 1 
+    --   f t = withSC3 $ \fd ->
+    --         do send fd $ bundle t
+    --               [s_new "ping" (-1) AddToTail 1
     --                [("out",c),("freq",freq),("amp",a)]]
     --            putStrLn "Sending ping"
     --            return 1
 
 g :: Double -> Double -> Double -> (Double -> IO Double)
 g freq a c t = withSC3 $ \fd -> do
-  send fd $ bundle t 
+  send fd $ bundle t
        [s_new "ping" (-1) AddToTail 1
               [("out", c), ("freq", freq), ("amp", a)]]
   putStrLn "Sending ping"
@@ -51,7 +51,7 @@ g freq a c t = withSC3 $ \fd -> do
 
 main :: IO ()
 main = withSC3 $ \fd -> do
-         channel <- fmap (read . head) getArgs 
+         channel <- fmap (read . head) getArgs
          async fd $ d_recv $ synthdef "ping" $ ping
          putStrLn "Resetting scsynth"
          reset fd

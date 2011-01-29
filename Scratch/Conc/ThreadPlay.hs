@@ -1,4 +1,5 @@
 {-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE PackageImports #-}
 ------------------------------------------------------------------------------
 -- | Playing with threads in haskell.
 --
@@ -9,8 +10,8 @@ import Control.Concurrent
 import Control.Concurrent.Chan
 import Control.Concurrent.MVar
 import Control.Monad
-import Control.Monad.Reader
-import Control.Monad.State
+import "mtl" Control.Monad.Reader
+import "mtl" Control.Monad.State
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Ratio
@@ -20,9 +21,9 @@ import System.IO.Unsafe
 import Sound.SC3
 import Sound.OpenSoundControl
 
-import SCQuery hiding (latency)
-import SCTree
-import Reusable
+-- import SCQuery hiding (latency)
+-- import SCTree
+-- import Reusable
 
 master01 :: IO ()
 master01 = do

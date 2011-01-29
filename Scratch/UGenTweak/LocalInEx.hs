@@ -20,17 +20,16 @@ test1 = do
   return $ mrg [localOut a3, out 0 a2]
 
 test2 :: (UId m) => m UGen
-test2 = return $ mrg [offsetOut 0 p, localOut d] 
+test2 = return $ mrg [offsetOut 0 p, localOut d]
     where p = localIn 1 ar
           i = impulse ar 1 0
           d = delayC (i+(p*0.995)) 1 (recip 440 - recip controlRate)
 
 -- test for offsetOut
-test3 = audition $ mrg [a,b] 
+test3 = audition $ mrg [a,b]
     where a = offsetOut 0 (impulse ar 5 0)
           b = out 0 (sinOsc ar 60 0 * 0.1)
 
 test4 = audition $ mrg [a,b]
     where a = out 0 $ impulse ar 5 0
           b = out 0 $ sinOsc ar 60 0 * 0.1
-

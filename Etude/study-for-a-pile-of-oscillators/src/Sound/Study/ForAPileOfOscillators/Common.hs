@@ -313,7 +313,7 @@ packBy n xs = transpose $ g n xs
 
 -- | Makes different control ugen depending on its name prefix.
 --
--- As how SynthDef class in sclang behaves:
+-- Args for SynthDef class in sclang behaves:
 --
 -- * "a_" would be ar rate control ugen
 -- * "i_" would be ir rate control ugen

@@ -6,9 +6,6 @@ module Scratch.Scheduling1 where
 import Control.Applicative
 import Control.Arrow
 import System.Random
-import FRP.Reactive (listE, TimeT, withTimeE)
-import FRP.Reactive.Reactive (exactNB)
-import FRP.Reactive.Internal.Reactive (runE)
 
 import Sound.OpenSoundControl
 import Sound.SC3
@@ -16,12 +13,6 @@ import Sound.SC3
 type SeqEvent a = [(Double, [a])]
 
 type BPM = Double
-
-runSeqEvent :: Show a => SeqEvent a -> (([a], Double) -> IO ()) -> IO ()
-runSeqEvent evnt act = do
-  t0 <- utcr
-  let evnt' = fmap print (withTimeE . listE . addTime $ evnt)
-  runE (pauseThreadUntil . (+t0) . exactNB) evnt'
 
 runSeq :: SeqEvent a -> ([a] -> IO ()) -> IO ()
 runSeq [] _ = return ()

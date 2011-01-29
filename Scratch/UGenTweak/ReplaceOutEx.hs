@@ -21,7 +21,3 @@ f = out 0 $ pulse ar (mce [660,661]) 0.5 * 0.1
 test1,test2 :: IO ()
 test1 = audition (mrg [d,f,e])
 test2 = audition (mrg [f,b,e])
-
-
-              
-                     

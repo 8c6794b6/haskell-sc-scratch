@@ -17,7 +17,7 @@ data Exp = V Var
          | B Bool
          | L Exp
          | A Exp Exp
-           
+
 lookp VZ (x:_) = x
 lookp (VS v) (_:env) = lookp v env
 
@@ -26,7 +26,7 @@ data U = UB Bool | UA (U -> U)
 instance Show U where
   show (UB x) = "UB " ++ show x
   show (UA _) = "UA <fun>"
-  
+
 eval :: [U] -> Exp -> U
 eval env exp = case exp of
   V v     -> lookp v env
@@ -34,7 +34,7 @@ eval env exp = case exp of
   L e     -> UA (\x -> eval (x:env) e)
   A e1 e2 -> case eval env e1 of
     UA f -> f (eval env e2)
-                    
+
 ti1 = A (L (V VZ)) (B True)
 
 -- partial pattern match in the A clause
