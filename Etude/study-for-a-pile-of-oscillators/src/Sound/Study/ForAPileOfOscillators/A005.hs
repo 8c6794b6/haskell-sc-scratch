@@ -40,30 +40,36 @@ defs = [("ac4_1", ac4_1),("ac4_2",ac4_2),("k0051",k0051),("k0050",k0050)]
 writeA005Score path = writeNRT path $ initial ++ last
   where
     initial = map (\m -> Bundle (NTPr 0) [m]) (treeToNew 0 a005Nodes)
-    last = [Bundle (NTPr 230)
+    last = [Bundle (NTPr 250)
              [n_set 1101 [("amp",0),("alag",10)]
              ,n_set 1102 [("amp",0),("alag",10)]]
-           ,Bundle (NTPr 241) []]
+           ,Bundle (NTPr 260) []]
 
 a005Nodes =
-  Group 1
-    [Group 10 kNodes
-    ,Group 11 aNodes
-    ,Group 12 oscs]
+  grp 1
+    [grp 10 kNodes
+    ,grp 11 aNodes
+    ,grp 12 oscs]
 
 kNodes =
-  [Synth 1000 "k0050"
-     ["outf":=n1000f,"outi":=n1000i,"outc":=n1000c,"outv":=n1000v]
-  ,Synth 1001 "k0051"
-     ["out1":=n1100t,"out2":=n1101t,"freq":<-n1000f,"chaos":=0.8]]
+  [syn 1000 "k0050"
+     ["outf":=n1000f,"outi":=n1000i,"outc":=n1000c,"outv":=n1000v
+     ,"outd":=n1000d,"outp":=n1000p,"outu":=n1000u,"outdd":=n1000dd]
+  ,syn 1001 "k0051"
+     ["out1":=n1100t,"out2":=n1101t,"freq":<-n1000f,"chaos":<-n1000p]]
 
 aNodes =
-  [Synth 1101 "ac4_1"
+  [syn 1101 "ac4_1"
      (["amp":=1,"t_trig":<-n1100t,"curve":<-n1000c,"fidx":<-n1000i
-      ,"fvib":<-n1000v] ++ ac4defaults)
-  ,Synth 1102 "ac4_2"
+      ,"fvib":<-n1000v,"dt":<-n1000d,"durc":<-n1000u,"durd":<-n1000dd] ++
+      ac4defaults)
+  ,syn 1102 "ac4_2"
      (["amp":=1,"t_trig":<-n1101t,"curve":<-n1000c,"fidx":<-n1000i
-      ,"fvib":<-n1000v] ++ ac4defaults)]
+      ,"fvib":<-n1000v,"dt":<-n1000d,"durc":<-n1000u,"durd":<-n1000dd] ++
+      ac4defaults)]
+
+grp = Group
+syn = Synth
 
 ac4defaults = [node_k_name n := node_k_default n
               |n <- controls $ synth ac4_1
@@ -76,15 +82,26 @@ n1000f = 103
 n1000i = 104
 n1000c = 105
 n1000v = 106
+n1000d = 107
+n1000p = 108
+n1000u = 109
+n1000dd = 110
 
 k0050 = k0050' ("outf"=:103) ("outi"=:104) ("outc"=:105) ("outv"=:106)
-k0050' obus ibus cbus vbus =
-  mrg [out obus fsig,out ibus isig,out cbus csig,out vbus vsig]
+  ("outd"=:107) ("outp"=:108) ("outu"=:109) ("outdd"=:110)
+k0050' fbus ibus cbus vbus dbus pbus dcbus ddbus =
+  mrg [out fbus fsig,out ibus isig,out cbus csig,out vbus vsig
+      ,out dbus dsig,out pbus psig,out dcbus dcsig,out ddbus ddsig]
   where
-    fsig = mkEnv EnvLin 1 1 [(0,4),(6,1.2),(120,0.6),(180,1),(210,2),(232,32)]
-    isig = mkEnv EnvLin 1 1 [(0,0),(140,0),(190,0.3),(200,16)]
-    csig = mkEnv EnvLin 1 1 [(0,0.5),(70,1),(140,0.25),(180,0.5)]
-    vsig = mkEnv EnvLin 1 1 [(0,0),(140,0),(180,32),(196,1),(230,0)]
+    fsig = e [(0,4),(6,1.2),(120,0.6),(180,1),(210,2),(228,8),(240,12),(247,0)]
+    isig = e [(0,0),(140,0),(190,0.3),(200,16),(220,0)]
+    csig = e [(0,0.5),(70,1),(140,0.25),(180,0.5),(220,0.5),(230,0),(235,1)]
+    dsig = e [(0,1),(220,1),(228,0)]
+    dcsig = e [(0,0.8),(244,0.8),(245,20)]
+    ddsig = e [(0,1),(244,0),(247,1)]
+    psig = e [(0,0.8),(225,0.8),(235,0)]
+    vsig = e [(0,0),(140,0),(180,32),(196,1),(230,0)]
+    e = mkEnv EnvLin 1 1
 
 k0051 = k0051' ("out1"=:100) ("out2"=:101) ("freq"=:0.25) ("chaos"=:0.5)
 k0051' obus1 obus2 freq chaos = out obus sig

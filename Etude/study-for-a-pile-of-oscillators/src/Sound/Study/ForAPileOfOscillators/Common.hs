@@ -85,9 +85,10 @@ updateSynthdefs fd = do
 aosc :: UGen
 aosc = out 0 (pan2 sig pan 1)
   where
-    sig = sinOsc ar freq 0 * (lag2 amp 2e-3)
+    sig = sinOsc ar freq 0 * (lag2 amp amplag)
     pan = ctrl "pan" 0
     amp = ctrl "amp" 0.3
+    amplag = ctrl "amplag" 2e-6
     freq = ctrl "freq" 440
 
 -- | Controller for amplitude of oscillators.
