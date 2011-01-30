@@ -1,6 +1,6 @@
 Name:                study-for-a-pile-of-oscillators
 Version:             0.0.1
-Synopsis:            Study for a pile of oscillators
+Synopsis:            Study for a pile of oscillators.
 -- Description:         
 License:             BSD3
 License-file:        LICENSE
@@ -13,7 +13,6 @@ Build-type:          Simple
 -- a README.
 -- Extra-source-files:  
 
--- Constraint on the version of Cabal needed to build this package.
 Cabal-version:       >=1.2
 
 Executable sfapoo
@@ -21,6 +20,7 @@ Executable sfapoo
     -Wall
     -fno-warn-unused-do-bind
     -O2
+    -threaded
   hs-source-dirs:
     src
   main-is:
@@ -41,13 +41,16 @@ Library
     Sound.Study.ForAPileOfOscillators.A003
     Sound.Study.ForAPileOfOscillators.A004
     Sound.Study.ForAPileOfOscillators.A005
+    Sound.Study.ForAPileOfOscillators.A006
     Sound.Study.ForAPileOfOscillators.Common
   build-depends:
     base >= 2.0 && < 5.0,
+    array,
     bytestring >= 0.9.1.7,
     containers >= 0.3,
     random >= 1.0.0.2,
     hosc -any,
     hsc3 -any,
     hsc3-lepton >= 0.0.2,
-    hsc3-lepton-gui >= 0.0.2
+    hsc3-lepton-gui >= 0.0.2,
+    netpbm-parser

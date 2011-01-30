@@ -22,6 +22,7 @@ import Data.Array
 import Data.Function (on)
 import Data.List (transpose, groupBy)
 import Data.Word (Word8)
+import System.Environment
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Char8 as C8
 
@@ -34,8 +35,13 @@ import Sound.SC3.Lepton
 
 import Sound.Study.ForAPileOfOscillators.Common
 
+-- | Write osc score to given filepath.
 main :: IO ()
-main = print "No GUI for this piece"
+main = do
+  args <- getArgs
+  let dest | null args = "./out.osc"
+           | otherwise = head args
+  ws2 out_2 dest
 
 setup :: (Transport t) => t -> IO OSC
 setup fd = do
@@ -72,7 +78,7 @@ writeScoreOf src dest = do
 ws2 :: FilePath -> FilePath -> IO ()
 ws2 src dest = do
   arr <- getPPM src
-  let os = zipWith f [1..] . transpose .  applyToArray f2 $ arr
+  let os = zipWith f [1..] . transpose .  applyToPixmap f2 $ arr
       f t ms = map (\m -> Bundle (NTPr (t*timeScale)) [m]) ms
       ini = map (Bundle (NTPr 0) . (:[])) $ (treeToNew 0 a006Nodes ++ initOSC)
   writeNRT dest $ ini ++ concat os
@@ -123,6 +129,9 @@ capture4 = "/home/atsuro/images/ppm/capture4.ppm"
 capture5 = "/home/atsuro/images/ppm/capture5.ppm"
 capture6 = "/home/atsuro/images/ppm/capture6.ppm"
 capture7 = "/home/atsuro/images/ppm/capture7.ppm"
+capture8 = "/home/atsuro/images/ppm/capture8.ppm"
+capture9 = "/home/atsuro/images/ppm/capture9.ppm"
+out_2 = "/home/atsuro/images/ppm/out-2.ppm"
 
 getData :: FilePath -> IO [(Int, [Word8])]
 getData file = do
@@ -148,38 +157,26 @@ initOSC = map f oscIds
         pan = if even i then f i else negate (f i)
         f j = (panScale*i'/256)
 
-type RGBFunc = Int   -- ^ Y axis
-            -> Word8 -- ^ Red, from 0 to 255
-            -> Word8 -- ^ Green, from 0 to 255
-            -> Word8 -- ^ Blue, from 0 to 255
-            -> OSC
-
-f1 i r g b = n_set 100 [("i",i'),("r",r'),("g",g'),("b",b')]
-  where
-    i' = fromIntegral i
-    r' = fromIntegral r
-    g' = fromIntegral g
-    b' = fromIntegral b
+type RGBFunc
+  = Int   -- ^ Y axis
+ -> Word8 -- ^ Red, from 0 to 255
+ -> Word8 -- ^ Green, from 0 to 255
+ -> Word8 -- ^ Blue, from 0 to 255
+ -> OSC
 
 f2 :: RGBFunc
 f2 i r g b =
   n_set hitId [("t_trig_"++show (oscIds!!i),1)
-              ,("amp_"++show (oscIds!!i), fromIntegral ((r+g+b))/255)]
+              ,("amp_"++show (oscIds!!i), fromIntegral (r+g+b)/255)]
 
-applyToArray :: (Int -> Word8 -> Word8 -> Word8 -> OSC)
-             -> Array (Int, Int) (Word8,Word8,Word8)
-             -> [[OSC]]
-applyToArray f a = a''
+applyToPixmap :: RGBFunc -> Pixmap -> [[OSC]]
+applyToPixmap f a =
+  map (map (\((y,x), (r,g,b)) -> f (inv y) r g b)) .
+  groupBy ((==) `on` (fst . fst)) . assocs $ a
   where
-    a'' :: [[OSC]]
-    a'' = map (map (\((y,x), (r,g,b)) -> f (inv y) r g b)) a'
-    a' :: [[((Int,Int), RGB)]]
-    a' = groupBy ((==) `on` (fst . fst)) $ assocs a
     inv i = let (_,(m,_)) = bounds a in m - i
 
 -- | Make OSC for each row of image.
--- mkOSC :: (Int,[Word8]) -- ^ (Index in list, grey scale values)
---       -> [OSC]
 mkOSC :: (Int, [Word8]) -> [OSC]
 mkOSC (i,ws) = map f ws
   where
@@ -199,8 +196,6 @@ sep256 gm = go 256 (greyData gm)
       | otherwise = (n,L.unpack (L.map f cs)):go (pred n) rest
       where
         (cs,rest) = L.splitAt (fromIntegral $ greyWidth gm) bs
-    -- f x | fromIntegral x <= (greyMax gm) `div` 2 = 1
-    --     | otherwise                              = 0
     f x = fromIntegral (greyMax gm) - x
 
 ac6 :: UGen

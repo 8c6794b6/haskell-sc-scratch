@@ -19,17 +19,23 @@ import qualified Sound.Study.ForAPileOfOscillators.A002 as A002M
 import qualified Sound.Study.ForAPileOfOscillators.A003 as A003M
 import qualified Sound.Study.ForAPileOfOscillators.A004 as A004M
 import qualified Sound.Study.ForAPileOfOscillators.A005 as A005M
+import qualified Sound.Study.ForAPileOfOscillators.A006 as A006M
 
 main :: IO ()
 main = do
-  arg <- cmdArgs $ modes [Score "a001.sco" A001, GUI A001]
+  arg <- cmdArgs $ modes 
+           [Score "a001.sco" A001
+           ,GUI A001
+           ,ReadImage "out.sco" "input.ppm"]
   case arg of
-    Score path p -> writeScore path p
-    GUI p        -> showGui p
+    Score path p  -> writeScore path p
+    GUI p         -> showGui p
+    ReadImage i o -> procImage i o
 
 data SFAPOO
   = Score {outFile :: FilePath, piece :: Piece}
   | GUI {piece :: Piece}
+  | ReadImage { inFile :: FilePath, outFile :: FilePath } -- only for A006
   deriving (Eq, Show, Data, Typeable)
 
 data Piece = A001 | A002 | A003 | A004 | A005
@@ -56,3 +62,6 @@ showGui p = do
     A004 -> A004M.main
     A005 -> A005M.main
     -- _    -> error "not yet written"
+
+procImage :: FilePath -> FilePath -> IO ()
+procImage src dest = A006M.ws2 src dest
