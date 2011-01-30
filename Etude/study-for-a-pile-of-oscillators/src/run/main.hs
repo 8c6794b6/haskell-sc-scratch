@@ -26,16 +26,19 @@ main = do
   arg <- cmdArgs $ modes 
            [Score "a001.sco" A001
            ,GUI A001
-           ,ReadImage "out.sco" "input.ppm"]
+           ,ReadPPM "out.sco" "input.ppm"
+           ,ReadPGM "out.sco" "input.pgm"]
   case arg of
-    Score path p  -> writeScore path p
-    GUI p         -> showGui p
-    ReadImage i o -> procImage i o
+    Score path p -> writeScore path p
+    GUI p        -> showGui p
+    ReadPPM i o  -> procPPM i o
+    ReadPGM i o  -> procPGM i o
 
 data SFAPOO
   = Score {outFile :: FilePath, piece :: Piece}
   | GUI {piece :: Piece}
-  | ReadImage { inFile :: FilePath, outFile :: FilePath } -- only for A006
+  | ReadPPM { inFile :: FilePath, outFile :: FilePath } -- only for A006
+  | ReadPGM { inFile :: FilePath, outFile :: FilePath } -- only for A006
   deriving (Eq, Show, Data, Typeable)
 
 data Piece = A001 | A002 | A003 | A004 | A005
@@ -50,7 +53,6 @@ writeScore path p = do
     A003 -> A003M.writeA003Score path
     A004 -> A004M.writeA004Score path
     A005 -> A005M.writeA005Score path
-    -- _    -> error "not yet written"
 
 showGui :: Piece -> IO ()
 showGui p = do
@@ -61,7 +63,9 @@ showGui p = do
     A003 -> A003M.main
     A004 -> A004M.main
     A005 -> A005M.main
-    -- _    -> error "not yet written"
 
-procImage :: FilePath -> FilePath -> IO ()
-procImage src dest = A006M.ws2 src dest
+procPPM :: FilePath -> FilePath -> IO ()
+procPPM src dest = A006M.ws2 src dest
+
+procPGM :: FilePath -> FilePath -> IO ()
+procPGM src dest = A006M.writeScoreOf src dest

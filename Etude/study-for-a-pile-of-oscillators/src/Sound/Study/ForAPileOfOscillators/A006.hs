@@ -23,6 +23,7 @@ import Data.Function (on)
 import Data.List (transpose, groupBy)
 import Data.Word (Word8)
 import System.Environment
+import System.FilePath ((</>))
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Char8 as C8
 
@@ -37,31 +38,12 @@ import Sound.Study.ForAPileOfOscillators.Common
 
 -- | Write osc score to given filepath.
 main :: IO ()
-main = do
-  args <- getArgs
-  let dest | null args = "./out.osc"
-           | otherwise = head args
-  ws2 out_2 dest
+main = putStr "No gui for A006"
 
 setup :: (Transport t) => t -> IO OSC
 setup fd = do
   writeSynthdef "ac6" ac6
   reloadSynthdef fd
-
-go :: (Transport t) => t -> IO ()
-go = goFrom 0
-
-goFrom :: (Transport t) => Int -> t -> IO ()
-goFrom frm fd = do
-  now <- utcr
-  dat <- getData imageFile
-  send fd $ Bundle (UTCr now) (sync 1:treeToNew 0 a006Nodes)
-  wait fd "/synced"
-  send fd $ Bundle (UTCr now) initOSC
-  threadDelay (10^6)
-  forM_ (transpose $ map mkOSC dat) $ \ms -> do
-    send fd $ Bundle immediately ms
-    threadDelay $ floor $ timeScale * 1e6
 
 writeA006Score :: FilePath -> IO ()
 writeA006Score = writeScoreOf imageFile
@@ -104,34 +86,38 @@ panScale = 0.35
 imageFile :: FilePath
 imageFile = lenna
 
-uniitiled_1 = "/home/atsuro/images/pgm/Untitled.pgm"  -- 640x256
-untitiled_5  = "/home/atsuro/images/pgm/untitled5.pgm" -- 1024x256
-untitiled_52 = "/home/atsuro/images/pgm/untitled5_2.pgm" -- 1024x256
-mandelbrot256 = "/home/atsuro/images/pgm/mandelbrot_256.pgm" -- 256x256
-mandelbrot1024 = "/home/atsuro/images/pgm/mandelbrot_1024x256.pgm" -- 1024x256
-lenna = "/home/atsuro/images/pgm/lenna_1024x256.pgm" -- 1024x256
+imageDir = "/home/atsuro/images"
+pgmBase = imageDir </> "pgm"
+ppmBase = imageDir </> "ppm"
 
-mandelA = "/home/atsuro/images/pgm/a.pgm" -- 800x256
-capture2 = "/home/atsuro/images/pgm/capture2.pgm" -- 800x256
-capture3 = "/home/atsuro/images/pgm/capture3.pgm" -- 701x256
-bsd = "/home/atsuro/images/pgm/bsd.pgm" -- 2048x256
+-- pgm files
+uniitiled_1 = pgmBase </> "Untitled.pgm"  -- 640x256
+untitiled_5  = pgmBase </> "untitled5.pgm" -- 1024x256
+untitiled_52 = pgmBase </> "untitled5_2.pgm" -- 1024x256
+mandelbrot256 = pgmBase </> "mandelbrot_256.pgm" -- 256x256
+mandelbrot1024 = pgmBase </> "mandelbrot_1024x256.pgm" -- 1024x256
+lenna = pgmBase </> "lenna_1024x256.pgm" -- 1024x256
+mandelA = pgmBase </> "a.pgm" -- 800x256
+capture2 = pgmBase </> "capture2.pgm" -- 800x256
+capture3 = pgmBase </> "capture3.pgm" -- 701x256
+bsd = pgmBase </> "bsd.pgm" -- 2048x256
 
 -- ppm
-lennaPPM = "/home/atsuro/images/ppm/lenna256.ppm" -- 512x256
-bsdPPM = "/home/atsuro/images/ppm/bsd.ppm"
-bsdbbgPPM = "/home/atsuro/images/ppm/bsd_black_bg.ppm"
-out2PPM = "/home/atsuro/images/ppm/out2.ppm"
-out3PPM = "/home/atsuro/images/ppm/out3.ppm"
-untitled5PPM = "/home/atsuro/images/ppm/untitled5.ppm"
-untitled7PPM = "/home/atsuro/images/ppm/untitled7.ppm"
-untitled8PPM = "/home/atsuro/images/ppm/untitled8.ppm"
-capture4 = "/home/atsuro/images/ppm/capture4.ppm"
-capture5 = "/home/atsuro/images/ppm/capture5.ppm"
-capture6 = "/home/atsuro/images/ppm/capture6.ppm"
-capture7 = "/home/atsuro/images/ppm/capture7.ppm"
-capture8 = "/home/atsuro/images/ppm/capture8.ppm"
-capture9 = "/home/atsuro/images/ppm/capture9.ppm"
-out_2 = "/home/atsuro/images/ppm/out-2.ppm"
+lennaPPM = ppmBase </> "lenna256.ppm" -- 512x256
+bsdPPM = ppmBase </> "bsd.ppm"
+bsdbbgPPM = ppmBase </> "bsd_black_bg.ppm"
+out2PPM = ppmBase </> "out2.ppm"
+out3PPM = ppmBase </> "out3.ppm"
+untitled5PPM = ppmBase </> "untitled5.ppm"
+untitled7PPM = ppmBase </> "untitled7.ppm"
+untitled8PPM = ppmBase </> "untitled8.ppm"
+capture4 = ppmBase </> "capture4.ppm"
+capture5 = ppmBase </> "capture5.ppm"
+capture6 = ppmBase </> "capture6.ppm"
+capture7 = ppmBase </> "capture7.ppm"
+capture8 = ppmBase </> "capture8.ppm"
+capture9 = ppmBase </> "capture9.ppm"
+out_2 = ppmBase </> "out-2.ppm"
 
 getData :: FilePath -> IO [(Int, [Word8])]
 getData file = do
