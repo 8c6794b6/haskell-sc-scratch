@@ -65,7 +65,7 @@ showGui p = do
     A005 -> A005M.main
 
 procPPM :: FilePath -> FilePath -> IO ()
-procPPM src dest = A006M.ws2 src dest
+procPPM src dest = A006M.writePPMScore src dest
 
 procPGM :: FilePath -> FilePath -> IO ()
-procPGM src dest = A006M.writeScoreOf src dest
+procPGM src dest = A006M.writePGMScore src dest

@@ -1,6 +1,5 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE BangPatterns #-}
 ------------------------------------------------------------------------------
 -- |
 -- Module      : $Header$
@@ -20,11 +19,10 @@ module Sound.Study.ForAPileOfOscillators.A006 where
 import Prelude
   ( Num(..), Fractional(..), Floating(..), Enum(..), Eq(..), Ord(..)
   , FilePath, IO, Int
-  , (||), (&&)
+  , (||), (&&), (^)
   , putStr, error, even, otherwise
   , fromRational, fromIntegral, show )
 
-import Control.Arrow (second)
 import Control.Concurrent (threadDelay)
 import Control.Monad
 import Data.Array
@@ -32,13 +30,12 @@ import Data.Either
 import Data.Function
 import Data.Word (Word8)
 import Data.Tuple
-import System.FilePath ((</>))
 import qualified Data.ByteString.Lazy as L
-import qualified Data.ByteString.Char8 as C8
 
-import Control.DeepSeq
-import Control.Parallel
-import Control.Parallel.Strategies
+-- import Control.DeepSeq
+-- import Control.Parallel
+-- import Control.Parallel.Strategies
+
 import Codec.PBM.Parser
 import Codec.PBM.Types
 import Data.List.Stream
@@ -69,27 +66,22 @@ main = putStr "No gui for A006"
 -- Doing @parMap rpdeepseq@ and @parMap rpar@ inside @applyToPixmap@ function,
 -- writing OSC file with single core take around 7 seconds, 2 cores is 5 secs.
 
-instance NFData OSC
-
 setup :: (Transport t) => t -> IO OSC
 setup fd = do
   writeSynthdef "ac6" ac6
   reloadSynthdef fd
 
-writeA006Score :: FilePath -> IO ()
-writeA006Score = writeScoreOf imageFile
-
-writeScoreOf :: FilePath -> FilePath -> IO ()
-writeScoreOf src dest = do
-  dat <- getData src
+writePGMScore :: FilePath -> FilePath -> IO ()
+writePGMScore src dest = do
+  dat <- getPGM src
   let os = zipWith f [1..] (transpose $ map mkOSC dat)
       f t ms = map (Bundle (NTPr (t*timeScale)) . (:[])) ms
       ini = map (Bundle (NTPr 0) . (:[])) $ (treeToNew 0 a006Nodes ++ initOSC)
   writeNRT dest $ ini ++ concat os
 
 -- | Write score from ppm image file.
-ws2 :: FilePath -> FilePath -> IO ()
-ws2 src dest = do
+writePPMScore :: FilePath -> FilePath -> IO ()
+writePPMScore src dest = do
   arr <- getPPM src
   let os = zipWith f [1..] . transpose .  applyToPixmap f3 $ arr
       f t ms = map (\m -> Bundle (NTPr (t*timeScale)) [m]) ms
@@ -100,7 +92,7 @@ a006Nodes :: SCNode
 a006Nodes =
   grp 1
     [grp 10 []
-    ,grp 11 [syn hitId "ac6" ["amp":=ampScale,"rel":=timeScale*durScale]]
+    ,grp 11 [syn hitId "ac6" ["amp":=ampScale,"ts":=timeScale]]
     ,grp 12 oscs]
 
 grp = Group
@@ -114,18 +106,29 @@ freqOffset = 50
 freqScale = 0.985
 panDist = 0.35
 
+initOSC :: [OSC]
+initOSC = map f oscIds
+  where
+    f i = c_set [(freqBus i,fd+freqOffset),(panBus i,pan)]
+      where
+        fd = exp (log (24000*freqScale) * (i'/256))
+        i' = fromIntegral (i - 20001)
+        pan = if even i then f i else negate (f i)
+        f j = (panDist*i'/256)
+
 ac6 :: UGen
-ac6 = ac6' ("amp"=:0.1) ("rel"=:200e-3)
-ac6' amp rel = mrg $ map mkO oscIds
+ac6 = ac6' ("amp"=:0.1) ("ts"=:timeScale)
+ac6' amp ts = mrg $ map mkO oscIds
   where
     mkO i = out (fromIntegral $ ampBus i) . (* amp) . (* ampi) .
-            envGen kr trgi 1 0 1 DoNothing $
-            env [0,0,1,0] [0,atki,rel] [EnvNum crvi] (-1) 0
+            envGen kr trgi 1 0 duri DoNothing $
+            env [0,0,1,0] [0,atki,1-atki] [EnvNum crvi] (-1) 0
       where
         ampi = (("amp_"++i')=:1)
         trgi = (("t_trig_"++i')=:0)
-        atki = (("atk_"++i')=:2e-4) * 50e-3
-        crvi = (("crv_"++i')=:0) * 24 - 12
+        atki = (1-("atk_"++i')=:2e-4)
+        crvi = (1-("crv_"++i')=:0.5) * 26 - 13
+        duri = (1-("dur_"++i')=:0.5) * 2 * ts + 1e-4
         i' = show i
 
 -- | Type synonym for a function to get OSC data from each pixel.
@@ -136,59 +139,18 @@ type RGBFunc
  -> Word8 -- ^ Blue, from 0 to 255
  -> OSC
 
-f2 :: RGBFunc
-f2 i r g b =
-  n_set hitId [("t_trig_"++show (oscIds!!i),1)
-              ,("amp_"++show (oscIds!!i), fromIntegral (r+g+b)/255)]
-
 f3 :: RGBFunc
-f3 i r g b =
-  n_set hitId ([("amp_"++i', fromIntegral (r+g+b)/765)
-               ,("atk_"++i', fromIntegral r/255)
-               ,("crv_"++i', fromIntegral g/255)] ++ tr)
+f3 i r g b = n_set hitId ms
   where
-    i' = show (oscIds!!i)
-    tr | r > 0 || g > 0 || b > 0 = [("t_trig_"++i',1)]
+    ms | r > 0 || g > 0 || b > 0 =
+      [("amp_"++i', fromIntegral (r+g+b)/765),("atk_"++i', fromIntegral r/255)
+      ,("crv_"++i', fromIntegral g/255),("dur_"++i', fromIntegral b/255)
+      ,("t_trig_"++i',1)]
        | otherwise               = []
+    i' = show (oscIds!!i)
 
-imageFile :: FilePath
-imageFile = lenna
-
-imageDir = "/home/atsuro/images"
-pgmBase = imageDir </> "pgm"
-ppmBase = imageDir </> "ppm"
-
--- pgm files
-uniitiled_1 = pgmBase </> "Untitled.pgm"  -- 640x256
-untitiled_5  = pgmBase </> "untitled5.pgm" -- 1024x256
-untitiled_52 = pgmBase </> "untitled5_2.pgm" -- 1024x256
-mandelbrot256 = pgmBase </> "mandelbrot_256.pgm" -- 256x256
-mandelbrot1024 = pgmBase </> "mandelbrot_1024x256.pgm" -- 1024x256
-lenna = pgmBase </> "lenna_1024x256.pgm" -- 1024x256
-mandelA = pgmBase </> "a.pgm" -- 800x256
-capture2 = pgmBase </> "capture2.pgm" -- 800x256
-capture3 = pgmBase </> "capture3.pgm" -- 701x256
-bsd = pgmBase </> "bsd.pgm" -- 2048x256
-
--- ppm
-lennaPPM = ppmBase </> "lenna256.ppm" -- 512x256
-bsdPPM = ppmBase </> "bsd.ppm"
-bsdbbgPPM = ppmBase </> "bsd_black_bg.ppm"
-out2PPM = ppmBase </> "out2.ppm"
-out3PPM = ppmBase </> "out3.ppm"
-untitled5PPM = ppmBase </> "untitled5.ppm"
-untitled7PPM = ppmBase </> "untitled7.ppm"
-untitled8PPM = ppmBase </> "untitled8.ppm"
-capture4 = ppmBase </> "capture4.ppm"
-capture5 = ppmBase </> "capture5.ppm" -- this file has colour difference
-capture6 = ppmBase </> "capture6.ppm"
-capture7 = ppmBase </> "capture7.ppm"
-capture8 = ppmBase </> "capture8.ppm"
-capture9 = ppmBase </> "capture9.ppm"
-a003src = ppmBase </> "a003src_2.ppm"
-
-getData :: FilePath -> IO [(Int, [Word8])]
-getData file = do
+getPGM :: FilePath -> IO [(Int, [Word8])]
+getPGM file = do
   c <- L.readFile file
   case parse parsePGM c of
     Right gm -> return $ sep256 gm
@@ -201,15 +163,6 @@ getPPM file = do
     Right pm -> return $ pm
     Left err -> error err
 
-initOSC :: [OSC]
-initOSC = map f oscIds
-  where
-    f i = c_set [(freqBus i,fd+freqOffset),(panBus i,pan)]
-      where
-        fd = exp (log (24000*freqScale) * (i'/256))
-        i' = fromIntegral (i - 20001)
-        pan = if even i then f i else negate (f i)
-        f j = (panDist*i'/256)
 
 applyToPixmap :: RGBFunc -> Pixmap -> [[OSC]]
 applyToPixmap f a =
@@ -239,11 +192,3 @@ sep256 gm = go 256 (greyData gm)
       where
         (cs,rest) = L.splitAt (fromIntegral $ greyWidth gm) bs
     f x = fromIntegral (greyMax gm) - x
-
-test = do
-  c <- L.readFile imageFile
-  case parse parsePGM c of
-    Right gm ->
-      return $ transpose $ map (mkOSC . second (take 10)) $
-      sep256 gm
-    Left err -> error "Error on parsing image file"
