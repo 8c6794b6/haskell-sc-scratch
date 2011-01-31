@@ -1,4 +1,6 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE BangPatterns #-}
 ------------------------------------------------------------------------------
 -- |
 -- Module      : $Header$
@@ -15,20 +17,31 @@
 --
 module Sound.Study.ForAPileOfOscillators.A006 where
 
+import Prelude
+  ( Num(..), Fractional(..), Floating(..), Enum(..), Eq(..), Ord(..)
+  , FilePath, IO, Int
+  , (||), (&&)
+  , putStr, error, even, otherwise
+  , fromRational, fromIntegral, show )
+
 import Control.Arrow (second)
 import Control.Concurrent (threadDelay)
-import Control.Monad (forM_)
+import Control.Monad
 import Data.Array
-import Data.Function (on)
-import Data.List (transpose, groupBy)
+import Data.Either
+import Data.Function
 import Data.Word (Word8)
-import System.Environment
+import Data.Tuple
 import System.FilePath ((</>))
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Char8 as C8
 
+import Control.DeepSeq
+import Control.Parallel
+import Control.Parallel.Strategies
 import Codec.PBM.Parser
 import Codec.PBM.Types
+import Data.List.Stream
 import Sound.OpenSoundControl
 import Sound.SC3
 import Sound.SC3.ID
@@ -39,6 +52,24 @@ import Sound.Study.ForAPileOfOscillators.Common
 -- | Write osc score to given filepath.
 main :: IO ()
 main = putStr "No gui for A006"
+
+-- $notes_stream_fusion
+--
+-- List related functions are imported from Data.List.Stream.
+-- This makes the code 2 to 3 times faster. NoImplicitPrelude language pragma
+-- is for avoiding conflicts from this module.
+
+-- $notes_para
+--
+-- Not sure how to speedup with using multiple cores.
+-- So far, increasing cores slow down the main OSC file writing.
+--
+-- Without using any functions from Control.Parallel and using list fusion,
+-- writing OSC file for 256x256 PPM image is around 4.3 seconds.
+-- Doing @parMap rpdeepseq@ and @parMap rpar@ inside @applyToPixmap@ function,
+-- writing OSC file with single core take around 7 seconds, 2 cores is 5 secs.
+
+instance NFData OSC
 
 setup :: (Transport t) => t -> IO OSC
 setup fd = do
@@ -60,7 +91,7 @@ writeScoreOf src dest = do
 ws2 :: FilePath -> FilePath -> IO ()
 ws2 src dest = do
   arr <- getPPM src
-  let os = zipWith f [1..] . transpose .  applyToPixmap f2 $ arr
+  let os = zipWith f [1..] . transpose .  applyToPixmap f3 $ arr
       f t ms = map (\m -> Bundle (NTPr (t*timeScale)) [m]) ms
       ini = map (Bundle (NTPr 0) . (:[])) $ (treeToNew 0 a006Nodes ++ initOSC)
   writeNRT dest $ ini ++ concat os
@@ -81,7 +112,44 @@ durScale = 0.8
 ampScale = 0.05
 freqOffset = 50
 freqScale = 0.985
-panScale = 0.35
+panDist = 0.35
+
+ac6 :: UGen
+ac6 = ac6' ("amp"=:0.1) ("rel"=:200e-3)
+ac6' amp rel = mrg $ map mkO oscIds
+  where
+    mkO i = out (fromIntegral $ ampBus i) . (* amp) . (* ampi) .
+            envGen kr trgi 1 0 1 DoNothing $
+            env [0,0,1,0] [0,atki,rel] [EnvNum crvi] (-1) 0
+      where
+        ampi = (("amp_"++i')=:1)
+        trgi = (("t_trig_"++i')=:0)
+        atki = (("atk_"++i')=:2e-4) * 50e-3
+        crvi = (("crv_"++i')=:0) * 24 - 12
+        i' = show i
+
+-- | Type synonym for a function to get OSC data from each pixel.
+type RGBFunc
+  = Int   -- ^ Y axis
+ -> Word8 -- ^ Red, from 0 to 255
+ -> Word8 -- ^ Green, from 0 to 255
+ -> Word8 -- ^ Blue, from 0 to 255
+ -> OSC
+
+f2 :: RGBFunc
+f2 i r g b =
+  n_set hitId [("t_trig_"++show (oscIds!!i),1)
+              ,("amp_"++show (oscIds!!i), fromIntegral (r+g+b)/255)]
+
+f3 :: RGBFunc
+f3 i r g b =
+  n_set hitId ([("amp_"++i', fromIntegral (r+g+b)/765)
+               ,("atk_"++i', fromIntegral r/255)
+               ,("crv_"++i', fromIntegral g/255)] ++ tr)
+  where
+    i' = show (oscIds!!i)
+    tr | r > 0 || g > 0 || b > 0 = [("t_trig_"++i',1)]
+       | otherwise               = []
 
 imageFile :: FilePath
 imageFile = lenna
@@ -112,12 +180,12 @@ untitled5PPM = ppmBase </> "untitled5.ppm"
 untitled7PPM = ppmBase </> "untitled7.ppm"
 untitled8PPM = ppmBase </> "untitled8.ppm"
 capture4 = ppmBase </> "capture4.ppm"
-capture5 = ppmBase </> "capture5.ppm"
+capture5 = ppmBase </> "capture5.ppm" -- this file has colour difference
 capture6 = ppmBase </> "capture6.ppm"
 capture7 = ppmBase </> "capture7.ppm"
 capture8 = ppmBase </> "capture8.ppm"
 capture9 = ppmBase </> "capture9.ppm"
-out_2 = ppmBase </> "out-2.ppm"
+a003src = ppmBase </> "a003src_2.ppm"
 
 getData :: FilePath -> IO [(Int, [Word8])]
 getData file = do
@@ -141,19 +209,7 @@ initOSC = map f oscIds
         fd = exp (log (24000*freqScale) * (i'/256))
         i' = fromIntegral (i - 20001)
         pan = if even i then f i else negate (f i)
-        f j = (panScale*i'/256)
-
-type RGBFunc
-  = Int   -- ^ Y axis
- -> Word8 -- ^ Red, from 0 to 255
- -> Word8 -- ^ Green, from 0 to 255
- -> Word8 -- ^ Blue, from 0 to 255
- -> OSC
-
-f2 :: RGBFunc
-f2 i r g b =
-  n_set hitId [("t_trig_"++show (oscIds!!i),1)
-              ,("amp_"++show (oscIds!!i), fromIntegral (r+g+b)/255)]
+        f j = (panDist*i'/256)
 
 applyToPixmap :: RGBFunc -> Pixmap -> [[OSC]]
 applyToPixmap f a =
@@ -168,7 +224,7 @@ mkOSC (i,ws) = map f ws
   where
     f w =
       n_set hitId [("t_trig_"++show (oscIds!!i),1)
-                  ,("amp_"++show (oscIds!!i), fromIntegral w / 255)]
+                  ,("amp_"++show (oscIds!!i), fromIntegral w/255)]
 
 -- | Extract, repack, and convert values from pgm image.
 --
@@ -183,15 +239,6 @@ sep256 gm = go 256 (greyData gm)
       where
         (cs,rest) = L.splitAt (fromIntegral $ greyWidth gm) bs
     f x = fromIntegral (greyMax gm) - x
-
-ac6 :: UGen
-ac6 = ac6' ("amp"=:0.1) ("rel"=:200e-3)
-ac6' amp rel = mrg $ map mkO oscIds
-  where
-    mkO i = out (fromIntegral $ ampBus i) . (* amp) .
-            (* ("amp_"++show i)=:1) .
-            envGen kr (("t_trig_"++show i)=:0) 1 0 1 DoNothing $
-            env [0,0,1,0] [0,2e-4,rel] [EnvNum (-13)] (-1) 0
 
 test = do
   c <- L.readFile imageFile
