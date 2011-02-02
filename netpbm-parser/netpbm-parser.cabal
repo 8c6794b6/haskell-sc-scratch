@@ -1,0 +1,30 @@
+name:		netpbm-parser
+version:	0.0.1
+synopsis:       Simple parser for netpbm image files
+author:         8c6794b6
+maintainer:     8c6794b6@gmail.com
+cabal-version:  >= 1.6
+build-type:     Simple
+license:        BSD3
+category:       Codec
+stability:      experimental
+description:
+  Simple parser for netpbm image files.
+
+library
+  ghc-options:
+    -O2
+    -Wall
+    -fno-warn-unused-do-bind
+    -fno-warn-orphans
+  hs-source-dirs:
+    src
+  exposed-modules:
+    Codec.PBM.Parser
+    Codec.PBM.Types
+  build-depends:
+    base == 4.*,
+    array,
+    bytestring,
+    containers
+    -- parsec >= 3.0
