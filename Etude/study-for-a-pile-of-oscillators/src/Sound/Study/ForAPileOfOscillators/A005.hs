@@ -10,6 +10,8 @@
 --
 -- Playing with a pile of oscillators, take 5.
 --
+-- Featuring classic additive synthesis sound.
+--
 module Sound.Study.ForAPileOfOscillators.A005 where
 
 import qualified Data.Map as M
@@ -30,7 +32,7 @@ main = withSC3 $ \fd -> do
              [("k0051",[ParamRange "freq" 0 12])]
 
 setup fd = do
-  mapM_ (\(n,u) -> writeSynthdef n u) defs
+  mapM_ (uncurry writeSynthdef) defs
   reloadSynthdef fd
 
 go fd = addNode 0 a005Nodes fd
@@ -67,9 +69,6 @@ aNodes =
      (["amp":=1,"t_trig":<-n1101t,"curve":<-n1000c,"fidx":<-n1000i
       ,"fvib":<-n1000v,"dt":<-n1000d,"durc":<-n1000u,"durd":<-n1000dd] ++
       ac4defaults)]
-
-grp = Group
-syn = Synth
 
 ac4defaults = [node_k_name n := node_k_default n
               |n <- controls $ synth ac4_1

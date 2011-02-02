@@ -13,9 +13,8 @@
 -- hsc3-lang. Implementation was inspired from Oleg Kiselyov's TTF
 -- (<http://okmij.org/ftp/tagless-final/>).
 --
--- No intention to translate whole set of Pattern
--- classes found in sclang. Lazy and purely functional language like haskell has
--- different style for handling sequential data from OOP language like sclang.
+-- There is no intention to translate whole set of Pattern
+-- classes found in sclang.
 --
 module Sound.SC3.Lepton.Pattern
   ( -- * Create, view, and run
@@ -150,7 +149,7 @@ import Sound.SC3.Lepton.Pattern.Interpreter
 -- >   where
 -- >     f m = do
 -- >       send fd $ s_new "buzz" (-1) AddToTail 1 (M.assocs m)
--- >       threadDelay $ floor $ (m ! "dur") * 1e6 * (60/bpm)
+-- >       threadDelay $ floor $ (m!"dur") * 1e6 * (60/bpm)
 -- >     bpm = 160
 -- >
 -- > -- | Ugen with having amp, freq, pan controls.

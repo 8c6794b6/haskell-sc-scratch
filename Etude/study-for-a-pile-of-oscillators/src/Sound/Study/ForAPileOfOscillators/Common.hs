@@ -12,32 +12,23 @@
 module Sound.Study.ForAPileOfOscillators.Common
   (
     -- * Actions
-    showGUI
-  , updateSynthdefs
+    showGUI, updateSynthdefs
 
     -- * UGens
   , aosc
-  , ac1
-  , fc1
-  , pc1
+  , ac1, fc1, pc1
   , smaster
 
     -- * Function to make UGen
-  , mkEnv
-  , BreakPoints
+  , mkEnv, BreakPoints
 
     -- * Node ids and bus ids
   , oscIds
-  , aBusses
-  , fBusses
-  , pBusses
-  , ampBus
-  , freqBus
-  , panBus
+  , aBusses, fBusses, pBusses
+  , ampBus, freqBus, panBus
 
     -- * Synth nodes
-  , oscs
-  , afpDefault
+  , oscs, afpDefault
 
     -- * GUI data
   , hints
@@ -46,8 +37,8 @@ module Sound.Study.ForAPileOfOscillators.Common
   , numOsc
 
     -- * Util
-  , w
-  , packBy
+  , w, packBy
+  , grp, syn
   , (=:)
 
   ) where
@@ -311,18 +302,10 @@ packBy n xs = transpose $ g n xs
         xs' = as : g n ass
         (as,ass) = splitAt n xs
 
--- | Makes different control ugen depending on its name prefix.
---
--- Args for SynthDef class in sclang behaves:
---
--- * "a_" would be ar rate control ugen
--- * "i_" would be ir rate control ugen
--- * "t_" would be tr rate control ugen
--- * Other wise, kr rate control ugen
---
-(=:) :: String -> Double -> UGen
-(=:) name v
-  | "a_" `isPrefixOf` name = control ar name v
-  | "i_" `isPrefixOf` name = control ir name v
-  | "t_" `isPrefixOf` name = tr_control name v
-  | otherwise              = control kr name v
+-- | Short cut for Group constructor
+grp :: NodeId -> [SCNode] -> SCNode
+grp = Group
+
+-- | Short cut for Synth constructor
+syn :: NodeId -> String -> [SynthParam] -> SCNode
+syn = Synth

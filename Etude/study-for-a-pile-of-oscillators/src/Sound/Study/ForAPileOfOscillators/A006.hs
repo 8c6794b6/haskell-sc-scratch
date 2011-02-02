@@ -11,8 +11,22 @@
 --
 -- Playing with a pile of oscillators, take 6.
 --
--- Using image as input data for oscillators.
--- Input image file width need to be 256.
+-- Classic example of UPIC-like granular synthesis.
+-- Using image to control amplitude envelope of oscillators.
+-- Oscillators frequencies are determined by image's y axis.
+-- Height of input image file need to be 256.
+--
+-- List related functions are imported from Data.List.Stream.
+-- This makes the code 2 to 3 times faster. NoImplicitPrelude language pragma
+-- is for avoiding conflicts from this module.
+--
+-- Not sure how to speedup with using multiple cores.
+-- So far, increasing cores slow down writing OSC score file.
+--
+-- Without using any functions from Control.Parallel and using list fusion,
+-- writing OSC file for 256x256 PPM image is around 4.3 seconds.
+-- Doing @parMap rpdeepseq@ and @parMap rpar@ inside @applyToPixmap@ function,
+-- writing OSC file with single core take around 7 seconds, 2 cores is 5 secs.
 --
 module Sound.Study.ForAPileOfOscillators.A006 where
 
@@ -46,31 +60,16 @@ import Sound.SC3.Lepton
 
 import Sound.Study.ForAPileOfOscillators.Common
 
--- | Write osc score to given filepath.
+-- | Unused.
 main :: IO ()
 main = putStr "No gui for A006"
-
--- $notes_stream_fusion
---
--- List related functions are imported from Data.List.Stream.
--- This makes the code 2 to 3 times faster. NoImplicitPrelude language pragma
--- is for avoiding conflicts from this module.
-
--- $notes_para
---
--- Not sure how to speedup with using multiple cores.
--- So far, increasing cores slow down the main OSC file writing.
---
--- Without using any functions from Control.Parallel and using list fusion,
--- writing OSC file for 256x256 PPM image is around 4.3 seconds.
--- Doing @parMap rpdeepseq@ and @parMap rpar@ inside @applyToPixmap@ function,
--- writing OSC file with single core take around 7 seconds, 2 cores is 5 secs.
 
 setup :: (Transport t) => t -> IO OSC
 setup fd = do
   writeSynthdef "ac6" ac6
   reloadSynthdef fd
 
+-- | Write score from pgm image file.
 writePGMScore :: FilePath -> FilePath -> IO ()
 writePGMScore src dest = do
   dat <- getPGM src
@@ -95,12 +94,9 @@ a006Nodes =
     ,grp 11 [syn hitId "ac6" ["amp":=ampScale,"ts":=timeScale]]
     ,grp 12 oscs]
 
-grp = Group
-syn = Synth
 hitId = 1100
 
 timeScale = 0.03
-durScale = 0.8
 ampScale = 0.05
 freqOffset = 50
 freqScale = 0.985
@@ -139,6 +135,7 @@ type RGBFunc
  -> Word8 -- ^ Blue, from 0 to 255
  -> OSC
 
+-- | The actual function that converting RGB data to OSC message of this piece.
 f3 :: RGBFunc
 f3 i r g b = n_set hitId ms
   where
@@ -156,6 +153,7 @@ getPGM file = do
     Right gm -> return $ sep256 gm
     Left err -> error err
 
+-- | Parse given PPM image file and return its contents.
 getPPM :: FilePath -> IO Pixmap
 getPPM file = do
   c <- L.readFile file
@@ -163,7 +161,7 @@ getPPM file = do
     Right pm -> return $ pm
     Left err -> error err
 
-
+-- | Applys given RGBFunc to Pixmap.
 applyToPixmap :: RGBFunc -> Pixmap -> [[OSC]]
 applyToPixmap f a =
   map (map (\((y,x), (r,g,b)) -> f (inv y) r g b)) .
@@ -172,6 +170,9 @@ applyToPixmap f a =
     inv i = let (_,(m,_)) = bounds a in m - i
 
 -- | Make OSC for each row of image.
+--
+-- Used with PGM image.
+--
 mkOSC :: (Int, [Word8]) -> [OSC]
 mkOSC (i,ws) = map f ws
   where

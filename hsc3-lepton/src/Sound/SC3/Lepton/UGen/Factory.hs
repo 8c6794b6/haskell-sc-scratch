@@ -13,15 +13,30 @@ import Data.List (isPrefixOf)
 
 import Sound.SC3
 
--- | Wrapper for control and tr_control.
+-- | Makes different control ugen depending on its name prefix.
 --
--- Pass to tr_control when name starts with \"t_\", otherwise, control with kr.
+-- Rules are from SynthDef class in sclang:
+--
+-- * \"a_\" would be AR rate control ugen
+--
+-- * \"i_\" would be IR rate control ugen
+--
+-- * \"t_\" would be KR rate control ugen with trigger flag on.
+--
+-- * Other wise, KR rate control ugen without trigger.
+--
 ctrl :: String -- ^ Control name
      -> Double -- ^ Default value
      -> UGen
 ctrl name val
+  | "a_" `isPrefixOf` name = control ar name val
+  | "i_" `isPrefixOf` name = control ir name val
   | "t_" `isPrefixOf` name = tr_control name val
   | otherwise              = control kr name val
+
+-- | Infix variant of "ctrl".
+(=:) :: String -> Double -> UGen
+(=:) = ctrl
 
 -- | Wrapper for making continuous KR control ugens.
 --

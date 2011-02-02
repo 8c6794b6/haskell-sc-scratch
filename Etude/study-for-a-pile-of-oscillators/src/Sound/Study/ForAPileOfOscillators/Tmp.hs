@@ -9,7 +9,7 @@
 --
 -- Temporary module to hold experimental stuffs.
 --
-module Sound.Etude.StudyForAPileOfOscillators.Tmp where
+module Sound.Study.ForAPileOfOscillators.Tmp where
 
 import Control.Monad (forever)
 import Data.List (zipWith4)
@@ -20,7 +20,7 @@ import Sound.SC3
 import Sound.SC3.ID
 import Sound.SC3.Lepton
 
-import Sound.Etude.StudyForAPileOfOscillators.A001
+import Sound.Study.ForAPileOfOscillators.A001
 
 ------------------------------------------------------------------------------
 --
@@ -336,3 +336,4 @@ p p fd = mapM_  g =<< runPIO p
 -- parameters to ac1 synth. Though, haven't get so much inspiration from this.
 -- It sounded bit scary, though.
 --
+
