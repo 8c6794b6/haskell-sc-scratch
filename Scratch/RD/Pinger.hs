@@ -6,21 +6,31 @@ module Pinger where
 
 import Sound.SC3
 import Sound.OpenSoundControl
+import Control.Monad (when)
 import System.Environment (getArgs)
-import Control.Concurrent (forkIO)
+import Control.Concurrent (forkIO, threadDelay)
+
+-- | Pause current thread for the indicated duration, given in seconds.
+sleep :: Double -> IO ()
+sleep n = when (n > 1e-4) (threadDelay (floor (n * 1e6)))
+
+-- | Pause current thread until the given utcr time.
+sleepUntil :: Double -> IO ()
+sleepUntil t = sleep . (t -) =<< utcr
 
 at :: Double -> (Double -> IO Double) -> IO t
 at t f = do
   n <- f t
-  pauseThreadUntil (n + t)
-  at (n + t) f
+  sleepUntil (n+t)
+  at (n+t) f
 
 ping :: UGen
-ping = out (control kr "out" 0) (sinOsc ar f 0 * e)
+ping = out 0 (pan2 (sinOsc ar f 0 * e) p 1)
     where e = envGen kr 1 a 0 1 RemoveSynth s
-          s = envPerc 0.1 0.6
+          s = envPerc 1e-3 200e-3
           a = control kr "amp" 0.1
           f = control kr "freq" 440
+          p = control kr "pan" 0
 
 latency :: Double
 latency = 0.01
@@ -28,26 +38,22 @@ latency = 0.01
 bundle :: Double -> [OSC] -> OSC
 bundle t m = Bundle (UTCr $ t + latency) m
 
+tu = 0.6389823209
+
 pinger :: Double -> Double -> Double -> IO a
 pinger freq a c = do
   now <- utcr
-  at (fromIntegral $ ceiling now) (g freq a c)
-
-    -- where
-    --   f t = withSC3 $ \fd ->
-    --         do send fd $ bundle t
-    --               [s_new "ping" (-1) AddToTail 1
-    --                [("out",c),("freq",freq),("amp",a)]]
-    --            putStrLn "Sending ping"
-    --            return 1
+  let (q,_) = properFraction (now/tu)
+      d0 = tu * (fromIntegral q + 1)
+  at d0 (g freq a c)
 
 g :: Double -> Double -> Double -> (Double -> IO Double)
 g freq a c t = withSC3 $ \fd -> do
   send fd $ bundle t
        [s_new "ping" (-1) AddToTail 1
-              [("out", c), ("freq", freq), ("amp", a)]]
+              [("pan", c), ("freq", freq), ("amp", a)]]
   putStrLn "Sending ping"
-  return 1
+  return tu
 
 main :: IO ()
 main = withSC3 $ \fd -> do
