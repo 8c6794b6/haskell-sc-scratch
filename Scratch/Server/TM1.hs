@@ -1,5 +1,4 @@
 {-# LANGUAGE PackageImports #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 ------------------------------------------------------------------------------
 -- |
@@ -10,7 +9,8 @@
 -- Stability   : unstable
 -- Portability : non-portable (concurrency specific to GHC)
 --
--- Playing with concurrency, manager for forked threads, take 1.
+-- Playing with concurrency, simple manager for forked threads, take 1.
+-- Main target usecase is in interactive style, e.g. executing inside ghci.
 --
 -- /Usage/
 --
@@ -41,9 +41,9 @@
 --
 -- > > let action2 = do { ... }
 -- > > let action3 = do { ... }
--- > > taddAt (bar 1) e "one" action1
--- > > taddAt (bar 1) e "two" action2
--- > > taddAt (bar 2) e "three" action3
+-- > > taddAt (atTU 1) e "one" action1
+-- > > taddAt (atTU 1) e "two" action2
+-- > > taddAt (atTU 2) e "three" action3
 --
 module TM1 where
 
@@ -61,15 +61,19 @@ import Sound.SC3
 
 -- | Environment for managing threads.
 data TEnv = TEnv
-  { teInitTime :: Double                 -- ^ UTCr from OSC.
-  , teTimeUnit :: Double                 -- ^ Duration of 1 time unit length.
-  , teThreads :: M.Map String ThreadInfo -- ^ Map of ThreadInfo.
-  , teTimes :: M.Map ThreadId Double     -- ^ Map of ThreadId and time.
+  { -- | UTCr from OSC.
+    teInitTime :: Double
+    -- | Duration of 1 time unit length.
+  , teTimeUnit :: Double
+    -- | Map of ThreadInfo.
+  , teThreads :: M.Map String ThreadInfo
+    -- | Map of ThreadId and last execution time.
+  , teTimes :: M.Map ThreadId Double
   }
 
 instance Show TEnv where
   show (TEnv _ b t _) =
-    "TEnv - TimeUnit:" ++ show b ++ ", threads:" ++ (show $ M.size t)
+    "TEnv - TimeUnit: " ++ show b ++ ", threads: " ++ (show $ M.size t)
 
 -- | Data for each threads.
 data ThreadInfo = ThreadInfo
@@ -82,11 +86,7 @@ data ThreadStatus = Running | Paused deriving (Eq, Show)
 
 type InitialDelay = Double -> Double -> Double
 
--- | Constantly returns 0.
-noDelay :: InitialDelay
-noDelay _ _ = 0
-
--- | Initialize environment for threads.
+-- | Initialize environment for threads with TimeUnit 1.
 initEnv :: IO (MVar TEnv)
 initEnv = initEnvTU 1
 
@@ -98,7 +98,7 @@ initEnvTU tu = utcr >>= \t0 -> newMVar (TEnv t0 tu M.empty M.empty)
 dumpEnv :: MVar TEnv -> IO ()
 dumpEnv tev = do
   te <- readMVar tev
-  putStrLn $ show te
+  putStrLn $ "\n" ++ show te
   forM_ (M.assocs $ teThreads te) $ \(n,ti) -> do
     putStrLn $ n ++ ": " ++ show (tiId ti) ++ " " ++ show (tiStatus ti)
 
@@ -107,9 +107,6 @@ tadd :: MVar TEnv -> String -> Act () -> IO ()
 tadd tev name act = taddAt noDelay tev name act
 
 -- | Add new action with initial delay.
---
--- XXX: Need to adjust initial delay, not working as expected.
---
 taddAt :: InitialDelay -> MVar TEnv -> String -> Act () -> IO ()
 taddAt f tev name act = modifyMVar_ tev $ \te -> do
   let threads = teThreads te
@@ -117,9 +114,10 @@ taddAt f tev name act = modifyMVar_ tev $ \te -> do
     then putStrLn (name ++ " already exists.") >> return te
     else do
       now <- utcr
-      ti <- newChild (runAct act tev) (f now (teTimeUnit te))
+      let del = f now (teTimeUnit te)
+      ti <- newChild (runAct act tev) del
       return $ te {teThreads = M.insert name ti threads
-                  ,teTimes = M.insert (tiId ti) now (teTimes te) }
+                  ,teTimes = M.insert (tiId ti) (now+del) (teTimes te) }
 
 -- | Kill action.
 tkill :: MVar TEnv -> String -> IO ()
@@ -148,8 +146,8 @@ tpauseAt f tev name = modifyMVar_ tev $ \te -> do
           t0 <- utcr
           threadDelay $ floor $ (latency + f t0 (teTimeUnit te)) * 1e6
           pauseChild ti
-        let threads' = M.update (return $ Just ti') name threads
-            ti' = ti {tiStatus=Paused}
+        let ti' = ti {tiStatus=Paused}
+            threads' = M.update (return $ Just ti') name threads
         return $ te {teThreads = threads'}
 
 -- | Resume action.
@@ -157,6 +155,9 @@ tresume :: MVar TEnv -> String -> IO ()
 tresume tev name = tresumeAt noDelay tev name
 
 -- | Resume action after specified delay time.
+--
+-- XXX: When resuming thread, multiple messages are sent?
+--
 tresumeAt :: InitialDelay -> MVar TEnv -> String -> IO ()
 tresumeAt f tev name = modifyMVar_ tev $ \te -> do
   let threads = teThreads te
@@ -179,9 +180,9 @@ newChild act del = do
   blk <- newMVar ()
   now <- utcr
   tid <- forkIO $ do
-    threadDelay (floor ((latency+del) * 1e6))
+    threadDelay (floor ((del+latency) * 1e6))
     forever $ readMVar blk >> act
-  return $ ThreadInfo tid Running blk now
+  return $ ThreadInfo tid Running blk (now+del)
 
 -- | Pause child thread
 pauseChild :: ThreadInfo -> IO ()
@@ -190,6 +191,11 @@ pauseChild ti = takeMVar (tiBlock ti)
 -- | Resume child thread
 resumeChild :: ThreadInfo -> IO ()
 resumeChild ti = putMVar (tiBlock ti) ()
+
+-- | Set time unit in thread environment.
+setTimeUnit :: MVar TEnv -> Double -> IO ()
+setTimeUnit tev tu = modifyMVar_ tev $ \te -> do
+  return $ te {teTimeUnit = tu}
 
 -- | Action executed in thread managed environment.
 newtype Act a = Act {unAct :: ReaderT (MVar TEnv) IO a}
@@ -203,31 +209,46 @@ runAct = runReaderT . unAct
 act :: IO a -> Act a
 act = liftIO
 
--- | Get time unit in thread environment.
+-- | Get time unit from thread environment.
+--
+-- XXX: Rewrite this without using readMVar. It's pausing the whole threads.
+--
 getTimeUnit :: Act Double
 getTimeUnit = ask >>= \mv -> liftIO (readMVar mv >>= return . teTimeUnit)
-
--- | Set time unit in thread environment.
-setTimeUnit :: MVar TEnv -> Double -> IO ()
-setTimeUnit tev tu = modifyMVar_ tev $ \te -> do
-  return $ te {teTimeUnit = tu}
 
 -- | Wrapper for threadDelay.
 --
 -- Updates reference time for each thread in teTimes Map of TEnv.
 -- Using pauseThreadUntil from Sound.OpenSoundControl.
 --
+-- XXX: Rewrite this without looking up Map in TEnv.
+--
 tdelay :: Double -> Act ()
 tdelay dt = when (dt > 1e-4) $ do
   te <- ask
-  act $ modifyMVar_ te $ \te' -> do
+  tnew' <- act $ modifyMVar te $ \te' -> do
     mid <- myThreadId
     let tmap = teTimes te'
         told = maybe 0 id . M.lookup mid $ tmap
         tnew = told + dt
-    pauseThreadUntil (tnew+latency)
-    return $ te' {teTimes = M.update (const $ return tnew) mid tmap}
+    return $ (te' {teTimes = M.update (const $ return tnew) mid tmap}, tnew)
+  act $ pauseThreadUntil (tnew'+latency)
 
+-- | Rest for given multiple of TimeUnit.
+--
+-- To lookup MVer once, manually accessing contents of ThreadInfo Map.
+rest :: Double -> Act ()
+rest n = do
+  te <- ask
+  tnew' <- act $ modifyMVar te $ \te' -> do
+    mid <- myThreadId
+    let tmap = teTimes te'
+        told = maybe 0 id . M.lookup mid $ tmap
+        tnew = told + (n * teTimeUnit te')
+    return $ (te' {teTimes = M.update (const $ return tnew) mid tmap}, tnew)
+  act $ pauseThreadUntil (tnew'+latency)
+
+-- | Get the initialized time of TEnv, in UTCr.
 getInitTime :: Act Double
 getInitTime = ask >>= \mv -> liftIO (readMVar mv >>= return . teInitTime)
 
@@ -235,16 +256,20 @@ getInitTime = ask >>= \mv -> liftIO (readMVar mv >>= return . teInitTime)
 getNow :: Act Double
 getNow = liftIO utcr
 
--- | Util to get reminder from floating point value division.
-grem :: Double -> Double -> Double
-grem a b = a - (fromIntegral q  * b)
-  where (q,_) = properFraction (a/b)
+-- | Wait until the beginning of given multiple of TimeUnit.
+--
+-- When given time is non-positive, same as noDelay.
+atTU :: Double -> InitialDelay
+atTU n
+  | n <= 0    = noDelay
+  | otherwise = (\i u -> (n*u - (i `grem` (n*u))))
+  where grem a b = a - (fromIntegral (fst (properFraction (a/b))) * b)
 
--- | Wait until the beginning of given modulo of bars.
-bars :: Double -> InitialDelay
-bars n = (\i u -> (n*u - (i `grem` (n*u))))
+-- | No delay.
+noDelay :: InitialDelay
+noDelay _ _ = 0
 
 -- | Small amount of constant value for every delays occuring in thread
--- management. In seconds.
+-- management. Writtern as 0.1 second.
 latency :: Fractional a => a
 latency = 0.1
