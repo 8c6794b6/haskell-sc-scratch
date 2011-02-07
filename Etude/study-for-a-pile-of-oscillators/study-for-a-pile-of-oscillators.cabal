@@ -42,7 +42,9 @@ Library
     Sound.Study.ForAPileOfOscillators.A004
     Sound.Study.ForAPileOfOscillators.A005
     Sound.Study.ForAPileOfOscillators.A006
+    Sound.Study.ForAPileOfOscillators.A007
     Sound.Study.ForAPileOfOscillators.Common
+    Sound.Study.ForAPileOfOscillators.Looper
   build-depends:
     base >= 2.0 && < 5.0,
     array,
@@ -57,4 +59,5 @@ Library
     hsc3-lepton >= 0.0.2,
     hsc3-lepton-gui >= 0.0.2,
     stream-fusion >= 0.1.2.2,
+    mtl,
     netpbm-parser
