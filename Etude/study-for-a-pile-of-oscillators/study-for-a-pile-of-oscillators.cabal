@@ -20,6 +20,7 @@ Executable sfapoo
     -Wall
     -fno-warn-unused-do-bind
     -O2
+    -fvia-c
     -threaded
   hs-source-dirs:
     src

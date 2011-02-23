@@ -124,6 +124,7 @@ c0 = (=: 0)
 -- This way is more flexible, since its taking default value for each controls.
 th02'' = th02 ("amp"=:0.3) ("freq"=:3320) ("pan"=:0.3)
 
+
 -- (=:) = cn
 
 (=:) :: String -> Double -> UGen

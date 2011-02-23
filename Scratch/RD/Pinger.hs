@@ -38,7 +38,7 @@ latency = 0.01
 bundle :: Double -> [OSC] -> OSC
 bundle t m = Bundle (UTCr $ t + latency) m
 
-tu = 0.6389823209
+tu = 1.1389823209
 
 pinger :: Double -> Double -> Double -> IO a
 pinger freq a c = do

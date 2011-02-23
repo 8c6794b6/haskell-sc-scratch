@@ -12,7 +12,6 @@ w reset
 w setup
 
 e <- initEnvTU 0.42
-e <- initEnvTU 0.53
 dumpEnv e
 
 tpause (tu 8) e "a01"
@@ -26,65 +25,135 @@ tkill (tu 4) e "a02"
 tkill (tu 4) e "a01"
 tpause (tu 4) e "a01"
 tresume (tu 4) e "a01"
+
+tkill (tu 4) e "a08"
+tpause (tu 4) e "a08"
+tresume (tu 4) e "a08"
+
 tupdate (tu 4) e "a01" $ nsetP oc71Id
   [("t_trig",
-    pforever (pchoose 1 [1,1,1,0,1]))
+    pforever (pchoose 1 [1,1,1,1,1,1]))
   ,("edgey",
-    pcycle [2e-3, pchoose (prange 1 7) [20e-3,998e-3,993e-3,998e-3,997e-3]])
+    pcycle [2e-3, pchoose (prange 1 15) [998e-3,993e-3,998e-3,997e-3]])
   ,("del",
-    pforever (pchoose 1 [1/2, 1/4,1/4,1/4, plist [1/8,1/8]]))
+    pforever (pchoose 1 [1/2, 1/4, 1/4, 1/4]))
+    {- pforever (pchoose 1 [1/2, 1/4,1/4
+                        ,plist [1/6,1/6,1/6]
+                        ,plist [1/8,1/8] ])) -}
   ,("mamp",
-    pforever (prange 15e-3 3e-2))]
-  
-w $ flip send $ n_set oc71Id [("dmax",880e-3)]
+    pforever (prange 3e-2 4e-2))]
+
+w $ flip send $ n_set oc71Id [("dmax",820e-3)]
+w $ flip send $ n_set oc72Id [("dmax",884e-3)]
+w $ flip send $ n_set pc72Id [("lagt",135e-3)]
 
 tkill (tu 4) e "a02"
 tpause (tu 8) e "a02"
 tresume (tu 8) e "a02"
+
 tupdate (tu 4) e "a02" $ nsetP oc72Id
   [("t_trig",
     pforever 1)
   ,("edgey",
-    pforever (plist [5e-3, 900e-3,900e-3, 5e-3, 900e-3]))
+    pforever (plist [5e-3, 500e-3,900e-3, 5e-3, 500e-3]))
   ,("del",
     pforever (plist [1, 1/2, 1/2, 3/2, 1/2]))
   ,("mamp",
-    pcycle [0.03, pchoose 4 [prange 1e-2 1.5e-2]])]
-  
-w $ flip send $ n_set oc72Id [("dmax",1780e-3)]
-w $ flip send $ n_set pc72Id [("lagt",120e-3)]
+    pcycle [4e-2, pchoose 4 [prange 2e-2 3.5e-2]])]
 
 nChg <- newMVar (32::Int)
-nThr <- newMVar (16::Int)
+nThr <- newMVar (32::Int)
 tupdate (tu 8) e "a08" (goRec3 nChg nThr)
 tpause (tu 8) e "a08"
 tresume (tu 8) e "a08"
+tkill (tu 8) e "a08"
 
-modifyMVar_ nChg (const $ return 64)
+modifyMVar_ nChg (const $ return 32)
 modifyMVar_ nThr (const $ return 32)
 readMVar nChg
 readMVar nThr
 
-tkill (tu 8) e "a08"
-tpause (tu 8) e "a08"
-tresume (tu 8) e "a08"
-tupdate (tu 8) e "a08" goRec2
+tpause (tu 4) e "a04"
+tresume (tu 4) e "a04"
 
-mapM_ (tkill0 e) ["a01","a02","a03","a04","a05","a06","a07","a08"]
+tupdate (tu 4) e "a04" $ do
+  { is <- act $ runPIO $ pchoose (prange 1 64) (map pval [0..255])
+  ; cf <- act $ runPIO $ prange 4.2 10
+  ; fs <- act $ runPIO $ pchoose 1
+          [pforever $ prange 4.2 10
+          ,pforever $ prange 8.4 10
+          ,pforever $ prange 4.2 5
+          ,pforever $ pval $ head cf]
+  ; rs <- act $ runPIO $ pchoose 1 [0.25, 0.25, 0.5, 0.5, 8]
+  ; now <- getNow
+  ; act $ w $ flip send $ Bundle (UTCr (now+0.1))
+      [b_set pitchBuf $ zip is (map exp fs)
+      ,n_set pc72Id [("t_trig", 1)]]
+  ; rest $ head rs }
+
+w $ flip send $ n_set pc72Id [("t_trig", 1)]
+w $ flip send $ n_set ac71Id [("amp",0.000)]
+w $ flip send $ n_set ac72Id [("amp",0.035),("freq",0.001),("edgey",995e-3),("dmax",2400e-3)]
+
+w $ flip send $ n_set ac73Id [("amp",0.025),("freq",0.004),("edgey",500e-3),("dmax",445e-3)]
+
+mapM_ (tkill0 e) ["a01","a02","a03","a04","a05","a06","a07","a08", "z01"]
 
 ------------------------------------------------------------------------------
 ------------------------------------------------------------------------------
 ------------------------------------------------------------------------------
+
+tupdate (tu 4) e "a02" $ nsetP oc72Id
+  [("t_trig",
+    pforever (pchoose 1 [1,1,1,1,1,1,1,0]))
+  ,("edgey",
+    pcycle [2e-3, pchoose (prange 1 15) [998e-3,993e-3,998e-3,997e-3]])
+  ,("del",
+    pforever (pchoose 1 [1, 1/2, 1/2, 1/2]))
+  ,("mamp",
+    pforever (prange 3e-2 4e-2))]
+
+w $ flip send $
+  Bundle (NTPi 0) [b_set pitchBuf $ zip [2,4..256] [80,128..]
+                  ,n_set pc72Id [("t_trig",1)]]
+
+tpause (tu 4) e "z01"
+tresume (tu 8) e "z01"
+tkill (tu 8) e "z01"
+
+tupdate (tu 8) e "z01" $ do
+  { name <- act $ runPIO $ pchoose 1 $
+            map pval ["a01", "a02", "a03", "a04", "a05", "a06", "a07", "a08"]
+  ; r1 <- act $ runPIO $ pchoose 1 [4, 8]
+  ; r2 <- act $ runPIO $ pchoose 1 [0, 4, 8]
+  ; act $ tpause (tu 4) e $ head name
+  ; rest $ head r1
+  ; act $ tresume (tu 4) e $ head name
+  ; rest $ head r2 }
+
+tkill0 e "a03"
+tpause (tu 4) e "a03"
+tresume (tu 4) e "a03"
+tupdate (tu 4) e "a03" $ do
+  { fs <- act $ runPIO (pchoose 1
+                        [pforever $ prange 8.4 10
+                        ,pforever $ prange 4.2 10
+                        ,pforever $ prange 5 7
+                        ,pforever (pval $ log 440)])
+  ; rs <- act $ runPIO (pchoose 1 [0.5, 0.75])
+  ; now <- getNow
+  ; act $ withSC3 $ flip send $
+    Bundle (UTCr (now+0.1)) [b_setn pitchBuf [(0,fmap exp (take numOsc fs))]
+                            ,n_set pc72Id [("t_trig",1)]]
+  ; rest $ head rs }
 
 tkill (tu 4) e "a03"
 tpause (tu 4) e "a03"
 tresume (tu 4) e "a03"
 
-tkill0 e "a03"
-tupdate (tu 4) e "a03" $ do
-  { fs <- act $ runPIO (pforever (prange 4.2 9))
-  ; act $ withSC3 $ flip send $ b_setn pitchBuf [(0,fmap exp (take numOsc fs))]
-  ; rest 0.5 }
+w $ flip send $ Bundle (NTPi 0)
+  [b_setn pitchBuf [(0,take numOsc $ repeat 440)]
+  ,n_set pc72Id [("t_trig",1)]]
 
 do { fs <- runPIO (pforever (prange 8 10))
    ; w $ flip send $ c_setn [(head fBusses, fmap exp (take numOsc fs))] }
@@ -135,7 +204,6 @@ tupdate (tu 4) e "a06" $ do
 
 tpause (tu 8) e "a07"
 tresume (tu 8) e "a07"
-tupdate (tu 8) e "a07" goRec1
 
 :m + System.Random
 do { fs <- return . randomRs (30::Int, 127) =<< newStdGen

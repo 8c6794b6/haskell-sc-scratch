@@ -28,8 +28,7 @@ main = withSC3 $ \fd -> do
   treeToGui (Group 0 (k0051:aNodes)) hints' fd
   where
     k0051 = Synth 1001 "k0051" ["freq":=1,"chaos":=0.5]
-    hints' = hints `M.union` M.fromList
-             [("k0051",[ParamRange "freq" 0 12])]
+    hints' = hints `M.union` M.fromList [("k0051",[ParamRange "freq" 0 12])]
 
 setup fd = do
   mapM_ (uncurry writeSynthdef) defs
@@ -92,14 +91,14 @@ k0050' fbus ibus cbus vbus dbus pbus dcbus ddbus =
   mrg [out fbus fsig,out ibus isig,out cbus csig,out vbus vsig
       ,out dbus dsig,out pbus psig,out dcbus dcsig,out ddbus ddsig]
   where
-    fsig = e [(0,4),(6,1.2),(120,0.6),(180,1),(210,2),(228,8),(240,12),(247,0)]
-    isig = e [(0,0),(140,0),(190,0.3),(200,16),(220,0)]
+    fsig = e [(0,12),(6,1.2),(120,0.6),(180,1),(210,2),(228,8),(240,12),(247,0)]
+    isig = e [(0,0),(140,0),(190,0.3),(200,16),(243,0)]
     csig = e [(0,0.5),(70,1),(140,0.25),(180,0.5),(220,0.5),(230,0),(235,1)]
     dsig = e [(0,1),(220,1),(228,0)]
     dcsig = e [(0,0.8),(244,0.8),(245,20)]
     ddsig = e [(0,1),(244,0),(247,1)]
     psig = e [(0,0.8),(225,0.8),(235,0)]
-    vsig = e [(0,0),(140,0),(180,32),(196,1),(230,0)]
+    vsig = e [(0,0),(140,0),(180,32),(196,1),(245,0)]
     e = mkEnv EnvLin 1 1
 
 k0051 = k0051' ("out1"=:100) ("out2"=:101) ("freq"=:0.25) ("chaos"=:0.5)
@@ -124,7 +123,7 @@ ac4' oids t_trig amp alag edgey durc durd dt curve freqc freqd fidx fvib =
         dur = tExpRand (oids !! 0) durlo durhi t_trig
         durlo = 2e-2 + (durc' * (1-durd))
         durhi = 2e-2 + (durc' * (1+durd))
-        durc' = linExp (clip durc 1e-9 999e-3) 1e-5 1 10e-3 2
+        durc' = linExp (clip durc 1e-9 999e-3) 1e-5 1 10e-3 3 {- 2 -}
         atk = tExpRand (oids !! 0) 2e-3 (2e-3+1-edgey) t_trig
         rel = 1-atk
         amp' = tExpRand i 1e-2 4e-2 t_trig * (lag amp alag)

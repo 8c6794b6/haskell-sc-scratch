@@ -20,6 +20,7 @@ import Sound.SC3
 import Sound.SC3.ID
 
 import SynthFunc
+import SDef
 
 sendth03 :: (Transport t) => t -> IO ()
 sendth03 fd = do
@@ -58,3 +59,4 @@ th06 o a f p =
 a = nameOne 'rate "foo"
 
 rate = kr
+

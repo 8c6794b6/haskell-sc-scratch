@@ -336,7 +336,7 @@ goBuzz fd = do
   where
     f m = do
       send fd $ s_new "buzz" (-1) AddToTail 1 (M.assocs m)
-      threadDelay $ floor $ (m ! "dur") * 1e6 * (60/bpm)
+      threadDelay $ floor $ (m!"dur") * 1e6 * (60/bpm)
     bpm = 160
 
 -- | UGen for buzz.

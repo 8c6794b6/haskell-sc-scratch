@@ -65,11 +65,14 @@ import Sound.SC3
 data TEnv = TEnv
   { -- | UTCr from OSC.
     teInitTime :: Double
+
     -- | Duration of 1 time unit length.
   , teTimeUnit :: Double
+
     -- | Map of ThreadInfo.
   , teThreads :: M.Map String ThreadInfo
-    -- | Map of ThreadId and last execution time.
+
+    -- | Map of ThreadId and last execution time. Currently unused.
   , teTimes :: M.Map ThreadId Double
   }
 
@@ -114,13 +117,9 @@ dumpEnv tev = do
   forM_ (M.assocs $ teThreads te) $ \(n,ti) -> do
     putStrLn $ n ++ ": " ++ show (tiId ti) ++ " " ++ show (tiStatus ti)
 
--- | Add new named action to thread environmet.
-tadd :: MVar TEnv -> String -> Act () -> IO ()
-tadd tev name act = taddAt noDelay tev name act
-
 -- | Add new action with initial delay.
-taddAt :: InitialDelay -> MVar TEnv -> String -> Act () -> IO ()
-taddAt f tev name act = modifyMVar_ tev $ \te -> do
+tadd :: InitialDelay -> MVar TEnv -> String -> Act () -> IO ()
+tadd f tev name act = modifyMVar_ tev $ \te -> do
   let threads = teThreads te
   if M.member name threads
     then putStrLn (name ++ " already exists.") >> return te
@@ -132,23 +131,9 @@ taddAt f tev name act = modifyMVar_ tev $ \te -> do
       return $ te {teThreads = M.insert name ti threads
                   ,teTimes = M.insert (tiId ti) (now+del) (teTimes te) }
 
--- | Kill action.
-tkill :: MVar TEnv -> String -> IO ()
-tkill tev name = modifyMVar_ tev $ \te -> do
-  let threads = teThreads te
-  case M.lookup name threads of
-    Nothing -> return te
-    Just ti -> do
-      killThread (tiId ti)
-      return $ te {teThreads = M.delete name threads}
-
--- | Pause action.
-tpause :: MVar TEnv -> String -> IO ()
-tpause tev name = tpauseAt noDelay tev name
-
 -- | Pause action with specifying delay.
-tpauseAt :: InitialDelay -> MVar TEnv -> String -> IO ()
-tpauseAt f tev name = modifyMVar_ tev $ \te -> do
+tpause :: InitialDelay -> MVar TEnv -> String -> IO ()
+tpause f tev name = modifyMVar_ tev $ \te -> do
   let threads = teThreads te
   case M.lookup name threads of
     Nothing -> return te
@@ -163,13 +148,9 @@ tpauseAt f tev name = modifyMVar_ tev $ \te -> do
             threads' = M.update (return $ Just ti') name threads
         return $ te {teThreads = threads'}
 
--- | Resume action.
-tresume :: MVar TEnv -> String -> IO ()
-tresume tev name = tresumeAt noDelay tev name
-
 -- | Resume action after specified delay time.
-tresumeAt :: InitialDelay -> MVar TEnv -> String -> IO ()
-tresumeAt f tev name = modifyMVar_ tev $ \te -> do
+tresume :: InitialDelay -> MVar TEnv -> String -> IO ()
+tresume f tev name = modifyMVar_ tev $ \te -> do
   let threads = teThreads te
   case M.lookup name threads of
     Nothing -> return te
@@ -183,6 +164,34 @@ tresumeAt f tev name = modifyMVar_ tev $ \te -> do
         let ti' = ti {tiStatus=Running}
             threads' = M.update (return $ Just ti') name threads
         return $ te {teThreads = threads'}
+
+-- | Kill action after specified delay time.
+tkill :: InitialDelay -> MVar TEnv -> String -> IO ()
+tkill f tev name = modifyMVar_ tev $ \te -> do
+  let threads = teThreads te
+  case M.lookup name threads of
+    Nothing -> return te
+    Just ti -> do
+      t0 <- utcr
+      threadDelay $ floor $ (latency + f t0 (teTimeUnit te)) * 1e6
+      killThread (tiId ti)
+      return $ te {teThreads = M.delete name threads}
+
+-- | Add new named action to thread environmet, immediately.
+tadd0 :: MVar TEnv -> String -> Act () -> IO ()
+tadd0 = tadd noDelay
+
+-- | Kill action.
+tkill0 :: MVar TEnv -> String -> IO ()
+tkill0 = tkill noDelay
+
+-- | Pause action.
+tpause0 :: MVar TEnv -> String -> IO ()
+tpause0 = tpause noDelay
+
+-- | Resume action.
+tresume0 :: MVar TEnv -> String -> IO ()
+tresume0 = tresume noDelay
 
 -- | Fork child thread.
 newChild :: Act () -> MVar TEnv -> MVar Double -> Double -> IO ThreadInfo
@@ -232,10 +241,11 @@ runAct a e s = evalStateT (runReaderT (unAct a) e) s
 rest :: Double -> Act ()
 rest n = tdelay . (*n) =<< getTimeUnit
 
--- | Pause the thread until resumed.
--- Might be useful when action is embeddeding forever loop.
-breakMe :: Act ()
-breakMe = do
+-- | Enable manager to pause the thred at specific point.
+-- Will pause itself when manager paused this thread.
+-- Might be useful when action is embeddeded with forever loop.
+pauseHere :: Act ()
+pauseHere = do
   (_,blk) <- get
   act $ readMVar blk
 
@@ -268,12 +278,12 @@ getNow = act utcr
 
 -- | Wait until the beginning of given multiple of TimeUnit.
 --
--- When given time is non-positive, same as noDelay.
-atTU :: Double -> InitialDelay
-atTU n
-  | n <= 0    = noDelay
-  | otherwise = (\i u -> (n*u - (i `grem` (n*u))))
-  where grem a b = a - (fromIntegral (fst (properFraction (a/b))) * b)
+-- Acts immediately when given time is non-positive.
+tu :: Double -> InitialDelay
+tu n | n <= 0    = noDelay
+     | otherwise = (\i u -> (n*u - (i `grem` (n*u))))
+  where 
+    grem a b = a - (fromIntegral (fst (properFraction (a/b))) * b)
 
 -- | No delay.
 noDelay :: InitialDelay
@@ -320,46 +330,3 @@ latency = 0.1
 --         tnew = told + (n * teTimeUnit te')
 --     return $ (te' {teTimes = M.update (const $ return tnew) mid tmap}, tnew)
 --   act $ pauseThreadUntil (tnew'+latency)
-
-test :: IO ()
-test = do
-  withSC3 $ \fd ->
-    send fd $ d_recv $ synthdef "TM1_test"
-    (out 0 $ pan2
-     (sinOsc ar (control kr "freq" 440) 0 * 0.3 *
-      xLine kr 1 1e-5 (control kr "dur" 200e-3) RemoveSynth)
-     (control kr "pan" 0) 1)
-
-  let pong f p t = withSC3 $ flip send $
-        Bundle (UTCr $ t+0.1)
-          [s_new "TM1_test" (-1) AddToTail 1 [("freq",f),("pan",p)]]
-
-  e <- initEnv
-
-  taddAt (atTU 4) e "thread_01" $ do
-    now <- getNow
-    act $ pong 440 0 now
-    rest 0.5
-
-  randomRIO (10^6,5*10^6) >>= threadDelay
-
-  taddAt (atTU 4) e "thread_02" $ do
-    now <- getNow
-    act $ pong 330 (-1) now
-    rest 1
-
-  randomRIO (10^6,5*10^6) >>= threadDelay
-
-  taddAt (atTU 4) e "thread_03" $ do
-    now <- getNow
-    act $ pong 550 1 now
-    rest 2
-
-  threadDelay (8*10^6)
-
-  tkill e "thread_01"
-  tkill e "thread_02"
-  tkill e "thread_03"
-
-main :: IO ()
-main = test

@@ -65,7 +65,7 @@ newXX4 0 =<< utcr
 -- let kil = ". . . 5  0 . . ."
 -- let snr = "0 . . .  9 . . ."
 
-taddAt (atTU 4) e "tmtB01" $ do
+tadd (tu 4) e "tmtB01" $ do
   { tu <- getTimeUnit
   ; now <- getNow
 
@@ -89,9 +89,9 @@ taddAt (atTU 4) e "tmtB01" $ do
   ; act $ newXX2 0.5 0.08 (now+tu*3.5)
   ; tdelay (tu*0.5) }
 
-tkill e "tmtB01"
+tkill0 e "tmtB01"
 
-taddAt (atTU 4) e "tmtB02" $ do
+tadd (tu 4) e "tmtB02" $ do
   { tu <- getTimeUnit
   ; now <- getNow
   ; act $ newXX3 (-0.3) now
@@ -101,40 +101,40 @@ taddAt (atTU 4) e "tmtB02" $ do
   ; act $ newXX3 (-0.3) (now+tu*2)
   ; rest 2 }
 
-taddAt (atTU 4) e "tmtB03" $ do
+tadd (tu 4) e "tmtB03" $ do
   { now <- getNow
   ; tu <- getTimeUnit
   ; rest 3;
   ; act $ newXX4 0 (now+tu*3)
   ; rest 1; }
 
-tkill e "tmtB01"
+tkill0 e "tmtB01"
 
-mapM_ (tkill e) ["tmtB01", "tmtB02", "tmtB03"]
+mapM_ (tkill0 e) ["tmtB01", "tmtB02", "tmtB03"]
 
 dumpEnv e
 setTimeUnit e 1
 
-tpauseAt (atTU 2) e "tmtB01"
-tresumeAt (atTU 2) e "tmtB01"
+tpause (tu 2) e "tmtB01"
+tresume (tu 2) e "tmtB01"
 
-tpauseAt (atTU 4) e "tmtB02"
-tresumeAt (atTU 4) e "tmtB02"
+tpause (tu 4) e "tmtB02"
+tresume (tu 4) e "tmtB02"
 
-tpauseAt (atTU 4) e "tmtB03"
-tresumeAt (atTU 4) e "tmtB03"
+tpause (tu 4) e "tmtB03"
+tresume (tu 4) e "tmtB03"
 
-taddAt (atTU 1) e "tmtA01" $ do
+tadd (tu 1) e "tmtA01" $ do
   { now <- getNow
   ; act $ newXX1 440 0 now
   ; rest 1 }
 
-taddAt (atTU 1) e "tmtA02" $ do
+tadd (tu 1) e "tmtA02" $ do
   { now <- getNow
   ; act $ newXX1 440 1 now
   ; rest 1 }
 
-taddAt (atTU 1) e "tmtA03" $ do
+tadd (tu 1) e "tmtA03" $ do
   { now <- getNow
   ; act $ newXX1 440 (-1) now
   ; rest 1 }
@@ -142,29 +142,29 @@ taddAt (atTU 1) e "tmtA03" $ do
 setTimeUnit e 1
 dumpEnv e
 
-mapM_ (tkill e) ["tmtA01", "tmtA02", "tmtA03"]
+mapM_ (tkill0 e) ["tmtA01", "tmtA02", "tmtA03"]
 
-tkill e "tmtA01"
-tkill e "tmtA02"
-tkill e "tmtA03"
+tkill0 e "tmtA01"
+tkill (tu 4) e "tmtA02"
+tkill0 e "tmtA03"
 
-tpause e "tmtA01"
-tpause e "tmtA02"
-tpause e "tmtA03"
+tpause0 e "tmtA01"
+tpause0 e "tmtA02"
+tpause0 e "tmtA03"
 
-tpauseAt (atTU 1) e "tmtA01"
-tresumeAt (atTU 1) e "tmtA01"
+tpause (tu 1) e "tmtA01"
+tresume (tu 1) e "tmtA01"
 
-tpauseAt (atTU 1) e "tmtA02"
-tresumeAt (atTU 1) e "tmtA02"
+tpause (tu 1) e "tmtA02"
+tresume (tu 1) e "tmtA02"
 
-tpauseAt (atTU 1) e "tmtA03"
-tresumeAt (atTU 1) e "tmtA03"
+tpause (tu 1) e "tmtA03"
+tresume (tu 1) e "tmtA03"
 
-tresume e "tmtA01"
-tresume e "tmtA02"
-tpause e "tmtA02"
-tresume e "tmtA03"
+tresume0 e "tmtA01"
+tresume0 e "tmtA02"
+tpause0 e "tmtA02"
+tresume0 e "tmtA03"
 
 :m + System.Random
 sequence_ $ replicate 30 $ do
@@ -175,36 +175,31 @@ sequence_ $ replicate 30 $ do
       [s_new "xx1" (-1) AddToTail 1 [("freq",8000),("dur",dur)]]
   ; threadDelay (floor $ pause) }
 
-tadd e "foo" $ act $ do
+tadd0 e "foo" $ act $ do
   { withSC3 $ \fd -> send fd $ s_new "foo" (-1) AddToTail 1 []
   ; threadDelay (5*10^5) }
 
-tadd e "bar" $ do
+tadd0 e "bar" $ do
   { act $ withSC3 $ \fd -> send fd $ s_new "bar" (-1) AddToTail 1 []
   ; tdelay 0.5 }
 
-tadd e "buzz" $ do
+tadd0 e "buzz" $ do
   { tu <- getTimeUnit
   ; act $ withSC3 $ \fd -> send fd $ s_new "buzz" (-1) AddToTail 1 []
   ; tdelay 0.5 }
 
-tkill e "foo"
-tkill e "bar"
-tkill e "buzz"
+tkill0 e "foo"
+tkill0 e "bar"
+tkill0 e "buzz"
 
-tpause e "foo"
-tresume e "foo"
+tpause0 e "foo"
+tresume0 e "foo"
 
-tpause e "bar"
-tresume e "bar"
+tpause0 e "bar"
+tresume0 e "bar"
 
-tpause e "buzz"
-tresume e "buzz"
-
-(u0,t1) <- a1
-(u2,t2) <- a2
-
-mapM_ killThread [t1,t2]
+tpause0 e "buzz"
+tresume0 e "buzz"
 
 -- With Pinger by rd.
 :m + Control.Concurrent
@@ -218,7 +213,7 @@ withSC3 $ \fd -> async fd $ d_recv $ synthdef "ping" $ ping
 
 e <- initEnv
 
-tadd e "tmtC01" $ do
+tadd0 e "tmtC01" $ do
   { act $ print "start"
   ; rest 1
   ; act $ print "after resting for 1 tu"
@@ -226,17 +221,19 @@ tadd e "tmtC01" $ do
   ; act $ print "rest another 1 tu"
   ; rest 1 }
 
-tkill e "tmtC01"
+tkill0 e "tmtC01"
 
-e <- initEnv
+e <- initEnvTU 2
 dumpEnv e
-tadd e "tmtC02" $ forever $ do
+setTimeUnit e 0.5
+
+tadd0 e "tmtC02" $ forever $ do
   { del <- act $ randomRIO (0.25,1)
   ; act $ putStrLn $ "delaying for " ++ show del
-  ; breakMe
-  ; rest del }
+  ; rest del
+  ; pauseHere }
 
-tpause e "tmtC02"
-tresume e "tmtC02"
-
-tkill e "tmtC02"
+tpause0 e "tmtC02"
+tresume0 e "tmtC02"
+tkill0 e "tmtC02"
+tkill (tu 1) "tmtC02"
