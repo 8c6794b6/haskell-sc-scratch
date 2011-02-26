@@ -43,10 +43,6 @@ tupdate (tu 4) e "a01" $ nsetP oc71Id
   ,("mamp",
     pforever (prange 3e-2 4e-2))]
 
-w $ flip send $ n_set oc71Id [("dmax",820e-3)]
-w $ flip send $ n_set oc72Id [("dmax",884e-3)]
-w $ flip send $ n_set pc72Id [("lagt",135e-3)]
-
 tkill (tu 4) e "a02"
 tpause (tu 8) e "a02"
 tresume (tu 8) e "a02"
@@ -77,25 +73,29 @@ tpause (tu 4) e "a04"
 tresume (tu 4) e "a04"
 
 tupdate (tu 4) e "a04" $ do
-  { is <- act $ runPIO $ pchoose (prange 1 64) (map pval [0..255])
+  { is <- act $ runPIO $ pchoose (prange 1 128) (map pval [0..255])
   ; cf <- act $ runPIO $ prange 4.2 10
   ; fs <- act $ runPIO $ pchoose 1
           [pforever $ prange 4.2 10
           ,pforever $ prange 8.4 10
           ,pforever $ prange 4.2 5
           ,pforever $ pval $ head cf]
-  ; rs <- act $ runPIO $ pchoose 1 [0.25, 0.25, 0.5, 0.5, 8]
+  ; rs <- act $ runPIO $ pchoose 1 [0.25, 0.25, plist [0.25, 0.25], 0.5, 0.5, 8]
   ; now <- getNow
   ; act $ w $ flip send $ Bundle (UTCr (now+0.1))
       [b_set pitchBuf $ zip is (map exp fs)
       ,n_set pc72Id [("t_trig", 1)]]
   ; rest $ head rs }
 
-w $ flip send $ n_set pc72Id [("t_trig", 1)]
-w $ flip send $ n_set ac71Id [("amp",0.000)]
-w $ flip send $ n_set ac72Id [("amp",0.035),("freq",0.001),("edgey",995e-3),("dmax",2400e-3)]
+w $ flip send $ n_set oc71Id [("dmax",88e-3)]
+w $ flip send $ n_set oc72Id [("dmax",84e-3)]
+w $ flip send $ n_set pc72Id [("lagt",5e-3)]
 
-w $ flip send $ n_set ac73Id [("amp",0.025),("freq",0.004),("edgey",500e-3),("dmax",445e-3)]
+w $ flip send $ n_set pc72Id [("t_trig",1)]
+w $ flip send $ n_set ac71Id [("amp",0.000)]
+w $ flip send $ n_set ac72Id [("amp",0.035),("freq",0.00),("edgey",990e-3),("dmax",4440e-3)]
+
+w $ flip send $ n_set ac73Id [("amp",0.033),("freq",0.00),("edgey",5e-3),("dmax",500e-3)]
 
 mapM_ (tkill0 e) ["a01","a02","a03","a04","a05","a06","a07","a08", "z01"]
 

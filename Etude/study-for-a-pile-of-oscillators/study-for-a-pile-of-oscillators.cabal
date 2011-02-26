@@ -9,9 +9,8 @@ Maintainer:          8c6794b6@gmail.com
 Category:            Sound
 Build-type:          Simple
 
--- Extra files to be distributed with the package, such as examples or
--- a README.
--- Extra-source-files:  
+Extra-source-files:
+   data/capture5.gif
 
 Cabal-version:       >=1.2
 

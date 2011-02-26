@@ -36,7 +36,8 @@ setup :: (Transport t) => t -> IO OSC
 setup fd = do
   mapM_ (uncurry writeSynthdef)
     [("oc71",oc71),("oc72",oc72),("pc71",pc71),("pc72",pc72)
-    ,("ac71",ac71),("ac72",ac72),("ac73",ac73)]
+    ,("ac71",ac71),("ac72",ac72),("ac73",ac73)
+    ,("lmtr",lmtr)]
   reloadSynthdef fd
   addNode 0 a007Nodes fd
   async fd $ b_free pitchBuf
@@ -52,7 +53,8 @@ a007Nodes =
       ,syn ac73Id "ac73" []
       ,syn oc71Id "oc71" ["pan":=0.9,"dmax":=800e-3]
       ,syn oc72Id "oc72" ["pan":=0.8,"dmax":=1200e-3]]
-    ,grp 12 oscs]
+    ,grp 12 oscs
+    ,grp 13 [syn lmtrId "lmtr" []]]
 
 oc71Id = 1100
 oc72Id = 1101
@@ -61,6 +63,7 @@ pc72Id = 1103
 ac71Id = 1104
 ac72Id = 1105
 ac73Id = 1106
+lmtrId = 1301
 
 bpm = 120
 
@@ -155,6 +158,12 @@ pc72' oids t_trig lagt = mrg $ map mkO oids
                [0,lagt] [EnvNum (-3)] (-1) 0
         i' = fromIntegral (i `mod` numOsc)
 
+lmtr = replaceOut 0 $ mce [sig0, sig1]
+  where
+    sig0 = lmt $ in' 1 ar 0
+    sig1 = lmt $ in' 1 ar 1
+    lmt x = limiter x 1 0.2
+
 pitchBuf = 10
 
 setPitchBuf vs = withSC3 $ \fd -> do
@@ -181,9 +190,10 @@ rec3 mvChg mvThr p1 p2 f = do
   if diff <= thr
     then do
       shift <- act $ runPIO $ pchoose 1 [2,5,7,10]
+      mjr <- act $ runPIO $ pchoose 1 [pval True, pval False]
       let shift' = head shift
           f' = fromIntegral $ (floor $ f+shift') `mod` 12
-      fs <- recSeeds f'
+      fs <- recSeeds f' (head mjr)
       -- act $ putStrLn $ "f': " ++ show f' ++ " shift': " ++ show shift'
       rec3 mvChg mvThr p2 (M.fromList $ zip [0..255] fs) f'
     else do
@@ -191,20 +201,22 @@ rec3 mvChg mvThr p1 p2 f = do
       let p1' = foldr (\k m -> M.update (const $ M.lookup k p2) k m) p1 idxs
       rec3 mvChg mvThr p1' p2 f
 
-recSeeds :: Double -> Act [Double]
-recSeeds shift =
+recSeeds :: Double -> Bool -> Act [Double]
+recSeeds shift maj =
   act $ runPIO $ pcycle $ map pval $
     takeWhile (< 138) $ dropWhile (< 20) $
     zipWith (+) (cycle ps) $
     concatMap (replicate $ length ps) (map (+shift) [0,12..])
   where
     -- ps = [0,3,5,7,10]
-    ps = [0,4,7]
+    ps = if maj then psMjr else psMnr
+    psMjr = [0,4,7]
+    psMnr = [0,3,7]
 
 goRec3 :: MVar Int -> MVar Int -> Act ()
 goRec3 mvChg mvThr = do
-  f1 <- recSeeds 0
-  f2 <- recSeeds 7
+  f1 <- recSeeds 0 True
+  f2 <- recSeeds 7 True
   let p1 = M.fromList $ zip [0..255] f1
       p2 = M.fromList $ zip [0..255] f2
   rec3 mvChg mvThr p1 p2 0
