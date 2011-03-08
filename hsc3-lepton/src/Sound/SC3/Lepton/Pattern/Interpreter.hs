@@ -1,6 +1,7 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 ------------------------------------------------------------------------------
 -- |
 -- Module      : $Header$
@@ -24,10 +25,17 @@ module Sound.SC3.Lepton.Pattern.Interpreter
   ) where
 
 import Control.Applicative (Applicative(..), (<$>))
+import Control.Category (Category(..))
+import Control.Monad (Functor(..), Monad(..))
 import Data.Data (Typeable1(..), mkTyCon, mkTyConApp)
 import Data.Map (Map)
+import Prelude
+  ( Double, Enum(..), Eq(..), Fractional(..), Num(..), Show(..), IO, String, Int
+  , ($), (<), const, error, flip, fst, otherwise, read, snd, undefined)
 import System.Random (StdGen, Random(..), RandomGen, next, newStdGen)
 import qualified Data.Map as M
+
+import Data.List.Stream
 
 import Sound.SC3.Lepton.Pattern.Expression
 
@@ -160,6 +168,9 @@ instance Prepeat R where
 instance Pforever R where
   pforever p = R $ \g -> concatMap (unR p) (gens g)
 
+instance Pshuffle R where
+  pshuffle ps = R $ \g -> concat $ zipWith unR (shuffle ps g) (gens g)
+
 -- | Same as @(<*>)@.
 instance Papp R where
   papp = (<*>)
@@ -262,6 +273,9 @@ instance Prange S where
 instance Prandom S where
   prandom = S $ \_ -> "prandom"
 
+instance Pshuffle S where
+  pshuffle ps = S $ \_ -> "pshuffle " ++ showList ps ""
+
 instance Pchoose S where
   pchoose n ps = S $ \_ -> "pchoose (" ++ showP n ++ ") " ++ showList ps ""
 
@@ -342,7 +356,10 @@ instance Prand V where
   prand (V n) ps = V $ "prand (" ++ n ++ ") " ++ showList ps ""
 
 instance Prandom V where
-  prandom  = V $ "prandom"
+  prandom = V $ "prandom"
+
+instance Pshuffle V where
+  pshuffle ps = V $ "pshuffle " ++ showList ps ""
 
 instance Prange V where
   prange (V lo) (V hi) = V $ "prange (" ++ lo ++ ") (" ++ hi ++ ")"
@@ -368,6 +385,54 @@ instance Pforever V where
 -- | Generates infinite list of RandomGen.
 gens :: (RandomGen g) => g -> [g]
 gens = iterate (snd . next)
+
+-- | Shuffle the elements in list, inspired from 'perfect random shuffle' by
+-- Oleg.
+shuffle :: (RandomGen g) => [a] -> g -> [a]
+shuffle xs g = shuffle1 xs $ fst $ make_rs (length xs - 1) g
+
+data Tree a = Leaf a
+            | Node !Int (Tree a) (Tree a)
+            deriving (Show)
+
+build_tree = grow_level . (map Leaf)
+  where
+    grow_level [node] = node
+    grow_level l = grow_level $ inner l
+
+    inner [] = []
+    inner x@[_] = x
+    inner (e1:e2:rest) = (join e1 e2) : inner rest
+
+    join l r = case (l,r) of
+      (Leaf _,Leaf _)             -> Node 2 l r
+      (Node ct _ _,Leaf _)        -> Node (ct+1) l r
+      (Leaf _,Node ct _ _)        -> Node (ct+1) l r
+      (Node ctl _ _,Node ctr _ _) -> Node (ctl+ctr) l r
+
+shuffle1 :: [a] -> [Int] -> [a]
+shuffle1 elems rseq = shuffle1' (build_tree elems) rseq
+  where
+    shuffle1' (Leaf e) [] = [e]
+    shuffle1' tree (ri:r_others) =
+      extract_tree ri tree (\t -> shuffle1' t r_others)
+
+    extract_tree 0 (Node _ (Leaf e) r) k = e:k r
+    extract_tree 1 (Node 2 l@Leaf{} (Leaf e)) k = e:k l
+    extract_tree n (Node c l@Leaf{} r) k =
+      extract_tree (n-1) r (\r' -> k $ Node (c-1) l r')
+    extract_tree n (Node n1 l (Leaf e)) k | n+1 == n1 = e:k l
+    extract_tree n (Node c l@(Node cl _ _) r) k
+      | n < cl    = extract_tree n l (\l' -> k $ Node (c-1) l' r)
+      | otherwise = extract_tree (n-cl) r (\r' -> k $ Node (c-1) l r')
+
+make_rs :: RandomGen g => Int -> g -> ([Int],g)
+make_rs n g = loop [] n g
+  where
+    loop acc 0 g = (reverse acc, g)
+    loop acc n g = loop (r:acc) (pred n) g'
+      where (r,g') = randomR (0,n) g
+
 
 
 ------------------------------------------------------------------------------

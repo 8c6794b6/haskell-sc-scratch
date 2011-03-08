@@ -35,6 +35,10 @@ ctrl name val
   | otherwise              = control kr name val
 
 -- | Infix variant of "ctrl".
+(@@) :: String -> Double -> UGen
+(@@) = ctrl
+
+-- | For backword compatibility, synonym for "@".
 (=:) :: String -> Double -> UGen
 (=:) = ctrl
 

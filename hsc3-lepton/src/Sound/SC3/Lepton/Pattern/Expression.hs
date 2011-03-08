@@ -20,7 +20,7 @@ module Sound.SC3.Lepton.Pattern.Expression
     Pseq(..), Pcycle(..), Pforever(..), Prepeat(..), Preplicate(..),
 
     -- * Random
-    Prandom(..), Prange(..), Pchoose(..), Prand(..),
+    Prandom(..), Prange(..), Pchoose(..), Prand(..), Pshuffle(..),
 
     -- * Lambda and application (experimental)
     Plam(..), Papp(..)
@@ -79,6 +79,9 @@ class Pchoose p where
 
 class Prand p where
   prand :: p Int -> [p a] -> p a
+
+class Pshuffle p where
+  pshuffle :: [p a] -> p a
 
 class Plam p where
   plam :: (p a -> p b) -> p (a->b)

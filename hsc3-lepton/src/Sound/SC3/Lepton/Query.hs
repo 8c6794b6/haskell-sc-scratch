@@ -33,6 +33,7 @@ import Data.Generics.Uniplate.Data (universe)
 import Sound.SC3 hiding (free)
 import Sound.OpenSoundControl
 
+import Sound.SC3.Lepton.Looper (latency)
 import Sound.SC3.Lepton.Tree
 import Sound.SC3.Lepton.Util
 import Sound.SC3.Lepton.Instance ()
@@ -49,9 +50,9 @@ query fd q = bracket fd close (runReaderT (runQuery q))
 s :: IO UDP
 s = openUDP "127.0.0.1" 57110
 
--- | Latency.
-latency :: Double
-latency = 0.01
+-- -- | Latency.
+-- latency :: Double
+-- latency = 0.01
 
 bundle :: Double -> [OSC] -> OSC
 bundle time ms = Bundle (UTCr (time + latency)) ms
