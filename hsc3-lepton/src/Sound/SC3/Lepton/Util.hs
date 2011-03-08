@@ -14,7 +14,7 @@
 module Sound.SC3.Lepton.Util where
 
 import Control.Arrow ((>>>))
-import Data.List (nub)
+import Data.List (nub, foldl')
 import System.Environment (getEnvironment)
 import System.FilePath ((</>), (<.>))
 import System.Random 
@@ -277,3 +277,13 @@ d_dx [] = []
 d_dx [_] = []
 d_dx [x,y] = [y - x]
 d_dx (x:y:r) = y - x : d_dx (y:r)
+
+-- | Map audio rate control with audio bus.
+n_mapa :: Int -> [(String,Int)] -> OSC
+n_mapa n ps = Message "/n_mapa" $ reverse $ foldl' f [Int n] ps
+  where f b (x,y) = Int y:String x:b
+
+-- | Map multiple audio rate control with audio bus.
+n_mapan :: Int -> [(String,Int,Int)] -> OSC
+n_mapan n ps = Message "/n_mapan" $ reverse $ foldl' f [Int n] ps
+  where f b (x,y,z) = Int z:Int y:String x:b

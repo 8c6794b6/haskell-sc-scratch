@@ -38,7 +38,7 @@ ctrl name val
 (@@) :: String -> Double -> UGen
 (@@) = ctrl
 
--- | For backword compatibility, synonym for "@".
+-- | For backword compatibility, synonym for \@\@.
 (=:) :: String -> Double -> UGen
 (=:) = ctrl
 

@@ -58,7 +58,7 @@ import Sound.OpenSoundControl
 
 import Sound.SC3.Lepton.Instance ()
 import Sound.SC3.Lepton.Parser
-import Sound.SC3.Lepton.Util (queryTree)
+import Sound.SC3.Lepton.Util (queryTree, n_mapa)
 
 -- $example_interactive
 --
@@ -158,11 +158,13 @@ type SynthName = String
 -- | Data type for synth param.
 data SynthParam = ParamName := ParamValue -- ^ Double value
                 | ParamName :<- BusId     -- ^ Mapped control bus id
+                | ParamName :<= BusId     -- ^ Mapped audio bus id
                   deriving (Eq,Read,Data,Typeable)
 
 instance Show SynthParam where
   show (f := x)  = f ++ " := " ++ printf "%.2f" x
   show (f :<- x) = f ++ " :<- " ++ show x
+  show (f :<= x) = f ++ " :<= " ++ show x
 
 type ParamName = String
 type ParamValue = Double
@@ -170,6 +172,7 @@ type BusId = Int
 
 infixr 5 :=
 infixr 5 :<-
+infixr 5 :<=
 
 -- | Parse osc message returned from \"/g_queryTree\" and returns haskell
 -- representation of scsynth node tree.
@@ -211,11 +214,14 @@ parseParam = do
   name <- string
   val <- datum
   case val of
-    Float x  -> return $ name := x
-    Double x -> return $ name := x
-    String x -> return $ name :<- (read $ tail x)
-    Int x    -> return $ name := fromIntegral x
-    e        -> error $ "Cannot make param from: " ++ show e
+    Float x   -> return $ name := x
+    Double x  -> return $ name := x
+    String xs -> case xs of
+      'c':rest -> return $ name :<- read rest
+      'a':rest -> return $ name :<= read rest
+      _        -> error $ "Unknown param: " ++ xs
+    Int x     -> return $ name := fromIntegral x
+    e         -> error $ "Cannot make param from: " ++ show e
 
 ------------------------------------------------------------------------------
 --
@@ -309,12 +315,15 @@ treeToNew tId tree = f tId tree
     f i t = case t of
       Group j ns   -> g_new [(j,AddToTail,i)]:concatMap (f j) ns
       Synth j n ps -> s_new n j AddToTail i (concatMap paramToTuple ps):g j ps
-    g i ps | not $ null qs = [n_map i qs]
-           | otherwise     = []
-      where qs = foldr h [] ps
-    h a b = case a of
-      (name:<-bus) -> (name,bus):b
-      _            -> b
+    g i xs | not (null cs) && not (null as) = n_map i cs:n_mapa i as:[]
+           | not (null cs) && null as       = [n_map i cs]
+           | null cs && not (null as)       = [n_mapa i as]
+           | otherwise                      = []
+      where (cs,as) = foldr h ([],[]) xs
+    h x (cs,as) = case x of
+      (name:<-bus) -> ((name,bus):cs,as)
+      (name:<=bus) -> (cs,(name,bus):as)
+      _            -> (cs,as)
 
 -- | SCNode to [OSC] for updating nodes.
 --
@@ -328,12 +337,15 @@ treeToSet tree = f tree
       Group _ ns   -> concatMap f ns
       Synth _ _ [] -> []
       Synth j _ ps -> n_set j (concatMap paramToTuple ps):g j ps
-    g k ps | not $ null qs = [n_map k qs]
-           | otherwise     = []
-      where qs = foldr h [] ps
-    h a b = case a of
-      (name:<-bus) -> (name,bus):b
-      _            -> b
+    g k ps | not (null cs) && not (null as) = n_map k cs:n_mapa k as:[]
+           | not (null cs) && null as       = [n_map k cs]
+           | null cs && not (null as)       = [n_mapa k as]
+           | otherwise                      = []
+      where (cs,as) = foldr h ([],[]) ps
+    h x (cs,as) = case x of
+      (name:<-bus) -> ((name,bus):cs,as)
+      (name:<=bus) -> (cs,(name,bus):as)
+      _            -> (cs,as)
 
 paramToTuple :: SynthParam -> [(String,Double)]
 paramToTuple (name := val) = [(name,val)]
