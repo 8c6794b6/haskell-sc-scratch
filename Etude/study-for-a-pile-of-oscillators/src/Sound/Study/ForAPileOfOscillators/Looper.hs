@@ -68,10 +68,13 @@ import Sound.SC3
 data TEnv = TEnv
   { -- | UTCr from OSC.
     teInitTime :: Double
+    
     -- | Duration of one unit.
   , teTimeUnit :: Double
+    
     -- | Map of ThreadInfo.
   , teThreads :: M.Map String ThreadInfo
+    
     -- | Map of ThreadId and last execution time. Currently unused.
   , teTimes :: M.Map ThreadId Double
   }

@@ -73,14 +73,14 @@ let m1 = mrg [replaceOut 0 (in' 1 ar 0*a),replaceOut 1 (in' 1 ar 1*a)] where
       
 -- Send synthdefs
 mapM (uncurry sdef)
-  [("y1",(out 0 y)),("m1",m1)
+  [("y1",(out 0 y1)),("m1",m1)
   ,("z1",(out 0 z1)),("z2",(out 0 z2)),("z3",(out 0 z3))]
   
 -- Group mapping
 let g = Group 1
         [Group 11 [Synth (-1) "m1" ["amp":=0.8]]
         ,Group 10 []]
-withSC3 $ addNode 0 g 
+in  withSC3 $ addNode 0 g        
         
 -- Now I understand why rd was wrting like this.
 let a1 pch = do
@@ -111,6 +111,9 @@ let b1 fac = sequence_ $
     [3, 5, 4, 4]
 
 -- Fork the sequence, hold ThreadId so that it could be killed later.
+    
+e <- initEnv 1
+
 t1 <- forkIO $ forever (b1 1.6)
 killThread t1
 
