@@ -1,0 +1,42 @@
+Name:                study-for-noises-and-filters
+Version:             0.0.1
+Synopsis:            Study for noises and filters
+-- Description:         
+License:             BSD3
+License-file:        LICENSE
+Author:              8c6794b6
+Maintainer:          8c6794b6@gmail.com
+Category:            Sound
+Build-type:          Simple
+
+Cabal-version:       >=1.2
+
+Executable sfnaf
+  ghc-options:
+    -Wall
+    -fno-warn-unused-do-bind
+    -O2
+    -fvia-c
+    -threaded
+  -- hs-source-dirs:
+  --   src
+  main-is:
+    run/main.hs
+  build-depends:
+    cmdargs >= 0.6.4
+
+Library
+  ghc-options:
+    -Wall
+    -fno-warn-unused-do-bind
+    -O2
+  -- hs-source-dirs:
+  --   src
+  exposed-modules:
+    Sound.Study.ForNoisesAndFilters.B001
+  build-depends:
+    base >= 2.0 && < 5.0,
+    hosc -any,
+    hsc3 -any,
+    hsc3-lepton >= 0.0.2,
+    hsc3-lepton-gui >= 0.0.2
