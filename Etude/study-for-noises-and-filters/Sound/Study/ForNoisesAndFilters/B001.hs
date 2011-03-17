@@ -18,18 +18,18 @@ import Sound.OpenSoundControl
 import Sound.SC3
 import Sound.SC3.ID
 import Sound.SC3.Lepton
-import Sound.SC3.Lepton.GUI
+-- import Sound.SC3.Lepton.GUI
 
 setup fd = do
   mapM_ (\(n,u) -> loadSynthdef n u fd)
-    [("wn001",wn001),("pn001",pn001),("lz001",lz001),("hn001",hn001)
-    ,("bn001",bn001)
-    ,("cg001",cg001),("cp001",cp001)
+    [("wn001",wn001),("pn001",pn001),("bn001",bn001)
+    ,("lz001",lz001),("hn001",hn001),("cg001",cg001),("cp001",cp001)
     ,("rng001",rng001),("cmb001",cmb001),("cmb002",cmb002)
-    ,("pan001",pan001),("pan002",pan002),("pan003",pan003)
+    ,("tr001",tr001),("lzf001",lzf001)
     ,("rvb001",rvb001)
-    ,("lmt001",lmt001),("hit001",hit001),("tr001",tr001),("lzf001",lzf001)
-    ,("hit002",hit002),("rzn001",rzn001)
+    ,("lmt001",lmt001)
+    ,("hit001",hit001),("hit002",hit002),("rzn001",rzn001)
+    ,("pan001",pan001),("pan002",pan002),("pan003",pan003),("pan004",pan004)
     ,("mix001",mix001)]
 
 go fd = addNode 0 rgGraph fd
@@ -58,10 +58,10 @@ rgGraph =
     ,grp 22
        [syn 2201 "hit002"
           ["a_in":<=0,"out":=4,"t_trig":<-100,"lamp":=14,"mamp":=4,"hamp":=1]
-       ,syn 2202 "lmt001"
-          ["a_in1":<=4,"a_in2":<=4,"out":=4]
        ,syn 2203 "pan002"
-          ["a_in":<=4,"out":=4,"amp":=1]]
+          ["a_in":<=4,"out":=4,"amp":=1]
+       ,syn 2202 "lmt001"
+          ["a_in1":<=4,"a_in2":<=4,"out":=4]]
     ,grp 23
        [syn 2301 "cmb002"
           ["a_in":<=0,"out":=6,"t_trig":<-100]
@@ -69,15 +69,17 @@ rgGraph =
           ["a_in":<=6,"out":=6,"amp":=0.125]]
     ,grp 30
        [syn 3000 "mix001"
-         ["a_l1":<=2,"a_r1":<=3,"a_l2":<=4,"a_r2":<=5
-         ,"a_l3":<=6,"a_r3":<=7,"mamp":=0.8]]]
+          ["a_l1":<=2,"a_r1":<=3
+          ,"a_l2":<=4,"a_r2":<=5
+          ,"a_l3":<=6,"a_r3":<=7
+          ,"mamp":=0.8]]]
 
 tr001 = mrg [d, out ("out"@@0) t] where
   t = impulse kr ("freq"@@8) 0
-  d = line kr 0 1 215 RemoveSynth
+  d = line kr 0 1 215 RemoveSynth {- DoNothing -}
 
 lzf001 = out ("out"@@101) (o+20) where
-  o = envGen kr 1 (sampleRate-20) 0 1 RemoveSynth shp
+  o = envGen kr 1 (sampleRate-20) 0 1 RemoveSynth {- DoNothing -} shp
   shp = env [0,0,1,0.5,1,0.125,1,1,0] [0,30,15,30,15,30,60,30]
         [EnvCub] (-1) 0
 
@@ -181,7 +183,6 @@ rng001 = mrg [replaceOut ("out_1"@@0) o, out ("out_2"@@1) o] where
        ,lfdNoise3 'a' kr 1 * 0.25 + 0.24
        ,lfdNoise3 'b' kr 1 * 0.25 + 0.24
        ,lfdNoise3 'd' kr 1 * 0.25 + 0.24]
-  tt i lo hi = tExpRand i lo hi (dust 't' kr 0.1)
   sig = "a_in"@@0
 
 rzn001 = replaceOut ("out"@@0) o where
@@ -236,18 +237,27 @@ lmt001 = replaceOut ("out"@@0) o where
 
 pan001 = mkPan001 'r' 'l'
 
-pan002 = mkPan001 's' 'm'
+-- pan002 = out ("out"@@4) (cs + mce [lout, rout]) where
+--   lout = 0
+--   rout = 0
+--   cs = pan2 ilow (lag (lfNoise0 'l' kr (1/33)) 20e-3) 1 +
+--        pan2 mlow (lag (lfNoise0 'm' kr (1/34)) 20e-3) 1 +
+--        pan2 hlow (lag (lfNOise0 'h' kr (1/35)) 20e-3) 1
+--   ilow = "a_low" @@ 0
+--   imid = "a_mid" @@ 0
+--   ihigh = "a_high" @@ 0
+pan002 = mkPan001 'm' 's' 
 
 pan003 = mkPan001 'n' 't'
 
+pan004 = mkPan001 'u' 'o'
+
 mkPan001 lid rid = replaceOut ("out"@@0) o where
-  -- o = (c + mce [l,r]) * a
-  o = mce [l,r] * a
+  o = (c + mce [l,r]) * a
   (l,r) = (f lid,f rid)
-  -- c = pan2 i (lfdNoise3 (fromEnum lid * fromEnum rid) kr (1/exp pi)) 1
-  -- f j = delayL i 5e-2 (lfdNoise3 j kr (pi/(pi**(exp 1))) * 10e-3 + 10.001e-3)
+  c = pan2 i (lfdNoise3 (fromEnum lid * fromEnum rid) kr (1/exp pi)) 1
   f j = delayL i 5e-2 dt where
-    dt = linLin (lfdNoise3 j kr (1/8)) (-1) 1 1e-9 35e-3
+    dt = linLin (cos $ pi * lfdNoise3 j kr (1/8.32324)) (-1) 1 1e-4 35e-3
   i = "a_in"@@0
   a = ("amp"@@1) * fadeOutEnv
 
@@ -257,8 +267,9 @@ mix001 = replaceOut ("out"@@0) o where
   ls = ["a_l1"@@0,"a_l2"@@2, "a_l3"@@4]
   rs = ["a_r1"@@1, "a_r2"@@3,"a_r3"@@5]
 
-fadeOutEnv = envGen kr 1 1 0 1 RemoveSynth $
+fadeOutEnv = envGen kr 1 1 0 1 RemoveSynth {- DoNothing -} $
              env [0,1,1,0] [0,226,5] [EnvCub] (-1) 0
+             -- env [0,1,1,1] [0,226,5] [EnvCub] (-1) 0
 
 -- Better to add these 2 functions to lepton.
 grp = Group

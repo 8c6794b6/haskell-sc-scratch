@@ -54,8 +54,8 @@ s = openUDP "127.0.0.1" 57110
 -- latency :: Double
 -- latency = 0.01
 
-bundle :: Double -> [OSC] -> OSC
-bundle time ms = Bundle (UTCr (time + latency)) ms
+-- bundle :: Double -> [OSC] -> OSC
+-- bundle time ms = Bundle (UTCr (time + latency)) ms
 
 allNodes :: Query SCNode
 allNodes = do
@@ -86,11 +86,11 @@ add nId node = do
        case node of
          g@(Group gid _) ->
              if gid /= 0 then
-                 bundle now $ treeToNew 0 $ Group nId [g]
+                 bundle (UTCr now) $ treeToNew 0 $ Group nId [g]
              else
-                 bundle now $ treeToNew 0 g
+                 bundle (UTCr now) $ treeToNew 0 g
          Synth nid' n ps ->
-             bundle now $
+             bundle (UTCr now) $
                [s_new n nid' AddToTail nId (concatMap paramToTuple ps)]
 
 nfree :: NodeId -> Query ()
@@ -107,7 +107,7 @@ msg oscMsg = do
   fd <- ask
   liftIO $ do
     now <- utcr
-    send fd $ bundle now [oscMsg]
+    send fd $ bundle (UTCr now) [oscMsg]
 
 type NodeInfo a  = SCNode -> a
 type Condition = NodeInfo Bool

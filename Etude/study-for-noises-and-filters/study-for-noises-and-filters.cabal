@@ -38,5 +38,5 @@ Library
     base >= 2.0 && < 5.0,
     hosc -any,
     hsc3 -any,
-    hsc3-lepton >= 0.0.2,
-    hsc3-lepton-gui >= 0.0.2
+    hsc3-lepton >= 0.0.3
+    -- hsc3-lepton-gui >= 0.0.3
