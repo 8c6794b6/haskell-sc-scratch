@@ -1,0 +1,13 @@
+                        <li>
+                            <a id="faq$divid$" href="javascript:toggle('faq$divid$','faq$divid$_ans');">
+                              $question$
+                            </a>
+                            <div id="faq$divid$_ans" class="content_block" style="display: none">
+                                <div class="paragraph_area">
+                                  <p>
+                                  Coming soon.
+                                  </p>
+                                </div>
+                                <div class="btm_area"></div>
+                            </div>
+                        </li>

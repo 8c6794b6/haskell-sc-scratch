@@ -1,0 +1,12 @@
+How are wiki pages related to issues?
+I want to change my settings. What preferences can I choose? And how?
+I use hg/bzr/darcs/monotone... etc. What should I do?
+What if I don’t want my issue changes inter-mixed in my source code changes?
+What if I don’t want the public to be able to edit my wiki?
+What if I don’t want my Wiki changes to be inter-mixed in my source code changes?
+What use is GitFocus, without a desktop client?
+What happens to issues when the code is branched?
+What happens to issues when the code is merged?
+What if I don’t want my commit reviewed?
+What if I already have a Git repository, but I don’t want to review all the commits I’ve already made?
+How can I migrate my existing issues into GitFocus?
