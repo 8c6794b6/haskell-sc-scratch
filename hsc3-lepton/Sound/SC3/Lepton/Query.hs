@@ -33,7 +33,6 @@ import Data.Generics.Uniplate.Data (universe)
 import Sound.SC3 hiding (free)
 import Sound.OpenSoundControl
 
-import Sound.SC3.Lepton.Looper (latency)
 import Sound.SC3.Lepton.Tree
 import Sound.SC3.Lepton.Util
 import Sound.SC3.Lepton.Instance ()

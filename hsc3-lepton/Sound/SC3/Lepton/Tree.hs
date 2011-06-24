@@ -162,9 +162,9 @@ data SynthParam = ParamName := ParamValue -- ^ Double value
                   deriving (Eq,Read,Data,Typeable)
 
 instance Show SynthParam where
-  show (f := x)  = f ++ " := " ++ printf "%.2f" x
-  show (f :<- x) = f ++ " :<- " ++ show x
-  show (f :<= x) = f ++ " :<= " ++ show x
+  show (f := x)  = f ++ ":=" ++ printf "%.2f" x
+  show (f :<- x) = f ++ ":<-" ++ show x
+  show (f :<= x) = f ++ ":<=" ++ show x
 
 type ParamName = String
 type ParamValue = Double
@@ -352,11 +352,10 @@ paramToTuple (name := val) = [(name,val)]
 paramToTuple _ = []
 
 
--- | For converting SCNode to Tree datatype in Data.Tree.Tree.
--- Data.Tree.Tree is a rose tree, but SCNode datatype is not.
-type SCNode' = Tree SCN
-
 -- | Wrapper for SCNode.
+--
+-- For converting SCNode to Tree datatype in Data.Tree.Tree.
+-- Data.Tree.Tree is a rose tree, but SCNode datatype is not.
 data SCN = G NodeId
          | S NodeId SynthName
          | P [SynthParam]
@@ -371,7 +370,7 @@ instance Show SCN where
 drawSCNode :: SCNode -> String
 drawSCNode = unlines . draw . fmap show . toRose
 
-toRose :: SCNode -> SCNode'
+toRose :: SCNode -> Tree SCN
 toRose (Group nid ns)   = Node (G nid) (map toRose ns)
 toRose (Synth nid name ps)
   | null ps   = Node (S nid name) []
