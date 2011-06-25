@@ -18,16 +18,18 @@ import Sound.OpenSoundControl
 import Sound.SC3
 import Sound.SC3.ID
 import Sound.SC3.Lepton
--- import Sound.SC3.Lepton.GUI
+import Sound.SC3.Lepton.GUI
 
 setup fd = do
   mapM_ (\(n,u) -> loadSynthdef n u fd)
     [("wn001",wn001),("pn001",pn001),("bn001",bn001)
     ,("lz001",lz001),("hn001",hn001),("cg001",cg001),("cp001",cp001)
+    ,("lc001", lc001),("lc002",lc002)
     ,("rng001",rng001),("cmb001",cmb001),("cmb002",cmb002)
-    ,("tr001",tr001),("lzf001",lzf001)
+    ,("tr001",tr001)
+    ,("lzf001",lzf001),("lzf002",lzf002),("lzf003",lzf003)
     ,("rvb001",rvb001)
-    ,("lmt001",lmt001)
+    ,("lmt001",lmt001),("lmt002",lmt002)
     ,("hit001",hit001),("hit002",hit002),("rzn001",rzn001)
     ,("pan001",pan001),("pan002",pan002),("pan003",pan003),("pan004",pan004)
     ,("mix001",mix001)]
@@ -42,7 +44,7 @@ rgGraph =
        ,syn 1002 "lzf001"
           ["out":=101]]
     ,grp 20
-       [syn 2001 "lz001"
+       [syn 2001 "lz001" {- "hn001" -}
           ["out":=0,"freq":<-101]]
     ,grp 21
        [syn 2101 "hit001"
@@ -50,37 +52,48 @@ rgGraph =
        ,syn 2102 "rng001"
           ["a_in":<=2,"out_1":=2,"out_2":=3]
        ,syn 2103 "cmb001"
-          ["a_in":<=2,"out":=2,"t_trig":<-100,"mix":=1]
+          ["a_in":<=2,"out":=2,"t_trig":<-100,"mix":=1
+          ,"rmin":=50,"rmax":={- 15 -} 1]
        ,syn 2105 "lmt001"
           ["a_in1":<=2,"a_in2":<=3,"out":=2]
        ,syn 2106 "pan001"
-          ["a_in":<=2,"out":=2,"amp":=0.9]]
+          ["a_in":<=2,"out":=2,"amp":=1.2]]
     ,grp 22
        [syn 2201 "hit002"
-          ["a_in":<=0,"out":=4,"t_trig":<-100,"lamp":=14,"mamp":=4,"hamp":=1]
+          ["a_in":<=0,"lout":=4,"mout":=5,"hout":=6
+          ,"t_trig":<-100,"lamp":=14,"mamp":=3,"hamp":=2]
        ,syn 2203 "pan002"
-          ["a_in":<=4,"out":=4,"amp":=1]
-       ,syn 2202 "lmt001"
-          ["a_in1":<=4,"a_in2":<=4,"out":=4]]
+          ["a_low":<=4,"a_mid":<=5,"a_high":<=6
+          ,"out":=4,"amp":=1]
+       ,syn 2202 "lmt002"
+          ["a_in1":<=4,"a_in2":<=5,"out":=4,"amp":=1.0]]
     ,grp 23
        [syn 2301 "cmb002"
-          ["a_in":<=0,"out":=6,"t_trig":<-100]
+          ["a_in":<=0,"out":=8,"t_trig":<-100]
        ,syn 2302 "pan003"
-          ["a_in":<=6,"out":=6,"amp":=0.125]]
+          ["a_in":<=8,"out":=8,"amp":={- 0 -} 0.125]]
     ,grp 30
        [syn 3000 "mix001"
           ["a_l1":<=2,"a_r1":<=3
           ,"a_l2":<=4,"a_r2":<=5
-          ,"a_l3":<=6,"a_r3":<=7
+          ,"a_l3":<=8,"a_r3":<=9
           ,"mamp":=0.8]]]
 
 tr001 = mrg [d, out ("out"@@0) t] where
   t = impulse kr ("freq"@@8) 0
-  d = line kr 0 1 215 RemoveSynth {- DoNothing -}
+  d = line kr 0 1 215 {- RemoveSynth -} DoNothing
 
 lzf001 = out ("out"@@101) (o+20) where
-  o = envGen kr 1 (sampleRate-20) 0 1 RemoveSynth {- DoNothing -} shp
-  shp = env [0,0,1,0.5,1,0.125,1,1,0] [0,30,15,30,15,30,60,30]
+  o = envGen kr 1 (sampleRate-20) 0 1 {- RemoveSynth -} DoNothing shp
+  shp = env [0,0,1,0.5,1,0.125,1,1,0,1] [0,30,15,30,15,30,60,30,10]
+        [EnvCub] (-1) 0
+
+lzf002 = out ("out"@@101) (o+20) where
+  o = linLin (lfdNoise3 'f' kr (1/exp pi) * 0.5 + 0.5) 0 1 0 sampleRate
+
+lzf003 = out ("out"@@101) (o+20) where
+  o = envGen kr 1 (sampleRate/2-20) 0 1 {- RemoveSynth -} DoNothing shp
+  shp = env [0,0,1,0.5,1,0.125,1,1,0,1] [0,30,15,30,15,30,60,30,10]
         [EnvCub] (-1) 0
 
 wn001 = out ("out"@@0) $ whiteNoise 'w' ar
@@ -129,6 +142,15 @@ lc001 = out ("out"@@0) o where
   d = n 'd' * 0.5 + 1.5
   n i = lfdNoise3 'n' kr 1
 
+lc002 = out ("out"@@0) o where
+  o = latoocarfianC ar f a b c d 0.5 0.5
+  f = ("freq"@@24000)
+  a = n 'a' * 0.5 + 1.5
+  b = n 'b' * 0.5 + 1.5
+  c = n 'c' * 0.5 + 1.5
+  d = n 'd' * 0.5 + 1.5
+  n i = lfdNoise3 'n' kr 1
+
 ck001 = out ("out"@@0) $ crackle ar 1.95
 
 hit001 = replaceOut ("out"@@0) o where
@@ -144,8 +166,10 @@ hit001 = replaceOut ("out"@@0) o where
   dtf = linLin (lfdNoise3 'r' kr (1/32) * 0.5 + 0.51) 0.1 1.01 1e-2 3
   i = "a_in"@@0
 
-hit002 = replaceOut ("out"@@0) o where
-  o = low + mid + high
+hit002 = mrg [replaceOut ("lout"@@0) low
+             ,replaceOut ("mout"@@1) mid
+             ,replaceOut ("hout"@@2) high] where
+  -- o = low + mid + high
   low = lowi * lowe * 20
   lowe = envGen kr trl 1 0 2600e-3 DoNothing $
          env [0,0,1,0] [0,5e-3,995e-3] [EnvNum (-13)] (-1) 0
@@ -195,7 +219,7 @@ cmb001 = replaceOut ("out"@@0) o where
   o = (c*m) + (sig * (1-m))
   c = foldr f sig [1..16::Int]
   f a b = combC b 0.5 (dlt a) (dct a)
-  dlt i = lag3 (tExpRand i (recip 50) 1 tr) 28e-3
+  dlt i = lag3 (tExpRand i (recip ("rmin"@@50)) (recip ("rmax"@@1)) tr) 28e-3
   dct i = lag3 (tExpRand i 120e-3 800e-3 tr) 28e-3
   tr = coinGate 't' prob tin
   prob = linLin (lfdNoise3 'q' kr (1/64) * 0.5 + 0.51) 0.1 1.01 (1/32) (1/2)
@@ -206,9 +230,11 @@ cmb001 = replaceOut ("out"@@0) o where
 cmb002 = replaceOut ("out"@@0) o where
   o = sum [mkO 'z' 230e-3, mkO 'y' 330e-3, mkO 'x' 120e-3]
   mkO j dt = combL i 0.5 (1/f) 0.25 where
-    f = lag2 (index freqB (tiRand j 0 7 tr)) dt
-  freqB = asLocalBuf 'a' ps
-  ps = map (midiCPS . (+48)) [0,2,4,5,7,9,11,12]
+    f = lag2 (index freqB (tiRand j 0 plen tr)) dt
+  freqB = asLocalBuf 'a' fs
+  fs = map (midiCPS . (+48)) ps
+  plen = constant $ length ps
+  ps = [0,2,4,5,7,9,11,12]
   tr = pulseDivider tri 64 0
   tri = "t_trig"@@100
   i = "a_in"@@0
@@ -231,22 +257,30 @@ rvb001 = mrg [lo, replaceOut ("out"@@0) (mix output)] where
   input = "a_in"@@0
 
 lmt001 = replaceOut ("out"@@0) o where
-  o = limiter (rhpf (mix $ i1+i2) 50 0.5 * 0.3) 1 0.2
+  o = limiter (rhpf (mix $ i1+i2) 50 0.3) 1 0.2
+  i1 = "a_in1"@@0
+  i2 = "a_in2"@@1
+
+lmt002 = replaceOut ("out"@@0) (mce [l,r] * ("amp"@@1)) where
+  l = limiter (rhpf i1 50 0.3) 1 0.2
+  r = limiter (rhpf i2 50 0.3) 1 0.2
   i1 = "a_in1"@@0
   i2 = "a_in2"@@1
 
 pan001 = mkPan001 'r' 'l'
 
--- pan002 = out ("out"@@4) (cs + mce [lout, rout]) where
---   lout = 0
---   rout = 0
---   cs = pan2 ilow (lag (lfNoise0 'l' kr (1/33)) 20e-3) 1 +
---        pan2 mlow (lag (lfNoise0 'm' kr (1/34)) 20e-3) 1 +
---        pan2 hlow (lag (lfNOise0 'h' kr (1/35)) 20e-3) 1
---   ilow = "a_low" @@ 0
---   imid = "a_mid" @@ 0
---   ihigh = "a_high" @@ 0
-pan002 = mkPan001 'm' 's' 
+pan002 = replaceOut ("out"@@4) (mce [lout, rout]) where
+  lout = delayL ilow 0.5 ("dll"@@29e-3) +
+         delayL imid 0.5 ("dml"@@2e-3) +
+         delayL ihigh 0.5 ("dhl"@@7e-5)
+  rout = delayL ilow 0.5 ("dlr"@@1e-3) +
+         delayL imid 0.5 ("dmr"@@7e-5) +
+         delayL ihigh 0.5 ("dhr"@@2e-3)
+  ilow = "a_low" @@ 0
+  imid = "a_mid" @@ 0
+  ihigh = "a_high" @@ 0
+
+-- pan002 = mkPan001 'm' 's'
 
 pan003 = mkPan001 'n' 't'
 
@@ -254,9 +288,11 @@ pan004 = mkPan001 'u' 'o'
 
 mkPan001 lid rid = replaceOut ("out"@@0) o where
   o = (c + mce [l,r]) * a
+  -- o = c * a
+  -- o = mce [l,r] * a
   (l,r) = (f lid,f rid)
   c = pan2 i (lfdNoise3 (fromEnum lid * fromEnum rid) kr (1/exp pi)) 1
-  f j = delayL i 5e-2 dt where
+  f j = delayL i 5e-2 (lag dt 0.1) where
     dt = linLin (cos $ pi * lfdNoise3 j kr (1/8.32324)) (-1) 1 1e-4 35e-3
   i = "a_in"@@0
   a = ("amp"@@1) * fadeOutEnv
@@ -264,12 +300,12 @@ mkPan001 lid rid = replaceOut ("out"@@0) o where
 mix001 = replaceOut ("out"@@0) o where
   o = limiter o' 1 0.1 * ("mamp"@@1) * fadeOutEnv
   o' = mce [sum ls, sum rs]
-  ls = ["a_l1"@@0,"a_l2"@@2, "a_l3"@@4]
-  rs = ["a_r1"@@1, "a_r2"@@3,"a_r3"@@5]
+  ls = ["a_l1"@@0,"a_l2"@@2,"a_l3"@@4]
+  rs = ["a_r1"@@1,"a_r2"@@3,"a_r3"@@5]
 
-fadeOutEnv = envGen kr 1 1 0 1 RemoveSynth {- DoNothing -} $
-             env [0,1,1,0] [0,226,5] [EnvCub] (-1) 0
-             -- env [0,1,1,1] [0,226,5] [EnvCub] (-1) 0
+fadeOutEnv = envGen kr 1 1 0 1 {- RemoveSynth -} DoNothing $
+             -- env [0,1,1,0] [0,226,5] [EnvCub] (-1) 0
+             env [0,1,1,1] [0,226,5] [EnvCub] (-1) 0
 
 -- Better to add these 2 functions to lepton.
 grp = Group
