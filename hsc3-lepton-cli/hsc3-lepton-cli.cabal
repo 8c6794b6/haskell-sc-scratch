@@ -1,0 +1,30 @@
+name:		hsc3-lepton-cli
+version:	0.0.3
+synopsis:       Command line interface for scsynth using hsc3-lepton
+author:         8c6794b6
+maintainer:     8c6794b6@gmail.com
+cabal-version:  >= 1.6
+build-type:     Simple
+license:        BSD3
+category:       GUI
+stability:      experimental
+description:
+  Command line interface for scsynth using hsc3-lepton
+
+library
+  ghc-options:
+    -O2 -Wall -fno-warn-unused-do-bind
+  exposed-modules:
+    Sound.SC3.Lepton.CLI.SCShell
+  build-depends:
+    base == 4.*,
+    containers >= 0.3.0.0,
+    mtl >= 2.0.0,
+    parsec >= 3.0.0,
+    syb,
+    uniplate >= 1.6,
+    hosc,
+    hsc3,
+    hsc3-lepton >= 0.0.3,
+    Shellac >= 0.9.5,
+    Shellac-haskeline >= 0.2
