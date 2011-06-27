@@ -16,12 +16,12 @@ import Sound.SC3.Lepton.CLI.SCShell
 main :: IO ()
 main = do
   info <- cmdArgs connectInfo
+  putStrLn $ "connecting to " ++ host info ++ ":" ++ show (port info)
+    ++ ", " ++ show (protocol info)
   let con = case protocol info of
         UDP -> Right `fmap` openUDP (host info) (port info)
         TCP -> Left `fmap` openTCP (host info) (port info)
-  putStrLn $ "connecting to " ++ host info ++ ":" ++ show (port info)
-    ++ ", " ++ show (protocol info)
-  scShell con
+  withTransport con scShell
 
 data ConnectInfo = ConnectInfo
   { protocol :: Protocol
