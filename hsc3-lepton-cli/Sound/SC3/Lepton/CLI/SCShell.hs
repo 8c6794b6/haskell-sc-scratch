@@ -14,9 +14,18 @@
 -- Modified mtl version in dependency list of Shellac-haskeline's cabal file
 -- from 1.1.1.1 to 2.0.1.
 --
+-- TODO:
+--
+-- * Reuse synth connection inside shell.
+--
+-- * 'find', querying node like, find command, or WHERE clause in SQL.
+--
+-- * Make 'pwd' a bit more useful ... idea?
+--
 module Sound.SC3.Lepton.CLI.SCShell where
 
 import Control.Monad.Trans (liftIO)
+import Sound.OpenSoundControl
 import Sound.SC3
 import Sound.SC3.Lepton
 import System.Console.Shell
@@ -26,25 +35,38 @@ import System.Console.Shell.ShellMonad
 import Sound.SC3.Lepton.CLI.Parser
 import Sound.SC3.Lepton.CLI.SCZipper
 
--- |
--- TODO:
---
--- * Add synth protocol and port number in state (default: udp 57110).
--- * Reuse synth connection inside shell.
---
-main :: IO ()
-main = do
-  ini <- (flip SCZipper []) `fmap` withSC3 getRootNode
-  runShell shellDesc haskelineBackend ini
+-- | Entry point for interactive prompt.
+scShell :: IO (Either TCP UDP) -> IO ()
+scShell con = do
+  n <- withTransport con getRootNode
+  runShell shellDesc haskelineBackend $ SynthEnv con (SCZipper n [])
   putStrLn "Bye."
 
-shellDesc :: ShellDescription SCZipper
+data SynthEnv = SynthEnv
+  { connection :: IO (Either TCP UDP)
+  , zipper :: SCZipper }
+
+instance Transport (Either TCP UDP) where
+  send (Left t) m  = send t m
+  send (Right t) m = send t m
+  recv (Left t)  = recv t
+  recv (Right t) = recv t
+  close (Left t)  = close t
+  close (Right t) = close t
+
+withEnv :: (Either TCP UDP -> IO a) -> Sh SynthEnv a
+withEnv action = do
+  environment <- getShellSt
+  liftIO $ withTransport (connection $ environment) action
+
+shellDesc :: ShellDescription SynthEnv
 shellDesc = (mkShellDescription cmds work)
   { prompt = \st -> return $ makePrompt st
   , greetingText = Just ("Type ':q' to quit\n") }
 
-makePrompt :: SCZipper -> String
-makePrompt z = foldr f "/" ns  ++ g (focus z) ++ " > " where
+makePrompt :: SynthEnv -> String
+makePrompt e = foldr f "/" ns  ++ g (focus z) ++ " > " where
+  z = zipper e
   ns = filter (\(SCPath n _ _) -> n /= 0) $ reverse $ scPaths z
   f (SCPath n _ _) cs = "/" ++ show n ++ cs
   g n | nodeId n == 0 = ""
@@ -52,65 +74,61 @@ makePrompt z = foldr f "/" ns  ++ g (focus z) ++ " > " where
         Group gid _     -> show gid
         Synth nid def _ -> show nid ++ "[" ++ def ++ "]"
 
-cmds :: [ShellCommand SCZipper]
+cmds :: [ShellCommand st]
 cmds = [exitCommand "q"]
 
--- |
--- TODO:
+-- | Parse input string, respond to parsed Cmd result with action.
 --
--- Use Parsec and write below commands:
---
--- * DONE, but not so useful: 'pwd'
--- * DONE: 'cd', specifying destination in absolute and relative path.
--- * DONE: 'ls', take optional directory path to show.
--- * DONE: 'tree', show nodes under given path with 'drawSCNode' function.
--- * DONE: 'set', sends n_set OSC command
--- * DONE: 'free', sends n_free OSC command
--- * DONE: 'set', with n_map and n_mapn.
--- * DONE: 'mv', to move around node with specifying new position
--- * 'find', querying node like, find command, or WHERE clause in SQL.
---
-work :: String -> Sh SCZipper ()
+work :: String -> Sh SynthEnv ()
 work cs | null $ dropWhile (== ' ') cs = return ()
         | otherwise = case parseCmd cs of
   Left err  -> shellPutErrLn $ show err
   Right parsed -> case parsed of
-    Pwd    -> shellPutStrLn . show =<< getShellSt
-    Ls f   -> shellPutStr . showNode . focus . f =<< getShellSt
-    Tree f -> shellPutStr . drawSCNode . focus . f =<< getShellSt
-    Cd f   -> modifyShellSt f
+    Pwd    -> shellPutStrLn . show . zipper =<< getShellSt
+    Ls f   -> shellPutStr . showNode . focus . f . zipper =<< getShellSt
+    Tree f -> shellPutStr . drawSCNode . focus . f . zipper =<< getShellSt
+    Cd f   -> modifyShellSt $ \st -> st {zipper = f $ zipper st}
+    -- Fix 'mv' function in SCZipper
+    --
     Mv addAct source target -> do
-      liftIO $ withSC3 $ flip send $ n_order addAct source target
-      t <- liftIO $ withSC3 getRootNode
-      putShellSt $ SCZipper t []
+      withEnv $ flip send $ n_order addAct source target
+      n <- withEnv getRootNode
+      modifyShellSt $ \st -> st {zipper = SCZipper n []}
     Set nid f  -> do
-      newNode <- (f . nodeById nid) `fmap` getShellSt
-      liftIO $ withSC3 $ setNode newNode
-      modifyShellSt $ \st -> insert' newNode AddReplace (nodeId newNode) st
+      e <- getShellSt
+      let newNode = f . nodeById nid . zipper $ e
+          z = zipper e
+      putShellSt $ e {zipper = insert' newNode AddReplace (nodeId newNode) z}
+      withEnv $ setNode newNode
     Free ns -> do
-      modifyShellSt (foldr (.) id (map delete ns))
-      liftIO $ withSC3 $ flip send $ n_free ns
+      modifyShellSt $ \st ->
+        st {zipper = (foldr (.) id (map delete ns)) $ zipper st}
+      withEnv $ flip send $ n_free ns
     New i p -> case p of
       Nothing -> do
         st <- getShellSt
-        let st' = insert (Group i []) st
-            j = nodeId $ focus st
+        let st' = st {zipper = insert (Group i []) z}
+            j = nodeId $ focus z
+            z = zipper st
         putShellSt st'
-        liftIO $ withSC3 $ flip send $ g_new [(i,AddToTail,j)]
+        withEnv $ flip send $ g_new [(i,AddToTail,j)]
       Just (n,ps) -> do
         st <- getShellSt
         let newNode = Synth i n ps
-            st' = insert newNode st
-            j = nodeId $ focus st
+            st' = st {zipper = insert newNode z}
+            j = nodeId $ focus z
+            z = zipper st
         putShellSt st'
-        liftIO $ withSC3 $ addNode j newNode
+        withEnv $ addNode j newNode
     Run r  -> do
-      nid <- (nodeId . focus) `fmap` getShellSt
-      liftIO $ withSC3 $ flip send $ n_run [(nid,r)]
-    Status -> liftIO $ withSC3 serverStatus >>= mapM_ putStrLn
+      nid <- (nodeId . focus . zipper) `fmap` getShellSt
+      withEnv $ flip send $ n_run [(nid,r)]
+    Status -> do
+      st <- withEnv serverStatus
+      mapM_ shellPutStrLn st
     Refresh -> do
-      t <- liftIO $ withSC3 getRootNode
-      putShellSt $ SCZipper t []
+      n <- withEnv getRootNode
+      modifyShellSt $ \st -> st {zipper = SCZipper n []}
 
 -- | Show synth node in ls command.
 showNode :: SCNode -> String

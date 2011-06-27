@@ -11,13 +11,20 @@ stability:      experimental
 description:
   Command line interface for scsynth using hsc3-lepton
 
+executable scshell
+  ghc-options:
+    -O2 -Wall -fno-warn-unused-do-bind -fno-warn-orphans
+  main-is:
+     Main.hs
+
 library
   ghc-options:
-    -O2 -Wall -fno-warn-unused-do-bind
+    -O2 -Wall -fno-warn-unused-do-bind -fno-warn-orphans
   exposed-modules:
     Sound.SC3.Lepton.CLI.SCShell
   build-depends:
     base == 4.*,
+    cmdargs,
     containers >= 0.3.0.0,
     mtl >= 2.0.0,
     parsec >= 3.0.0,
