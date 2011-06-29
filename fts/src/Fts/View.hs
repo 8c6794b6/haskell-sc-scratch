@@ -2,28 +2,31 @@
 {-# LANGUAGE PackageImports #-}
 module Fts.View where
 
-import Data.ByteString ( ByteString )
-import Data.Maybe ( catMaybes )
+import Data.ByteString (ByteString)
+import Data.Maybe (catMaybes)
 import qualified Data.ByteString.Char8 as C8
 
-import Snap.Types ( Snap, Request )
-import Text.Templating.Heist ( Splice, Node )
+import Snap.Types (Snap, Request)
+import Text.Templating.Heist (Splice)
+import Text.XML.Expat.Tree (Node)
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as E
 import qualified Network.URI as URI
 import qualified Snap.Types as ST
-import qualified Text.XML.Expat.Tree as EX
+import qualified Text.XmlHtml as X
 
-import Fts.Model ( SearchResult(..) )
+import Fts.Model (SearchResult(..))
 
 mkResults :: [SearchResult] -> Splice Snap
-mkResults rs = return [EX.mkElement "ul" [] (map mkResult rs)]
+mkResults rs = return [X.Element "ul" [] (map mkResult rs)]
 
-mkResult :: SearchResult -> Node
 mkResult (SearchResult u t) =
-    EX.mkElement "li" []
-      [ EX.mkElement "div" [("id", "result")]
-        [ EX.mkElement "a" [("href", escape u)] [EX.mkText u]
-        , EX.mkElement "div" []
-            [ EX.mkText $ C8.append (C8.take 200 t) " ..."] ]]
+    X.Element "li" []
+      [X.Element "div" [("id", "result")]
+        [X.Element "a" [("href",  E.decodeASCII $ escape u)]
+           [X.TextNode $ E.decodeASCII u]
+        ,X.Element "div" []
+           [X.TextNode $ T.take 200 $ E.decodeASCII t ]]]
 
 escape :: ByteString -> ByteString
 escape uri = C8.pack (URI.escapeURIString URI.isAllowedInURI (C8.unpack uri))
@@ -31,23 +34,24 @@ escape uri = C8.pack (URI.escapeURIString URI.isAllowedInURI (C8.unpack uri))
 mkInputQuery :: Maybe [ByteString] -> Splice Snap
 mkInputQuery (Just (q:_)) = return [element]
   where
-    element = EX.mkElement "input" [ ("type", "text")
-                                   , ("name", "q")
-                                   , ("value", q)
-                                   , ("size", "50") ] []
+    element = X.Element "input" [ ("type", "text")
+                                , ("name", "q")
+                                , ("value", E.decodeASCII q)
+                                , ("size", "50") ] []
 mkInputQuery _ = return [element]
   where
-    element = EX.mkElement "input" [ ("type", "text")
-                                   , ("name", "q")
-                                   , ("size", "50") ] []
+    element = X.Element "input" [ ("type", "text")
+                                , ("name", "q")
+                                , ("size", "50") ] []
 
 mkSummary :: [a] -> Request -> Splice Snap
 mkSummary ks req = return [element]
   where
-    element = if length ks > 0
-                then EX.mkText $ foldr C8.append C8.empty
-                         [num, " hits, page ", cur, " of ", page]
-                else EX.mkText $ C8.pack "no hits"
+    element = if length ks > 0 then
+                 X.TextNode $ E.decodeASCII $ C8.concat
+                   [num, " hits, page ", cur, " of ", page]
+              else
+                 X.TextNode $ "no hits"
     num = C8.pack . show . length $ ks
     cur = maybe (C8.pack "1") head $ ST.rqParam (C8.pack "p") req
     page = C8.pack . show $ page'
@@ -68,20 +72,18 @@ mkPageLinks ks req = if length ks > perPage then showIt else dontShowIt
           currentPage = if p' == "" then 1 else read p'
              where p' = C8.unpack p
 
-          mkPageLink :: Int -> String -> Node
           mkPageLink num txt =
-              EX.mkElement "span"
+              X.Element "span"
                 [("id", "page_link")]
-                [ EX.mkElement "a"
-                   [("href", C8.pack $
+                [ X.Element "a"
+                   [("href", E.decodeASCII $ C8.pack $
                              C8.unpack (ST.rqContextPath req) ++ "?" ++
                              "q=" ++ C8.unpack q ++ "&p=" ++ show num)]
-                     [EX.mkText $ C8.pack (' ' : txt ++ " ")]]
+                     [X.TextNode $ E.decodeASCII $ C8.pack (' ' : txt ++ " ")]]
 
-          mkPageLink' :: Int -> Maybe Node
           mkPageLink' n = return $ mkPageLink n (' ':(show n)++" ")
 
-      return [EX.mkElement "div" [("id", "page_links")] $ catMaybes $
+      return [X.Element "div" [("id", "page_links")] $ catMaybes $
                 [ if p == "1" || p == C8.empty
                     then Nothing
                     else Just (mkPageLink (currentPage - 1) "<< ") ]

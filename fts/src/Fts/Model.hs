@@ -1,5 +1,4 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE PackageImports #-}
 ------------------------------------------------------------------------------
 -- |
 -- Database wrapper things.
@@ -12,7 +11,7 @@ import System.FilePath ((</>))
 import qualified Data.ByteString.Char8 as B
 
 
-import "monads-fd" Control.Monad.Trans ( liftIO )
+import Control.Monad.Trans ( liftIO )
 import Database.TokyoCabinet
     ( TCM
     , HDB )

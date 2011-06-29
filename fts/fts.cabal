@@ -1,5 +1,5 @@
 name:          fts
-version:       0.2
+version:       0.3
 synopsis:      Example web app with tokyo dystopia
 license:       BSD4
 author:        8c6794b6
@@ -22,19 +22,22 @@ executable fts
     -fno-warn-unused-do-bind
   build-depends:
     base >= 4,
+    blaze-builder >= 0.3.0,
+    bytestring >= 0.9.1 && <0.10,
     haskell98,
     cmdargs >= 0.6.4,
-    monads-fd >= 0.1 && <0.2,
-    bytestring >= 0.9.1 && <0.10,
+    mtl,
     containers -any,
     directory -any,
     directory-tree >= 0.9.1,
-    snap-core >= 0.3.0,
-    snap-server >= 0.3.0,
-    heist >= 0.4.0,
-    filepath >= 1.1 && <1.2,
+    snap-core >= 0.5.1,
+    snap-server >= 0.5.1,
+    heist >= 0.5.2,
+    filepath,
     tagsoup >= 0.11.1,
     hexpat >= 0.19.5,
     network >= 2.3,
+    text >= 0.11.0,
     tokyodystopia-haskell >= 0.0.2,
-    tokyocabinet-haskell >= 0.0.5
+    tokyocabinet-haskell >= 0.0.5,
+    xmlhtml >= 0.1.5
