@@ -12,6 +12,8 @@
 -- Module for PGM parser.
 --
 -- Examples:
+--
+-- > > import qualified Data.ByteString.Lazy as L
 -- 
 -- Parse raw PGM file.
 -- 

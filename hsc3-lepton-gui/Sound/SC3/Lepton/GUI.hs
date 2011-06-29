@@ -145,21 +145,18 @@ mkSynthControl fd hints bb box (i,n,ps) = do
     return (n',slider)
   G.containerAdd frame sliderBox
   G.containerAdd box frame
-  mkButtons fd hints bb i n ps sliderMaps
+  mkButtons fd bb i ps sliderMaps
   return box
 
 -- | Make buttons for synth.
 mkButtons :: (Transport t)
           => t
-          -> Hints               -- ^ GUI hints
           -> G.VBox              -- ^ Container for button box
           -> Int                 -- ^ Node id
-          -> String              -- ^ Synth name
           -> [(String,Double)]   -- ^ Params
           -> [(String,G.VScale)] -- ^ Param name and vscales
           -> IO ()
-mkButtons fd _ box i _ ps vs = do
--- mkButtons fd hints box i n ps vs = do
+mkButtons fd box i ps vs = do
   pauseButton <- G.toggleButtonNewWithLabel "pause"
   pauseButton `G.on` G.toggled $ do
     st <- G.toggleButtonGetActive pauseButton

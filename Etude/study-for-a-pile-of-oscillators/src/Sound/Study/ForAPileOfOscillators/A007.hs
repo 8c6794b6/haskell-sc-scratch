@@ -27,7 +27,6 @@ import Sound.SC3.ID
 import Sound.SC3.Lepton
 
 import Sound.Study.ForAPileOfOscillators.Common
-import Sound.Study.ForAPileOfOscillators.Looper
 
 main :: IO ()
 main = putStrLn "Not yet."

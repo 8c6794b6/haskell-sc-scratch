@@ -91,14 +91,6 @@ dumpTree fd = send fd $ Message "/g_dumpTree" [Int 0, Int 1]
 --
 ------------------------------------------------------------------------------
 
--- | Attack, sustain, release envelope parameter constructor.
-envASR :: UGen -> UGen -> UGen -> EnvCurve -> [UGen]
-envASR aT sL rT c =
-    let l = [0,sL,0]
-        t = [aT,rT]
-        c' = [c,c]
-    in env l t c' 1 (-1)
-
 -- | Select a sound from given ugen array.
 selectX :: UGen -> UGen -> UGen
 selectX i a = mkFilterMCE "SelectX" [i] a 1
