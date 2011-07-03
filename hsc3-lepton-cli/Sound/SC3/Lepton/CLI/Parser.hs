@@ -48,8 +48,7 @@ commands = do
   return result
 
 commandNames :: Monad m => [ParsecT String u m Cmd]
-commandNames =
-  [pwd, ls, cd, tree, set, free, new, run, status, mv, refresh]
+commandNames = [pwd, ls, cd, tree, set, free, new, run, status, mv, refresh]
 
 pwd :: Monad m => ParsecT String u m Cmd
 pwd =  string "pwd" >> return Pwd

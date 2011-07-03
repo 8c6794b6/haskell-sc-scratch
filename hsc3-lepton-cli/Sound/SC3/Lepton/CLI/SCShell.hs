@@ -1,5 +1,4 @@
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE UndecidableInstances #-}
 ------------------------------------------------------------------------------
 -- |
 -- Module      : $Header$

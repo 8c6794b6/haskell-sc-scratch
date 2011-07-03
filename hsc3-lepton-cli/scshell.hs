@@ -26,8 +26,8 @@ main = do
 data ConnectInfo = ConnectInfo
   { protocol :: Protocol
   , host :: String
-  , port :: Int }
-  deriving (Eq, Show, Data, Typeable)
+  , port :: Int
+  } deriving (Eq, Show, Data, Typeable)
 
 data Protocol = TCP | UDP deriving (Eq, Show, Data, Typeable)
 
