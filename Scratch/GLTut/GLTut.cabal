@@ -1,0 +1,49 @@
+name:		GLTut
+version:	0.0.1
+synopsis:       OpenGL tutorial
+author:         8c6794b6
+maintainer:     8c6794b6@gmail.com
+cabal-version:  >= 1.9.2
+build-type:     Simple
+license:        BSD3
+category:       GUI
+stability:      experimental
+description:
+  OpenGL tutorial from
+  http://www.f13g.com/%A5%D7%A5%ED%A5%B0%A5%E9%A5%DF%A5%F3%A5%B0/Haskell/GLUT/
+
+executable gltut
+  ghc-options:
+    -O2 -Wall -fno-warn-unused-do-bind
+  main-is:
+    gltut.hs
+  extra-libraries:
+    glut
+  build-depends:
+    base,
+    containers >= 0.4.0,
+    cmdargs,
+    OpenGL,
+    GLUT,
+    random
+
+library
+  ghc-options:
+    -O2 -Wall -fno-warn-unused-do-bind -fno-warn-orphans
+  exposed-modules:
+    GLTut.RollingCommon
+    GLTut.RollingRectangle
+    GLTut.RollingRectangle2
+    GLTut.Particle
+    GLTut.Fountain
+    GLTut.Commet
+    GLTut.AlphaBlend
+    GLTut.RenderString
+  extra-libraries:
+    glut
+  build-depends:
+    base,
+    containers >= 0.4.0,
+    OpenGL,
+    GLUT,
+    random
