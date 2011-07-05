@@ -1,6 +1,6 @@
 name:          fts
-version:       0.3
-synopsis:      Example web app with tokyo dystopia
+version:       0.3.1
+synopsis:      Simple web app with tokyo dystopia
 license:       BSD4
 author:        8c6794b6
 maintainer:    8c6794b6@gmail.com
@@ -9,22 +9,17 @@ category:      Web
 build-type:    Simple
 cabal-version: >=1.2
 description:
-  Example web app for full text searching with using tokyo dystopia and snap web
+  Simple web app for full text searching with using tokyo dystopia and snap web
   framework. CLI has command for indexing and serving the site.
+
 executable fts
-  hs-source-dirs: src
   main-is: fts.hs
   ghc-options:
-    -O2
-    -Wall
-    -threaded
-    -funbox-strict-fields
-    -fno-warn-unused-do-bind
+    -O2 -Wall -threaded -funbox-strict-fields -fno-warn-unused-do-bind
   build-depends:
     base >= 4,
     blaze-builder >= 0.3.0,
     bytestring >= 0.9.1 && <0.10,
-    haskell98,
     cmdargs >= 0.6.4,
     mtl,
     containers -any,

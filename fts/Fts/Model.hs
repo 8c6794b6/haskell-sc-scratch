@@ -1,9 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 ------------------------------------------------------------------------------
 -- |
--- Database wrapper things.
+-- Module      : $Header$
+-- CopyRight   : (c) 8c6794b6
+-- License     : BSD3
+-- Maintainer  : 8c6794b6@gmail.com
+-- Stability   : unstable
+-- Portability : non-portable
 --
-
 module Fts.Model where
 
 import Data.ByteString ( ByteString )
@@ -39,10 +43,6 @@ data SearchResult = SearchResult
     , srText :: ByteString
     } deriving (Eq, Show)
 
--- | Empty result.
-noRecord :: SearchResult
-noRecord = SearchResult B.empty B.empty
-
 -- | Searches given query.
 search :: FilePath -> ByteString -> IO [ByteString]
 search dbRoot query = TD.runTDM $ do
@@ -66,4 +66,4 @@ getResults dbRoot lim offset keys = TC.runTCM $ do
      txt <- TC.get db $ B.append "text:" key
      return $ case (url,txt) of
                 (Just u, Just t) -> SearchResult u t
-                _                -> noRecord
+                _                -> SearchResult B.empty B.empty

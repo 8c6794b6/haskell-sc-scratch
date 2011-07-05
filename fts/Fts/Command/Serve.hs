@@ -1,4 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
+------------------------------------------------------------------------------
+-- |
+-- Module      : $Header$
+-- CopyRight   : (c) 8c6794b6
+-- License     : BSD3
+-- Maintainer  : 8c6794b6@gmail.com
+-- Stability   : unstable
+-- Portability : non-portable
+--
 module Fts.Command.Serve where
 
 import Control.Applicative ((<|>))
@@ -31,7 +40,8 @@ run pNum dPath tPath = do
 -- | Main url mapping.
 site :: FilePath -> MVar (TemplateState Snap) -> Snap ()
 site db tsMVar =
-  FS.fileServe "./"
+  -- FS.fileServe "./"
+  FS.serveDirectory "./"
   <|> route [("", C.queryPhrase db tsMVar)]
   <|> templateServe tsMVar
 

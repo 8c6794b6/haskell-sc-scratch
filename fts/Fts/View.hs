@@ -1,5 +1,14 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PackageImports #-}
+------------------------------------------------------------------------------
+-- |
+-- Module      : $Header$
+-- CopyRight   : (c) 8c6794b6
+-- License     : BSD3
+-- Maintainer  : 8c6794b6@gmail.com
+-- Stability   : unstable
+-- Portability : non-portable
+--
 module Fts.View where
 
 import Data.ByteString (ByteString)
@@ -8,7 +17,6 @@ import qualified Data.ByteString.Char8 as C8
 
 import Snap.Types (Snap, Request)
 import Text.Templating.Heist (Splice)
-import Text.XML.Expat.Tree (Node)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as E
 import qualified Network.URI as URI
@@ -20,6 +28,7 @@ import Fts.Model (SearchResult(..))
 mkResults :: [SearchResult] -> Splice Snap
 mkResults rs = return [X.Element "ul" [] (map mkResult rs)]
 
+mkResult :: SearchResult -> X.Node
 mkResult (SearchResult u t) =
     X.Element "li" []
       [X.Element "div" [("id", "result")]

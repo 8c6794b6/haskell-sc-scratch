@@ -1,4 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
+------------------------------------------------------------------------------
+-- |
+-- Module      : $Header$
+-- CopyRight   : (c) 8c6794b6
+-- License     : BSD3
+-- Maintainer  : 8c6794b6@gmail.com
+-- Stability   : unstable
+-- Portability : non-portable
+--
 module Fts.Control where
 
 import Control.Concurrent (MVar, readMVar)
