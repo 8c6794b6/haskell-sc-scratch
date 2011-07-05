@@ -1,0 +1,28 @@
+name:		lhs2html
+version:	0.0.1
+synopsis:       OpenGL tutorial
+author:         8c6794b6
+maintainer:     8c6794b6@gmail.com
+cabal-version:  >= 1.9.2
+build-type:     Simple
+license:        BSD3
+category:       GUI
+stability:      experimental
+description:
+  Simple utility executable to convert lhs files to html.
+  Input could be either of directory, single file, or stdin.
+  To see usage, invoke: @$lhs2html --help@.
+
+executable lhs2html
+  ghc-options:
+    -O2 -Wall -fno-warn-unused-do-bind
+  main-is:
+    lhs2html.hs
+  build-depends:
+    base,
+    cmdargs >= 0.7,
+    directory >= 1.1.0,
+    directory-tree >= 0.10.0,
+    filepath >= 1.2.0,
+    hscolour >= 1.19,
+    pandoc >= 1.8.1
