@@ -11,21 +11,27 @@ stability:      experimental
 description:
   Collection of client side utility for scsynth using hsc3.
 
+test-suite main-tests
+  type:
+    exitcode-stdio-1.0
+  main-is:
+    tests.hs
+
 library
   ghc-options:
-    -O2
-    -Wall
+    -O2 -Wall
     -fno-warn-unused-do-bind
     -fno-warn-orphans
   exposed-modules:
     Sound.SC3.Lepton
     Sound.SC3.Lepton.Instance
     Sound.SC3.Lepton.Looper
+    Sound.SC3.Lepton.Parser
     Sound.SC3.Lepton.Pattern
     Sound.SC3.Lepton.Pattern.Expression
     Sound.SC3.Lepton.Pattern.Interpreter
-    Sound.SC3.Lepton.Parser
     Sound.SC3.Lepton.Query
+    Sound.SC3.Lepton.QuickCheck
     Sound.SC3.Lepton.Tree
     Sound.SC3.Lepton.UGen
     Sound.SC3.Lepton.UGen.ControlArg
@@ -43,5 +49,8 @@ library
     mtl,
     hosc,
     hsc3,
+    QuickCheck >= 2.0,
     stream-fusion >= 0.1.2.2,
+    test-framework >= 0.4.0,
+    test-framework-quickcheck2 >= 0.2.10,
     uniplate >= 1.6
