@@ -19,13 +19,12 @@ import qualified Test.QuickCheck as Q
 import Sound.OpenSoundControl
 
 import Sound.SC3.Lepton.Tree
-import Sound.SC3.Lepton.Parser
 
 instance Arbitrary SCNode where
   arbitrary = do
-    l <- choose (0,4::Int)
+    l <- choose (0,3::Int)
     oneof [Group <$> arbitrary <*> vectorOf l arbitrary
-          ,Synth <$> arbitrary <*> nameChars <*> vectorOf l arbitrary]
+          ,Synth <$> arbitrary <*> nameChars <*> arbitrary]
 
 instance Arbitrary SynthParam where
   arbitrary = oneof

@@ -25,6 +25,7 @@ module Sound.SC3.Lepton.Parser
   , string
   , blob
   , timeStamp
+  , midi
   ) where
 
 import Data.Word (Word8)
@@ -69,6 +70,10 @@ blob = dp $ \d -> case d of Blob x -> Just x; _ -> Nothing
 -- | Parse OSC timestamp.
 timeStamp :: DatumParser Time
 timeStamp = dp $ \d -> case d of TimeStamp x -> Just x; _ -> Nothing
+
+-- | Parse OSC midi
+midi :: DatumParser (Word8,Word8,Word8,Word8)
+midi = dp $ \d -> case d of Midi (a,b,c,d) -> Just (a,b,c,d); _ -> Nothing
 
 -- | Wrapper for parser builder functions.
 dp :: (Datum -> Maybe a) -> DatumParser a

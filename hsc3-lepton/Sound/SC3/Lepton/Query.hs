@@ -62,7 +62,7 @@ allNodes = do
   liftIO $ do
     send fd (Message "/g_queryTree" [Int 0,Int 1])
     m <- wait fd "/g_queryTree.reply"
-    return $ parseOSC m
+    return $ parseNode m
 
 dump :: Query ()
 dump = do
@@ -135,6 +135,7 @@ paramNames :: NodeInfo [ParamName]
 paramNames (Synth _ _ ps) = map getName ps
     where getName (n:=_) = n
           getName (n:<-_) = n
+          getName (n:<=_) = n
 paramNames _ = []
 
 liftN ::  (a -> b -> c) -> NodeInfo a -> b -> NodeInfo c
@@ -181,3 +182,4 @@ param n = do
   where
     f (x:=_)  = x
     f (x:<-_) = x
+    f (x:<=_) = x

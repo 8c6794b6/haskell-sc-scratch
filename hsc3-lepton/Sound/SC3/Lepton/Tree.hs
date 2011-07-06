@@ -29,7 +29,7 @@ module Sound.SC3.Lepton.Tree
   , BusId
 
     -- * Parser
-  , parseOSC
+  , parseNode
 
     -- * Communicating with server
   , addNode
@@ -177,8 +177,8 @@ infixr 5 :<=
 -- | Parse osc message returned from \"/g_queryTree\" and returns haskell
 -- representation of scsynth node tree.
 -- Only working with osc message including synth control parameters.
-parseOSC :: OSC -> SCNode
-parseOSC o = case o of
+parseNode :: OSC -> SCNode
+parseNode o = case o of
   Message "/g_queryTree.reply" ds -> case parse parseGroup (tail ds) of
     Right tree -> tree
     Left err   -> error $ show err
@@ -198,9 +198,7 @@ parseGroup = do
   numChild <- int
   if numChild < 0
     then parseSynth nId
-    else do
-      ts <- replicateM numChild parseGroup
-      return $ Group nId ts
+    else Group nId `fmap` replicateM numChild parseGroup
 
 parseSynth :: Int -> DatumParser SCNode
 parseSynth nId = do
@@ -248,7 +246,7 @@ getNode :: (Transport t)
 getNode n fd = do
   send fd (queryTree n)
   m <- wait fd "/g_queryTree.reply"
-  return $ parseOSC m
+  return $ parseNode m
 
 -- | Send OSC message for setting given @SCNode@.
 setNode :: (Transport t)

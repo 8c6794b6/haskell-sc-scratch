@@ -47,10 +47,8 @@ library
     parsec >= 3.0,
     syb,
     mtl,
-    hosc,
-    hsc3,
+    hosc >= 0.9,
+    hsc3 >= 0.9,
     QuickCheck >= 2.0,
     stream-fusion >= 0.1.2.2,
-    test-framework >= 0.4.0,
-    test-framework-quickcheck2 >= 0.2.10,
     uniplate >= 1.6
