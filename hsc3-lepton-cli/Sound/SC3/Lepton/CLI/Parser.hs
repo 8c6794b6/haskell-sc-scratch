@@ -8,7 +8,10 @@
 --
 -- Parser for commands used in SCNode interactive prompt.
 --
-module Sound.SC3.Lepton.CLI.Parser (Cmd(..), parseCmd) where
+module Sound.SC3.Lepton.CLI.Parser
+  ( parseCmd
+  , updateParams
+  ) where
 
 import Data.List (unionBy)
 import Data.Function (on)
@@ -19,26 +22,13 @@ import Sound.SC3 hiding (free, status)
 import Sound.SC3.Lepton
 
 import Sound.SC3.Lepton.CLI.SCZipper
+import Sound.SC3.Lepton.CLI.SCShellCmd
 
--- | Commands for sc shell.
-data Cmd = Pwd                                      -- ^ view current status
-         | Ls NodePath                              -- ^ view node list
-         | Cd NodePath                              -- ^ move around tree
-         | Mv AddAction NodeId NodeId               -- ^ move nodes
-         | Tree NodePath                            -- ^ view node tree
-         | Status                                   -- ^ show server status
-         | Refresh                                  -- ^ refresh synth tree
-         | Set NodeId (SCNode->SCNode)              -- ^ n_set
-         | Run Bool                                 -- ^ n_run
-         | Free [NodeId]                            -- ^ n_free
-         | New NodeId (Maybe (String,[SynthParam])) -- ^ s_new and g_new
-         deriving (Show)
-
-type NodePath = SCZipper -> SCZipper
-
--- | Parser for command
+-- | Parser for command.
 parseCmd :: String -> Either ParseError Cmd
-parseCmd = runParser commands () "interactive"
+parseCmd = runParser commands () "interactive" . clean where
+  clean = reverse . (nw . reverse) . nw
+  nw = dropWhile (== ' ')
 
 commands :: Monad m => ParsecT String u m Cmd
 commands = do
@@ -71,21 +61,21 @@ tree = do
 set :: Monad m => ParsecT String u m Cmd
 set = do
   string "set" >> many space
-  nid <- many1 digit
+  nid <- integer
   many space
   ps <- synthParam `sepBy` (many space)
-  return $ Set (read nid) (updateParams ps)
+  return $ Set (read nid) ps
 
 free :: Monad m => ParsecT String u m Cmd
 free = do
   string "free" >> many1 space
-  nid <- many1 digit `sepBy` space
+  nid <- integer `sepBy` (many space)
   return $ Free $ map read nid
 
 new :: Monad m => ParsecT String u m Cmd
 new = do
   string "new" >> many1 space
-  nid <- many1 digit
+  nid <- integer
   many space
   synthNode <- optionMaybe nodeParam
   return $ New (read nid) synthNode
@@ -107,9 +97,9 @@ mv = do
   string "mv" >> optional (many space)
   addAct <- addAction
   many1 space
-  sourceId <- many1 digit
+  sourceId <- integer
   many1 space
-  targetId <- many1 digit
+  targetId <- integer
   return $ Mv addAct (read sourceId) (read targetId)
 
 addAction :: Monad m => ParsecT String u m AddAction
@@ -132,25 +122,25 @@ addAction = try shortOpt <|> try longOpt
     replaceS = char 'r' >> return AddReplace
     replaceL = string "replace" >> return AddReplace
 
-paths :: Monad m => ParsecT String u m NodePath
-paths = try (absolutePath <|> relativePath) <|> return id
+paths :: Monad m => ParsecT String u m [Step]
+paths = try (absolutePath <|> relativePath) <|> return []
 
-absolutePath :: Monad m => ParsecT String u m NodePath
+absolutePath :: Monad m => ParsecT String u m [Step]
 absolutePath = do
   char '/'
-  f <- relativePath
-  return $ f . goTop
+  ps <- relativePath
+  return $ GoTop : ps
 
-relativePath :: Monad m => ParsecT String u m NodePath
+relativePath :: Monad m => ParsecT String u m [Step]
 relativePath = do
   res <- (pathUp <|> pathDown) `sepEndBy` char '/'
-  return $ foldr (.) id $ reverse res
+  return res
 
-pathUp :: Monad m => ParsecT String u m NodePath
-pathUp = string ".." >> return goUp
+pathUp :: Monad m => ParsecT String u m Step
+pathUp = string ".." >> return GoUp
 
-pathDown :: Monad m => ParsecT String u m NodePath
-pathDown = many1 digit >>= return . goDown . read
+pathDown :: Monad m => ParsecT String u m Step
+pathDown = many1 digit >>= return . GoDown . read
 
 generalName :: Monad m => ParsecT String u m String
 generalName = many1 (alphaNum <|> oneOf "-_.")
@@ -167,19 +157,36 @@ synthParam = do
   paraName <- generalName
   optional (many space) >> char '=' >> optional (many space)
   f <- choice [val, cmap, amap]
+  optional (many space)
   return $ f paraName
   where
     val = do
-      v <- many1 (digit <|> oneOf "-.")
+      v <- float
       return $ (:= read v)
     cmap = do
       char 'c'
-      b <- many1 digit
+      b <- integer
       return $ (:<- read b)
     amap = do
       char 'a'
-      b <- many1 digit
+      b <- integer
       return $ (:<= read b)
+
+integer :: Monad m => ParsecT String u m String
+integer = do
+  sign <- optionMaybe (char '-')
+  val <- many1 digit
+  case sign of
+    Just sign' -> return $ sign':val
+    Nothing    -> return val
+
+float :: Monad m => ParsecT String u m String
+float = do
+  sign <- optionMaybe (char '-')
+  val <- many1 (digit <|> oneOf ".e-")
+  case sign of
+    Just sign' -> return $ sign':val
+    Nothing    -> return val
 
 looseBool :: Monad m => ParsecT String u m Bool
 looseBool = do

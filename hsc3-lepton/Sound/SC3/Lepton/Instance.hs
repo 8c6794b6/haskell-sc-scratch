@@ -33,6 +33,7 @@ instance Data Datum where
   gfoldl k z (String s) = z String `k` s
   gfoldl k z (Blob b) = z Blob `k` b
   gfoldl k z (TimeStamp t) = z TimeStamp `k` t
+  gfoldl k z (Midi m) = z Midi `k` m
 
   gunfold k z c = case constrIndex c of
                     1 -> k (z Int)
@@ -41,6 +42,7 @@ instance Data Datum where
                     4 -> k (z String)
                     5 -> k (z Blob)
                     6 -> k (z TimeStamp)
+                    7 -> k (z Midi)
                     _ -> undefined
 
   toConstr (Int _) = con_Int
@@ -49,6 +51,7 @@ instance Data Datum where
   toConstr (String _) = con_String
   toConstr (Blob _) = con_Blob
   toConstr (TimeStamp _) = con_TimeStamp
+  toConstr (Midi _) = con_Midi
 
   dataTypeOf _ = ty_Datum
 
@@ -70,9 +73,12 @@ con_Blob = mkConstr ty_Datum "Blob" [] Prefix
 con_TimeStamp :: Constr
 con_TimeStamp = mkConstr ty_Datum "TimeStamp" [] Prefix
 
+con_Midi :: Constr
+con_Midi = mkConstr ty_Datum "Midi" [] Prefix
+
 ty_Datum :: DataType
 ty_Datum = mkDataType "Sound.OpenSoundControl.Datum"
-           [con_Int,con_Float,con_Double,con_String,con_Blob,con_TimeStamp]
+  [con_Int,con_Float,con_Double,con_String,con_Blob,con_TimeStamp,con_Midi]
 
 
 instance Typeable Time where

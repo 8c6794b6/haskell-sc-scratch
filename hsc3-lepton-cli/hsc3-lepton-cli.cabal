@@ -3,7 +3,7 @@ version:	0.0.3
 synopsis:       Command line interface for scsynth using hsc3-lepton
 author:         8c6794b6
 maintainer:     8c6794b6@gmail.com
-cabal-version:  >= 1.9.2
+cabal-version:  >= 1.6
 build-type:     Simple
 license:        BSD3
 category:       GUI
@@ -11,34 +11,39 @@ stability:      experimental
 description:
   Command line interface for scsynth using hsc3-lepton
 
+flag hpc
+  description:
+    Enable compiling with hpc flag turned on
+  default:
+    False
+
+test-suite main-tests
+  ghc-options:
+    -O2 -Wall -fhpc -fno-warn-unused-do-bind -fno-warn-orphans
+  type:
+    exitcode-stdio-1.0
+  main-is:
+    tests.hs
+
 executable scshell
   ghc-options:
     -O2 -Wall -fno-warn-unused-do-bind -fno-warn-orphans
   main-is:
      scshell.hs
-  build-depends:
-    base,
-    cmdargs,
-    containers >= 0.3.0.0,
-    mtl >= 2.0.0,
-    parsec >= 3.0.0,
-    syb,
-    uniplate >= 1.6,
-    hosc,
-    hsc3,
-    hsc3-lepton >= 0.0.3,
-    Shellac >= 0.9.5,
-    Shellac-haskeline >= 0.2
 
 library
   ghc-options:
     -O2 -Wall -fno-warn-unused-do-bind -fno-warn-orphans
+  if flag(hpc)
+     ghc-options:
+       -O2 -Wall -fno-warn-unused-do-bind -fno-warn-orphans -fhpc
   exposed-modules:
     Sound.SC3.Lepton.CLI.Parser
     Sound.SC3.Lepton.CLI.SCZipper
     Sound.SC3.Lepton.CLI.SCShell
+    Sound.SC3.Lepton.CLI.SCShellCmd
   build-depends:
-    base,
+    base == 4.*,
     cmdargs,
     containers >= 0.3.0.0,
     mtl >= 2.0.0,
@@ -48,25 +53,6 @@ library
     hosc,
     hsc3,
     hsc3-lepton >= 0.0.3,
-    Shellac >= 0.9.5,
-    Shellac-haskeline >= 0.2
-
-test-suite test-foo
-  type:
-    exitcode-stdio-1.0
-  main-is:
-    tests.hs
-  build-depends:
-    base,
-    Cabal >= 1.10.1,
-    cmdargs,
-    containers >= 0.3.0.0,
-    mtl >= 2.0.0,
-    parsec >= 3.0.0,
-    syb,
-    uniplate >= 1.6,
-    hosc,
-    hsc3,
-    hsc3-lepton >= 0.0.3,
+    QuickCheck,
     Shellac >= 0.9.5,
     Shellac-haskeline >= 0.2

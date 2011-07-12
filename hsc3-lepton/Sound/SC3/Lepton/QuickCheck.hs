@@ -13,7 +13,7 @@ module Sound.SC3.Lepton.QuickCheck () where
 
 import Control.Applicative ((<$>), (<*>))
 import Test.QuickCheck
-  (Arbitrary(..), Gen, choose, oneof, vectorOf, listOf1, elements)
+  (Arbitrary(..), Gen, choose, vectorOf, oneof, listOf1, elements, sized)
 import qualified Test.QuickCheck as Q
 
 import Sound.OpenSoundControl
@@ -25,6 +25,9 @@ instance Arbitrary SCNode where
     l <- choose (0,3::Int)
     oneof [Group <$> arbitrary <*> vectorOf l arbitrary
           ,Synth <$> arbitrary <*> nameChars <*> arbitrary]
+  -- arbitrary = sized nodes where
+  --   nodes n | n < 2     = Synth <$> arbitrary <*> nameChars <*> arbitrary
+  --           | otherwise = Group <$> arbitrary <*> Q.listOf (nodes (n `div` 2))
 
 instance Arbitrary SynthParam where
   arbitrary = oneof
@@ -48,4 +51,4 @@ instance Arbitrary Time where
     ,NTPi <$> arbitrary]
 
 nameChars :: Gen String
-nameChars = listOf1 (elements $ ['A' .. 'Z'] ++ ['a'..'z'] ++ ['_', '.'])
+nameChars = listOf1 (elements $ ['A' .. 'Z'] ++ ['a'..'z'] ++ "_.")

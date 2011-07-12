@@ -1,23 +1,23 @@
-{-# LANGUAGE ExistentialQuantification #-} 
+{-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE Rank2Types #-}
 ----------------------------------------------------------------------
--- | 
+-- |
 -- Module      : $Header$
 -- CopyRight   : (c) 8c6794b6
 -- License     : BSD3
 -- Maintainer  : 8c6794b6@gmail.com
 -- Stability   : unstable
 -- Portability : portable
--- 
+--
 -- Some reusable functions not fitting to elsewhere module.
--- 
+--
 module Sound.SC3.Lepton.Util where
 
 import Control.Arrow ((>>>))
 import Data.List (nub, foldl')
 import System.Environment (getEnvironment)
 import System.FilePath ((</>), (<.>))
-import System.Random 
+import System.Random
   ( Random
   , RandomGen
   , getStdRandom
@@ -79,21 +79,21 @@ data BufInfo = BufInfo {
       bufNumber :: Int,
       bufNumFrames :: Int,
       bufNumChannels :: Int,
-      bufSampleRate :: Double 
+      bufSampleRate :: Double
     } deriving (Eq, Show)
-                         
+
 -- | Send /b_query and returns BufInfo.
 getBufInfo :: Int -> IO BufInfo
 getBufInfo bufId = do
-  msg <- withSC3 (\fd -> send fd (b_query [bufId]) >> 
+  msg <- withSC3 (\fd -> send fd (b_query [bufId]) >>
                          wait fd "/b_info")
   case msg of
-    Message "/b_info" [Int bid, Int nf,Int nc,Float sr] -> 
+    Message "/b_info" [Int bid, Int nf,Int nc,Float sr] ->
         return $ BufInfo bid nf nc sr
     _ -> error "Not a /b_info message"
 
 -- | @flip send@. With flipping the argument, one can write as below:
--- 
+--
 -- > withSC3 (send' some_osc_message)
 send' :: Transport t => OSC -> (t -> IO ())
 send' = flip send
@@ -121,7 +121,7 @@ queryNode :: Transport t => Int -> (t -> IO OSC)
 queryNode n = \fd -> do
   async fd (notify True)
   send fd (n_query [n])
-  wait fd "/n_info"                
+  wait fd "/n_info"
 
 -- | Dumps root node and show in scsynth.
 dumpTree :: Transport t => t -> IO ()
@@ -152,7 +152,7 @@ b_get' :: Transport t => Int -> [Int] -> (t -> IO OSC)
 b_get' bId is = \fd -> send fd (b_get bId is) >> wait fd "/b_set"
 
 -- | Sends @/b_getn@ message and wait until it gets @/b_setn@.
--- 
+--
 -- > \fd ->
 b_getn' :: Transport t => Int -> [(Int,Int)] -> (t -> IO OSC)
 b_getn' bid params = \fd -> send fd (b_getn bid params) >> wait fd "/b_setn"
@@ -239,7 +239,7 @@ choices xs g = x:choices xs g'
     where (x,g') = chooseOne xs g
 
 shuffle :: RandomGen g => [a] -> g -> ([a], g)
-shuffle xs g = (xs', g') 
+shuffle xs g = (xs', g')
     where xs' = choose xs (length xs) g
           (_,g') = next g
 
@@ -250,10 +250,10 @@ shuffleIO :: [a] -> IO [a]
 shuffleIO = getStdRandom . shuffle
 
 expRandomR :: (Floating a, RandomGen g, Random a) => (a, a) -> g -> (a, g)
-expRandomR (lo,hi) g0 =  (exp x, g1) 
+expRandomR (lo,hi) g0 =  (exp x, g1)
     where (x, g1) = randomR (log lo, log hi) g0
 
-expRandomRs :: (Floating a, RandomGen g, Random a) => 
+expRandomRs :: (Floating a, RandomGen g, Random a) =>
                (a, a) -> g -> [a]
 expRandomRs (lo,hi) = map exp . randomRs (log lo, log hi)
 
@@ -262,12 +262,12 @@ envTest :: [UGen] -> IO ()
 envTest ugs = audition oscil
     where
       oscil = out 0 $ sinOsc ar 880 0 * e
-      e = envGen kr g 1 0 1 RemoveSynth ugs 
+      e = envGen kr g 1 0 1 RemoveSynth ugs
       g = control kr "gate" 0.5
 
 -- | Sustain the second to last value until gate set to 0.
 envCoord' :: [(UGen, UGen)] -> UGen -> UGen -> EnvCurve -> [UGen]
-envCoord' bp dur amp c = 
+envCoord' bp dur amp c =
     let l = map ((* amp) . snd) bp
         t = map (* dur) (d_dx (map fst bp))
     in  env l t (repeat c) 1 (-1)
@@ -287,3 +287,12 @@ n_mapa n ps = Message "/n_mapa" $ reverse $ foldl' f [Int n] ps
 n_mapan :: Int -> [(String,Int,Int)] -> OSC
 n_mapan n ps = Message "/n_mapan" $ reverse $ foldl' f [Int n] ps
   where f b (x,y,z) = Int z:Int y:String x:b
+
+
+-- | Sends '/n_order' message.
+n_order :: AddAction -- ^ Add action
+        -> Int       -- ^ Source node or group id
+        -> Int       -- ^ Target node or group id, will be moved
+        -> OSC
+n_order action source target =
+  Message "/n_order" [Int (fromEnum action), Int source, Int target]

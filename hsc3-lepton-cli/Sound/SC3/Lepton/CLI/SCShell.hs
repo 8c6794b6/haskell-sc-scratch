@@ -17,7 +17,11 @@
 --
 -- * Add completion helpers
 --
--- * Add 'find' ccommand, query nodes like find or WHERE in SQL.
+-- * Add help command and show example
+--
+-- * Show exception, e.g. duplicate node id
+--
+-- * Add 'find' command, query nodes like find or WHERE in SQL.
 --
 -- * Make 'pwd' a bit more useful ... any idea?
 --
@@ -32,6 +36,7 @@ import System.Console.Shell.Backend.Haskeline
 import System.Console.Shell.ShellMonad
 
 import Sound.SC3.Lepton.CLI.Parser
+import Sound.SC3.Lepton.CLI.SCShellCmd
 import Sound.SC3.Lepton.CLI.SCZipper
 
 data SynthEnv = SynthEnv
@@ -55,9 +60,7 @@ scShell con = do
   putStrLn "Bye."
 
 withEnv :: (Either TCP UDP -> IO a) -> Sh SynthEnv a
-withEnv action = do
-  environment <- getShellSt
-  liftIO $ action . connection $ environment
+withEnv action = liftIO . action . connection =<< getShellSt
 
 shellDesc :: ShellDescription SynthEnv
 shellDesc = (mkShellDescription cmds work)
@@ -83,50 +86,55 @@ work :: String -> Sh SynthEnv ()
 work cs | null $ dropWhile (== ' ') cs = return ()
         | otherwise = case parseCmd cs of
   Left err  -> shellPutErrLn $ show err
-  Right parsed -> case parsed of
-    Pwd    -> shellPutStrLn . show . zipper =<< getShellSt
-    Ls f   -> shellPutStr . showNode . focus . f . zipper =<< getShellSt
-    Tree f -> shellPutStr . drawSCNode . focus . f . zipper =<< getShellSt
-    Cd f   -> modifyShellSt $ \st -> st {zipper = f $ zipper st}
-    Status -> withEnv serverStatus >>= mapM_ shellPutStrLn
-    -- Fix 'mv' function in SCZipper
-    --
-    Mv addAct source target -> do
-      withEnv $ flip send $ n_order addAct source target
-      n <- withEnv getRootNode
-      modifyShellSt $ \st -> st {zipper = SCZipper n []}
-    Set nid f  -> do
-      e <- getShellSt
-      let newNode = f . nodeById nid . zipper $ e
-          z = zipper e
-      putShellSt $ e {zipper = insert' newNode AddReplace (nodeId newNode) z}
-      withEnv $ setNode newNode
-    Free nodeIds -> do
-      modifyShellSt $ \st ->
-        st {zipper = (foldr (.) id (map delete nodeIds)) $ zipper st}
-      withEnv $ flip send $ n_free nodeIds
-    New i nodeType -> case nodeType of
-      Nothing -> do
-        st <- getShellSt
-        let st' = st {zipper = insert (Group i []) z}
-            j = nodeId $ focus z
-            z = zipper st
-        putShellSt st'
-        withEnv $ flip send $ g_new [(i,AddToTail,j)]
-      Just (n,ps) -> do
-        st <- getShellSt
-        let newNode = Synth i n ps
-            st' = st {zipper = insert newNode z}
-            j = nodeId $ focus z
-            z = zipper st
-        putShellSt st'
-        withEnv $ addNode j newNode
-    Run bool  -> do
-      nid <- (nodeId . focus . zipper) `fmap` getShellSt
-      withEnv $ flip send $ n_run [(nid,bool)]
-    Refresh -> do
-      n <- withEnv getRootNode
-      modifyShellSt $ \st -> st {zipper = SCZipper n []}
+  Right parsed -> do
+    now <- liftIO utcr
+    res <- (Bundle (UTCr now) . cmdToOSC parsed . zipper) `fmap` getShellSt
+    case parsed of
+      Pwd    -> shellPutStrLn . show . zipper =<< getShellSt
+      Ls f   -> shellPutStr . showNode . focus . steps f . zipper =<< getShellSt
+      Tree f ->
+        shellPutStr . drawSCNode . focus . steps f . zipper =<< getShellSt
+      Cd f   -> modifyShellSt $ \st -> st {zipper = steps f $ zipper st}
+      Status -> withEnv serverStatus >>= mapM_ shellPutStrLn
+      -- Mv addAct source target -> do
+      Mv _ _ _ -> do
+        n <- withEnv $ \fd ->
+          send fd res >> wait fd "/done" >> getRootNode fd
+                              -- n_order addAct source target
+        -- n <- withEnv getRootNode
+        modifyShellSt $ \st -> st {zipper = SCZipper n []}
+      Set nid ps  -> do
+        e <- getShellSt
+        let newNode = updateParams ps . nodeById nid . zipper $ e
+            z = zipper e
+        putShellSt $ e {zipper = insert' newNode AddReplace (nodeId newNode) z}
+        withEnv $ setNode newNode
+      Free nodeIds -> do
+        modifyShellSt $ \st ->
+          st {zipper = (foldr (.) id (map delete nodeIds)) $ zipper st}
+        withEnv $ flip send $ res -- n_free nodeIds
+      New i nodeType -> case nodeType of
+        Nothing -> do
+          st <- getShellSt
+          let st' = st {zipper = insert (Group i []) z}
+              -- j = nodeId $ focus z
+              z = zipper st
+          putShellSt st'
+          withEnv $ flip send $ res -- g_new [(i,AddToTail,j)]
+        Just (n,ps) -> do
+          st <- getShellSt
+          let newNode = Synth i n ps
+              st' = st {zipper = insert newNode z}
+              j = nodeId $ focus z
+              z = zipper st
+          putShellSt st'
+          withEnv $ addNode j newNode
+      Run _  -> do
+        -- nid <- (nodeId . focus . zipper) `fmap` getShellSt
+        withEnv $ flip send $ res -- n_run [(nid,bool)]
+      Refresh -> do
+        n <- withEnv getRootNode
+        modifyShellSt $ \st -> st {zipper = SCZipper n []}
 
 -- | Show synth node in ls command.
 showNode :: SCNode -> String

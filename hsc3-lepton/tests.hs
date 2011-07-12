@@ -24,7 +24,8 @@ import Sound.SC3.Lepton.QuickCheck
 
 main :: IO ()
 main = do
-  results <- mapM Q.quickCheckResult
+  -- results <- mapM Q.quickCheckResult
+  results <- mapM (Q.quickCheckWithResult (Q.Args Nothing 100 1000 8 True))
     [Q.label "treeToNew" prop_treeToNew
     ,Q.label "treeToSet" prop_treeToSet
     ,Q.label "drawSCNode" prop_drawSCNode

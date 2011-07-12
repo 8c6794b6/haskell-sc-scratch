@@ -12,24 +12,25 @@
 module Sound.SC3.Lepton.CLI.SCZipper
  ( SCZipper(..)
  , SCPath(..)
+ , NodePath
+ , Step(..)
  , goUp
  , goDown
  , goTop
+ , step
+ , steps
  , updateNode
  , delete
  , insert
  , insert'
  , move
  , nodeById
- , n_order
- , (-:)
  ) where
 
 import Data.List (nub)
 
 import Data.Generics (Data, Typeable)
 import Data.Generics.Uniplate.Data
-import Sound.OpenSoundControl
 import Sound.SC3
 import Sound.SC3.Lepton
 
@@ -44,6 +45,24 @@ data SCZipper = SCZipper {
 -- | Data type to track information of movement in tree.
 data SCPath = SCPath NodeId [SCNode] [SCNode]
               deriving (Eq, Show, Data, Typeable)
+
+-- | Synonym for functions modifying sczipper to zipper.
+type NodePath = SCZipper -> SCZipper
+
+-- | Data representation of movement in zipper.
+data Step = GoUp | GoTop | GoDown Int
+          deriving (Eq, Show)
+
+-- | Returns a function with combining given steps.
+steps :: [Step] -> NodePath
+steps = foldl (\a b -> step b . a) id
+
+-- | Convert move data representation to function.
+step :: Step -> NodePath
+step d = case d of
+  GoUp     -> goUp
+  GoTop    -> goTop
+  GoDown n -> goDown n
 
 -- | Go one leven up from current focus.
 goUp :: SCZipper -> SCZipper
@@ -87,17 +106,19 @@ delete nid (SCZipper g ps) = SCZipper g' ps' where
         _           -> n : ns
 
 -- | Move given node to new position with given AddAction.
---
--- TODO: Not working well. Write tests.
 move :: Int -> AddAction -> Int -> SCZipper -> SCZipper
 move sourceId action targetId z =
   insert' (nodeById sourceId z) action targetId $ delete sourceId z
 
+-- | Get node from zipper by id.
 nodeById :: Int -> SCZipper -> SCNode
 nodeById nid (SCZipper n ps) = head $ f n ++ concatMap appP ps
   where
     appP :: SCPath -> [SCNode]
-    appP (SCPath _ ls rs) = concatMap f ls ++ concatMap f rs
+    appP (SCPath i ls rs) =
+      if i == nid
+         then [Group i (ls ++ [n] ++ rs)]
+         else concatMap f ls ++ concatMap f rs
     f :: SCNode -> [SCNode]
     f x = if nodeId x == nid then [x] else
             case x of
@@ -135,7 +156,7 @@ insert' node action target z =
     toHead (SCZipper g ps) = SCZipper (f g) (map app ps) where
       app (SCPath i ls rs) = if i == target then
                                  SCPath i (node:ls) rs
-                               else
+                             else
                                  SCPath i (map f ls) (map f rs)
       f n = case n of
         Group gid ns -> if gid == target then
@@ -159,29 +180,10 @@ insert' node action target z =
                 else case x of
                   Synth _ _ _ -> x:xs
                   Group _ _   -> f x:xs
-    replace (SCZipper g ps) = SCZipper (f g) (app ps) where
-      app = map (\(SCPath i ls rs) -> SCPath i (map f ls) (map f rs))
+    replace (SCZipper g ps) = SCZipper (f g) (map app ps) where
+      app (SCPath i ls rs) = SCPath i (map f ls) (map f rs)
       f node' = if nodeId node' == target then
                   node
                 else case node' of
                   Group gid ns -> Group gid $ map f ns
                   _            -> node'
-
-----------------------------------------------------------
---
--- Utilities
---
-
--- | Sends '/n_order' message.
---
--- General enough to move this in hsc-lepton package.
-n_order :: AddAction -- ^ Add action
-        -> Int       -- ^ Source node or group id
-        -> Int       -- ^ Target node or group id, will be moved
-        -> OSC
-n_order action source target =
-  Message "/n_order" [Int (fromEnum action), Int source, Int target]
-
--- | Utility function for zipper.
-(-:) :: a -> (a -> b) -> b
-x -: f = f x
