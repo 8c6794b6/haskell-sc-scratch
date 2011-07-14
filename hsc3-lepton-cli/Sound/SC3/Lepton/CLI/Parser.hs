@@ -95,7 +95,7 @@ refresh = string "refresh" >> return Refresh
 mv :: Monad m => ParsecT String u m Cmd
 mv = do
   string "mv" >> optional (many space)
-  addAct <- addAction
+  addAct <- addActionNoReplace
   many1 space
   sourceId <- integer
   many1 space
@@ -111,16 +111,32 @@ addAction = try shortOpt <|> try longOpt
     longOpt = do
       string "--"
       choice [toHeadL, toTailL, beforeL, afterL, replaceL]
-    toHeadS  = char 'h' >> return AddToHead
-    toHeadL  = string "head" >> return AddToHead
-    toTailS  = char 't' >> return AddToTail
-    toTailL  = string "tail" >> return AddToTail
-    beforeS  = char 'b' >> return AddBefore
-    beforeL  = string "before" >> return AddBefore
-    afterS   = char 'a' >> return AddAfter
-    afterL   = string "after" >> return AddAfter
-    replaceS = char 'r' >> return AddReplace
-    replaceL = string "replace" >> return AddReplace
+
+addActionNoReplace :: Monad m => ParsecT String u m AddAction
+addActionNoReplace = try shortOpt <|> try longOpt
+  where
+    shortOpt = do
+      char '-'
+      choice [toHeadS, toTailS, beforeS, afterS]
+    longOpt = do
+      string "--"
+      choice [toHeadL, toTailL, beforeL, afterL]
+
+toHeadS, toTailS, beforeS, afterS, replaceS
+  :: Monad m => ParsecT String u m AddAction
+toHeadS  = char 'h' >> return AddToHead
+toTailS  = char 't' >> return AddToTail
+beforeS  = char 'b' >> return AddBefore
+afterS   = char 'a' >> return AddAfter
+replaceS = char 'r' >> return AddReplace
+
+toHeadL, toTailL, beforeL, afterL, replaceL
+  :: Monad m => ParsecT String u m AddAction
+toHeadL  = string "head" >> return AddToHead
+toTailL  = string "tail" >> return AddToTail
+beforeL  = string "before" >> return AddBefore
+afterL   = string "after" >> return AddAfter
+replaceL = string "replace" >> return AddReplace
 
 paths :: Monad m => ParsecT String u m [Step]
 paths = try (absolutePath <|> relativePath) <|> return []

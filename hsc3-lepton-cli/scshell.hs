@@ -15,7 +15,7 @@ import Sound.SC3.Lepton.CLI.SCShell
 
 main :: IO ()
 main = do
-  info <- cmdArgs connectInfo
+  info <- cmdArgs defaultSCShell
   putStrLn $ "connecting to " ++ host info ++ ":" ++ show (port info)
     ++ ", " ++ show (protocol info)
   let con = case protocol info of
@@ -23,7 +23,7 @@ main = do
         TCP -> Left `fmap` openTCP (host info) (port info)
   withTransport con scShell
 
-data ConnectInfo = ConnectInfo
+data SCShell = SCShell
   { protocol :: Protocol
   , host :: String
   , port :: Int
@@ -31,8 +31,5 @@ data ConnectInfo = ConnectInfo
 
 data Protocol = TCP | UDP deriving (Eq, Show, Data, Typeable)
 
-connectInfo :: ConnectInfo
-connectInfo = ConnectInfo
-  { protocol = UDP
-  , host = "127.0.0.1"
-  , port = 57110 }
+defaultSCShell :: SCShell
+defaultSCShell = SCShell {protocol=UDP, host="127.0.0.1", port=57110}

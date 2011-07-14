@@ -37,7 +37,7 @@ data Cmd = Pwd                                      -- ^ view current status
 cmdToOSC :: Cmd -> SCZipper -> [OSC]
 cmdToOSC c z = case c of
   Status               -> [Message "/status" []]
-  Mv a i j             -> [Message "/n_order" [Int (fromEnum a),Int i,Int j]]
+  Mv a i j             -> [Message "/n_order" [Int (fromEnum a),Int j,Int i]]
   Set n ps | null ps   -> []
            | otherwise -> mkNSet n ps
   Run r                -> [n_run [(nodeId (focus z), r)]]

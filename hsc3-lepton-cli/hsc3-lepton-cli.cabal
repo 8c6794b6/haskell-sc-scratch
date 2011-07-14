@@ -35,8 +35,8 @@ library
   ghc-options:
     -O2 -Wall -fno-warn-unused-do-bind -fno-warn-orphans
   if flag(hpc)
-     ghc-options:
-       -O2 -Wall -fno-warn-unused-do-bind -fno-warn-orphans -fhpc
+     ghc-options: -fhpc
+
   exposed-modules:
     Sound.SC3.Lepton.CLI.Parser
     Sound.SC3.Lepton.CLI.SCZipper
@@ -54,5 +54,4 @@ library
     hsc3,
     hsc3-lepton >= 0.0.3,
     QuickCheck,
-    Shellac >= 0.9.5,
-    Shellac-haskeline >= 0.2
+    haskeline
