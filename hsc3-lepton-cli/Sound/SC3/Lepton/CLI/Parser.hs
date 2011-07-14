@@ -10,6 +10,7 @@
 --
 module Sound.SC3.Lepton.CLI.Parser
   ( parseCmd
+  , parsePaths
   , updateParams
   ) where
 
@@ -26,7 +27,12 @@ import Sound.SC3.Lepton.CLI.SCShellCmd
 
 -- | Parser for command.
 parseCmd :: String -> Either ParseError Cmd
-parseCmd = runParser commands () "interactive" . clean where
+parseCmd = runParser commands () "parseCmd" . clean where
+  clean = reverse . (nw . reverse) . nw
+  nw = dropWhile (== ' ')
+
+parsePaths :: String -> Either ParseError [Step]
+parsePaths = runParser paths () "parsePaths" . clean where
   clean = reverse . (nw . reverse) . nw
   nw = dropWhile (== ' ')
 

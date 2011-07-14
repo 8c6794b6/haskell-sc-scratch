@@ -12,7 +12,15 @@
 --
 -- TODO:
 --
+-- * Make target nodeId for set commnad optional, use current node as default.
+--
+-- * Take node ids for new command to make multiple group nodes at once.
+--
 -- * Add completion helpers
+--
+--     * For synthdef name
+--
+--     * For synthdef params -> Depends on synthdef parser to get controls.
 --
 -- * Add help command
 --
@@ -27,7 +35,8 @@ module Sound.SC3.Lepton.CLI.SCShell where
 
 import Control.Applicative
 import Data.Char (isSpace)
-import Data.List (isPrefixOf, sort)
+import Data.List (isPrefixOf, isSuffixOf, sort)
+import System.FilePath
 
 import Control.Monad.State
 import Sound.OpenSoundControl
@@ -41,10 +50,8 @@ import Sound.SC3.Lepton.CLI.SCZipper
 
 -- | Environment for scshell.
 data Env = Env
-  { -- | Prompt shown in shell.
-    prompt :: String
-    -- | Scsynth connection used inside the shell.
-  , connection :: Either TCP UDP
+  { -- | Scsynth connection used inside the shell.
+    connection :: Either TCP UDP
     -- | Zipper data to hold current position in synth tree.
   , zipper :: SCZipper
   } deriving (Eq, Show)
@@ -87,8 +94,8 @@ go = do
 scShell :: Either TCP UDP -> IO ()
 scShell con = do
   n <- getRootNode con
-  evalStateT (unGuts (runInputT (Settings compF Nothing True) repl))
-    (Env "sc / > " con (SCZipper n []))
+  evalStateT (unGuts (runInputT (setComplete compTop defaultSettings) repl))
+    (Env con (SCZipper n []))
 
 -- | The loop.
 repl :: Repl ()
@@ -144,17 +151,55 @@ work cs = case parseCmd cs of
         n <- withEnv getRootNode
         modifyEnv $ \st -> st {zipper = SCZipper n []}
 
+-- | Complete function for toplevel commands.
+compTop :: CompletionFunc (Guts Env)
+compTop = completeWordWithPrev Nothing " \t" $ \left current -> do
+  e <- get
+  let lefts = words left
+  case lefts of
+    (cmd:_) -> return $ compArgs e (reverse cmd) left current
+    []      -> return [ simpleCompletion t
+                      | t <- toplevels, current `isPrefixOf` t]
+
+-- | Complete argument for each commands.
+compArgs :: Env -> String -> String -> String -> [Completion]
+compArgs e com rest current
+  | com `elem` ["cd", "ls", "tree"] = compPaths e current
+  | otherwise                       = []
+
+-- | Make list of canditate paths from current environment and input.
+compPaths :: Env -> String -> [Completion]
+compPaths e current =
+  let (pre,post) = splitFileName current
+      moves = case parsePaths pre of Right ps -> ps; Left _ -> []
+      cwn = focus . steps moves . zipper $ e
+  in  case cwn of
+    Synth _ _ _ -> []
+    Group _ ns  ->
+      [comp | n <- ns, let n' = shortPath n
+            , post `isPrefixOf` n'
+            , let repl = replaceFileName current (addTrailingSlash n')
+            , let comp = Completion repl (middlePath n) False]
+
+addTrailingSlash :: String -> String
+addTrailingSlash cs | "/" `isSuffixOf` cs = cs
+                    | otherwise           = cs ++ "/"
+
+-- | Show node id for synth nodes, nd node id ++ '/' for group nodes.
+shortPath (Synth i _ _) = show i
+shortPath (Group i _)   = show i ++ "/"
+
+-- | Show node id and defname for synth nodes, node id ++ '/' for group nodes.
+middlePath (Synth i n _) = show i ++ ":" ++ n
+middlePath (Group i _)   = show i ++ "/"
+
 -- | Name of toplevel commands.
 toplevels :: [String]
 toplevels = sort $
   ["quit", "pwd", "ls", "tree", "cd", "status", "mv", "set", "free", "new"
   ,"run", "refresh"]
 
-compF :: CompletionFunc (Guts Env)
-compF = completeWordWithPrev Nothing " \t" $ \_ current -> do
-  return $ filter (\x -> current `isPrefixOf` display x) comps where
-    comps = map simpleCompletion toplevels
-
+-- | Make prompt string showing current node from env.
 makePrompt :: Env -> String
 makePrompt e = foldr f "/" ns  ++ g (focus z) ++ " > " where
   z = zipper e
@@ -169,12 +214,7 @@ makePrompt e = foldr f "/" ns  ++ g (focus z) ++ " > " where
 showNode :: SCNode -> String
 showNode nd = case nd of
   Synth _ _ ps -> foldr (\x xs -> show x ++ "\t" ++ xs) [] ps ++ "\n"
-  Group _ ss -> foldr f [] ss ++ "\n"
-    where
-      f n ns = g n ++ "\t" ++ ns
-      g n = case n of
-        Group i _ -> show i ++ "/"
-        Synth i defName _ -> show i ++ ":" ++ defName
+  Group _ ss -> foldr (\x xs -> middlePath x ++ "\t" ++ xs) [] ss ++ "\n"
 
 -- | Removes space characters in beginning and end of given String.
 trim :: String -> String
