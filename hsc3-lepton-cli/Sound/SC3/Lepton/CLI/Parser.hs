@@ -8,6 +8,7 @@
 --
 -- Parser for commands used in SCNode interactive prompt.
 --
+--
 module Sound.SC3.Lepton.CLI.Parser
   ( parseCmd
   , parsePaths
@@ -50,21 +51,28 @@ commandNames =
 pwd :: Monad m => ParsecT String u m Cmd
 pwd =  string "pwd" >> return Pwd
 
+-- | > ls [PATH]
 ls :: Monad m => ParsecT String u m Cmd
 ls = do
   string "ls" >> optional (many space)
   fmap Ls paths
 
+-- | > cd [PATH]
 cd :: Monad m => ParsecT String u m Cmd
 cd = do
   string "cd" >> optional (many space)
   fmap Cd paths
 
+-- | > cd [PATH]
 tree :: Monad m => ParsecT String u m Cmd
 tree = do
   string "tree" >> optional (many space)
   fmap Tree paths
 
+-- | > set [NODEID] [[PARAM '=' VALUE]* ]
+--
+-- VALUE = FLOAT | 'c' INT | 'a' INT
+--
 set :: Monad m => ParsecT String u m Cmd
 set = do
   string "set" >> many space
@@ -73,12 +81,18 @@ set = do
   ps <- synthParam `sepBy` (many space)
   return $ Set (fmap read nid) ps
 
+-- | > free [NODEID *]
 free :: Monad m => ParsecT String u m Cmd
 free = do
   string "free" >> many1 space
   nid <- integer `sepBy` (many space)
   return $ Free $ map read nid
 
+-- | > snew DEFNAME NODEID [ACTION_AND_TARGET] [[NAME=VALUE]*]
+--
+-- ACTION_AND_TARGET = ('a' | 'b' | 'h' | 't') : INT
+-- VALUE             = FLOAT | 'c' : INT | 'a' : INT
+--
 snew :: Monad m => ParsecT String u m Cmd
 snew = do
   string "snew" >> many1 space
@@ -89,10 +103,12 @@ snew = do
   synParams <- synthParam `sepBy` (many space)
   return $ Snew defName nid aaPair synParams
 
+-- | > gnew [NODEID *]
 gnew :: Monad m => ParsecT String u m Cmd
 gnew = string "gnew" >> many1 space >>
   Gnew `fmap` (nidWithAddAction `sepBy` (many space))
 
+-- | > run (t | f)
 run :: Monad m => ParsecT String u m Cmd
 run = do
   string "run" >> optional (many space)
@@ -105,6 +121,8 @@ status = string "status" >> return Status
 refresh :: Monad m => ParsecT String u m Cmd
 refresh = string "refresh" >> return Refresh
 
+-- | > mv [ACTION] NODEID NODEID
+--
 mv :: Monad m => ParsecT String u m Cmd
 mv = do
   string "mv" >> optional (many space)

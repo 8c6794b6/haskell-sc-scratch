@@ -12,20 +12,12 @@
 --
 -- TODO:
 --
--- * Add completion helpers
---
---     * For synthdef params -> Depends on synthdef parser to get controls.
---
--- * Print synth nodes with using pretty print package.
---
 -- * Add help command
 --
 -- * Show exception, e.g. duplicate node id ... what can we detect?
 --
 -- * Add 'find' command, query nodes like find or WHERE in SQL, do something
---   with matching nodes.
---
--- * Make 'pwd' a bit more useful ... any idea?
+--   with matching nodes ... do what?
 --
 module Sound.SC3.Lepton.CLI.SCShell where
 
@@ -161,6 +153,7 @@ compArgs :: Env -> String -> String -> String -> Guts Env [Completion]
 compArgs e com left current
   | com `elem` ["cd", "ls", "tree"] = return $ compPaths e current
   | com == "snew"                   = compSynthdefName e current
+  | com == "set"                    = compParamName e current
   | otherwise                       = return []
 
 -- | Make list of canditate paths from current environment and input.
@@ -183,6 +176,16 @@ compSynthdefName :: Env -> String -> Guts Env [Completion]
 compSynthdefName e current = do
   sdefs <- liftIO $ synthdefs
   return [simpleCompletion d | d <- sdefs, current `isPrefixOf` d]
+
+-- | Complete param name, if the repl already knows about it. Param
+-- names for newly added nodes will be stored after invoking refresh
+-- command.
+compParamName :: Env -> String -> Guts Env [Completion]
+compParamName e current = do
+  case focus $ zipper e of
+    Group _ _       -> return []
+    s@(Synth _ _ _) -> return $ map (\n -> Completion (n++"=") n False) $
+        filter (current `isPrefixOf`) $ paramNames s
 
 -- | Add trailing slash. Won't add when then given string ends with slash.
 addTrailingSlash :: String -> String
@@ -226,23 +229,19 @@ showNode nd = case nd of
 synthdefs :: IO [String]
 synthdefs =
   E.getEnv scSynthdefPath >>= getDirectoryContents >>=
-  return . map dropExtension . filter (`notElem` [".",".."])
+  return . sort . map dropExtension . filter (`notElem` [".",".."])
 
 -- | Removes space characters in beginning and end of given String.
 trim :: String -> String
 trim = reverse . dropWhile isSpace . reverse . dropWhile isSpace
 
--- | Pretty print SCNode.
+-- | Pretty prints SCNode.
 renderNode :: SCNode -> String
-renderNode = render . prettyNode
-
-prettyNode :: SCNode -> Doc
-prettyNode n = case n of
-  Group i ns   -> int i <+> text "group" $$ vcat (map (nest 3 . prettyNode) ns)
-  Synth i n ps -> int i <+> text n $$ hsep (map (nest 2 . prettyParam) ps)
-
-prettyParam :: SynthParam -> Doc
-prettyParam p = case p of
-  n:=v  -> text n <> char ':' <+> double v
-  n:<-v -> text n <> char ':' <+> char 'c' <> int v
-  n:<=v -> text n <> char ':' <+> char 'a' <> int v
+renderNode = render . n2doc where
+  n2doc n = case n of
+    Group i ns   -> int i <+> text "group" $$ vcat (map (nest 3 . n2doc) ns)
+    Synth i n ps -> int i <+> text n $$ hsep (map (nest 2 . p2doc) ps)
+  p2doc p = case p of
+    n:=v  -> text n <> char ':' <+> double v
+    n:<-v -> text n <> char ':' <+> char 'c' <> int v
+    n:<=v -> text n <> char ':' <+> char 'a' <> int v
