@@ -14,8 +14,6 @@
 --
 -- * Add completion helpers
 --
---     * For synthdef name
---
 --     * For synthdef params -> Depends on synthdef parser to get controls.
 --
 -- * Print synth nodes with using pretty print package.
@@ -36,7 +34,9 @@ import Data.Char (isSpace)
 import Data.List (isPrefixOf, isSuffixOf, sort)
 import Data.Maybe (fromMaybe)
 import System.Directory (getDirectoryContents)
-import System.FilePath -- (splitFileName, replaceFileName, dropExtension, takeExtension)
+import System.FilePath
+  (splitFileName, replaceFileName, dropExtension, takeExtension)
+import Text.PrettyPrint
 
 import Control.Monad.State
 import Sound.OpenSoundControl
@@ -124,7 +124,7 @@ work cs = case parseCmd cs of
     case parsed of
       Pwd    -> outputStrLn . show . zipper =<< getEnv
       Ls f   -> outputStr . showNode . focus . steps f . zipper =<< getEnv
-      Tree f -> outputStr . drawSCNode . focus . steps f . zipper =<< getEnv
+      Tree f -> outputStrLn . renderNode . focus . steps f . zipper =<< getEnv
       Cd f   -> modifyEnv $ \st -> st {zipper = steps f $ zipper st}
       Status -> withEnv dumpStatus
       Mv a i j -> sendIt >> modifyZipper (move i a j)
@@ -231,3 +231,18 @@ synthdefs =
 -- | Removes space characters in beginning and end of given String.
 trim :: String -> String
 trim = reverse . dropWhile isSpace . reverse . dropWhile isSpace
+
+-- | Pretty print SCNode.
+renderNode :: SCNode -> String
+renderNode = render . prettyNode
+
+prettyNode :: SCNode -> Doc
+prettyNode n = case n of
+  Group i ns   -> int i <+> text "group" $$ vcat (map (nest 3 . prettyNode) ns)
+  Synth i n ps -> int i <+> text n $$ hsep (map (nest 2 . prettyParam) ps)
+
+prettyParam :: SynthParam -> Doc
+prettyParam p = case p of
+  n:=v  -> text n <> char ':' <+> double v
+  n:<-v -> text n <> char ':' <+> char 'c' <> int v
+  n:<=v -> text n <> char ':' <+> char 'a' <> int v
