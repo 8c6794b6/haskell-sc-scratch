@@ -108,7 +108,8 @@ delete nid (SCZipper g ps) = SCZipper g' ps' where
 -- | Move given node to new position with given AddAction.
 move :: Int -> AddAction -> Int -> SCZipper -> SCZipper
 move sourceId action targetId z =
-  insert' (nodeById sourceId z) action targetId $ delete sourceId z
+  insert' (nodeById sourceId z) (Just (action,targetId)) $
+  delete sourceId z
 
 -- | Get node from zipper by id.
 nodeById :: Int -> SCZipper -> SCNode
@@ -127,12 +128,14 @@ nodeById nid (SCZipper n ps) = head $ f n ++ concatMap appP ps
 
 -- | Insert node as last element under current focused group.
 insert :: SCNode -> SCZipper -> SCZipper
-insert n z = insert' n AddToTail target z where
-  target = nodeId $ focus z
+insert n z = insert' n Nothing z
 
 -- | Insert new node with given AddAction and target node id.
-insert' :: SCNode -> AddAction -> Int -> SCZipper -> SCZipper
-insert' node action target z =
+-- insert' :: SCNode -> AddAction -> Int -> SCZipper -> SCZipper
+insert' :: SCNode -> Maybe (AddAction,Int) -> SCZipper -> SCZipper
+insert' node Nothing z                =
+  insert' node (Just (AddToTail, nodeId $ focus z)) z
+insert' node (Just (action,target)) z =
   case action of
     AddToTail  -> transform toTail z
     AddToHead  -> transform toHead z
@@ -140,8 +143,8 @@ insert' node action target z =
     AddBefore  -> transform before z
     AddReplace -> transform replace z
   where
-    foldLRs f = map (\(SCPath i ls rs) ->
-                      SCPath i (foldr f [] ls) (foldr f [] rs))
+    foldLRs f =
+      map (\(SCPath i ls rs) -> SCPath i (foldr f [] ls) (foldr f [] rs))
     toTail (SCZipper g ps) = SCZipper (f g) (map app ps) where
       app (SCPath i ls rs) = if i == target then
                                  SCPath i ls (rs++[node])

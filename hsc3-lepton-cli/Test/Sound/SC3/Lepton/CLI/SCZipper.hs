@@ -63,7 +63,7 @@ prop_insert a =
              IS.fromList (nodeIds n)) == 0 ==>
     nodeIdOfPath (head (scPaths z)) /= targetId ==>
     collect a $
-    let z' = insert' n a targetId z
+    let z' = insert' n (Just (a,targetId)) z
     in case a of
       AddReplace ->
         sizeOf (nodeById targetId z) + sizeOf z' == sizeOf n + sizeOf z

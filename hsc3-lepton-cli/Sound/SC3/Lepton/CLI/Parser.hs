@@ -44,7 +44,8 @@ commands = do
   return result
 
 commandNames :: Monad m => [ParsecT String u m Cmd]
-commandNames = [pwd, ls, cd, tree, set, free, new, run, status, mv, refresh]
+commandNames =
+  [pwd, ls, cd, tree, set, free, snew, gnew, run, status, mv, refresh]
 
 pwd :: Monad m => ParsecT String u m Cmd
 pwd =  string "pwd" >> return Pwd
@@ -67,10 +68,10 @@ tree = do
 set :: Monad m => ParsecT String u m Cmd
 set = do
   string "set" >> many space
-  nid <- integer
+  nid <- optionMaybe integer
   many space
   ps <- synthParam `sepBy` (many space)
-  return $ Set (read nid) ps
+  return $ Set (fmap read nid) ps
 
 free :: Monad m => ParsecT String u m Cmd
 free = do
@@ -78,13 +79,19 @@ free = do
   nid <- integer `sepBy` (many space)
   return $ Free $ map read nid
 
-new :: Monad m => ParsecT String u m Cmd
-new = do
-  string "new" >> many1 space
-  nid <- integer
-  many space
-  synthNode <- optionMaybe nodeParam
-  return $ New (read nid) synthNode
+snew :: Monad m => ParsecT String u m Cmd
+snew = do
+  string "snew" >> many1 space
+  defName <- generalName
+  many1 space
+  (nid,aaPair) <- nidWithAddAction
+  optional space
+  synParams <- synthParam `sepBy` (many space)
+  return $ Snew defName nid aaPair synParams
+
+gnew :: Monad m => ParsecT String u m Cmd
+gnew = string "gnew" >> many1 space >>
+  Gnew `fmap` (nidWithAddAction `sepBy` (many space))
 
 run :: Monad m => ParsecT String u m Cmd
 run = do
@@ -108,15 +115,22 @@ mv = do
   targetId <- integer
   return $ Mv addAct (read sourceId) (read targetId)
 
-addAction :: Monad m => ParsecT String u m AddAction
-addAction = try shortOpt <|> try longOpt
-  where
-    shortOpt = do
-      char '-'
-      choice [toHeadS, toTailS, beforeS, afterS, replaceS]
-    longOpt = do
-      string "--"
-      choice [toHeadL, toTailL, beforeL, afterL, replaceL]
+nidWithAddAction :: Monad m =>
+                    ParsecT String u m (NodeId,Maybe (AddAction,NodeId))
+nidWithAddAction = do
+  nid <- integer
+  pair <- optionMaybe addActionAndTarget
+  return (read nid,pair)
+
+addActionAndTarget :: Monad m => ParsecT String u m (AddAction,NodeId)
+addActionAndTarget = do
+  a <- choice [char 'a' >> return AddAfter
+              ,char 'b' >> return AddBefore
+              ,char 'h' >> return AddToHead
+              ,char 'r' >> return AddReplace
+              ,char 't' >> return AddToTail]
+  i <- integer
+  return (a,read i)
 
 addActionNoReplace :: Monad m => ParsecT String u m AddAction
 addActionNoReplace = try shortOpt <|> try longOpt
@@ -128,21 +142,19 @@ addActionNoReplace = try shortOpt <|> try longOpt
       string "--"
       choice [toHeadL, toTailL, beforeL, afterL]
 
-toHeadS, toTailS, beforeS, afterS, replaceS
+toHeadS, toTailS, beforeS, afterS
   :: Monad m => ParsecT String u m AddAction
 toHeadS  = char 'h' >> return AddToHead
 toTailS  = char 't' >> return AddToTail
 beforeS  = char 'b' >> return AddBefore
 afterS   = char 'a' >> return AddAfter
-replaceS = char 'r' >> return AddReplace
 
-toHeadL, toTailL, beforeL, afterL, replaceL
+toHeadL, toTailL, beforeL, afterL
   :: Monad m => ParsecT String u m AddAction
 toHeadL  = string "head" >> return AddToHead
 toTailL  = string "tail" >> return AddToTail
 beforeL  = string "before" >> return AddBefore
 afterL   = string "after" >> return AddAfter
-replaceL = string "replace" >> return AddReplace
 
 paths :: Monad m => ParsecT String u m [Step]
 paths = try (absolutePath <|> relativePath) <|> return []
@@ -165,14 +177,8 @@ pathDown :: Monad m => ParsecT String u m Step
 pathDown = many1 digit >>= return . GoDown . read
 
 generalName :: Monad m => ParsecT String u m String
-generalName = many1 (alphaNum <|> oneOf "-_.")
-
-nodeParam :: Monad m => ParsecT String u m (String,[SynthParam])
-nodeParam = do
-  synName <- generalName
-  many space
-  synParams <- synthParam `sepBy` (many1 space)
-  return $ (synName,synParams)
+generalName =
+  notFollowedBy digit >> many1 (alphaNum <|> oneOf "-_.")
 
 synthParam :: Monad m => ParsecT String u m SynthParam
 synthParam = do

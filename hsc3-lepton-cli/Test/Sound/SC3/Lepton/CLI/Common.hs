@@ -78,7 +78,8 @@ instance Arbitrary Cmd where
     ,Set <$> arbitrary <*> arbitrary
     ,Run <$> arbitrary
     ,Free <$> arbitrary
-    ,New <$> arbitrary <*> arbitrary]
+    ,Gnew <$> arbitrary
+    ,Snew <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary]
 
 instance CoArbitrary Cmd where
   coarbitrary c = case c of

@@ -12,15 +12,13 @@
 --
 -- TODO:
 --
--- * Make target nodeId for set commnad optional, use current node as default.
---
--- * Take node ids for new command to make multiple group nodes at once.
---
 -- * Add completion helpers
 --
 --     * For synthdef name
 --
 --     * For synthdef params -> Depends on synthdef parser to get controls.
+--
+-- * Print synth nodes with using pretty print package.
 --
 -- * Add help command
 --
@@ -36,7 +34,8 @@ module Sound.SC3.Lepton.CLI.SCShell where
 import Control.Applicative
 import Data.Char (isSpace)
 import Data.List (isPrefixOf, isSuffixOf, sort)
-import System.FilePath
+import Data.Maybe (fromMaybe)
+import System.FilePath (splitFileName, replaceFileName)
 
 import Control.Monad.State
 import Sound.OpenSoundControl
@@ -81,6 +80,9 @@ putEnv = lift . put
 modifyEnv :: (Env -> Env) -> Repl ()
 modifyEnv f = getEnv >>= putEnv . f
 
+modifyZipper :: (SCZipper -> SCZipper) -> Repl ()
+modifyZipper f = modifyEnv (\e -> e {zipper = f $ zipper e})
+
 -- | Lifts actions using scsynth connection to Repl.
 withEnv :: (Either TCP UDP -> IO a) -> Repl a
 withEnv action = liftIO . action . connection =<< getEnv
@@ -115,41 +117,31 @@ work cs = case parseCmd cs of
   Right parsed -> do
     now <- liftIO utcr
     res <- (Bundle (UTCr now) . cmdToOSC parsed . zipper) `fmap` getEnv
+    let sendIt = withEnv (flip send res)
     case parsed of
       Pwd    -> outputStrLn . show . zipper =<< getEnv
       Ls f   -> outputStr . showNode . focus . steps f . zipper =<< getEnv
       Tree f -> outputStr . drawSCNode . focus . steps f . zipper =<< getEnv
       Cd f   -> modifyEnv $ \st -> st {zipper = steps f $ zipper st}
       Status -> withEnv dumpStatus
-      Mv a i j -> do
-        withEnv $ flip send res
-        modifyEnv $ \st -> st {zipper = move i a j $ zipper st}
+      Mv a i j -> sendIt >> modifyZipper (move i a j)
       Set nid ps  -> do
         e <- getEnv
-        let newNode = updateParams ps . nodeById nid . zipper $ e
+        let nid' = fromMaybe (nodeId . focus $ z) nid
+            newNode = updateParams ps . nodeById nid' . zipper $ e
             z = zipper e
-        putEnv $ e {zipper = insert' newNode AddReplace (nodeId newNode) z}
-        withEnv $ setNode newNode
-      Free nids -> do
-        modifyEnv $ \st ->
-          st {zipper = (foldr (.) id (map delete nids)) $ zipper st}
-        withEnv $ flip send res
-      New i detail -> case detail of
-        Nothing -> do
-          modifyEnv $ \st -> st {zipper = insert (Group i []) (zipper st)}
-          withEnv $ flip send res
-        Just (n,ps) -> do
-          st <- getEnv
-          let newNode = Synth i n ps
-              st' = st {zipper = insert newNode z}
-              j = nodeId $ focus z
-              z = zipper st
-          putEnv st'
-          withEnv $ addNode j newNode
-      Run _  -> withEnv $ flip send $ res
-      Refresh -> do
-        n <- withEnv getRootNode
-        modifyEnv $ \st -> st {zipper = SCZipper n []}
+        putEnv $ e {zipper = insert' newNode (Just (AddReplace,nid')) z}
+        sendIt
+      Free is -> sendIt >> modifyZipper (foldr (.) id (map delete is))
+      Snew n i aj ps -> sendIt >> modifyZipper (insert' (Synth i n ps) aj)
+      Gnew ps        -> sendIt >> modifyZipper (addGroups ps)
+      Run _ -> sendIt
+      Refresh ->
+        withEnv getRootNode >>= \n -> modifyZipper (const $ SCZipper n [])
+
+-- | Add nodes to given zipper.
+addGroups :: [(NodeId, Maybe (AddAction,NodeId))] -> SCZipper -> SCZipper
+addGroups ps z = foldr (\(i,aj) -> insert' (Group i []) aj) z (reverse ps)
 
 -- | Complete function for toplevel commands.
 compTop :: CompletionFunc (Guts Env)
@@ -163,7 +155,7 @@ compTop = completeWordWithPrev Nothing " \t" $ \left current -> do
 
 -- | Complete argument for each commands.
 compArgs :: Env -> String -> String -> String -> [Completion]
-compArgs e com rest current
+compArgs e com _ current
   | com `elem` ["cd", "ls", "tree"] = compPaths e current
   | otherwise                       = []
 
@@ -171,33 +163,36 @@ compArgs e com rest current
 compPaths :: Env -> String -> [Completion]
 compPaths e current =
   let (pre,post) = splitFileName current
-      moves = case parsePaths pre of Right ps -> ps; Left _ -> []
+      moves = either (const []) id $ parsePaths pre
       cwn = focus . steps moves . zipper $ e
   in  case cwn of
     Synth _ _ _ -> []
     Group _ ns  ->
       [comp | n <- ns, let n' = shortPath n
             , post `isPrefixOf` n'
-            , let repl = replaceFileName current (addTrailingSlash n')
-            , let comp = Completion repl (middlePath n) False]
+            , let filled = replaceFileName current (addTrailingSlash n')
+            , let comp = Completion filled (middlePath n) False]
 
+-- | Add trailing slash. Won't add when then given string ends with slash.
 addTrailingSlash :: String -> String
 addTrailingSlash cs | "/" `isSuffixOf` cs = cs
                     | otherwise           = cs ++ "/"
 
 -- | Show node id for synth nodes, nd node id ++ '/' for group nodes.
+shortPath :: SCNode -> String
 shortPath (Synth i _ _) = show i
 shortPath (Group i _)   = show i ++ "/"
 
 -- | Show node id and defname for synth nodes, node id ++ '/' for group nodes.
+middlePath :: SCNode -> String
 middlePath (Synth i n _) = show i ++ ":" ++ n
 middlePath (Group i _)   = show i ++ "/"
 
 -- | Name of toplevel commands.
 toplevels :: [String]
 toplevels = sort $
-  ["quit", "pwd", "ls", "tree", "cd", "status", "mv", "set", "free", "new"
-  ,"run", "refresh"]
+  ["quit", "pwd", "ls", "tree", "cd", "status", "mv", "set", "free"
+  ,"snew", "gnew", "run", "refresh"]
 
 -- | Make prompt string showing current node from env.
 makePrompt :: Env -> String

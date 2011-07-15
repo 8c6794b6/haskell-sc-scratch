@@ -1,7 +1,7 @@
 module Test.Sound.SC3.Lepton.CLI.Parser where
 
 import Control.Applicative
-import Data.List (intersperse)
+import Data.List (intercalate,intersperse)
 import Test.QuickCheck
 
 import Sound.SC3.Lepton.CLI.Parser
@@ -22,22 +22,23 @@ prop_parseCmd =
 
 cmdName :: Cmd -> String
 cmdName c = case c of
-  Pwd      -> "pwd"
-  Ls _     -> "ls"
-  Cd _     -> "cd"
-  Mv _ _ _ -> "mv"
-  Tree _   -> "tree"
-  Status   -> "status"
-  Refresh  -> "refresh"
-  Set _ _  -> "set"
-  Run _    -> "run"
-  Free _   -> "free"
-  New _ _  -> "new"
+  Pwd          -> "pwd"
+  Ls _         -> "ls"
+  Cd _         -> "cd"
+  Mv _ _ _     -> "mv"
+  Tree _       -> "tree"
+  Status       -> "status"
+  Refresh      -> "refresh"
+  Set _ _      -> "set"
+  Run _        -> "run"
+  Free _       -> "free"
+  Snew _ _ _ _ -> "snew"
+  Gnew _       -> "gnew"
 
 gen_commands :: Gen String
 gen_commands = oneof
   [gen_pwd, gen_status, gen_refresh, gen_ls, gen_cd, gen_tree, gen_set, gen_run
-  ,gen_free, gen_new, gen_mv]
+  ,gen_free, gen_snew, gen_gnew, gen_mv]
 
 gen_pwd :: Gen String
 gen_pwd = addSpaces $ return "pwd"
@@ -59,9 +60,9 @@ gen_cd = addSpaces $ ("cd " ++) <$> gen_path
 
 gen_set :: Gen String
 gen_set = addSpaces $ do
-  nid <- show <$> (arbitrary :: Gen Int)
+  nid <- oneof [show <$> (arbitrary :: Gen Int), return ""]
   ps <- listOf1 gen_synthParam
-  return $ concat $ intersperse " " ("set": nid: ps)
+  return $ intercalate " " ("set":nid:ps)
 
 gen_run :: Gen String
 gen_run = addSpaces $ ("run " ++) <$>
@@ -70,14 +71,30 @@ gen_run = addSpaces $ ("run " ++) <$>
 gen_free :: Gen String
 gen_free = addSpaces $ do
   nids <- listOf1 (arbitrary :: Gen Int)
-  return $ "free " ++ (concat $ intersperse " " $ map show nids)
+  return $ "free " ++ (intercalate " " $ map show nids)
 
-gen_new :: Gen String
-gen_new = addSpaces $ do
-  nid <- oneof [show <$> ((arbitrary :: Gen Int) `suchThat` (> 0)), return "-1"]
-  synthName <- gen_generalName
+gen_nid :: Gen String
+gen_nid =
+  oneof [show <$> ((arbitrary :: Gen Int) `suchThat` (> 0)), return "-1"]
+
+gen_nidWithAA :: Gen String
+gen_nidWithAA = do
+  nid <- oneof [show <$> ((arbitrary :: Gen Int) `suchThat` (> 0)),return "-1"]
+  aa <- elements ["a","b","h","t","r"]
+  tid <- show <$> ((arbitrary :: Gen Int) `suchThat` (>0))
+  elements [nid, nid ++ aa ++ tid]
+
+gen_snew :: Gen String
+gen_snew = addSpaces $ do
+  defname <- gen_generalName
+  nid <- gen_nidWithAA
   ps <- listOf gen_synthParam
-  return $ concat $ intersperse " " ("new" : nid : synthName : ps)
+  return $ intercalate " " ("snew" : defname : nid : ps)
+
+gen_gnew :: Gen String
+gen_gnew = addSpaces $ do
+  nids <- listOf1 gen_nidWithAA
+  return $ intercalate " " ("gnew":nids)
 
 gen_mv :: Gen String
 gen_mv = addSpaces $ do
@@ -85,14 +102,14 @@ gen_mv = addSpaces $ do
                  ,"-a", "--after", "-b", "--before"]
   nid1 <- show <$> (arbitrary :: Gen Int)
   nid2 <- show <$> (arbitrary :: Gen Int)
-  return $ concat $ intersperse " " ["mv", aa, nid1, nid2]
+  return $ intercalate " " ["mv", aa, nid1, nid2]
 
 gen_path :: Gen String
 gen_path = do
   path <- listOf $ oneof [show <$> (arbitrary::Gen Int), return ".."]
   beginningSlash <- elements ["/", ""]
   endingSlash <- elements ["/", ""]
-  return $ concat . intersperse "/" $ beginningSlash : path ++ [endingSlash]
+  return $ intercalate "/" $ beginningSlash : path ++ [endingSlash]
 
 gen_synthParam :: Gen String
 gen_synthParam = do
