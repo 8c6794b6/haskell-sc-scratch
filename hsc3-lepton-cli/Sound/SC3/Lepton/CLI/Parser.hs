@@ -15,6 +15,7 @@ module Sound.SC3.Lepton.CLI.Parser
   , updateParams
   ) where
 
+import Control.Monad
 import Data.List (unionBy)
 import Data.Function (on)
 import Text.Parsec
@@ -67,7 +68,15 @@ cd = do
 tree :: Monad m => ParsecT String u m Cmd
 tree = do
   string "tree" >> optional (many space)
-  fmap Tree paths
+  detail0 <- detailFlag
+  optional (many space)
+  detail1 <- detailFlag
+  Tree (detail0 || detail1) `fmap` paths
+
+detailFlag :: Monad m => ParsecT String u m Bool
+detailFlag = do
+  res <- optionMaybe (try (string "-d") <|> try (string "--detail"))
+  return $ maybe False (const True) res
 
 -- | > set [NODEID] [[PARAM '=' VALUE]* ]
 --

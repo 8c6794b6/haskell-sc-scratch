@@ -24,7 +24,7 @@ import Sound.SC3.Lepton.CLI.SCZipper
 -- | Commands for sc shell.
 data Cmd = Pwd                                       -- ^ view current status
          | Ls [Step]                                 -- ^ view node list
-         | Tree [Step]                               -- ^ view node tree
+         | Tree Bool [Step]                          -- ^ view node tree
          | Cd [Step]                                 -- ^ move current focus
          | Mv AddAction NodeId NodeId                -- ^ move nodes
          | Refresh                                   -- ^ refresh synth tree

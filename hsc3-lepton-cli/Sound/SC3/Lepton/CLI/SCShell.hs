@@ -21,7 +21,7 @@
 --
 module Sound.SC3.Lepton.CLI.SCShell where
 
-import Control.Applicative
+import Control.Applicative hiding (empty)
 import Data.Char (isSpace)
 import Data.List (isPrefixOf, isSuffixOf, sort)
 import Data.Maybe (fromMaybe)
@@ -114,11 +114,12 @@ work cs = case parseCmd cs of
     res <- (Bundle (UTCr now) . cmdToOSC parsed . zipper) `fmap` getEnv
     let sendIt = withEnv (flip send res)
     case parsed of
-      Pwd    -> outputStrLn . show . zipper =<< getEnv
-      Ls f   -> outputStr . showNode . focus . steps f . zipper =<< getEnv
-      Tree f -> outputStrLn . renderNode . focus . steps f . zipper =<< getEnv
-      Cd f   -> modifyEnv $ \st -> st {zipper = steps f $ zipper st}
-      Status -> withEnv dumpStatus
+      Pwd      -> outputStrLn . show . zipper =<< getEnv
+      Ls f     -> outputStr . showNode . focus . steps f . zipper =<< getEnv
+      Tree s f ->
+        outputStrLn . renderNode s . focus . steps f . zipper =<< getEnv
+      Cd f     -> modifyEnv $ \st -> st {zipper = steps f $ zipper st}
+      Status   -> withEnv dumpStatus
       Mv a i j -> sendIt >> modifyZipper (move i a j)
       Set nid ps  -> do
         e <- getEnv
@@ -236,11 +237,13 @@ trim :: String -> String
 trim = reverse . dropWhile isSpace . reverse . dropWhile isSpace
 
 -- | Pretty prints SCNode.
-renderNode :: SCNode -> String
-renderNode = render . n2doc where
+renderNode :: Bool -> SCNode -> String
+renderNode detail = render . n2doc where
   n2doc n = case n of
     Group i ns   -> int i <+> text "group" $$ vcat (map (nest 3 . n2doc) ns)
-    Synth i n ps -> int i <+> text n $$ hsep (map (nest 2 . p2doc) ps)
+    Synth i n ps ->
+      int i <+> text n $$
+      (if detail then hsep (map (nest 2 . p2doc) ps) else empty)
   p2doc p = case p of
     n:=v  -> text n <> char ':' <+> double v
     n:<-v -> text n <> char ':' <+> char 'c' <> int v
