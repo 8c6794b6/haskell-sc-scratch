@@ -35,7 +35,8 @@ import Control.Applicative
 import Data.Char (isSpace)
 import Data.List (isPrefixOf, isSuffixOf, sort)
 import Data.Maybe (fromMaybe)
-import System.FilePath (splitFileName, replaceFileName)
+import System.Directory (getDirectoryContents)
+import System.FilePath -- (splitFileName, replaceFileName, dropExtension, takeExtension)
 
 import Control.Monad.State
 import Sound.OpenSoundControl
@@ -46,6 +47,8 @@ import System.Console.Haskeline
 import Sound.SC3.Lepton.CLI.Parser
 import Sound.SC3.Lepton.CLI.SCShellCmd
 import Sound.SC3.Lepton.CLI.SCZipper
+
+import qualified System.Environment as E
 
 -- | Environment for scshell.
 data Env = Env
@@ -149,15 +152,16 @@ compTop = completeWordWithPrev Nothing " \t" $ \left current -> do
   e <- get
   let lefts = words left
   case lefts of
-    (cmd:_) -> return $ compArgs e (reverse cmd) left current
+    (cmd:_) -> compArgs e (reverse cmd) left current
     []      -> return [ simpleCompletion t
                       | t <- toplevels, current `isPrefixOf` t]
 
 -- | Complete argument for each commands.
-compArgs :: Env -> String -> String -> String -> [Completion]
-compArgs e com _ current
-  | com `elem` ["cd", "ls", "tree"] = compPaths e current
-  | otherwise                       = []
+compArgs :: Env -> String -> String -> String -> Guts Env [Completion]
+compArgs e com left current
+  | com `elem` ["cd", "ls", "tree"] = return $ compPaths e current
+  | com == "snew"                   = compSynthdefName e current
+  | otherwise                       = return []
 
 -- | Make list of canditate paths from current environment and input.
 compPaths :: Env -> String -> [Completion]
@@ -172,6 +176,13 @@ compPaths e current =
             , post `isPrefixOf` n'
             , let filled = replaceFileName current (addTrailingSlash n')
             , let comp = Completion filled (middlePath n) False]
+
+-- | Complete synthdef name from synthdefs in SC_SYNTHDEF_PATH environment
+-- variable.
+compSynthdefName :: Env -> String -> Guts Env [Completion]
+compSynthdefName e current = do
+  sdefs <- liftIO $ synthdefs
+  return [simpleCompletion d | d <- sdefs, current `isPrefixOf` d]
 
 -- | Add trailing slash. Won't add when then given string ends with slash.
 addTrailingSlash :: String -> String
@@ -210,6 +221,12 @@ showNode :: SCNode -> String
 showNode nd = case nd of
   Synth _ _ ps -> foldr (\x xs -> show x ++ "\t" ++ xs) [] ps ++ "\n"
   Group _ ss -> foldr (\x xs -> middlePath x ++ "\t" ++ xs) [] ss ++ "\n"
+
+-- | Synthdefs files in SC_SYNTHDEF_PATH, without extension.
+synthdefs :: IO [String]
+synthdefs =
+  E.getEnv scSynthdefPath >>= getDirectoryContents >>=
+  return . map dropExtension . filter (`notElem` [".",".."])
 
 -- | Removes space characters in beginning and end of given String.
 trim :: String -> String
