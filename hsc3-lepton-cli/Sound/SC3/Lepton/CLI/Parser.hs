@@ -16,7 +16,6 @@ module Sound.SC3.Lepton.CLI.Parser
   ) where
 
 import Control.Applicative ((<$>))
-import Control.Monad
 import Data.List (unionBy)
 import Data.Function (on)
 import Text.Parsec
@@ -128,7 +127,7 @@ tree = do
 
 verboseFlag :: Monad m => ParsecT String u m Bool
 verboseFlag =
-  ((try (string "-v" >> space) <|>
+  ((try (string "-v" >> many1 space) <|>
     try (string "--verbose")) >>
    return True) <|>
   return False

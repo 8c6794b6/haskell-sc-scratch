@@ -10,9 +10,9 @@
 --
 -- Interactive shell for scsynth nodes.
 --
+module Sound.SC3.Lepton.CLI.SCShell where
+
 -- TODO:
---
--- * Make path completion for tree command work with detail flag.
 --
 -- * Add help command
 --
@@ -21,15 +21,14 @@
 -- * Add 'find' command, query nodes like find or WHERE in SQL, do something
 --   with matching nodes ... do what?
 --
-module Sound.SC3.Lepton.CLI.SCShell where
 
 import Control.Applicative hiding (empty)
 import Data.Char (isSpace)
 import Data.List (isPrefixOf, isSuffixOf, sort)
 import Data.Maybe (fromMaybe)
-import System.Directory (getDirectoryContents)
+import System.Directory (doesFileExist, getDirectoryContents)
 import System.FilePath
-  (splitFileName, replaceFileName, dropExtension, takeExtension)
+  ((</>), splitFileName, replaceFileName, dropExtension, takeExtension)
 import Text.PrettyPrint
 
 import Control.Monad.State
@@ -41,6 +40,7 @@ import System.Console.Haskeline
 import Sound.SC3.Lepton.CLI.Parser
 import Sound.SC3.Lepton.CLI.SCShellCmd
 import Sound.SC3.Lepton.CLI.SCZipper
+import Sound.SC3.Lepton.CLI.SynthdefPeeker
 
 import qualified System.Environment as E
 
@@ -123,7 +123,7 @@ work cs = case parseCmd cs of
       Cd f     -> modifyEnv $ \st -> st {zipper = steps f $ zipper st}
       Status   -> withEnv dumpStatus
       Mv a i j -> sendIt >> modifyZipper (move i a j)
-      Set nid ps  -> do
+      Set nid ps -> do
         e <- getEnv
         let nid' = fromMaybe (nodeId . focus $ z) nid
             newNode = updateParams ps . nodeById nid' . zipper $ e
@@ -146,27 +146,36 @@ compTop :: CompletionFunc (Guts Env)
 compTop = completeWordWithPrev Nothing " \t" $ \left current -> do
   e <- get
   let lefts = words left
-  -- liftIO $ putStrLn current
-  case lefts of
-    (cmd:_) -> compArgs e (reverse cmd) left current
-    []      -> return [ simpleCompletion t
-                      | t <- toplevels, current `isPrefixOf` t]
+  if null lefts
+    then return [simpleCompletion t | t <- toplevels, current `isPrefixOf` t]
+    else compArgs e (reverse (last lefts)) left current
 
 -- | Complete argument for each commands.
 compArgs :: Env -> String -> String -> String -> Guts Env [Completion]
 compArgs e com left current
   | com `elem` ["cd", "ls"] = return $ compPaths e current
   | com == "tree"           = return $ compPaths e current
-  | com == "snew"           = compSynthdefName e current
-  | com == "set"            = compParamName e current
+  | com == "set"            = compNset e current
+  | com == "snew"           = compSnew e left current
   | otherwise               = return []
 
-removePrefix :: String -> String -> String
-removePrefix [] ys = ys
-removePrefix (x:xs) [] = []
-removePrefix (x:xs) (y:ys) | x == y    = removePrefix xs ys
-                           | otherwise = y:ys
+-- | Complete arguments for nset command.
+compNset :: Env -> String -> Guts Env [Completion]
+compNset e current =
+  let def = case focus $ zipper e of Group _ _ -> ""; Synth _ n _ -> n;
+  in  compParamName e def current
 
+-- | Complete arguments for snew command.
+compSnew :: Env -> String -> String -> Guts Env [Completion]
+compSnew e left current = do
+  let lefts = words left
+      wordlen = length lefts
+      def = if wordlen >= 2 then reverse (lefts !! (wordlen-2)) else ""
+  case wordlen of
+    0 -> return []
+    1 -> compSynthdefName e current
+    2 -> return []
+    _ -> compParamName e def current
 
 -- | Make list of canditate paths from current environment and input.
 compPaths :: Env -> String -> [Completion]
@@ -186,18 +195,24 @@ compPaths e current =
 -- variable.
 compSynthdefName :: Env -> String -> Guts Env [Completion]
 compSynthdefName e current = do
-  sdefs <- liftIO $ synthdefs
-  return [simpleCompletion d | d <- sdefs, current `isPrefixOf` d]
+  defs <- liftIO $ synthdefs
+  return [simpleCompletion def | def <- defs, current `isPrefixOf` def]
 
--- | Complete param name, if the repl already knows about it. Param
--- names for newly added nodes will be stored after invoking refresh
--- command.
-compParamName :: Env -> String -> Guts Env [Completion]
-compParamName e current = do
-  case focus $ zipper e of
-    Group _ _       -> return []
-    s@(Synth _ _ _) -> return $ map (\n -> Completion (n++"=") n False) $
-        filter (current `isPrefixOf`) $ paramNames s
+-- | Complete param name, by seeking synthdef file.
+compParamName :: Env    -- ^ Current environment
+              -> String -- ^ Synthdef name
+              -> String -- ^ Current input
+              -> Guts Env [Completion]
+compParamName e def current
+  | null def  = return []
+  | otherwise = do
+    filename <- liftIO $ E.getEnv scSynthdefPath >>=
+                \d -> return (d </> def ++ ".scsyndef")
+    exists <- liftIO $ doesFileExist filename
+    if not exists
+       then return []
+       else liftIO $ return . map (\n -> Completion (n++"=") n False) .
+            filter (current `isPrefixOf`) =<< getParamNames filename
 
 -- | Add trailing slash. Won't add when then given string ends with slash.
 addTrailingSlash :: String -> String

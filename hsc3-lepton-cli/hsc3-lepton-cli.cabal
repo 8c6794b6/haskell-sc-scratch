@@ -42,8 +42,11 @@ library
     Sound.SC3.Lepton.CLI.SCZipper
     Sound.SC3.Lepton.CLI.SCShell
     Sound.SC3.Lepton.CLI.SCShellCmd
+    Sound.SC3.Lepton.CLI.SynthdefPeeker
   build-depends:
     base == 4.*,
+    binary,
+    bytestring,
     cmdargs,
     containers >= 0.3.0.0,
     directory,
