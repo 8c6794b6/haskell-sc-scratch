@@ -72,7 +72,7 @@ instance Arbitrary Cmd where
     [Ls <$> arbitrary
     ,Cd <$> arbitrary
     ,Mv <$> arbitrary <*> arbitrary <*> arbitrary
-    ,Tree <$> arbitrary
+    ,Tree <$> arbitrary <*> arbitrary
     ,return Status
     ,return Refresh
     ,Set <$> arbitrary <*> arbitrary

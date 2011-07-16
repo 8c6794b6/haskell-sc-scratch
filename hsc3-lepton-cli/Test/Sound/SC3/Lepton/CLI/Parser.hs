@@ -26,7 +26,7 @@ cmdName c = case c of
   Ls _         -> "ls"
   Cd _         -> "cd"
   Mv _ _ _     -> "mv"
-  Tree _       -> "tree"
+  Tree _ _     -> "tree"
   Status       -> "status"
   Refresh      -> "refresh"
   Set _ _      -> "set"

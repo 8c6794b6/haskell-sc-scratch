@@ -11,7 +11,15 @@ stability:      experimental
 description:
   Collection of client side utility for scsynth using hsc3.
 
+flag hpc
+  description:
+    Enable compiling with hpc flag turned on
+  default:
+    False
+
 test-suite main-tests
+  ghc-options:
+    -fhpc
   type:
     exitcode-stdio-1.0
   main-is:
@@ -22,6 +30,8 @@ library
     -O2 -Wall
     -fno-warn-unused-do-bind
     -fno-warn-orphans
+  if flag(hpc)
+     ghc-options: -fhpc
   exposed-modules:
     Sound.SC3.Lepton
     Sound.SC3.Lepton.Instance
@@ -45,6 +55,7 @@ library
     filepath,
     random,
     parsec >= 3.0,
+    pretty,
     syb,
     mtl,
     hosc >= 0.9,

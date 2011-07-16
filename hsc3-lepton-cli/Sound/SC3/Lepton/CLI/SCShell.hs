@@ -12,6 +12,8 @@
 --
 -- TODO:
 --
+-- * Make path completion for tree command work with detail flag.
+--
 -- * Add help command
 --
 -- * Show exception, e.g. duplicate node id ... what can we detect?
@@ -144,6 +146,7 @@ compTop :: CompletionFunc (Guts Env)
 compTop = completeWordWithPrev Nothing " \t" $ \left current -> do
   e <- get
   let lefts = words left
+  -- liftIO $ putStrLn current
   case lefts of
     (cmd:_) -> compArgs e (reverse cmd) left current
     []      -> return [ simpleCompletion t
@@ -152,10 +155,18 @@ compTop = completeWordWithPrev Nothing " \t" $ \left current -> do
 -- | Complete argument for each commands.
 compArgs :: Env -> String -> String -> String -> Guts Env [Completion]
 compArgs e com left current
-  | com `elem` ["cd", "ls", "tree"] = return $ compPaths e current
-  | com == "snew"                   = compSynthdefName e current
-  | com == "set"                    = compParamName e current
-  | otherwise                       = return []
+  | com `elem` ["cd", "ls"] = return $ compPaths e current
+  | com == "tree"           = return $ compPaths e current
+  | com == "snew"           = compSynthdefName e current
+  | com == "set"            = compParamName e current
+  | otherwise               = return []
+
+removePrefix :: String -> String -> String
+removePrefix [] ys = ys
+removePrefix (x:xs) [] = []
+removePrefix (x:xs) (y:ys) | x == y    = removePrefix xs ys
+                           | otherwise = y:ys
+
 
 -- | Make list of canditate paths from current environment and input.
 compPaths :: Env -> String -> [Completion]
@@ -205,9 +216,9 @@ middlePath (Group i _)   = show i ++ "/"
 
 -- | Name of toplevel commands.
 toplevels :: [String]
-toplevels = sort $
-  ["quit", "pwd", "ls", "tree", "cd", "status", "mv", "set", "free"
-  ,"snew", "gnew", "run", "refresh"]
+toplevels =
+  ["cd","free","gnew","ls","mv","pwd","quit","refresh","run","set","snew"
+  ,"status","tree"]
 
 -- | Make prompt string showing current node from env.
 makePrompt :: Env -> String
@@ -223,8 +234,12 @@ makePrompt e = foldr f "/" ns  ++ g (focus z) ++ " > " where
 -- | Show synth node in ls command.
 showNode :: SCNode -> String
 showNode nd = case nd of
-  Synth _ _ ps -> foldr (\x xs -> show x ++ "\t" ++ xs) [] ps ++ "\n"
+  Synth _ _ ps -> foldr (\x xs -> showParam x ++ "\t" ++ xs) [] ps ++ "\n"
   Group _ ss -> foldr (\x xs -> middlePath x ++ "\t" ++ xs) [] ss ++ "\n"
+  where
+    showParam (k:=v) = k ++ ":=" ++ show v
+    showParam (k:<-v) = k ++ ":=c" ++ show v
+    showParam (k:<=v) = k ++ ":=a" ++ show v
 
 -- | Synthdefs files in SC_SYNTHDEF_PATH, without extension.
 synthdefs :: IO [String]
@@ -235,16 +250,3 @@ synthdefs =
 -- | Removes space characters in beginning and end of given String.
 trim :: String -> String
 trim = reverse . dropWhile isSpace . reverse . dropWhile isSpace
-
--- | Pretty prints SCNode.
-renderNode :: Bool -> SCNode -> String
-renderNode detail = render . n2doc where
-  n2doc n = case n of
-    Group i ns   -> int i <+> text "group" $$ vcat (map (nest 3 . n2doc) ns)
-    Synth i n ps ->
-      int i <+> text n $$
-      (if detail then hsep (map (nest 2 . p2doc) ps) else empty)
-  p2doc p = case p of
-    n:=v  -> text n <> char ':' <+> double v
-    n:<-v -> text n <> char ':' <+> char 'c' <> int v
-    n:<=v -> text n <> char ':' <+> char 'a' <> int v

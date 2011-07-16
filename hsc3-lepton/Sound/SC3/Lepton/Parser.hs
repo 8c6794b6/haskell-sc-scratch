@@ -73,7 +73,7 @@ timeStamp = dp $ \d -> case d of TimeStamp x -> Just x; _ -> Nothing
 
 -- | Parse OSC midi
 midi :: DatumParser (Word8,Word8,Word8,Word8)
-midi = dp $ \d -> case d of Midi (a,b,c,d) -> Just (a,b,c,d); _ -> Nothing
+midi = dp $ \d -> case d of Midi (w,x,y,z) -> Just (w,x,y,z); _ -> Nothing
 
 -- | Wrapper for parser builder functions.
 dp :: (Datum -> Maybe a) -> DatumParser a

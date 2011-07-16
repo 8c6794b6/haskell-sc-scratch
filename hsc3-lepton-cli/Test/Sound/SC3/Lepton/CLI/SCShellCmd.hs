@@ -23,7 +23,7 @@ prop_cmdToOSC c z =
   in  collect o $ case c of
      Ls _     -> l0
      Pwd      -> l0
-     Tree _   -> l0
+     Tree _ _ -> l0
      Cd _     -> l0
      Refresh  -> l0
      Set _ [] -> l0

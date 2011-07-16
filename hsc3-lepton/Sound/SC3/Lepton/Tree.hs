@@ -46,12 +46,19 @@ module Sound.SC3.Lepton.Tree
   , treeToSet
   , paramToTuple
   , drawSCNode
+  , renderNode
+  , prettyDump
+
+    -- * Util
+  , paramName
+  , updateParams
   )  where
 
 import Control.Monad
+import Data.Function (on)
 import Data.Generics (Data, Typeable)
-import Data.Tree
-import Text.Printf (printf)
+import Data.List (unionBy)
+import Text.PrettyPrint hiding (int, double)
 
 import Sound.SC3
 import Sound.OpenSoundControl
@@ -59,6 +66,8 @@ import Sound.OpenSoundControl
 import Sound.SC3.Lepton.Instance ()
 import Sound.SC3.Lepton.Parser
 import Sound.SC3.Lepton.Util (queryTree, n_mapa)
+
+import qualified Text.PrettyPrint as P
 
 -- $example_interactive
 --
@@ -162,9 +171,9 @@ data SynthParam = ParamName := ParamValue -- ^ Double value
                   deriving (Eq,Read,Data,Typeable)
 
 instance Show SynthParam where
-  show (f := x)  = f ++ ":=" ++ printf "%.2f" x
-  show (f :<- x) = f ++ ":<-" ++ show x
-  show (f :<= x) = f ++ ":<=" ++ show x
+  show (f:=x)  = show f ++ ":=" ++ show x
+  show (f:<-x) = show f ++ ":<-" ++ show x
+  show (f:<=x) = show f ++ ":<=" ++ show x
 
 type ParamName = String
 type ParamValue = Double
@@ -280,7 +289,7 @@ modifyNode f = \fd -> do
 
 -- | Prints current SCNode with specifying node id.
 printNode :: Transport t => Int -> t -> IO ()
-printNode n fd = getNode n fd >>= putStr . drawSCNode
+printNode n fd = getNode n fd >>= putStrLn . renderNode True
 
 --
 -- Variants for root node
@@ -345,39 +354,65 @@ treeToSet tree = f tree
       (name:<=bus) -> (cs,(name,bus):as)
       _            -> (cs,as)
 
+
+------------------------------------------------------------------------------
+--
+-- Utils
+--
+------------------------------------------------------------------------------
+
 paramToTuple :: SynthParam -> [(String,Double)]
 paramToTuple (name := val) = [(name,val)]
 paramToTuple _ = []
 
+paramName :: SynthParam -> ParamName
+paramName x = case x of
+  (n := _)  -> n
+  (n :<- _) -> n
+  (n :<= _) -> n
 
--- | Wrapper for SCNode.
+updateParams :: [SynthParam] -> SCNode -> SCNode
+updateParams ps node = case node of
+  Synth i n ps' -> Synth i n (unionBy ((==) `on` paramName) ps ps')
+  g             -> g
+
+------------------------------------------------------------------------------
 --
--- For converting SCNode to Tree datatype in Data.Tree.Tree.
--- Data.Tree.Tree is a rose tree, but SCNode datatype is not.
-data SCN = G NodeId
-         | S NodeId SynthName
-         | P [SynthParam]
-         deriving (Eq)
+-- Converting functions
+--
+------------------------------------------------------------------------------
 
-instance Show SCN where
-    show (G nid) = "Group " ++ show nid
-    show (S nid name) = "Synth " ++ show nid ++ " " ++ name
-    show (P ps) = show ps
+-- | Pretty prints SCNode.
+renderNode :: Bool -> SCNode -> String
+renderNode detail = render . n2doc where
+  n2doc n = case n of
+    Group i ns   -> P.int i <+> text "group" $$ vcat (map (nest 3 . n2doc) ns)
+    Synth i name ps ->
+      P.int i <+> text name $$
+      (if detail then hsep (map (nest 2 . p2doc) ps) else empty)
+  p2doc p = case p of
+    n:=v  -> text n <> char ':' <+> P.double v
+    n:<-v -> text n <> char ':' <+> char 'c' <> P.int v
+    n:<=v -> text n <> char ':' <+> char 'a' <> P.int v
+
+-- | Dump SCNode. Dumped string could be parsed to read function.
+prettyDump :: SCNode -> String
+prettyDump = render . n2doc where
+  n2doc :: SCNode -> Doc
+  n2doc n = case n of
+    Group i ns ->
+      text "Group" <+> signedInt i <+> char '[' $$
+      (nest 2 $ vcat ((punctuate comma (map n2doc ns)) ++ [text "]"]))
+    Synth i name ps ->
+      text "Synth" <+> signedInt i <+> doubleQuotes (text name) <+> char '[' $$
+      (nest 2 $ vcat ((punctuate comma (map p2doc ps)) ++ [text "]"]))
+  p2doc :: SynthParam -> Doc
+  p2doc p = text $ show p
+
+signedInt :: Int -> Doc
+signedInt n | n < 0     = char '(' <> P.int n <> char ')'
+            | otherwise = P.int n
 
 -- | Draw SCNode data.
 drawSCNode :: SCNode -> String
-drawSCNode = unlines . draw . fmap show . toRose
-
-toRose :: SCNode -> Tree SCN
-toRose (Group nid ns)   = Node (G nid) (map toRose ns)
-toRose (Synth nid name ps)
-  | null ps   = Node (S nid name) []
-  | otherwise = Node (S nid name) [Node (P ps) []]
-
-draw :: Tree String -> [String]
-draw (Node x ts0) = x:drawSubTrees ts0
-  where
-    drawSubTrees []     = []
-    drawSubTrees (t:[]) = shift "`-" "  " (draw t)
-    drawSubTrees (t:ts) = shift "+-" "| " (draw t) ++ drawSubTrees ts
-    shift first other = zipWith (++) (first:repeat other)
+drawSCNode = renderNode True
