@@ -95,6 +95,7 @@ loop2 = do
     Nothing -> loop2
     Just i 
       | "echo " `isPrefixOf` i -> outputStrLn (drop 5 i) >> loop2
+      | i == "quit" -> return ()
       | i == "succ" -> modifyRepl2 (\e -> e {envCount=succ $ envCount e}) >> loop2
       | i == "pred" -> modifyRepl2 (\e -> e {envCount=pred $ envCount e}) >> loop2
       | i == "show" -> getRepl2 >>= outputStrLn . show >> loop2
@@ -154,7 +155,7 @@ modifyGuts f = lift (get >>= put . f)
 
 goGuts :: IO ()
 goGuts = runGuts loopGuts (Settings f2 Nothing True) (Env "guts> " 0)
-  
+
 runGuts :: InputT (Guts s) a -> Settings (Guts s) -> s -> IO a
 runGuts guts settings env = evalStateT (unGuts (runInputT settings guts)) env
 

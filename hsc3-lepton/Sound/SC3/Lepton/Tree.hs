@@ -43,6 +43,7 @@ module Sound.SC3.Lepton.Tree
 
     -- * Converter
   , treeToNew
+  , treeToNewWith
   , treeToSet
   , paramToTuple
   , drawSCNode
@@ -317,11 +318,17 @@ printRootNode = printNode 0
 treeToNew :: NodeId  -- ^ Target node id
           -> SCNode  -- ^ New nodes
           -> [OSC]
-treeToNew tId tree = f tId tree
+treeToNew = treeToNewWith AddToTail
+
+treeToNewWith :: AddAction -- ^ Add action for this node
+              -> NodeId    -- ^ Target node id
+              -> SCNode    -- ^ New node to add
+              -> [OSC]
+treeToNewWith aa tId tree = f tId tree
   where
     f i t = case t of
-      Group j ns   -> g_new [(j,AddToTail,i)]:concatMap (f j) ns
-      Synth j n ps -> s_new n j AddToTail i (concatMap paramToTuple ps):g j ps
+      Group j ns   -> g_new [(j,aa,i)]:concatMap (f j) ns
+      Synth j n ps -> s_new n j aa i (concatMap paramToTuple ps):g j ps
     g i xs | not (null cs) && not (null as) = n_map i cs:n_mapa i as:[]
            | not (null cs) && null as       = [n_map i cs]
            | null cs && not (null as)       = [n_mapa i as]
@@ -331,6 +338,7 @@ treeToNew tId tree = f tId tree
       (name:<-bus) -> ((name,bus):cs,as)
       (name:<=bus) -> (cs,(name,bus):as)
       _            -> (cs,as)
+
 
 -- | SCNode to [OSC] for updating nodes.
 --

@@ -14,7 +14,6 @@ import Control.Monad
 import Data.Int
 import Text.Parsec
 import System.Directory
-import System.FilePath
 
 import Data.Binary
 import Sound.SC3 hiding (synthdef, Binary)
