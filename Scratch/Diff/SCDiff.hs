@@ -4,29 +4,36 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
-------------------------------------------------------------------------------
--- |
--- Module      : $Header$
--- License     : BSD3
--- Maintainer  : 8c6794b6@gmail.com
--- Stability   : unstable
--- Portability : non-portable
---
--- Make OSC message with comparing two node tree. The result OSC contains set
--- of message to modify one node tree to another.
---
--- TODO:
---
--- * Preserve the order of adding new node. The order has been modified due to
---   the use of IntMap for holding Ins data.
---
--- * Support moving nodes with n_order .... when a node with same node is was
---   included in both of set for insertion and deletion, and the node was
---   identical, it's operation will be reordering.
---
+{-|
+
+Module      : $Header$
+License     : BSD3
+Maintainer  : 8c6794b6@gmail.com
+Stability   : unstable
+Portability : non-portable
+
+Make OSC message with comparing two node tree. The result OSC contains set
+of message to modify one node tree to another.
+
+TODO:
+
+* Support moving nodes with n_order .... when a node with same node is was
+  included in both of set for insertion and deletion, and the node was
+  identical, it's operation will be reordering.
+
+* Support adding new node with different synth name but same node id.
+  Need to detect whether the node with same def name has appeared as insert
+  and delete operation
+
+* Add test
+
+* Take profile.
+
+-}
 module SCDiff where
 
 import Data.Tree
+import Data.List (foldl')
 
 import Sound.OpenSoundControl
 import Sound.SC3
@@ -41,13 +48,11 @@ import qualified Data.IntSet as IS
 import qualified Data.IntMap as IM
 
 {-|
-
 Data type defined with GADT for diffing SCNode.
 
 Not so much difference in performance for getting edit distance data, but good
 thing is that Synth node and parameters are combined. This makes extraction of
 n_set message easier to be done.
-
 -}
 data TFamily :: * -> * -> * where
   TFNode     :: TFamily (Tree SCN) (Cons SCN (Cons [Tree SCN] Nil))
@@ -138,18 +143,19 @@ diffMessage t = accToOSC . toAcc (initialAcc (nodeId t)) . diffSCN t
 data MsgAcc = MsgAcc
   { -- | Position to insert new node.
     pos :: Position
-  , -- | Holds insert operation
-    inss :: IM.IntMap (Position,SCNode)
-  , -- | Holds delete operation
+  , -- | Current group id.
+    cgi :: [Int]
+  , -- | Holds insert operation.
+    inss :: [(Int,(Position,SCNode))]
+  , -- | Holds delete operation.
     dels :: IS.IntSet
   } deriving (Eq,Show)
 
 -- | Initial accumulator, start adding from head of given node id.
 initialAcc :: Int -> MsgAcc
-initialAcc i = MsgAcc (Head i) IM.empty IS.empty
+initialAcc i = MsgAcc (Head i) [i] [] IS.empty
 
 {-|
-
 Converts edit script to list of operation. What we want to do here is to
 convert EditScript to set of operation so that easily converted to OSC
 messages.
@@ -166,50 +172,57 @@ messages.
   target node id, and position. Note that AddAfter add action could not
   be used when adding to group without containing any node yet.
 
+* Replacing synth node with same id to different synth is not supported.
+  This operation needs to free the node, and then add new node. Currently when
+  same node ids were appearing in both of insertion and deletion, all of them
+  will treated as n_set message.
+
 This function seeks 2 sequence of EditScriptL constructors at once, and
 determine which operation to take.
-
 -}
 toAcc :: forall txs tys . MsgAcc -> EditScriptL TFamily txs tys -> MsgAcc
 toAcc acc d0 = case d0 of
+  Ins TFNodeNil (Ins TFNodeNil d) -> toAcc upOneGroup d
+  Ins TFNodeNil (Cpy TFNodeNil d) -> toAcc upOneGroup d
   Ins (TFN (Snode i n ps)) d ->
-    let inss' = IM.insert i (pos acc, Synth i n ps) (inss acc)
+    let inss' = (i,(pos acc, Synth i n ps)):inss acc
     in  toAcc (acc{inss=inss', pos=After i}) d
   Ins (TFN (Gnode i)) d ->
-    let inss' = IM.insert i (pos acc, Group i []) (inss acc)
-    in  toAcc (acc{inss=inss', pos=Head i}) d
+    let inss' = (i,(pos acc, Group i [])):inss acc
+    in  toAcc (acc{pos=Head i, cgi=i:cgi acc,inss=inss'}) d
   Ins _ d -> toAcc acc d
   Del (TFN n) d -> toAcc (acc {dels=IS.insert (scnId n) (dels acc)}) d
   Del _ d -> toAcc acc d
+  Cpy TFNodeNil (Cpy TFNodeNil d) -> toAcc upOneGroup d
+  Cpy TFNodeNil (Ins TFNodeNil d) -> toAcc upOneGroup d
   Cpy (TFN (Snode i _ _)) d -> toAcc (acc {pos=After i}) d
-  Cpy (TFN (Gnode i)) d     -> toAcc (acc {pos=Head i}) d
-  Cpy _ d                   -> toAcc acc d
+  Cpy (TFN (Gnode i)) d -> toAcc (acc {pos=Head i,cgi=i:cgi acc}) d
+  Cpy _ d -> toAcc acc d
   _ -> acc
-
-accToOSC :: MsgAcc -> [OSC]
-accToOSC (MsgAcc _ ns ds)
-  | IS.null ds = IM.fold mkNew [] ns
-  | otherwise  =
-    if IS.null ds'
-      then nMessages ++ uMessages
-      else nMessages ++ dMessages ++ uMessages
   where
-    nMessages = IM.fold mkNew [] ns'
-    dMessages = [n_free (IS.elems ds')]
-    uMessages = IM.fold mkSet [] updates
-    mkNew (pos,n) os = newN pos n ++ os
+    upOneGroup = acc {pos=After (head (cgi acc)),cgi=tail (cgi acc)}
+
+{-|
+Converts accumulated data to OSC message. Check whether node with same id
+appear in both of insertions and deletions, if so make n_set, n_map, or n_mapa
+messages for the node.
+-}
+accToOSC :: MsgAcc -> [OSC]
+accToOSC (MsgAcc _ _ is ds)
+  | IS.null ds = foldl' mkNew [] is'
+  | otherwise  = if IS.null ds' then nms ++ ums else nms ++ dms ++ ums
+  where
+    nms = foldl' mkNew [] is'
+    dms = [n_free (IS.elems ds')]
+    ums = IM.fold mkSet [] updates
+    mkNew os (_,(pos,n)) = case pos of
+      After j -> treeToNewWith AddAfter j n ++ os
+      Head  j -> treeToNewWith AddToHead j n ++ os
     mkSet (_,n) os = treeToSet n ++ os
     (updates, ns') = IM.partitionWithKey (\k _ -> k `IS.member` ds) ns
+    ns = IM.fromList is
+    is' = filter (\(i,_) -> i `IS.notMember` ds) is
     ds' = IS.difference ds (IM.keysSet ns)
-
-setN :: SCN -> [OSC]
-setN (Gnode _) = []
-setN (Snode i n ps) = treeToSet (Synth i n ps)
-
-newN :: Position -> SCNode -> [OSC]
-newN pos n = case pos of
-  After j -> treeToNewWith AddAfter j n
-  Head  j -> treeToNewWith AddToHead j n
 
 scnId :: SCN -> Int
 scnId (Gnode i)     = i

@@ -161,47 +161,47 @@ p2 = ["foo":=200]
 t00 :: SCNode
 t00 =
   Group 0
-    [Group 1
-      [Group 10
-        [Synth 1000 "foo" ["amp":=0.3,"freq":=440,"out":=0]
-        ,Synth 1001 "foo" ["amp":=0.3,"freq":=330,"out":=0]]]]
+    [Group 2
+      [Group 20
+        [Synth 2000 "foo" ["amp":=0.3,"freq":=440,"out":=0]
+        ,Synth 2001 "foo" ["amp":=0.3,"freq":=330,"out":=0]]]]
 
 -- | Modified freq of node#1000 from t00
 t01 :: SCNode
 t01 =
   Group 0
-    [Group 1
-      [Group 10
-        [Synth 1000 "foo" ["amp":=0.3,"freq":=880,"out":=0]
-        ,Synth 1001 "foo" ["amp":=0.3,"freq":=330,"out":=0]]]]
+    [Group 2
+      [Group 20
+        [Synth 2000 "foo" ["amp":=0.3,"freq":=880,"out":=0]
+        ,Synth 2001 "foo" ["amp":=0.3,"freq":=330,"out":=0]]]]
 
 -- | Insert node#1002 after node#1001 from t00
 t02 :: SCNode
 t02 =
   Group 0
-    [Group 1
-      [Group 10
-        [Synth 1000 "foo" ["amp":=0.3,"freq":=440,"out":=0]
-        ,Synth 1001 "foo" ["amp":=0.3,"freq":=330,"out":=0]
-        ,Synth 1002 "foo" ["amp":=0.3,"freq":=1320,"out":=0]]]]
+    [Group 2
+      [Group 20
+        [Synth 2000 "foo" ["amp":=0.3,"freq":=440,"out":=0]
+        ,Synth 2001 "foo" ["amp":=0.3,"freq":=330,"out":=0]
+        ,Synth 2002 "foo" ["amp":=0.3,"freq":=1320,"out":=0]]]]
 
 -- | Delete node#1001 from t0
 t03 :: SCNode
 t03 =
   Group 0
-    [Group 1
-      [Group 10
-        [Synth 1000 "foo" ["amp":=0.3,"freq":=440,"out":=0]]]]
+    [Group 2
+      [Group 20
+        [Synth 2000 "foo" ["amp":=0.3,"freq":=440,"out":=0]]]]
 
--- | Modified node#, insert node#1002 after node#1001 from t00
+-- | Modified node#1000, insert node#1002 after node#1001 from t00
 t04 :: SCNode
 t04 =
   Group 0
-    [Group 1
-      [Group 10
-        [Synth 1000 "foo" ["amp":=0.3,"freq":=550,"out":=0]
-        ,Synth 1001 "foo" ["amp":=0.3,"freq":=330,"out":=0]
-        ,Synth 1002 "foo" ["amp":=0.3,"freq":=1320,"out":=0]]]]
+    [Group 2
+      [Group 20
+        [Synth 2000 "foo" ["amp":=0.3,"freq":=550,"out":=0]
+        ,Synth 2001 "foo" ["amp":=0.3,"freq":=330,"out":=0]
+        ,Synth 2002 "foo" ["amp":=0.3,"freq":=1320,"out":=0]]]]
 
 -- | Modified node#, insert node#1002 after node#1001 from t00
 --
@@ -213,8 +213,8 @@ t04 =
 t05 :: SCNode
 t05 =
   Group 0
-    [Group 1
-      [Group 10
-        [Synth 1001 "foo" ["amp":=0.3,"freq":=660,"out":=0]
-        ,Synth 1002 "foo" ["amp":=0.3,"freq":=990,"out":=0]
-        ,Synth 1003 "foo" ["amp":=0.3,"freq":=880,"out":=0]]]]
+    [Group 2
+      [Group 20
+        [Synth 2001 "foo" ["amp":=0.3,"freq":=660,"out":=0]
+        ,Synth 2002 "foo" ["amp":=0.3,"freq":=990,"out":=0]
+        ,Synth 2003 "foo" ["amp":=0.3,"freq":=880,"out":=0]]]]
