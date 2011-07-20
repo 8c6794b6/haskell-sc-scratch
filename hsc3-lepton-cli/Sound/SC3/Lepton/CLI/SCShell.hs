@@ -10,8 +10,6 @@
 --
 -- Interactive shell for scsynth nodes.
 --
-module Sound.SC3.Lepton.CLI.SCShell where
-
 -- TODO:
 --
 -- * Add help command
@@ -19,8 +17,9 @@ module Sound.SC3.Lepton.CLI.SCShell where
 -- * Show exception, e.g. duplicate node id ... what can we detect?
 --
 -- * Add 'find' command, query nodes like find or WHERE in SQL, do something
---   with matching nodes ... do what?
+--   with matching nodes ...  what can we do? how?
 --
+module Sound.SC3.Lepton.CLI.SCShell where
 
 import Control.Applicative hiding (empty)
 import Data.Char (isSpace)
@@ -48,6 +47,10 @@ import qualified System.Environment as E
 data Env = Env
   { -- | Scsynth connection used inside the shell.
     connection :: Either TCP UDP
+    -- | Host
+  , envHost :: String
+    -- | Port
+  , envPort :: Int
     -- | Zipper data to hold current position in synth tree.
   , zipper :: SCZipper
   } deriving (Eq, Show)
@@ -87,14 +90,14 @@ withEnv action = liftIO . action . connection =<< getEnv
 go :: IO ()
 go = do
   let con = Right <$> openUDP "127.0.0.1" 57110 :: IO (Either TCP UDP)
-  withTransport con scShell
+  withTransport con (scShell "127.0.0.1" 57110)
 
 -- | Entry point. Starts repl interpreter with given connection.
-scShell :: Either TCP UDP -> IO ()
-scShell con = do
+scShell :: String -> Int -> Either TCP UDP -> IO ()
+scShell host port con = do
   n <- getRootNode con
   evalStateT (unGuts (runInputT (setComplete compTop defaultSettings) repl))
-    (Env con (SCZipper n []))
+    (Env con host port (SCZipper n []))
 
 -- | The loop.
 repl :: Repl ()
@@ -237,7 +240,8 @@ toplevels =
 
 -- | Make prompt string showing current node from env.
 makePrompt :: Env -> String
-makePrompt e = foldr f "/" ns  ++ g (focus z) ++ " > " where
+makePrompt e = pre ++ foldr f "/" ns  ++ g (focus z) ++ "] > " where
+  pre = concat ["sc@", envHost e, ":", show (envPort e), " ["]
   z = zipper e
   ns = filter (\(SCPath n _ _) -> n /= 0) $ reverse $ scPaths z
   f (SCPath n _ _) cs = "/" ++ show n ++ cs

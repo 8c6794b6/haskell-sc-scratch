@@ -9,7 +9,7 @@
 -- Parser for commands used in SCNode interactive prompt.
 --
 module Sound.SC3.Lepton.CLI.Parser
-  ( -- * Commands syntax in EBNF
+  ( -- * Commands syntax in BNF like expression
     -- $syntax
     parseCmd
   , parsePaths

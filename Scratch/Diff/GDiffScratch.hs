@@ -19,12 +19,15 @@
 -- * http://en.wikibooks.org/wiki/Haskell/GADT
 -- * http://www.haskell.org/haskellwiki/GADT
 -- * Do 142857 trick in hexadecimal
--- 
+--
+-- > $ time ./a.out +RTS -N4 -A1024K -G4 -k256k
+--
 module GDiffScratch where
 
 import Data.Maybe
 
-import Data.Generic.Diff
+-- import Data.Generic.Diff
+import MyDiff
 import Sound.SC3.Lepton
 
 import Sample
@@ -32,13 +35,13 @@ import Sample
 -- import Sound.SC3.Lepton
 
 -- Example shown in haddock of Data.Generics.Diff
--- 
--- Expr and Term data type refers each other. Add Val consturctor to Expr cause 
+--
+-- Expr and Term data type refers each other. Add Val consturctor to Expr cause
 -- it does not terminate otherwise.
 
 data Expr = Min Expr Term | Val Term
           deriving (Eq, Show)
-                   
+
 data Term = Parens Expr | Number Int
           deriving (Eq, Show)
 
@@ -48,7 +51,7 @@ data ExprTermFamily :: * -> * -> * where
   Parens' :: ExprTermFamily Term (Cons Expr Nil)
   Number' :: ExprTermFamily Term (Cons Int Nil)
   Int'    :: Int -> ExprTermFamily Int Nil
-                               
+
 instance Family ExprTermFamily where
   decEq Min' Min' = Just (Refl, Refl)
   decEq Val' Val' = Just (Refl, Refl)
@@ -79,13 +82,13 @@ instance Family ExprTermFamily where
 
 instance Type ExprTermFamily Term where
   constructors = [Concr Number', Concr Parens']
-  
-instance Type ExprTermFamily Expr where  
+
+instance Type ExprTermFamily Expr where
   constructors = [Concr Min', Concr Val']
-  
-instance Type ExprTermFamily Int where  
+
+instance Type ExprTermFamily Int where
   constructors = [Abstr Int']
-  
+
 term1, term2, term3, term4 :: Term
 term1 = Parens (Min (Val (Number 2)) (Number 1))
 term2 = Parens (Min (Val (Number 2)) (Number 2))
@@ -100,12 +103,12 @@ d2_3 = diff term2 term3
 d3_4 = diff term3 term4
 d4_1 = diff term4 term1
 
--- Example shown in last part of short versioned gdiff paper. 
+-- Example shown in last part of short versioned gdiff paper.
 
 data Expr2 = One
            | Add Expr2 Term2
             deriving (Eq, Show)
-                     
+
 data Term2 = Neg Expr2
              deriving (Eq, Show)
 
@@ -114,47 +117,47 @@ data ExprTermFamily2 :: * -> * -> * where
   Add' :: ExprTermFamily2 Expr2 (Cons Expr2 (Cons Term2 Nil))
   Neg' :: ExprTermFamily2 Term2 (Cons Expr2 Nil)
 
-instance Family ExprTermFamily2 where 
+instance Family ExprTermFamily2 where
   decEq One' One' = Just (Refl, Refl)
   decEq Add' Add' = Just (Refl, Refl)
   decEq Neg' Neg' = Just (Refl, Refl)
   decEq _    _    = Nothing
-  
+
   fields One' One = Just CNil
   fields Add' (Add e t) = Just (CCons e (CCons t CNil))
   fields Neg' (Neg e) = Just (CCons e CNil)
   fields _ _ = Nothing
-  
+
   apply One' CNil = One
   apply Add' (CCons e (CCons t CNil)) = Add e t
   apply Neg' (CCons e CNil) = Neg e
-  
+
   string One' = "One"
   string Add' = "Add"
   string Neg' = "Neg"
-  
-instance Type ExprTermFamily2 Expr2 where  
+
+instance Type ExprTermFamily2 Expr2 where
   constructors = [Concr One', Concr Add']
-  
+
 instance Type ExprTermFamily2 Term2 where
   constructors = [Concr Neg']
-  
-t21 = Add One (Neg One)  
+
+t21 = Add One (Neg One)
 t22 = Add One (Neg (Add One (Neg One)))
 
 --
 -- How can we compare lists structure?
--- 
+--
 
-data IL = ILN 
+data IL = ILN
         | ILC Int IL
         deriving (Eq, Show)
 
-data ILFamily :: * -> * -> * where 
+data ILFamily :: * -> * -> * where
   ILNil  :: ILFamily IL Nil
   ILCons :: ILFamily IL (Cons Int (Cons IL Nil))
-  ILInt  :: Int -> ILFamily Int Nil 
-  
+  ILInt  :: Int -> ILFamily Int Nil
+
 instance Family ILFamily where
   decEq ILNil ILNil = Just (Refl,Refl)
   decEq ILCons ILCons = Just (Refl,Refl)
@@ -174,36 +177,36 @@ instance Family ILFamily where
   string ILNil = "ILN"
   string ILCons = "ILC"
   string (ILInt i) = show i
-  
+
 instance Type ILFamily IL where
   constructors = [Concr ILNil, Concr ILCons]
-  
-instance Type ILFamily Int where  
+
+instance Type ILFamily Int where
   constructors = [Abstr ILInt]
-  
-il1 = ILC 1 (ILC 2 (ILC 3 (ILC 4 (ILC 5 ILN))))  
-il2 = ILC 1 (ILC 2 (ILC 33 (ILC 4 (ILC 5 ILN))))  
+
+il1 = ILC 1 (ILC 2 (ILC 3 (ILC 4 (ILC 5 ILN))))
+il2 = ILC 1 (ILC 2 (ILC 33 (ILC 4 (ILC 5 ILN))))
 
 dil_1_2 :: EditScript ILFamily IL IL
 dil_1_2 = diff il1 il2
 
--- 
+--
 -- How about comparing with [] and (:)?
 --
 -- Omit above IL, and use [], (:) instead of ILN, ILC.
 -- Using Char as strict content type of list elements.
--- 
+--
 
 data CLFamily :: * -> * -> * where
   CLNil  :: CLFamily [Char] Nil
   CLCons :: CLFamily [Char] (Cons Char (Cons [Char] Nil))
   CLChar :: Char -> CLFamily Char Nil
-  
-instance Show (CLFamily a b) where  
+
+instance Show (CLFamily a b) where
   show CLNil = "[]"
   show CLCons = ":"
   show (CLChar c) = show c
-  
+
 instance Family CLFamily where
   decEq CLNil CLNil           = Just (Refl,Refl)
   decEq CLCons CLCons         = Just (Refl,Refl)
@@ -224,14 +227,14 @@ instance Family CLFamily where
 
 instance Type CLFamily [Char] where
   constructors = [Concr CLNil, Concr CLCons]
-  
-instance Type CLFamily Char where  
+
+instance Type CLFamily Char where
   constructors = [Abstr CLChar]
-  
+
 type CLDiff = EditScript CLFamily String String
 
 cl1, cl2 :: [Char]
-cl1 = "foo"  
+cl1 = "foo"
 cl2 = "fox"
 
 dcl_1_2 :: CLDiff
@@ -251,15 +254,15 @@ data SPFamily :: * -> * -> * where
   SPDouble :: Double -> SPFamily Double Nil
   SPInt    :: Int -> SPFamily Int Nil
 
-instance Show (SPFamily a b) where  
+instance Show (SPFamily a b) where
   show SPV = ":="
   show SPC = ":<-"
   show SPA = ":<="
   show (SPName n) = n
   show (SPDouble d) = show d
   show (SPInt i) = show i
-  
-instance Family SPFamily where  
+
+instance Family SPFamily where
   decEq SPV SPV = Just (Refl,Refl)
   decEq SPC SPC = Just (Refl,Refl)
   decEq SPA SPA = Just (Refl,Refl)
@@ -288,16 +291,16 @@ instance Family SPFamily where
 
 instance Type SPFamily SynthParam where
   constructors = [Concr SPV, Concr SPC, Concr SPA]
-  
-instance Type SPFamily String where  
+
+instance Type SPFamily String where
   constructors = [Abstr SPName]
-  
-instance Type SPFamily Int where  
+
+instance Type SPFamily Int where
   constructors = [Abstr SPInt]
-  
-instance Type SPFamily Double where  
+
+instance Type SPFamily Double where
   constructors = [Abstr SPDouble]
-  
+
 --
 -- How about list of synthparams?
 --
@@ -306,28 +309,28 @@ data SPSFamily :: * -> * -> * where
   SPNil  :: SPSFamily [SynthParam] Nil
   SPCons :: SPSFamily [SynthParam] (Cons SynthParam (Cons [SynthParam] Nil))
   SPSP   :: SynthParam -> SPSFamily SynthParam Nil
-  
+
 instance Show (SPSFamily a b) where
   show SPNil = "[]"
   show SPCons = ":"
   show (SPSP v) = show v
-  
+
 instance Family SPSFamily where
   decEq SPNil SPNil = Just (Refl,Refl)
   decEq SPCons SPCons = Just (Refl,Refl)
   decEq (SPSP a) (SPSP b) | a == b    = Just (Refl,Refl)
                           | otherwise = Nothing
   decEq _ _ = Nothing
-  
+
   fields SPNil [] = Just CNil
   fields SPCons (x:xs) = Just (CCons x (CCons xs CNil))
   fields (SPSP _) _    = Just CNil
   fields _ _ = Nothing
-  
+
   apply SPNil CNil = []
   apply SPCons (CCons x (CCons xs CNil)) = x:xs
   apply (SPSP v) CNil = v
-  
+
   string = show
 
 instance Type SPSFamily SynthParam where
@@ -335,11 +338,11 @@ instance Type SPSFamily SynthParam where
 
 instance Type SPSFamily [SynthParam] where
   constructors = [Concr SPNil, Concr SPCons]
-  
+
 {-
 
-How about SCNode?  
- 
+How about SCNode?
+
 Without comparing each element in SynthParam, time for diff t1 t2 was:
 
 > real    0m0.432s
@@ -355,9 +358,9 @@ While comparing each elements, time for diff t1 t2 was:
 It takes less time cause not seeking the detail of each SynthParams
 names and values.
 
--} 
-data SCNodeFamily :: * -> * -> * where  
-  SCNSynth       :: 
+-}
+data SCNodeFamily :: * -> * -> * where
+  SCNSynth       ::
     SCNodeFamily SCNode (Cons Int (Cons String (Cons [SynthParam] Nil)))
   SCNGroup       :: SCNodeFamily SCNode (Cons Int (Cons [SCNode] Nil))
   SCNNil         :: SCNodeFamily [SCNode] Nil
@@ -368,8 +371,8 @@ data SCNodeFamily :: * -> * -> * where
   -- SCNPCons       :: SCNodeFamily [SynthParam] (Cons SynthParam (Cons [SynthParam] Nil))
   -- SCNParam       :: SynthParam -> SCNodeFamily SynthParam Nil
   SCNParams      :: [SynthParam] -> SCNodeFamily [SynthParam] Nil
-  
-instance Show (SCNodeFamily a b) where  
+
+instance Show (SCNodeFamily a b) where
   show SCNSynth = "Synth"
   show SCNGroup = "Group"
   show SCNNil = "[]"
@@ -380,8 +383,8 @@ instance Show (SCNodeFamily a b) where
   -- show SCNPNil = "[]"
   -- show SCNPCons = ":"
   -- show (SCNParam p) = show p
-                                 
-instance Family SCNodeFamily where 
+
+instance Family SCNodeFamily where
   decEq SCNSynth SCNSynth = Just (Refl,Refl)
   decEq SCNGroup SCNGroup = Just (Refl,Refl)
   decEq SCNNil SCNNil = Just (Refl,Refl)
@@ -397,7 +400,7 @@ instance Family SCNodeFamily where
   -- decEq (SCNParam a) (SCNParam b) | a == b = Just (Refl,Refl)
                                   | otherwise = Nothing
   decEq _ _ = Nothing
-  
+
   fields SCNSynth (Synth !i !n !ps) = Just (CCons i (CCons n (CCons ps CNil)))
   fields SCNGroup (Group !i !ns)   = Just (CCons i (CCons ns CNil))
   fields SCNNil []               = Just CNil
@@ -428,21 +431,21 @@ instance Type SCNodeFamily SCNode where
 
 instance Type SCNodeFamily [SCNode] where
   constructors = [Concr SCNNil, Concr SCNCons]
-  
+
 -- instance Type SCNodeFamily SynthParam where
---   constructors = [Abstr SCNParam] 
-  
+--   constructors = [Abstr SCNParam]
+
 -- instance Type SCNodeFamily [SynthParam] where
---   constructors = [Concr SCNPNil, Concr SCNPCons] 
-  
+--   constructors = [Concr SCNPNil, Concr SCNPCons]
+
 instance Type SCNodeFamily [SynthParam] where
   constructors = [Abstr SCNParams]
-  
-instance Type SCNodeFamily String where  
-  constructors = [Abstr SCNString] 
-  
-instance Type SCNodeFamily Int where  
-  constructors = [Abstr SCNInt] 
+
+instance Type SCNodeFamily String where
+  constructors = [Abstr SCNString]
+
+instance Type SCNodeFamily Int where
+  constructors = [Abstr SCNInt]
 
 -- | Accumurate string representation of EditScript to list.
 edits :: forall f txs tys . EditScriptL f txs tys -> [String] -> [String]
@@ -454,31 +457,31 @@ edits _ acc           = acc
 
 class Sized a where
   sizeOf :: a -> Int
-  
+
 instance Sized SCNode where
   sizeOf (Synth _ _ ps) = 1 + sizeOf ps
   sizeOf (Group _ ns) = 1 + sizeOf ns
-  
-instance Sized SynthParam where  
+
+instance Sized SynthParam where
   sizeOf _ = 1
-  
-instance Sized a => Sized [a] where  
+
+instance Sized a => Sized [a] where
   sizeOf = sum . map sizeOf
 
 -- data SCNodeF :: * -> * -> * where
 --   Synth' :: Int -> String -> [SynthParam] -> SCNodeF SCNode Nil
---   Group' :: Int -> [SCNode] -> SCNodeF SCNode Nil 
+--   Group' :: Int -> [SCNode] -> SCNodeF SCNode Nil
 --   SCNil  :: SCNodeF [SCNode] Nil
 --   SCCons :: SCNodeF [SCNode] (Cons SCNode (Cons [SCNode] Nil))
-  
+
 -- instance Show (SCNodeF a b) where
 --   show (Synth' i n ps) = "Synth" ++ concat [show i, " ", n, " ", show ps]
 --   show (Group' i ns) = "Group" ++ concat [show i, " ", show ns]
 --   show SCNil = "[]"
 --   show SCCons = ":"
-  
+
 -- instance Family SCNodeF where
---   decEq (Synth' i1 n1 p1) (Synth' i2 n2 p2) 
+--   decEq (Synth' i1 n1 p1) (Synth' i2 n2 p2)
 --     | i1 == i2 && n1 == n2 && p1 == p2 = Just (Refl,Refl)
 --     | otherwise = Nothing
 --   decEq (Group' i1 n1) (Group' i2 n2)
@@ -487,26 +490,26 @@ instance Sized a => Sized [a] where
 --   decEq SCNil SCNil = Just (Refl,Refl)
 --   decEq SCCons SCCons = Just (Refl,Refl)
 --   decEq _ _ = Nothing
-  
+
 --   fields (Synth' _ _ _) _ = Just CNil
 --   fields (Group' _ _) _   = Just CNil
 --   fields SCNil [] = Just CNil
 --   fields SCCons (n:ns) = Just (CCons n (CCons ns CNil))
 --   fields _ _ = Nothing
-  
+
 --   apply (Synth' i n ps) CNil = Synth i n ps
 --   apply (Group' i ns) CNil   = Group i ns
 --   apply SCNil CNil = []
 --   apply SCCons (CCons n (CCons ns CNil)) = n:ns
-  
+
 --   string = show
-  
--- instance Type SCNodeF SCNode where  
+
+-- instance Type SCNodeF SCNode where
 --   constructors = [Abstr Synth', Abstr Group']
-  
--- instance Type SCNodeF [SCNode] where  
+
+-- instance Type SCNodeF [SCNode] where
 --   constructors = [Concr SCNil, Concr SCCons]
-  
+
 
 -- instance Type SPFamily SynthParam where
 --   constructors = [Abstr SPV, Abstr SPC, Abstr SPA]
@@ -517,7 +520,7 @@ instance Sized a => Sized [a] where
 -- data types which takes a constructor. Like in this Maybe case, is it possible
 -- to use a constructor that takes an argument which its type is opened, like
 -- 'Just'?
--- 
+--
 
 -- data MaybeFamily :: * -> * -> * -> * where
 --   Just' :: Show a => Maybe a -> MaybeFamily a (Maybe a) (Cons a Nil)
@@ -528,14 +531,14 @@ instance Sized a => Sized [a] where
 --                             | otherwise = Nothing
 --   decEq Nothing' Nothing' = Just (Refl,Refl)
 --   decEq _ _ = Nothing
-  
+
 --   fields (Just' _) (Just t) = Just (CCons t CNil)
 --   fields Nothing' Nothing = Just CNil
 --   fields _ _ = Nothing
-  
+
 --   apply (Just' _) (CCons a CNil) = Just a
 --   apply Nothing' CNil = Nothing
-  
+
 --   string (Just' x) = "Just " ++ show x
 --   string Nothing' = "Nothing"
 
@@ -544,7 +547,7 @@ instance Sized a => Sized [a] where
 
 -- instance (Show a, Eq a) => Type (MaybeFamily a) (Maybe a) where
 --   constructors = [Abstr Just', Concr Nothing']
-  
+
 type SCNodeDiff = EditScript SCNodeFamily SCNode SCNode
 
 diffSCNode :: SCNode -> SCNode -> SCNodeDiff

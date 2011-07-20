@@ -53,14 +53,19 @@ module Sound.SC3.Lepton.Tree
     -- * Util
   , paramName
   , updateParams
+  , nodeIds
+  , hasUniqueIds
   )  where
 
 import Control.Monad
 import Data.Function (on)
-import Data.Generics (Data, Typeable)
+-- import Data.Generics (Data, Typeable)
+import Data.Data
 import Data.List (unionBy)
 import Text.PrettyPrint hiding (int, double)
 
+import Data.Generics.Uniplate.Data
+import Data.Generics.Uniplate.Operations
 import Sound.SC3
 import Sound.OpenSoundControl
 
@@ -69,6 +74,7 @@ import Sound.SC3.Lepton.Parser
 import Sound.SC3.Lepton.Util (queryTree, n_mapa)
 
 import qualified Text.PrettyPrint as P
+import qualified Data.IntSet as IS
 
 -- $example_interactive
 --
@@ -77,20 +83,20 @@ import qualified Text.PrettyPrint as P
 -- > > :m + Sound.SC3
 -- > > withSC3 reset
 -- > > withSC3 printRootNode
--- > Group 0
--- > `-Group 1
+-- > 0 group
+-- >    1 group
 --
 -- Dump again after adding synth nodes:
 --
 -- > > audition $ out 0 $ sinOsc ar (control kr "freq" 440) 0 * 0.3
 -- > > audition $ out 0 $ sinOsc ar (control kr "freq" 330) 0 * 0.3
 -- > > withSC3 printRootNode
--- > Group 0
--- > `-Group 1
--- >   +-Synth -48 Anonymous
--- >   | `-[freq := 440.00]
--- >   `-Synth -56 Anonymous
--- >     `-[freq := 330.00]
+-- > 0 group
+-- >    1 group
+-- >       -16 Anonymous
+-- >         freq: 440.0
+-- >       -24 Anonymous
+-- >         freq: 330.0
 --
 -- Updating synth nodes with using generic transforming function, e.g.
 -- @transform@ from uniplate package:
@@ -384,13 +390,26 @@ updateParams ps node = case node of
   Synth i n ps' -> Synth i n (unionBy ((==) `on` paramName) ps ps')
   g             -> g
 
+hasUniqueIds :: SCNode -> Bool
+hasUniqueIds n = listSize == setSize where
+  setSize = IS.size . IS.fromList $ l
+  listSize = length l
+  l = nodeIds n
+
+nodeIds :: SCNode -> [Int]
+nodeIds n = [f n'|n' <- universe n, let f (Synth j _ _) = j; f (Group j _) = j]
+
 ------------------------------------------------------------------------------
 --
--- Converting functions
+-- Pretty printers
 --
 ------------------------------------------------------------------------------
 
--- | Pretty prints SCNode.
+-- | Draw SCNode data.
+drawSCNode :: SCNode -> String
+drawSCNode = renderNode True
+
+-- | Pretty prints SCNode in same format as '/g_dumpTree' OSC message.
 renderNode :: Bool -> SCNode -> String
 renderNode detail = render . n2doc where
   n2doc n = case n of
@@ -409,18 +428,20 @@ prettyDump = render . n2doc where
   n2doc :: SCNode -> Doc
   n2doc n = case n of
     Group i ns ->
-      text "Group" <+> signedInt i <+> char '[' $$
-      (nest 2 $ vcat ((punctuate comma (map n2doc ns)) ++ [text "]"]))
+      text "Group" <+> signedInt i $$
+      nest 2 (brackets $ vcat (punctuate comma (map n2doc ns)))
     Synth i name ps ->
-      text "Synth" <+> signedInt i <+> doubleQuotes (text name) <+> char '[' $$
-      (nest 2 $ vcat ((punctuate comma (map p2doc ps)) ++ [text "]"]))
+      text "Synth" <+> signedInt i <+> doubleQuotes (text name) $$
+      nest 2 (brackets $ vcat (punctuate comma (map p2doc ps)))
   p2doc :: SynthParam -> Doc
-  p2doc p = text $ show p
+  p2doc (k:=v)  = doubleQuotes (text k) <> text ":=" <> signedDouble v
+  p2doc (k:<-v) = doubleQuotes (text k) <> text ":<-" <> signedInt v
+  p2doc (k:<=v) = doubleQuotes (text k) <> text ":<=" <> signedInt v
 
 signedInt :: Int -> Doc
-signedInt n | n < 0     = char '(' <> P.int n <> char ')'
+signedInt n | n < 0     = parens (P.int n)
             | otherwise = P.int n
 
--- | Draw SCNode data.
-drawSCNode :: SCNode -> String
-drawSCNode = renderNode True
+signedDouble :: Double -> Doc
+signedDouble n | n < 0     = parens (P.double n)
+            | otherwise = P.double n

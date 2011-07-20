@@ -291,8 +291,8 @@ n_mapan n ps = Message "/n_mapan" $ reverse $ foldl' f [Int n] ps
 
 -- | Sends '/n_order' message.
 n_order :: AddAction -- ^ Add action
-        -> Int       -- ^ Source node or group id
-        -> Int       -- ^ Target node or group id, will be moved
+        -> Int       -- ^ Target node or group id
+        -> Int       -- ^ Source node or group id, will be moved
         -> OSC
-n_order action source target =
-  Message "/n_order" [Int (fromEnum action), Int source, Int target]
+n_order action target source=
+  Message "/n_order" [Int (fromEnum action), Int target, Int source]

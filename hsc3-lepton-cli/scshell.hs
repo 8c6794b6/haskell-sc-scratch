@@ -21,7 +21,7 @@ main = do
   let con = case protocol info of
         UDP -> Right `fmap` openUDP (host info) (port info)
         TCP -> Left `fmap` openTCP (host info) (port info)
-  withTransport con scShell
+  withTransport con (scShell (host info) (port info))
 
 data SCShell = SCShell
   { protocol :: Protocol

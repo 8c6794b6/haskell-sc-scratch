@@ -36,20 +36,6 @@ instance Arbitrary SCZipper where
 instance Arbitrary SCPath where
   arbitrary = SCPath <$> arbitrary <*> arbitrary <*> arbitrary
 
-instance Arbitrary AddAction where
-  arbitrary = elements [AddToHead .. AddReplace]
-
-instance CoArbitrary SynthParam where
-  coarbitrary (n:=v) =  variant 0 . coarbitrary n . coarbitrary v
-  coarbitrary (n:<-v) = variant 0 . coarbitrary n . coarbitrary v
-  coarbitrary (n:<=v) = variant 0 . coarbitrary n . coarbitrary v
-
-instance CoArbitrary SCNode where
-  coarbitrary (Synth i n ps) =
-    variant 0 . coarbitrary i . coarbitrary n . coarbitrary ps
-  coarbitrary (Group i ns) =
-    variant 1 . coarbitrary i . coarbitrary ns
-
 instance CoArbitrary SCPath where
   coarbitrary (SCPath n ls rs) =
     variant 2 . coarbitrary n . coarbitrary ls . coarbitrary rs
@@ -108,30 +94,21 @@ gen_uniqueNodeId :: Gen SCNode
 gen_uniqueNodeId = arbitrary `suchThat` hasUniqueIds
 
 gen_uniqueZipper :: Gen SCZipper
-gen_uniqueZipper = arbitrary `suchThat` hasUniqueNodes where
+gen_uniqueZipper = arbitrary `suchThat` hasUniqueNodes
 
 hasUniqueNodes :: SCZipper -> Bool
 hasUniqueNodes (SCZipper n ps) = uniqueIds (nodeIds n ++ concatMap fp ps) where
   fp :: SCPath -> [Int]
-  fp (SCPath n ls rs) = n : concatMap nodeIds (ls ++ rs)
+  fp (SCPath n ls rs) = n:concatMap nodeIds (ls ++ rs)
   uniqueIds :: [Int] -> Bool
   uniqueIds ids = IS.size (IS.fromList ids) == length ids
-
-hasUniqueIds :: SCNode -> Bool
-hasUniqueIds n = listSize == setSize where
-  setSize = IS.size . IS.fromList $ l
-  listSize = length l
-  l = universe n >>= \n' -> case n' of Group k _ -> [k]; Synth k _ _ -> [k]
-
-nodeIds :: SCNode -> [Int]
-nodeIds n = do
-  n' <- universe n
-  case n' of
-    Synth nid _ _ -> [nid]
-    Group nid _   -> [nid]
 
 nodeIdsInZipper :: SCZipper -> [Int]
 nodeIdsInZipper (SCZipper n ps) = nodeIds n ++ concatMap nodeIdsInPath ps
 
 nodeIdsInPath :: SCPath -> [Int]
 nodeIdsInPath (SCPath n ls rs) = n:concatMap nodeIds ls ++ concatMap nodeIds rs
+
+-- hasUniqueIds = undefined
+
+-- nodeIds n = [i | n' <- universe n, let i = nodeId n']

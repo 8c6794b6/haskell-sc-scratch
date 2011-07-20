@@ -21,27 +21,26 @@ TODO:
   included in both of set for insertion and deletion, and the node was
   identical, it's operation will be reordering.
 
-* Support adding new node with different synth name but same node id.
-  Need to detect whether the node with same def name has appeared as insert
-  and delete operation
+Known bug:
 
-* Add test
-
-* Take profile.
+* Updating from t1 to t3, t3 to t6 in Sample.hs is failing. It's freeing the
+  parent group after adding new synth nodes.
 
 -}
 module SCDiff where
 
+import Control.Monad (when)
 import Data.Tree
 import Data.List (foldl')
+import System.Random (randomRIO)
 
 import Sound.OpenSoundControl
 import Sound.SC3
 import Sound.SC3.Lepton
 import Sound.SC3.Lepton.QuickCheck
 
--- import MyDiff
-import Data.Generic.Diff
+import MyDiff
+-- import Data.Generic.Diff
 import Sample
 
 import qualified Data.IntSet as IS
@@ -145,15 +144,15 @@ data MsgAcc = MsgAcc
     pos :: Position
   , -- | Current group id.
     cgi :: [Int]
-  , -- | Holds insert operation.
+  , -- |Map of key=nodeId, val=node, for insert operation.
     inss :: [(Int,(Position,SCNode))]
-  , -- | Holds delete operation.
-    dels :: IS.IntSet
+  , -- | Map of key=nodeId, val=node, for delete operation.
+    dels :: IM.IntMap SCNode
   } deriving (Eq,Show)
 
 -- | Initial accumulator, start adding from head of given node id.
 initialAcc :: Int -> MsgAcc
-initialAcc i = MsgAcc (Head i) [i] [] IS.empty
+initialAcc i = MsgAcc (Head i) [i] [] IM.empty
 
 {-|
 Converts edit script to list of operation. What we want to do here is to
@@ -161,21 +160,16 @@ convert EditScript to set of operation so that easily converted to OSC
 messages.
 
 * When deletion and insertion of node with same id occur, operation
-  is updating the node parameter.
+  is updating the node parameter or moving the node.
 
-* When deletion of node comes after other than insertion of node, operation
-  is deleting the node.
+* When deletion of node comes without insertion of node with same id, delete
+  the node.
 
 * When insertion of node comes before other than deletion of node,
-  operation is adding new node. We cannot detect this until seeking an
-  editscript after finding Ins of node. Also, need to keep track of
-  target node id, and position. Note that AddAfter add action could not
-  be used when adding to group without containing any node yet.
-
-* Replacing synth node with same id to different synth is not supported.
-  This operation needs to free the node, and then add new node. Currently when
-  same node ids were appearing in both of insertion and deletion, all of them
-  will treated as n_set message.
+  operation is adding new node. We detect this with seeking an
+  editscript whether Ins of same node appear or not. Also, need to keep track
+  of target node id, and position. Note that AddAfter add action could not be
+  used when adding to group without containing any node yet.
 
 This function seeks 2 sequence of EditScriptL constructors at once, and
 determine which operation to take.
@@ -191,7 +185,7 @@ toAcc acc d0 = case d0 of
     let inss' = (i,(pos acc, Group i [])):inss acc
     in  toAcc (acc{pos=Head i, cgi=i:cgi acc,inss=inss'}) d
   Ins _ d -> toAcc acc d
-  Del (TFN n) d -> toAcc (acc {dels=IS.insert (scnId n) (dels acc)}) d
+  Del (TFN n) d -> toAcc (acc {dels=IM.insert (scnId n) (scn2n n) (dels acc)}) d
   Del _ d -> toAcc acc d
   Cpy TFNodeNil (Cpy TFNodeNil d) -> toAcc upOneGroup d
   Cpy TFNodeNil (Ins TFNodeNil d) -> toAcc upOneGroup d
@@ -209,21 +203,75 @@ messages for the node.
 -}
 accToOSC :: MsgAcc -> [OSC]
 accToOSC (MsgAcc _ _ is ds)
-  | IS.null ds = foldl' mkNew [] is'
-  | otherwise  = if IS.null ds' then nms ++ ums else nms ++ dms ++ ums
+  | IM.null ds = foldl' mkNew [] is'
+  | otherwise  = if IM.null ds' then nms ++ ums else nms ++ dms ++ ums
   where
     nms = foldl' mkNew [] is'
-    dms = [n_free (IS.elems ds')]
-    ums = IM.fold mkSet [] updates
+    dms = [n_free (IM.keys ds')]
+    ums = concat $ IM.elems $ IM.intersectionWithKey assort ds ns
     mkNew os (_,(pos,n)) = case pos of
       After j -> treeToNewWith AddAfter j n ++ os
       Head  j -> treeToNewWith AddToHead j n ++ os
     mkSet (_,n) os = treeToSet n ++ os
-    (updates, ns') = IM.partitionWithKey (\k _ -> k `IS.member` ds) ns
+    (dupIs, ns') = IM.partitionWithKey (\k _ -> k `IM.member` ds) ns
     ns = IM.fromList is
-    is' = filter (\(i,_) -> i `IS.notMember` ds) is
-    ds' = IS.difference ds (IM.keysSet ns)
+    is' = filter (\(i,_) -> i `IM.notMember` ds) is
+    ds' = IM.difference ds ns
+
+-- | Convert to OSC messages from inserted node and delete nodes.
+assort :: Int               -- ^ node id
+       -> SCNode            -- ^ Deleted node
+       -> (Position,SCNode) -- ^ Inserted node and its position
+       -> [OSC]
+assort i nd (p,ni) = case (nd,ni) of
+  (Group _ _, Group _ _) ->
+    let (a,j) = at p in [n_order a j i]
+  (Group _ _, Synth _ n _) ->
+    let (a,j) = at p in n_free [i]:treeToNewWith a j ni
+  (Synth _ _ _, Group _ _) ->
+    let (a,j) = at p in [n_free [i],g_new [(i,a,j)]]
+  (Synth i1 n1 ps1, Synth i2 n2 ps2)
+    | n1 == n2 && ps1 == ps2 ->
+      let (a,j) = at p in [n_order a j i]
+    | n1 == n2 ->
+      let (a,j) = at p in n_order a j i:treeToSet ni
+    | otherwise -> let (a,j) = at p in n_free [i]:treeToNewWith a j ni
+  where
+    at p = case p of Head j -> (AddToHead, j); After j -> (AddAfter, j)
 
 scnId :: SCN -> Int
 scnId (Gnode i)     = i
 scnId (Snode i _ _) = i
+
+scn2n :: SCN -> SCNode
+scn2n (Gnode i) = Group i []
+scn2n (Snode i n ps) = Synth i n ps
+
+--
+-- Debugging
+--
+
+-- | Dump diff and message.
+ddm :: SCNode -> SCNode -> IO ()
+ddm a b = do
+  let d = diffSCN a b
+  dumpDiff d
+  mapM_ print . accToOSC . toAcc (initialAcc (nodeId a)) $ d
+
+-- | Update root node and then dump the contents.
+up :: Transport t => SCNode -> t -> IO ()
+up n = sendAsync (updateNode n) printRootNode
+
+-- | Sends given actions in asynchronus manner.
+sendAsync :: Transport t => (t -> IO a) -> (t -> IO b) -> t -> IO b
+sendAsync act1 act2 fd = do
+  sessId <- randomRIO (0,2^16)
+  act1 fd
+  send fd $ sync sessId
+  Message _ [Int replyId] <- wait fd "/synced"
+  res <- act2 fd
+  when (replyId /= sessId) $ do
+    putStrLn "server accessed from other connection"
+    putStrLn $ concat ["Sent ", show sessId, " for sync"]
+    putStrLn $ concat ["Got ", show replyId, " from server"]
+  return res

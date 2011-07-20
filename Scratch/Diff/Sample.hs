@@ -133,11 +133,11 @@ t4 = Group 1
        ,Synth 1402 "hoge" ["t_trig":<-142,"flo":=880,"fhi":=1320]
        ,Synth 1403 "hoge" ["t_trig":<-141,"flo":=180,"fhi":=320]]
 
--- Tree that 'flo' in node#1402 has been modified to 440.
+-- Tree that 'freq' in node#1410 has been modified to 3.
 -- Make 'n_set' message from diff(t3,t5)
 t5 = Group 1
        [Group 141
-         [Synth 1410 "lftrig" ["freq":=1,"out":=141]
+         [Synth 1410 "lftrig" ["freq":=3,"out":=141]
          ,Synth 1411 "lftrig" ["freq":=2,"out":=142]]
        ,Synth 1401 "hoge" ["t_trig":<-141]
        ,Synth 1402 "hoge" ["t_trig":<-142,"flo":=440,"fhi":=1320]
@@ -166,7 +166,7 @@ t00 =
         [Synth 2000 "foo" ["amp":=0.3,"freq":=440,"out":=0]
         ,Synth 2001 "foo" ["amp":=0.3,"freq":=330,"out":=0]]]]
 
--- | Modified freq of node#1000 from t00
+-- | Modified freq of node#2000 from t00
 t01 :: SCNode
 t01 =
   Group 0
@@ -175,7 +175,7 @@ t01 =
         [Synth 2000 "foo" ["amp":=0.3,"freq":=880,"out":=0]
         ,Synth 2001 "foo" ["amp":=0.3,"freq":=330,"out":=0]]]]
 
--- | Insert node#1002 after node#1001 from t00
+-- | Insert node#2002 after node#2001 from t00
 t02 :: SCNode
 t02 =
   Group 0
@@ -185,7 +185,7 @@ t02 =
         ,Synth 2001 "foo" ["amp":=0.3,"freq":=330,"out":=0]
         ,Synth 2002 "foo" ["amp":=0.3,"freq":=1320,"out":=0]]]]
 
--- | Delete node#1001 from t0
+-- | Delete node#2001 from t0
 t03 :: SCNode
 t03 =
   Group 0
@@ -193,7 +193,7 @@ t03 =
       [Group 20
         [Synth 2000 "foo" ["amp":=0.3,"freq":=440,"out":=0]]]]
 
--- | Modified node#1000, insert node#1002 after node#1001 from t00
+-- | Modified node#2000, insert node#2002 after node#2001 from t00
 t04 :: SCNode
 t04 =
   Group 0
@@ -203,7 +203,7 @@ t04 =
         ,Synth 2001 "foo" ["amp":=0.3,"freq":=330,"out":=0]
         ,Synth 2002 "foo" ["amp":=0.3,"freq":=1320,"out":=0]]]]
 
--- | Modified node#, insert node#1002 after node#1001 from t00
+-- | Modified node#, insert node#2002 after node#2001 from t00
 --
 -- XXX: When new node has inserted soon after modified node, message
 -- conversion fails.
@@ -218,3 +218,70 @@ t05 =
         [Synth 2001 "foo" ["amp":=0.3,"freq":=660,"out":=0]
         ,Synth 2002 "foo" ["amp":=0.3,"freq":=990,"out":=0]
         ,Synth 2003 "foo" ["amp":=0.3,"freq":=880,"out":=0]]]]
+
+-- | Swapped position of node#2000 with node#2001.
+t06 :: SCNode
+t06 =
+  Group 0
+    [Group 2
+      [Group 20
+        [Synth 2001 "foo" ["amp":=0.3,"freq":=330,"out":=0]
+        ,Synth 2000 "foo" ["amp":=0.3,"freq":=440,"out":=0]]]]
+
+-- | Modified synth name of node#2000.
+t07 :: SCNode
+t07 =
+  Group 0
+    [Group 2
+      [Group 20
+        [Synth 2000 "bar" ["amp":=0.3,"freq":=440,"out":=0]
+        ,Synth 2001 "foo" ["amp":=0.3,"freq":=330,"out":=0]]]]
+
+-- | Base node to play with moving nodes around.
+u00 :: SCNode
+u00 =
+  Group 0
+    [Group 2
+       [Group 20
+          [Synth 2000 "foo" ["amp":=0.2,"freq":=330,"out":=0]
+          ,Synth 2001 "foo" ["amp":=0.2,"freq":=333,"out":=0]]
+       ,Group 21
+          [Synth 2100 "foo" ["amp":=0.2,"freq":=440,"out":=0]
+          ,Synth 2101 "foo" ["amp":=0.2,"freq":=439,"out":=0]]
+       ,Group 22
+          [Synth 2200 "foo" ["amp":=0.2,"freq":=440,"out":=0]
+          ,Synth 2201 "foo" ["amp":=0.2,"freq":=439,"out":=0]]
+       ,Group 23
+          [Synth 2300 "foo" ["amp":=0.2,"freq":=660,"out":=0]
+          ,Synth 2301 "foo" ["amp":=0.2,"freq":=670,"out":=0]]]]
+
+u01 :: SCNode
+u01 =
+  Group 0
+    [Group 2
+       [Group 20
+          [Synth 2000 "foo" ["amp":=0.2,"freq":=330,"out":=0]
+          ,Synth 2001 "foo" ["amp":=0.2,"freq":=333,"out":=0]]
+       ,Group 21
+          [Synth 2100 "foo" ["amp":=0.2,"freq":=440,"out":=0]
+          ,Synth 2101 "foo" ["amp":=0.2,"freq":=439,"out":=0]]
+       ,Group 22
+          [Synth 2200 "foo" ["amp":=0.2,"freq":=660,"out":=0]
+          ,Synth 2201 "foo" ["amp":=0.2,"freq":=670,"out":=0]]]]
+
+u02 :: SCNode
+u02 =
+  Group 0
+    [Group 2
+       [Group 20
+          [Synth 2000 "foo" ["amp":=0.2,"freq":=330,"out":=0]
+          ,Synth 2001 "foo" ["amp":=0.2,"freq":=333,"out":=0]]
+       ,Group 22
+          [Synth 2200 "foo" ["amp":=0.2,"freq":=440,"out":=0]
+          ,Synth 2201 "foo" ["amp":=0.2,"freq":=439,"out":=0]]
+       ,Group 21
+          [Synth 2100 "foo" ["amp":=0.2,"freq":=440,"out":=0]
+          ,Synth 2101 "foo" ["amp":=0.2,"freq":=439,"out":=0]]
+       ,Group 23
+          [Synth 2300 "foo" ["amp":=0.2,"freq":=660,"out":=0]
+          ,Synth 2301 "foo" ["amp":=0.2,"freq":=670,"out":=0]]]]
