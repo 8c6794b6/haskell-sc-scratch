@@ -33,7 +33,8 @@ import Data.Generics.Uniplate.Data (universe)
 import Sound.SC3 hiding (free)
 import Sound.OpenSoundControl
 
-import Sound.SC3.Lepton.Tree
+import Sound.SC3.Lepton.Tree.Tree
+import Sound.SC3.Lepton.Tree.Connection
 import Sound.SC3.Lepton.Util
 import Sound.SC3.Lepton.Instance ()
 
@@ -89,7 +90,7 @@ add nId node = do
              else
                  bundle (UTCr now) $ treeToNew 0 g
          Synth nid' n ps ->
-             bundle (UTCr now) $
+             bundle (UTCr now)
                [s_new n nid' AddToTail nId (concatMap paramToTuple ps)]
 
 nfree :: NodeId -> Query ()
@@ -116,11 +117,7 @@ type Condition = NodeInfo Bool
 sel :: Condition -> Query [SCNode]
 sel p = do
   tree <- allNodes
-  return $ [n | n <- universe tree, p n]
-
-nodeId :: NodeInfo Int
-nodeId (Group i _) = i
-nodeId (Synth i _ _) = i
+  return [n | n <- universe tree, p n]
 
 name :: NodeInfo String
 name (Group _ _) = ""
@@ -139,10 +136,10 @@ paramNames (Synth _ _ ps) = map getName ps
 paramNames _ = []
 
 liftN ::  (a -> b -> c) -> NodeInfo a -> b -> NodeInfo c
-liftN q f v = \n -> f n `q` v
+liftN q f v n = f n `q` v
 
 liftN2 :: (a -> b -> c)  -> NodeInfo a -> NodeInfo b -> NodeInfo c
-liftN2 q f g = \n -> f n `q` g n
+liftN2 q f g n = f n `q` g n
 
 (==?),(/=?) :: Eq a => NodeInfo a -> a -> NodeInfo Bool
 (==?) = liftN (==)
@@ -178,7 +175,7 @@ liftParam _ _ = False
 param :: ParamName -> Query [SCNode]
 param n = do
   tree <- allNodes
-  return $ [x | x@(Synth _ _ ps) <- universe tree, n `elem` map f ps]
+  return [x | x@(Synth _ _ ps) <- universe tree, n `elem` map f ps]
   where
     f (x:=_)  = x
     f (x:<-_) = x

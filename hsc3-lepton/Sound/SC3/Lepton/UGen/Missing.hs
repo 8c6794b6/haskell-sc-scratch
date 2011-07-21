@@ -15,15 +15,15 @@ integrator i coef = mkFilter "Integrator" [i, coef] 1
 -- output. This ugen is redefined with having single output.
 detectSilence' :: UGen -> UGen -> UGen -> DoneAction -> UGen
 detectSilence' i a t act = 
-    mkFilter "DetectSilence" [i, a, t, from_done_action act] 1
+    mkFilter "DetectSilence" [i, a, t, fromDoneAction act] 1
 
 -- | Limiter.
 limiter :: UGen -> UGen -> UGen -> UGen
 limiter i l d = mkFilter "Limiter" [i, l, d] 1
 
-from_done_action :: DoneAction -> UGen
-from_done_action DoNothing = Constant 0
-from_done_action PauseSynth = Constant 1
-from_done_action RemoveSynth = Constant 2
-from_done_action (DoneAction u) = u
+fromDoneAction :: DoneAction -> UGen
+fromDoneAction DoNothing = Constant 0
+fromDoneAction PauseSynth = Constant 1
+fromDoneAction RemoveSynth = Constant 2
+fromDoneAction (DoneAction u) = u
 

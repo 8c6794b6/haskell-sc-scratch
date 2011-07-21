@@ -6,7 +6,7 @@
 -- Stability   : unstable
 -- Portability : non-portable
 --
--- Peek inside synthdef file.
+-- Peek inside synthdef file to get control parameter names.
 --
 module Sound.SC3.Lepton.CLI.SynthdefPeeker where
 
@@ -16,7 +16,6 @@ import Text.Parsec
 import System.Directory
 
 import Data.Binary
-import Sound.SC3 hiding (synthdef, Binary)
 
 import qualified Data.ByteString.Lazy.Char8 as C8
 import qualified Text.Parsec.ByteString as PB
@@ -44,7 +43,7 @@ skipBytes n = replicateM n anyChar >> return ()
 
 paramNameOnly :: PB.Parser [String]
 paramNameOnly = do
-  synthdefName <- pstring
+  _ <- pstring
   numConstant <- int16
   skipBytes (fromIntegral numConstant * 4)
   numParameters <- int16

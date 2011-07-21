@@ -67,3 +67,26 @@ instance CoArbitrary SCNode where
 
 nameChars :: Gen String
 nameChars = listOf1 (elements $ ['A' .. 'Z'] ++ ['a'..'z'] ++ "_.")
+
+instance Arbitrary SCZipper where
+  arbitrary = SCZipper <$> arbitrary <*> arbitrary
+
+instance Arbitrary SCPath where
+  arbitrary = SCPath <$> arbitrary <*> arbitrary <*> arbitrary
+
+instance CoArbitrary SCPath where
+  coarbitrary (SCPath n ls rs) =
+    variant 2 . coarbitrary n . coarbitrary ls . coarbitrary rs
+
+instance CoArbitrary SCZipper where
+  coarbitrary (SCZipper n ps) =
+    variant 3 . coarbitrary n . coarbitrary ps
+
+instance Arbitrary Step where
+  arbitrary = oneof [return GoUp, return GoTop, GoDown <$> arbitrary]
+
+instance CoArbitrary Step where
+  coarbitrary s = case s of
+    GoUp     -> variant 0
+    GoTop    -> variant 1
+    GoDown n -> variant 2 . coarbitrary n

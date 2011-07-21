@@ -77,7 +77,7 @@ data TEnv = TEnv
 
 instance Show TEnv where
   show (TEnv _ b t _) =
-    "TEnv - TimeUnit: " ++ show b ++ ", threads: " ++ (show $ M.size t)
+    "TEnv - TimeUnit: " ++ show b ++ ", threads: " ++ show (M.size t)
 
 -- | Data for each threads.
 --
@@ -112,8 +112,8 @@ initEnvTU u = utcr >>= \t0 -> newMVar (TEnv t0 u M.empty M.empty)
 dumpEnv :: MVar TEnv -> IO ()
 dumpEnv tev = do
   te <- readMVar tev
-  putStrLn $ "\n" ++ show te
-  forM_ (M.assocs $ teThreads te) $ \(n,ti) -> do
+  putStrLn $ '\n' : show te
+  forM_ (M.assocs $ teThreads te) $ \(n,ti) ->
     putStrLn $ n ++ ": " ++ show (tiId ti) ++ " " ++ show (tiStatus ti)
 
 -- | Add new action with initial delay.
@@ -249,8 +249,7 @@ resumeChild ti = do
 
 -- | Set time unit in thread environment.
 setTimeUnit :: MVar TEnv -> Double -> IO ()
-setTimeUnit tev u = modifyMVar_ tev $ \te -> do
-  return $ te {teTimeUnit = u}
+setTimeUnit tev u = modifyMVar_ tev $ \te -> return $ te {teTimeUnit = u}
 
 ------------------------------------------------------------------------------
 --
@@ -273,7 +272,7 @@ data ActState = ActState
 
 -- | Unwrapper for Act.
 runAct :: Act a -> MVar TEnv -> ActState -> IO a
-runAct a e s = evalStateT (runReaderT (unAct a) e) s
+runAct a e = evalStateT (runReaderT (unAct a) e)
 
 -- | Make @Act@ from @IO@, currently it's a synonym of liftIO.
 act :: IO a -> Act a
@@ -314,11 +313,11 @@ tdelay dt = when (dt > 1e-4) $ do
 
 -- | Get time unit from thread environment.
 getTimeUnit :: Act Double
-getTimeUnit = ask >>= \mv -> act (readMVar mv >>= return . teTimeUnit)
+getTimeUnit = ask >>= \mv -> act (teTimeUnit `fmap` readMVar mv)
 
 -- | Get the initialized time of TEnv, in UTCr.
 getInitTime :: Act Double
-getInitTime = ask >>= \mv -> act (readMVar mv >>= return . teInitTime)
+getInitTime = ask >>= \mv -> act (teInitTime `fmap` readMVar mv)
 
 -- | Get current UTCr.
 getNow :: Act Double
@@ -337,7 +336,7 @@ testAct a = do
 -- Acts immediately when given time is non-positive.
 tu :: Double -> InitialDelay
 tu n | n <= 0    = noDelay
-     | otherwise = (\i u -> (n*u - (i `grem` (n*u))))
+     | otherwise = \i u -> (n*u - (i `grem` (n*u)))
   where
     grem a b = a - (fromIntegral (fst (properFraction (a/b))) * b)
 

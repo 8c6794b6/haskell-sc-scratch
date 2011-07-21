@@ -2,8 +2,9 @@ module Test.Sound.SC3.Lepton.CLI.SCShellCmd where
 
 import Test.QuickCheck
 
+import Sound.SC3.Lepton
 import Sound.SC3.Lepton.CLI.SCShellCmd
-import Sound.SC3.Lepton.CLI.SCZipper
+-- import Sound.SC3.Lepton.CLI.SCZipper
 import Test.Sound.SC3.Lepton.CLI.Common ()
 
 runTests :: IO [Result]

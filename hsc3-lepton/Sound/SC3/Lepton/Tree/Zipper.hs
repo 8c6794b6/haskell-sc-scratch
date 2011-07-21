@@ -9,7 +9,7 @@
 --
 -- Zipper data types and functions for SCNode.
 --
-module Sound.SC3.Lepton.CLI.SCZipper
+module Sound.SC3.Lepton.Tree.Zipper
  ( SCZipper(..)
  , SCPath(..)
  , NodePath
@@ -29,10 +29,12 @@ module Sound.SC3.Lepton.CLI.SCZipper
 
 import Data.List (nub)
 
-import Data.Generics (Data, Typeable)
+import Data.Data
 import Data.Generics.Uniplate.Data
+
 import Sound.SC3
-import Sound.SC3.Lepton
+import Sound.SC3.Lepton.Tree.Tree
+import Sound.SC3.Lepton.Query
 
 -- | Track current position and data to reconstruct the entire tree
 data SCZipper = SCZipper {

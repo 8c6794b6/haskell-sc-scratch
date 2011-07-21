@@ -1,5 +1,5 @@
 name:		hsc3-lepton
-version:	0.0.3
+version:	0.0.4
 synopsis:       Client side utility collection for scsynth.
 author:         8c6794b6
 maintainer:     8c6794b6@gmail.com
@@ -43,8 +43,11 @@ library
     Sound.SC3.Lepton.Query
     Sound.SC3.Lepton.QuickCheck
     Sound.SC3.Lepton.Tree
+    Sound.SC3.Lepton.Tree.Tree
+    Sound.SC3.Lepton.Tree.Connection
+    Sound.SC3.Lepton.Tree.Diff
+    Sound.SC3.Lepton.Tree.Zipper
     Sound.SC3.Lepton.UGen
-    Sound.SC3.Lepton.UGen.ControlArg
     Sound.SC3.Lepton.UGen.Factory
     Sound.SC3.Lepton.UGen.Missing
     Sound.SC3.Lepton.Util
@@ -53,6 +56,7 @@ library
     bytestring,
     containers,
     filepath,
+    gdiff >= 1.0,
     random,
     parsec >= 3.0,
     pretty,

@@ -152,7 +152,7 @@ import Sound.SC3.Lepton.Pattern.Interpreter
 -- >       threadDelay $ floor $ (m!"dur") * 1e6 * (60/bpm)
 -- >     bpm = 160
 -- >
--- > -- | Ugen with having amp, freq, pan controls.
+-- > -- | Ugen with amp, freq, and pan controls.
 -- > buzz :: UGen
 -- > buzz = out 0 $ pan2 sig pan 1
 -- >   where

@@ -21,7 +21,7 @@ import Sound.OpenSoundControl
 import Sound.SC3
 
 serveAll :: IO [ThreadId]
-serveAll = mapM (\m -> forkIO $ withSC3 (serve m)) 
+serveAll = mapM (forkIO . withSC3 . serve) 
   ["/tr", "/n_go", "/n_end", "/n_on", "/n_off", "/n_info", "/n_move"]
 
 serve :: (Transport t) => String -> t -> IO ()

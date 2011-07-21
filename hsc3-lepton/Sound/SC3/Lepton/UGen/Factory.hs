@@ -38,6 +38,10 @@ ctrl name val
 (@@) :: String -> Double -> UGen
 (@@) = ctrl
 
+-- | Infix variant of "lag".
+(@~) :: UGen -> UGen -> UGen
+(@~) = lag
+
 -- | For backword compatibility, synonym for \@\@.
 (=:) :: String -> Double -> UGen
 (=:) = ctrl

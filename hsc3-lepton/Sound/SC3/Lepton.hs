@@ -9,22 +9,12 @@
 --
 -- Client side utility collection for scsynth.
 --
-
-module Sound.SC3.Lepton
-    (module Sound.SC3.Lepton.Looper,
-     module Sound.SC3.Lepton.Pattern,
-     module Sound.SC3.Lepton.Query,
-     -- module Sound.SC3.Lepton.Schedule,
-     module Sound.SC3.Lepton.Tree,
-     module Sound.SC3.Lepton.UGen,
-     module Sound.SC3.Lepton.Util
-    ) where
+module Sound.SC3.Lepton (module All) where
 
 import Sound.SC3.Lepton.Instance ()
-import Sound.SC3.Lepton.Looper
-import Sound.SC3.Lepton.Pattern
-import Sound.SC3.Lepton.Query
--- import Sound.SC3.Lepton.Schedule
-import Sound.SC3.Lepton.Tree
-import Sound.SC3.Lepton.UGen
-import Sound.SC3.Lepton.Util
+import Sound.SC3.Lepton.Looper as All
+import Sound.SC3.Lepton.Pattern as All
+import Sound.SC3.Lepton.Query as All
+import Sound.SC3.Lepton.Tree as All
+import Sound.SC3.Lepton.UGen as All
+import Sound.SC3.Lepton.Util as All

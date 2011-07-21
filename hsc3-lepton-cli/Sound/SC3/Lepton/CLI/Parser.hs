@@ -16,15 +16,12 @@ module Sound.SC3.Lepton.CLI.Parser
   ) where
 
 import Control.Applicative ((<$>))
-import Data.List (unionBy)
-import Data.Function (on)
 import Text.Parsec
 import Text.Show.Functions ()
 
 import Sound.SC3 hiding (free, status)
 import Sound.SC3.Lepton
 
-import Sound.SC3.Lepton.CLI.SCZipper
 import Sound.SC3.Lepton.CLI.SCShellCmd
 
 -- $syntax

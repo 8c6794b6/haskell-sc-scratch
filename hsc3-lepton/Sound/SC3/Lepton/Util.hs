@@ -15,6 +15,7 @@ module Sound.SC3.Lepton.Util where
 
 import Control.Arrow ((>>>))
 import Data.List (nub, foldl')
+import Data.Maybe (fromMaybe)
 import System.Environment (getEnvironment)
 import System.FilePath ((</>), (<.>))
 import System.Random
@@ -41,7 +42,7 @@ scSynthdefPath = "SC_SYNTHDEF_PATH"
 writeSynthdef :: String -> UGen -> IO ()
 writeSynthdef name ugen = do
   envir <- getEnvironment
-  let dir = maybe "./" id $ lookup scSynthdefPath envir
+  let dir = fromMaybe "./" $ lookup scSynthdefPath envir
       path = dir </> name <.> "scsyndef"
       contents = B.pack $ synthdef name ugen
   B.writeFile path contents
@@ -52,7 +53,7 @@ writeSynthdef name ugen = do
 reloadSynthdef :: (Transport t) => t -> IO OSC
 reloadSynthdef fd = do
   envir <- getEnvironment
-  let dir = maybe "./" id $ lookup scSynthdefPath envir
+  let dir = fromMaybe "./" $ lookup scSynthdefPath envir
       path = dir </> ""
   async fd (d_loadDir path)
 
@@ -95,15 +96,15 @@ getBufInfo bufId = do
 -- | @flip send@. With flipping the argument, one can write as below:
 --
 -- > withSC3 (send' some_osc_message)
-send' :: Transport t => OSC -> (t -> IO ())
+send' :: Transport t => OSC -> t -> IO ()
 send' = flip send
 
 -- | @flip async@.
-async' :: Transport t => OSC -> (t -> IO OSC)
+async' :: Transport t => OSC -> t -> IO OSC
 async' = flip async
 
 -- | @flip wait@
-wait' :: Transport t => String -> (t -> IO OSC)
+wait' :: Transport t => String -> t -> IO OSC
 wait' = flip wait
 
 queryRootNode :: (Transport t) => t -> IO OSC
@@ -117,7 +118,7 @@ queryTree n = Message "/g_queryTree" [Int n, Int 1]
 
 -- | Sends registration for notify, then query the nodes and shows
 -- returing message.
-queryNode :: Transport t => Int -> (t -> IO OSC)
+queryNode :: Transport t => Int -> t -> IO OSC
 queryNode n = \fd -> do
   async fd (notify True)
   send fd (n_query [n])
@@ -132,7 +133,7 @@ sendSynthdef :: Transport t => String -> UGen -> t -> IO OSC
 sendSynthdef name ugen = \t -> async t $ d_recv $ synthdef name ugen
 
 -- | Write a synthdef to file, then load it.
-loadSynthdef :: Transport t => String -> UGen -> (t -> IO OSC)
+loadSynthdef :: Transport t => String -> UGen -> t -> IO OSC
 loadSynthdef name ugen _ = do
   writeSynthdef name ugen
   withSC3 $ sendSynthdef name ugen
@@ -154,7 +155,7 @@ b_get' bId is = \fd -> send fd (b_get bId is) >> wait fd "/b_set"
 -- | Sends @/b_getn@ message and wait until it gets @/b_setn@.
 --
 -- > \fd ->
-b_getn' :: Transport t => Int -> [(Int,Int)] -> (t -> IO OSC)
+b_getn' :: Transport t => Int -> [(Int,Int)] -> t -> IO OSC
 b_getn' bid params = \fd -> send fd (b_getn bid params) >> wait fd "/b_setn"
 
 -- | Write to buffer from List.
@@ -179,7 +180,7 @@ b_play _ _ = undefined
 
 
 -- | Sends @/c_get@ message and wait until it gets @/c_set@.
-c_get' :: Transport t => [Int] -> (t -> IO OSC)
+c_get' :: Transport t => [Int] -> t -> IO OSC
 c_get' ids = \fd -> send fd  (c_get ids) >> wait fd "/c_set"
 
 (|>) :: (a -> b) -> (b -> c) -> (a -> c)
@@ -200,10 +201,6 @@ infixr 2 @>
 -- | Returns Control ugen.
 (@=) :: String -> Double -> UGen
 name @= val = control kr name val
-
--- | Returns Control ugen, with lag.
-(@~) :: String -> Double -> UGen -> UGen
-a @~ b = \c -> lag (a @= b) c
 
 -- | Fit in specified range with using @mod@.
 fitInRange :: Integral a => a -> a -> a -> a

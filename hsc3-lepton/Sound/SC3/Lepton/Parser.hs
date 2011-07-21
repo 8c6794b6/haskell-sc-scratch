@@ -79,7 +79,7 @@ midi = dp $ \d -> case d of Midi (w,x,y,z) -> Just (w,x,y,z); _ -> Nothing
 dp :: (Datum -> Maybe a) -> DatumParser a
 dp f = P.tokenPrim showFunc updateFunc f
   where
-    showFunc c = show c
+    showFunc = show
     updateFunc pos _ _ = P.setSourceColumn pos (succ $ P.sourceColumn pos)
 
 ------------------------------------------------------------------------------

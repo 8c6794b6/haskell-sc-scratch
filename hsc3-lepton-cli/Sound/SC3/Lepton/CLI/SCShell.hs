@@ -38,7 +38,6 @@ import System.Console.Haskeline
 
 import Sound.SC3.Lepton.CLI.Parser
 import Sound.SC3.Lepton.CLI.SCShellCmd
-import Sound.SC3.Lepton.CLI.SCZipper
 import Sound.SC3.Lepton.CLI.SynthdefPeeker
 
 import qualified System.Environment as E

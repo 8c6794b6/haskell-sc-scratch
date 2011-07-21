@@ -62,7 +62,7 @@ newtype R a = R {unR :: StdGen -> [a]}
 
 -- | Run pattern with given seed.
 runP :: R a -> StdGen -> [a]
-runP p g = unR p g
+runP = unR
 
 -- | Run pattern with new seed.
 runPIO :: R a -> IO [a]
@@ -138,7 +138,7 @@ instance Pseq R where
 -- | Replicate given pattern for given time.
 instance Preplicate R where
   preplicate n p = R $ \g ->
-    let ps = concatMap (\n' -> replicate n' p) (unR n g)
+    let ps = concatMap (`replicate` p) (unR n g)
     in  concat $ zipWith unR ps (gens g)
 
 -- | Choose element from given list for number of given times.
@@ -235,7 +235,7 @@ instance (Show a, Enum a) => Enum (S a) where
   succ n = S $ \_ -> "succ (" ++ showP n ++ ")"
   fromEnum n = case words $ showP n of
     [x]         -> read x
-    ["pval", x] -> fromEnum $ (read x :: Double) -- XXX: how to know the type?
+    ["pval", x] -> fromEnum (read x :: Double) -- XXX: how to tell the type?
     e           -> error $ "fromEnum: " ++ show e
   toEnum n = S $ \_ -> "pval " ++ show n
 
@@ -289,7 +289,7 @@ instance Pforever S where
   pforever p = S $ \_ -> "pforever (" ++ show p ++ ")"
 
 instance Papp S where
-  papp a b = S $ \x -> "papp "
+  papp a b = S $ \_ -> "papp "
 
 -- instance Plam S where
 --   plam f = S $ \_ -> "\\x -> " ++ unS (f (S $ const "")) () ++ ")"
@@ -344,7 +344,7 @@ instance Pval V where
   pval x = V $ "pval " ++ show x
 
 instance Pempty V where
-  pempty = V $ "pempty"
+  pempty = V "pempty"
 
 instance Plist V where
   plist xs = V $ "plist " ++ showList xs ""
@@ -356,7 +356,7 @@ instance Prand V where
   prand (V n) ps = V $ "prand (" ++ n ++ ") " ++ showList ps ""
 
 instance Prandom V where
-  prandom = V $ "prandom"
+  prandom = V "prandom"
 
 instance Pshuffle V where
   pshuffle ps = V $ "pshuffle " ++ showList ps ""
@@ -395,14 +395,14 @@ data Tree a = Leaf a
             | Node !Int (Tree a) (Tree a)
             deriving (Show)
 
-build_tree = grow_level . (map Leaf)
+build_tree = grow_level . map Leaf
   where
     grow_level [node] = node
     grow_level l = grow_level $ inner l
 
     inner [] = []
     inner x@[_] = x
-    inner (e1:e2:rest) = (join e1 e2) : inner rest
+    inner (e1:e2:rest) = join e1 e2 : inner rest
 
     join l r = case (l,r) of
       (Leaf _,Leaf _)             -> Node 2 l r
@@ -415,16 +415,16 @@ shuffle1 elems rseq = shuffle1' (build_tree elems) rseq
   where
     shuffle1' (Leaf e) [] = [e]
     shuffle1' tree (ri:r_others) =
-      extract_tree ri tree (\t -> shuffle1' t r_others)
+      extract_tree ri tree (`shuffle1'` r_others)
 
     extract_tree 0 (Node _ (Leaf e) r) k = e:k r
     extract_tree 1 (Node 2 l@Leaf{} (Leaf e)) k = e:k l
     extract_tree n (Node c l@Leaf{} r) k =
-      extract_tree (n-1) r (\r' -> k $ Node (c-1) l r')
+      extract_tree (n-1) r (k . Node (c-1) l)
     extract_tree n (Node n1 l (Leaf e)) k | n+1 == n1 = e:k l
     extract_tree n (Node c l@(Node cl _ _) r) k
       | n < cl    = extract_tree n l (\l' -> k $ Node (c-1) l' r)
-      | otherwise = extract_tree (n-cl) r (\r' -> k $ Node (c-1) l r')
+      | otherwise = extract_tree (n-cl) r (k . Node (c-1) l)
 
 make_rs :: RandomGen g => Int -> g -> ([Int],g)
 make_rs n g = loop [] n g
@@ -442,9 +442,9 @@ make_rs n g = loop [] n g
 ------------------------------------------------------------------------------
 
 lam1 :: ((R a1 -> [a1]) -> [a]) -> R a
-lam1 f = R $ \g -> f (\a -> unR a g)
+lam1 f = R $ \g -> f (`unR` g)
 
-lam2 f = R $ \g -> unR (f (\a -> unR a g)) g
+lam2 f = R $ \g -> unR (f (`unR` g)) g
 
 foo :: (R a -> R b)
 foo = undefined
@@ -454,7 +454,7 @@ foo' = unR . foo . R
 
 foo'' f = unR . f . R
 
-bar :: (R a -> R b) -> (StdGen -> [a]) -> (StdGen -> [b])
+bar :: (R a -> R b) -> (StdGen -> [a]) -> StdGen -> [b]
 bar f = unR . f . R
 
 bar' :: (R a -> R b) -> (StdGen -> [a]) -> R b
@@ -462,7 +462,7 @@ bar' f = R . unR . f . R
 
 bar'' f = show . f . length
 
-buzz g f = let h = flip (bar foo) g f in h
+buzz g f = let h = (bar foo f g) in h
 
 -- instance Plam V where
 vlam f = V $ "plam " ++ unV (f (V ""))

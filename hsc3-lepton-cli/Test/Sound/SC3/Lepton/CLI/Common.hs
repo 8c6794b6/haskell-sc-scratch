@@ -3,14 +3,12 @@ module Test.Sound.SC3.Lepton.CLI.Common where
 import Test.QuickCheck
 
 import Control.Applicative
-import Data.Generics.Uniplate.Operations
 import Sound.SC3
 import Sound.SC3.Lepton
 import Sound.SC3.Lepton.QuickCheck
 
 import Sound.SC3.Lepton.CLI.Parser
 import Sound.SC3.Lepton.CLI.SCShellCmd
-import Sound.SC3.Lepton.CLI.SCZipper
 
 import qualified Data.IntSet as IS
 
@@ -29,29 +27,6 @@ instance Sizeable SCNode where
 
 instance Sizeable a => Sizeable [a] where
   sizeOf = sum . map sizeOf
-
-instance Arbitrary SCZipper where
-  arbitrary = SCZipper <$> arbitrary <*> arbitrary
-
-instance Arbitrary SCPath where
-  arbitrary = SCPath <$> arbitrary <*> arbitrary <*> arbitrary
-
-instance CoArbitrary SCPath where
-  coarbitrary (SCPath n ls rs) =
-    variant 2 . coarbitrary n . coarbitrary ls . coarbitrary rs
-
-instance CoArbitrary SCZipper where
-  coarbitrary (SCZipper n ps) =
-    variant 3 . coarbitrary n . coarbitrary ps
-
-instance Arbitrary Step where
-  arbitrary = oneof [return GoUp, return GoTop, GoDown <$> arbitrary]
-
-instance CoArbitrary Step where
-  coarbitrary s = case s of
-    GoUp     -> variant 0
-    GoTop    -> variant 1
-    GoDown n -> variant 2 . coarbitrary n
 
 instance Arbitrary Cmd where
   arbitrary = oneof
@@ -74,41 +49,3 @@ instance CoArbitrary Cmd where
 
 isSuccess :: Result -> Bool
 isSuccess r = case r of Success _ _ _ -> True; _ -> False;
-
-isSynth :: SCNode -> Bool
-isSynth n = case n of Synth _ _ _ -> True; _ -> False;
-
-isGroup :: SCNode -> Bool
-isGroup n = case n of Group _ _ -> True; _ -> False;
-
-nodeIdOfPath :: SCPath -> NodeId
-nodeIdOfPath (SCPath n _ _) = n
-
-leftPaths :: SCPath -> [SCNode]
-leftPaths (SCPath _ ls _) = ls
-
-rightPaths :: SCPath -> [SCNode]
-rightPaths (SCPath _ _ rs) = rs
-
-gen_uniqueNodeId :: Gen SCNode
-gen_uniqueNodeId = arbitrary `suchThat` hasUniqueIds
-
-gen_uniqueZipper :: Gen SCZipper
-gen_uniqueZipper = arbitrary `suchThat` hasUniqueNodes
-
-hasUniqueNodes :: SCZipper -> Bool
-hasUniqueNodes (SCZipper n ps) = uniqueIds (nodeIds n ++ concatMap fp ps) where
-  fp :: SCPath -> [Int]
-  fp (SCPath n ls rs) = n:concatMap nodeIds (ls ++ rs)
-  uniqueIds :: [Int] -> Bool
-  uniqueIds ids = IS.size (IS.fromList ids) == length ids
-
-nodeIdsInZipper :: SCZipper -> [Int]
-nodeIdsInZipper (SCZipper n ps) = nodeIds n ++ concatMap nodeIdsInPath ps
-
-nodeIdsInPath :: SCPath -> [Int]
-nodeIdsInPath (SCPath n ls rs) = n:concatMap nodeIds ls ++ concatMap nodeIds rs
-
--- hasUniqueIds = undefined
-
--- nodeIds n = [i | n' <- universe n, let i = nodeId n']
