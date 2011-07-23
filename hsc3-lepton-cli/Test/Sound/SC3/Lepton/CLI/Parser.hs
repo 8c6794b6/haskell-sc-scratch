@@ -1,7 +1,7 @@
 module Test.Sound.SC3.Lepton.CLI.Parser where
 
 import Control.Applicative
-import Data.List (intercalate,intersperse)
+import Data.List (intercalate)
 import Test.QuickCheck
 
 import Sound.SC3.Lepton.CLI.Parser

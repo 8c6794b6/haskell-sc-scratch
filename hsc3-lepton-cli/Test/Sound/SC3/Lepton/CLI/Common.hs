@@ -3,14 +3,10 @@ module Test.Sound.SC3.Lepton.CLI.Common where
 import Test.QuickCheck
 
 import Control.Applicative
-import Sound.SC3
 import Sound.SC3.Lepton
-import Sound.SC3.Lepton.QuickCheck
+import Sound.SC3.Lepton.QuickCheck ()
 
-import Sound.SC3.Lepton.CLI.Parser
 import Sound.SC3.Lepton.CLI.SCShellCmd
-
-import qualified Data.IntSet as IS
 
 class Sizeable n where
   sizeOf :: n -> Int
@@ -44,7 +40,7 @@ instance Arbitrary Cmd where
 
 instance CoArbitrary Cmd where
   coarbitrary c = case c of
-    Ls ps -> variant 1 . coarbitrary ps
+    Ls ps -> variant (1::Int) . coarbitrary ps
     _     -> undefined
 
 isSuccess :: Result -> Bool

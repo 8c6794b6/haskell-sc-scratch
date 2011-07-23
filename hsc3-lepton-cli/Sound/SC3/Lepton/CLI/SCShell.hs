@@ -26,9 +26,7 @@ import Data.Char (isSpace)
 import Data.List (isPrefixOf, isSuffixOf, sort)
 import Data.Maybe (fromMaybe)
 import System.Directory (doesFileExist, getDirectoryContents)
-import System.FilePath
-  ((</>), splitFileName, replaceFileName, dropExtension, takeExtension)
-import Text.PrettyPrint
+import System.FilePath ((</>), splitFileName, replaceFileName, dropExtension)
 
 import Control.Monad.State
 import Sound.OpenSoundControl
@@ -120,8 +118,8 @@ work cs = case parseCmd cs of
     case parsed of
       Pwd      -> outputStrLn . show . zipper =<< getEnv
       Ls f     -> outputStr . showNode . focus . steps f . zipper =<< getEnv
-      Tree s f ->
-        outputStrLn . renderNode s . focus . steps f . zipper =<< getEnv
+      Tree v f ->
+        outputStrLn . renderNode v . focus . steps f . zipper =<< getEnv
       Cd f     -> modifyEnv $ \st -> st {zipper = steps f $ zipper st}
       Status   -> withEnv dumpStatus
       Mv a i j -> sendIt >> modifyZipper (move i a j)
@@ -157,27 +155,28 @@ compArgs :: Env -> String -> String -> String -> Guts Env [Completion]
 compArgs e com left current
   | com `elem` ["cd", "ls"] = return $ compPaths e current
   | com == "tree"           = return $ compPaths e current
-  | com == "set"            = compNset e current
-  | com == "snew"           = compSnew e left current
+  | com == "set"            = compNset current
+  | com == "snew"           = compSnew left current
   | otherwise               = return []
 
 -- | Complete arguments for nset command.
-compNset :: Env -> String -> Guts Env [Completion]
-compNset e current =
+compNset :: String -> Guts Env [Completion]
+compNset current = do
+  e <- get
   let def = case focus $ zipper e of Group _ _ -> ""; Synth _ n _ -> n;
-  in  compParamName e def current
+  compParamName def current
 
 -- | Complete arguments for snew command.
-compSnew :: Env -> String -> String -> Guts Env [Completion]
-compSnew e left current = do
+compSnew :: String -> String -> Guts Env [Completion]
+compSnew left current = do
   let lefts = words left
       wordlen = length lefts
       def = if wordlen >= 2 then reverse (lefts !! (wordlen-2)) else ""
   case wordlen of
     0 -> return []
-    1 -> compSynthdefName e current
+    1 -> compSynthdefName current
     2 -> return []
-    _ -> compParamName e def current
+    _ -> compParamName def current
 
 -- | Make list of canditate paths from current environment and input.
 compPaths :: Env -> String -> [Completion]
@@ -195,17 +194,16 @@ compPaths e current =
 
 -- | Complete synthdef name from synthdefs in SC_SYNTHDEF_PATH environment
 -- variable.
-compSynthdefName :: Env -> String -> Guts Env [Completion]
-compSynthdefName e current = do
+compSynthdefName :: String -> Guts Env [Completion]
+compSynthdefName current = do
   defs <- liftIO $ synthdefs
   return [simpleCompletion def | def <- defs, current `isPrefixOf` def]
 
 -- | Complete param name, by seeking synthdef file.
-compParamName :: Env    -- ^ Current environment
-              -> String -- ^ Synthdef name
+compParamName :: String -- ^ Synthdef name
               -> String -- ^ Current input
               -> Guts Env [Completion]
-compParamName e def current
+compParamName def current
   | null def  = return []
   | otherwise = do
     filename <- liftIO $ E.getEnv scSynthdefPath >>=

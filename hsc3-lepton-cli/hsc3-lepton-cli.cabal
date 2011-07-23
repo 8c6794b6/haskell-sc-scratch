@@ -27,13 +27,13 @@ test-suite main-tests
   main-is:
     tests.hs
 
-executable scshell
+executable hscshell
   ghc-options:
     -O2 -Wall -fno-warn-unused-do-bind -fno-warn-orphans
   hs-source-dirs:
     ./ ./run
   main-is:
-     scshell.hs
+     hscshell.hs
 
 library
   ghc-options:
