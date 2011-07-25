@@ -26,5 +26,5 @@ selR = unwords ["last element of", show t, "is", show ($(sel 5 5) t), "\n"]
   where
     t = ('a', False, 1, [100,200,300], "foo")
     
-    
+infoR :: String
 infoR = $(infoExample "zipN")

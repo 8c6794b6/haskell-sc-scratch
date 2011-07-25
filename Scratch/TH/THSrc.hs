@@ -113,7 +113,7 @@ infoExample :: String -> ExpQ
 infoExample n = do
   info <- reify (mkName n)
   case info of
-    ClassI _ -> stringE "Class"
+    ClassI _ _ -> stringE "Class"
     ClassOpI _ _ _ _ -> stringE "ClassOp"
     TyConI d -> stringE $ unwords ["TyCon:", show d]
     PrimTyConI _ _ _ -> stringE "PrimTyCon"

@@ -64,9 +64,9 @@ resetMyControls = out 0 $ sinOsc ar (mce [freq,freq+1]) 0 * mul
 controlsWithLags :: UGen
 controlsWithLags = out 0 $ sinOsc ar (mce [freq1,freq2]) 0 * mul
     where
-      freq1 = "freq1" @~ 440 $ 4
-      freq2 = "freq2" @~ 443 $ 5
-      mul = "mul" @= 0.12
+      freq1 = "freq1" @@ 440 @~ 4
+      freq2 = "freq2" @@ 443 @~ 5
+      mul = "mul" @@ 0.12
 
 ringMod :: UGen
 ringMod = out 0 $ (sinOsc ar (mce [440.067,441.03]) 0) *

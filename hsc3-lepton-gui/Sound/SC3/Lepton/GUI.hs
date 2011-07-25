@@ -44,6 +44,7 @@ import qualified Graphics.UI.Gtk as G
 -- > import Sound.SC3
 -- > import Sound.SC3.ID
 -- > import Sound.SC3.Lepton
+-- > import Sound.SC3.Lepton.GUI
 -- >
 -- > main :: IO ()
 -- > main = withsC3 $ \fd -> do

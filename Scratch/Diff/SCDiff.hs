@@ -37,7 +37,6 @@ import System.Random (randomRIO)
 import Sound.OpenSoundControl
 import Sound.SC3
 import Sound.SC3.Lepton
-import Sound.SC3.Lepton.QuickCheck
 
 import MyDiff
 -- import Data.Generic.Diff

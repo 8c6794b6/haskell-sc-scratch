@@ -43,6 +43,7 @@ import Data.Word (Word8)
 import Language.Haskell.TH
 
 import Sound.SC3
+import Sound.SC3.Lepton
 
 -- What is the type of this function?
 --
@@ -109,30 +110,20 @@ th02 a f p = out 0 $ pan2 (sinOsc ar f 0 * a * e) p 1
     e = linen (impulse kr 0.1 0) 500e-3 1 8e-3 RemoveSynth
 
 th02Def = [|\amp freq pan -> th02|]
-th02Def' = synthdef "th02" $ th02 ("amp"=:0) ("freq"=:0) ("pan"=:0)
+th02Def' = synthdef "th02" $ th02 ("amp"@@0) ("freq"@@0) ("pan"@@0)
 
 -- th02Def'' = sd4 [syn|th02 amp:0.3 freq:3320 pan:0|]
 -- syn = undefined
 -- sd4 = undefined
 
 -- | Hm, why not ..
-th02' = th02 ("amp"=:0) ("freq"=:0) ("pan"=:0)
+th02' = th02 ("amp"@@0) ("freq"@@0) ("pan"@@0)
 
 c0 :: String -> UGen
-c0 = (=: 0)
+c0 = (@@ 0)
 
 -- This way is more flexible, since its taking default value for each controls.
-th02'' = th02 ("amp"=:0.3) ("freq"=:3320) ("pan"=:0.3)
-
-
--- (=:) = cn
-
-(=:) :: String -> Double -> UGen
-(=:) name v
-  | "a_" `isPrefixOf` name = control ar name v
-  | "i_" `isPrefixOf` name = control ir name v
-  | "t_" `isPrefixOf` name = tr_control name v
-  | otherwise              = control kr name v
+th02'' = th02 ("amp"@@0.3) ("freq"@@3320) ("pan"@@0.3)
 
 sd2 exp = sd2' =<< runQ exp
 
