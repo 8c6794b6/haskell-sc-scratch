@@ -279,25 +279,6 @@ nodes =
       ,Synth 1101 "bar"
          ["amp":=0.05,"pan":=(-0.5),"freq":=330,"fmod":<-101]]]
 
-
-n2 :: SCNode
-n2 =
-  Group 20
-    [Group 200
-      [Synth 2000 "foo"
-        ["out":=200,"amp":=8.1,"freq":=1.3]
-      ,Synth 2001 "foo"
-        ["out":=201,"amp":=3.4,"freq":=3.03]
-      ,Synth 2002 "foo"
-        ["out":=202,"amp":=13,"freq":=2.3]]
-    ,Group 210
-      [Synth 2100 "bar"
-        ["amp":=0.05,"pan":=0.8,"freq":=220,"fmod":<-200]
-      ,Synth 2101 "bar"
-        ["amp":=0.05,"pan":=0.2,"freq":=330,"fmod":<-201]
-      ,Synth 2102 "bar"
-        ["amp":=0.05,"pan":=(-0.7),"freq":=440,"fmod":<-202]]]
-
 nTrace :: (Transport t) => NodeId -> t -> IO OSC
 nTrace nid fd = do
   async fd $ notify True

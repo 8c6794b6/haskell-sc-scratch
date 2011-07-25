@@ -17,12 +17,13 @@ import Test.QuickCheck (Args(..),quickCheckWithResult, stdArgs)
 import Test.Sound.SC3.Lepton.Common
 import qualified Test.Sound.SC3.Lepton.Instance as I
 import qualified Test.Sound.SC3.Lepton.Parser as P
-import qualified Test.Sound.SC3.Lepton.Tree.Diff as D
-import qualified Test.Sound.SC3.Lepton.Tree.Tree as T
-import qualified Test.Sound.SC3.Lepton.Tree.Zipper as Z
+import qualified Test.Sound.SC3.Lepton.Tree.Diff as TD
+import qualified Test.Sound.SC3.Lepton.Tree.Tree as TT
+import qualified Test.Sound.SC3.Lepton.Tree.Zipper as TZ
+import qualified Test.Sound.SC3.Lepton.UGen.Demand as UD
 
 main :: IO ()
 main = do
   results <- mapM (quickCheckWithResult stdArgs {maxSize=25})
-    $ P.tests ++ T.tests ++ I.tests ++ Z.tests ++ D.tests
+    $ P.tests ++ TT.tests ++ I.tests ++ TZ.tests ++ TD.tests ++ UD.tests
   if any (not . isSuccess) results then exitFailure else exitSuccess

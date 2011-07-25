@@ -48,6 +48,7 @@ library
     Sound.SC3.Lepton.Tree.Diff
     Sound.SC3.Lepton.Tree.Zipper
     Sound.SC3.Lepton.UGen
+    Sound.SC3.Lepton.UGen.Demand
     Sound.SC3.Lepton.UGen.Factory
     Sound.SC3.Lepton.UGen.Missing
     Sound.SC3.Lepton.Util

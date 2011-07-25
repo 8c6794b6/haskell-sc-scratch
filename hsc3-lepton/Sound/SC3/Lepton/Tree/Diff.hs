@@ -17,7 +17,7 @@ of message to modify one node tree to another.
 
 Known bug:
 
-* Updating node may fail, when it's freeing the parent group after adding new 
+* Updating node may fail, when it's freeing the parent group after adding new
   synth nodes. This may occur when diff contains removal of group node.
 
 -}
@@ -31,11 +31,8 @@ import System.Random (randomRIO)
 import Sound.OpenSoundControl
 import Sound.SC3
 import Sound.SC3.Lepton.Tree.Tree
--- import Sound.SC3.Lepton.Tree.Connection
--- import Sound.SC3.Lepton.Query
 import Sound.SC3.Lepton.Util
 
--- import MyDiff
 import Data.Generic.Diff
 
 import qualified Data.IntSet as IS
@@ -124,7 +121,7 @@ data MsgAcc = MsgAcc
     pos :: Position
   , -- | Current group id.
     cgi :: [Int]
-  , -- |Map of key=nodeId, val=node, for insert operation.
+  , -- | Assoc list of (nodeId, (position, node)) for insert operation.
     inss :: [(Int,(Position,SCNode))]
   , -- | Map of key=nodeId, val=node, for delete operation.
     dels :: IM.IntMap SCNode
@@ -214,7 +211,8 @@ assort i nd (p,ni) = case (nd,ni) of
     | n1 == n2 && ps1 == ps2 ->
       let (a,j) = at p in [n_order a j i]
     | n1 == n2 ->
-      let (a,j) = at p in n_order a j i:treeToSet ni
+      -- let (a,j) = at p in n_order a j i:treeToSet ni
+      let (a,j) = at p in treeToSet ni
     | otherwise -> let (a,j) = at p in n_free [i]:treeToNewWith a j ni
   where
     at p = case p of Head j -> (AddToHead, j); After j -> (AddAfter, j)
@@ -239,8 +237,8 @@ ddm a b = do
   mapM_ print . accToOSC . toAcc (initialAcc (nodeId a)) $ d
 
 -- | Sends given actions in asynchronus manner.
-sendAsync :: Transport t => (t -> IO a) -> (t -> IO b) -> t -> IO b
-sendAsync act1 act2 fd = do
+(>>*) :: Transport t => (t -> IO a) -> (t -> IO b) -> t -> IO b
+(act1 >>* act2) fd = do
   sessId <- randomRIO (0,2^16)
   act1 fd
   send fd $ sync sessId

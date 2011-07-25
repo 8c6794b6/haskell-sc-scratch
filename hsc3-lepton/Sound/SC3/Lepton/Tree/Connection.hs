@@ -97,8 +97,9 @@ getRootNode = getNode 0
 printRootNode :: (Transport t) => t -> IO ()
 printRootNode = printNode 0
 
+-- | Patch node to same node of root node found in new node.
 patchNode :: Transport t => SCNode -> t -> IO ()
-patchNode = patchNodeTo 0
+patchNode n = patchNodeTo (nodeId n) n
 
 patchNodeTo :: Transport t => Int -> SCNode -> t -> IO ()
 patchNodeTo i t1 fd = do
@@ -114,5 +115,5 @@ getDiff i t1 fd = do
 
 -- | Update root node and then dump the contents.
 patchPrint :: Transport t => SCNode -> t -> IO ()
-patchPrint n = sendAsync (patchNode n) printRootNode
+patchPrint n = patchNode n >>* printRootNode
 
