@@ -8,7 +8,7 @@
 --
 -- Parser for commands used in SCNode interactive prompt.
 --
-module Sound.SC3.Lepton.CLI.Parser
+module Sound.SC3.Lepton.CLI.HscShell.Parser
   ( -- * Commands syntax in BNF like expression
     -- $syntax
     parseCmd
@@ -22,7 +22,7 @@ import Text.Show.Functions ()
 import Sound.SC3 hiding (free, status)
 import Sound.SC3.Lepton
 
-import Sound.SC3.Lepton.CLI.SCShellCmd
+import Sound.SC3.Lepton.CLI.HscShell.Cmd
 
 -- $syntax
 --

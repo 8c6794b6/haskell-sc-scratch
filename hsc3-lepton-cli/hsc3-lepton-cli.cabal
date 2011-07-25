@@ -35,6 +35,14 @@ executable hscshell
   main-is:
      hscshell.hs
 
+executable hsynthdef
+  ghc-options:
+    -O2 -Wall -fno-warn-unused-do-bind -fno-warn-orphans
+  hs-source-dirs:
+    ./ ./run
+  main-is:
+     hsynthdef.hs
+
 library
   ghc-options:
     -O2 -Wall -fno-warn-unused-do-bind -fno-warn-orphans
@@ -42,10 +50,11 @@ library
      ghc-options: -fhpc
 
   exposed-modules:
-    Sound.SC3.Lepton.CLI.Parser
-    Sound.SC3.Lepton.CLI.SCShell
-    Sound.SC3.Lepton.CLI.SCShellCmd
-    Sound.SC3.Lepton.CLI.SynthdefPeeker
+    Sound.SC3.Lepton.CLI.HscShell.Parser
+    Sound.SC3.Lepton.CLI.HscShell.Repl
+    Sound.SC3.Lepton.CLI.HscShell.Cmd
+    Sound.SC3.Lepton.CLI.HscShell.SynthdefPeeker
+    Sound.SC3.Lepton.CLI.Hsynthdef
   build-depends:
     base == 4.*,
     binary,
@@ -59,6 +68,8 @@ library
     pretty,
     syb,
     uniplate >= 1.6,
+    haskell-src >= 1.0.1.4,
+    hint >= 0.3.3.2,
     hosc,
     hsc3,
     hsc3-lepton >= 0.0.4,

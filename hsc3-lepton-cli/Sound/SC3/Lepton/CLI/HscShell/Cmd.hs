@@ -8,7 +8,7 @@
 --
 -- Commands for scsynth interactive shell.
 --
-module Sound.SC3.Lepton.CLI.SCShellCmd
+module Sound.SC3.Lepton.CLI.HscShell.Cmd
   ( Cmd(..)
   , cmdToOSC
   ) where

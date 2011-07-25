@@ -19,7 +19,7 @@
 -- * Add 'find' command, query nodes like find or WHERE in SQL, do something
 --   with matching nodes ...  what can we do? how?
 --
-module Sound.SC3.Lepton.CLI.SCShell where
+module Sound.SC3.Lepton.CLI.HscShell.Repl where
 
 import Control.Applicative hiding (empty)
 import Data.Char (isSpace)
@@ -34,9 +34,9 @@ import Sound.SC3
 import Sound.SC3.Lepton
 import System.Console.Haskeline
 
-import Sound.SC3.Lepton.CLI.Parser
-import Sound.SC3.Lepton.CLI.SCShellCmd
-import Sound.SC3.Lepton.CLI.SynthdefPeeker
+import Sound.SC3.Lepton.CLI.HscShell.Parser
+import Sound.SC3.Lepton.CLI.HscShell.Cmd
+import Sound.SC3.Lepton.CLI.HscShell.SynthdefPeeker
 
 import qualified System.Environment as E
 

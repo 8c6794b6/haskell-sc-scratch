@@ -11,7 +11,7 @@ module Main where
 
 import System.Console.CmdArgs
 import Sound.OpenSoundControl
-import Sound.SC3.Lepton.CLI.SCShell
+import Sound.SC3.Lepton.CLI.HscShell.Repl
 
 main :: IO ()
 main = do

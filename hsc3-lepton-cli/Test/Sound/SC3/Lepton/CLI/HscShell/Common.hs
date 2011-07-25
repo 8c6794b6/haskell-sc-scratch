@@ -1,4 +1,4 @@
-module Test.Sound.SC3.Lepton.CLI.Common where
+module Test.Sound.SC3.Lepton.CLI.HscShell.Common where
 
 import Test.QuickCheck
 
@@ -6,7 +6,7 @@ import Control.Applicative
 import Sound.SC3.Lepton
 import Sound.SC3.Lepton.QuickCheck ()
 
-import Sound.SC3.Lepton.CLI.SCShellCmd
+import Sound.SC3.Lepton.CLI.HscShell.Cmd
 
 class Sizeable n where
   sizeOf :: n -> Int

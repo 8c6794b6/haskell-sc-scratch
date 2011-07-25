@@ -8,7 +8,7 @@
 --
 -- Peek inside synthdef file to get control parameter names.
 --
-module Sound.SC3.Lepton.CLI.SynthdefPeeker where
+module Sound.SC3.Lepton.CLI.HscShell.SynthdefPeeker where
 
 import Control.Monad
 import Data.Int

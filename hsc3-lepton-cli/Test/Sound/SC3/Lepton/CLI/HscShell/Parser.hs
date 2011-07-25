@@ -1,11 +1,11 @@
-module Test.Sound.SC3.Lepton.CLI.Parser where
+module Test.Sound.SC3.Lepton.CLI.HscShell.Parser where
 
 import Control.Applicative
 import Data.List (intercalate)
 import Test.QuickCheck
 
-import Sound.SC3.Lepton.CLI.Parser
-import Sound.SC3.Lepton.CLI.SCShellCmd
+import Sound.SC3.Lepton.CLI.HscShell.Parser
+import Sound.SC3.Lepton.CLI.HscShell.Cmd
 
 runTests :: IO [Result]
 runTests =
