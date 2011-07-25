@@ -87,46 +87,29 @@ n20 =
    ["out":=12,"t_trig":<-103]
   ,Synth 2004 "cd2kik"
    ["out":=13,"t_trig":<-104]
-  -- ,Synth 2005 "cd2nzf" 
-  --  ["out":=14,"t_amp":<-105,"freq":<-106]
-  -- ,Synth 2006 "cd2nzf" 
-  --  ["out":=15,"t_amp":<-107,"freq":<-108]
-  -- ,Synth 2007 "cd2drn"
-  --  ["out":=16,"amp":=0.3,"gate":<-109,"freq":<-110]
-  ,Synth 2008 "playU"
-   ["out":=17,"t_trig":<-100]]
+  ,Synth 2005 "cd2pu"
+   ["out":=0,"t_trig":<-100,"amp":=0.3]]
    
 -- effects  
 n21 = 
   Group 21
   [Synth 2101 "cd2rev"
-   ["out":=10,"a_in":<=10,"dlyt":=0.04801,"dmul":=0.01]
+   ["out":=10,"a_in":<=10,"dlyt":=0.01,"dmul":=0.008]
   ,Synth 2102 "cd2rev"
-   ["out":=12,"a_in":<=12,"dlyt":=0.08,"dmul":=0.02]
-  ,Synth 2103 "cd2rev"
-   ["out":=14,"a_in":<=14,"dlyt":=0.12191,"dmul":=0.0181]
-  ,Synth 2104 "cd2rev"
-   ["out":=15,"a_in":<=15,"dlyt":=0.08,"dmul":=0.03]]
+   ["out":=12,"a_in":<=12,"dlyt":=0.02,"dmul":=0.008]
+  ]
 
 -- mix
 n90 =
   Group 90
   [Synth 9001 "cd2mix" -- huh
-   ["out":=0,"a_in":<=10,"amp":=2.4,"pan":=0.0]
+   ["out":=0,"a_in":<=10,"amp":=1.4,"pan":=0.0]
   ,Synth 9002 "cd2mix" -- hat
    ["out":=0,"a_in":<=11,"amp":=0.1,"pan":=(-0.2)]
   ,Synth 9003 "cd2mix" -- snr
-   ["out":=0,"a_in":<=12,"amp":=0.8,"pan":=(-0.1)]
+   ["out":=0,"a_in":<=12,"amp":=0.6,"pan":=(-0.1)]
   ,Synth 9004 "cd2mix" -- kik
-   ["out":=0,"a_in":<=13,"amp":=1.2,"pan":=0.03]
-  ,Synth 9005 "cd2mix" -- nzf a
-   ["out":=0,"a_in":<=14,"amp":=0.13,"pan":=0.5] -- amp=0.13
-  ,Synth 9006 "cd2mix" -- nzf b
-   ["out":=0,"a_in":<=15,"amp":=0.2,"pan":=(-0.5)] -- amp=0.2
-  ,Synth 9007 "cd2mix" -- nzdrn
-   ["out":=0,"a_in":<=16,"amp":=0.0,"pan":=0]
-  ,Synth 9008 "cd2mix" -- nzdrn
-   ["out":=0,"a_in":<=17,"amp":=1.0,"pan":=0]]
+   ["out":=0,"a_in":<=13,"amp":=0.9,"pan":=0.03]]
 
 w = withSC3
 
