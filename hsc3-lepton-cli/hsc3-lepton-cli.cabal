@@ -1,6 +1,6 @@
 name:		hsc3-lepton-cli
 version:	0.0.4
-synopsis:       Command line interface for scsynth using hsc3-lepton
+synopsis:       Command line utilities for scsynth using hsc3-lepton
 author:         8c6794b6
 maintainer:     8c6794b6@gmail.com
 cabal-version:  >= 1.6
@@ -9,7 +9,7 @@ license:        BSD3
 category:       GUI
 stability:      experimental
 description:
-  Command line interface for scsynth using hsc3-lepton
+  Command line utilities for scsynth using hsc3-lepton
 
 flag hpc
   description:

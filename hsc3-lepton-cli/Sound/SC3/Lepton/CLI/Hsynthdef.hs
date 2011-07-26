@@ -60,7 +60,7 @@ defaultArg = Hsynthdefs
              help "host and port to send d_recv message" &=
              typ "HOST,PORT"
   , noWrite = False &= help "When turned on, won't write file"
-  , defSource = def &= help "input source file" }
+  , defSource = def &= args &= typ "FILE" }
   &= summary "read haskell source code containing synthdefs"
 
 work :: Bool -> Maybe (String, Int) -> FilePath -> IO ()
