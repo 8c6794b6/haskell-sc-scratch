@@ -54,6 +54,17 @@ instance Arbitrary Time where
 instance Arbitrary AddAction where
   arbitrary = elements [AddToHead .. AddReplace]
 
+instance Arbitrary Loop where
+  arbitrary = oneof
+    [return Loop, return NoLoop
+    ,(WithLoop . constant) <$> (arbitrary::Gen Double)]
+
+instance Arbitrary EnvCurve where
+  arbitrary = oneof
+    [elements [EnvStep, EnvLin, EnvExp, EnvSin, EnvCos
+              ,EnvSqr, EnvCub]
+    ,(EnvNum . constant) <$> (arbitrary::Gen Double)]
+
 instance CoArbitrary SynthParam where
   coarbitrary (n:=v) =  variant 0 . coarbitrary n . coarbitrary v
   coarbitrary (n:<-v) = variant 0 . coarbitrary n . coarbitrary v

@@ -35,6 +35,8 @@ module Sound.SC3.Lepton.UGen.Demand
   -- * Building blocks
   , seed
   , sbrown
+  , sbufrd
+  , sbufwr
   , sgeom
   , sibrown
   , sinf
@@ -125,6 +127,11 @@ instance Num a => Num (Demand a) where
   signum a = fmap signum a
   fromInteger = return . fromInteger
 
+instance Fractional a => Fractional (Demand a) where
+  a / b = (/) <$> a <*> b
+  recip a = fmap recip a
+  fromRational = return . fromRational
+
 -- | Run demand ugen with given StdGen.
 runSupply :: Supply -> StdGen -> (UGen,StdGen)
 runSupply d g = runState (unDemand d) g
@@ -164,6 +171,15 @@ squash = fmap mce . sequence
 -- | Counterpart of dbrown
 sbrown :: Supply -> Supply -> Supply -> Supply -> Supply
 sbrown = liftS4 dbrown
+
+-- | Counterpart of dbufrd
+sbufrd :: Supply -> Supply -> Loop -> Supply
+sbufrd buf phs loop = dbufrd <$> seed <*> buf <*> phs <*> return loop
+
+-- | Counterpart of dbufwr
+sbufwr :: Supply -> Supply -> Supply -> Loop -> Supply
+sbufwr buf phs input loop =
+  dbufwr <$> seed <*> buf <*> phs <*> input <*> return loop
 
 -- | Counterpart of dgeom.
 sgeom :: Supply -> Supply -> Supply -> Supply
