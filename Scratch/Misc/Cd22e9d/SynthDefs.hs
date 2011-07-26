@@ -12,15 +12,7 @@ This module contains UGen to be parsed with writeSynthdef.
 
 TODO:
 
-* Add monoral mixier so that output of playU can go to each channel.
-
-* Update kik sound, add more high frequency sound.
-
-* Update drone, to play a drone chorus.
-
-* Add SE like sounds. Try delayed percussive sound.
-
-* Update mixer, add equalizer, and mix it.
+* Add equalizer to mixer, and mix it.
 
 -}
 module Cd22e9d.SynthDefs where
@@ -36,6 +28,10 @@ import Sound.SC3
 import Sound.SC3.ID
 import Sound.SC3.Lepton
 
+--
+-- master controls
+--
+
 met9d :: UGen
 met9d = out ("out"@@0) (impulse kr bpm 0) where
   bpm = ("bpm"@@120) / 60
@@ -45,15 +41,9 @@ tr9d = sendReply t 0 "/cd22e9d" [pc] where
   t = "t_trig"@@0
   pc = pulseCount t 0
 
-akse9d :: UGen
-akse9d = akse9d' ("t_in"@@0)
-akse9d' tick = out ("out"@@0) (ringz tick freq rngt) where
-  freq = (lfdNoise0 'f' kr 0.5 * 100 + 100) `lag2` 0.3
-  rngt = sinOsc kr (1/17) 0.423 * 0.49 + 0.5
-
--- cd2tsnr  = mkDseq [0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,1]
--- cd2thuh2 = mkDemand $ drand '☄' dinf $ mce [1,0,0]
--- cd2tsnr2 = mkDseq [0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,1,1]
+--
+-- trigger control
+--
 
 cd2tnzfa :: UGen
 cd2tnzfa = mrg [amp, freq] where
@@ -87,6 +77,12 @@ cd2tnzfb2 = mrg [amp, freq] where
 cd2thuh :: UGen
 cd2thuh  = mkDseq [0,1,0,0, 1,0,0,1, 0,0,1,0, 1,0,1,0]
 
+cd2thuhb :: UGen
+cd2thuhb  = mkDseq [1,0,1,0, 1,0,0,0, 1,0,1,0, 1,0,0,0]
+
+cd2thuhc :: UGen
+cd2thuhc  = mkDseq [0,1,0,1, 0,0,0,1, 0,1,0,1, 0,0,0,1]
+
 cd2that :: UGen
 cd2that  = mkDseq [0,1,0,1, 0,1,0,1, 0,1,0,1, 0,1,0,1]
 
@@ -113,12 +109,40 @@ cd2tsnr2 =
 cd2tkik2 :: UGen
 cd2tkik2 = mkDseq [1,0,0,1, 1,0,0,1, 0,1,0,1, 1,0,0,1]
 
-mkDseq :: [Supply] -> UGen
-mkDseq = mkDemand . sseq sinf
+cd2tdrn2 :: UGen
+cd2tdrn2 = cd2tdrn
 
-mkDemand :: Supply -> UGen
-mkDemand p = out ("out"@@0) (demand ("t_trig"@@0) 0 p' * ("t_trig"@@0)) where
-  p' = evalSupply p (mkStdGen 0x92af8afff)
+cd2tdrn :: UGen
+cd2tdrn = cd2tdrn' ("t_trig"@@1)
+cd2tdrn' tick = mrg [fval, rval] where
+  fval = out ("outf"@@0) (midiCPS (gate val (val >* 0)) `lag` 0.6)
+  rval = out ("outg"@@0) $ 0 <=* val
+  val = demand tick 0 $ evalSupply pat (mkStdGen 0xFAFAFAFACCDD)
+  pat = sseq sinf
+        [72, 0, 0, 0,  0, 0, 0, 0,  0,67, 0, 0, 65, 0, 0, 0
+        ,67, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0, 65, 0, 0, 0
+        ,60, 0, 0, 0,  0, 0, 0, 0,  0,55, 0, 0, 65, 0, 0, 0
+        ,67, sseq 15 [0]]
+
+cd2tdrna :: UGen
+cd2tdrna = mkTdrn pat where
+  pat = sseq sinf
+        [72, 0, 0, 0,  0, 0, 0, 0,  0,67, 0, 0, 65, 0, 0, 0
+        ,67, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0, 65, 0, 0, 0
+        ,60, 0, 0, 0,  0, 0, 0, 0,  0,55, 0, 0, 65, 0, 0, 0
+        ,67, sseq 15 [0]]
+
+cd2tdrnb :: UGen
+cd2tdrnb = mkTdrn pat where
+  pat = sseq sinf
+        [ 0, 0, 55, 0,  0, 0,60, 0,  0, 0, 0, 0,  0, 0, 0, 0
+        , 0, 0, 0, 0, 67, 0, 0, 0,  0, 0, 0, 0, 60, 0, 0, 0
+        , 0, 0, 0, 0,  0, 0,67, 0,  0, 0, 0, 0,  0, 0, 0, 0
+        , 0, 0, 0, 0, 60, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0]
+
+--
+-- sound sources
+--
 
 cd2huh :: UGen
 cd2huh = cd2huh' (whiteNoise 'a' ar) ("t_trig"@@0)
@@ -205,6 +229,10 @@ s1 =
   ,36, srand 2 [67,72]
   ,srand 2 [48,53,55,60,65,67]]
 
+--
+-- effects
+--
+
 cd2rev :: UGen
 cd2rev = cd2rev' ("a_in"@@0)
 cd2rev' input = replaceOut ("out"@@0) sig where
@@ -212,19 +240,73 @@ cd2rev' input = replaceOut ("out"@@0) sig where
   r1 = map mkR [(1::Int) .. 3]
   r2 = map mkR [(101::Int) .. 103]
   mkR i = rand i 0.001 0.05
-  -- f a b = combC b 0.05 a ("dcyt"@@1.25)
-  -- f a b = allpassN b 0.05 a ("dcyt"@@4)
   f a b = b + combC b 0.5 ("dlyt"@@0.123) a * ("dmul"@@0.25)
+
+--
+-- mixer
+--
 
 cd2mix :: UGen
 cd2mix = cd2mix' ("a_in"@@0)
 cd2mix' input = out ("out"@@0) ((pan2 input ("pan"@@0) 1) * ("amp"@@0))
+
+cd2mixm :: UGen
+cd2mixm = cd2mixm' ("a_in"@@0)
+cd2mixm' input = out ("out"@@0) (input * ("amp"@@1))
 
 cd2mst :: UGen
 cd2mst = cd2mst' ("amp"@@0)
 cd2mst' amp = replaceOut ("out"@@0) (limiter (mce [l,r] * amp) 1 0.25) where
   l = in' 1 ar 0
   r = in' 1 ar 1
+
+--
+-- utility
+--
+
+mkDseq :: [Supply] -> UGen
+mkDseq = mkDemand . sseq sinf
+
+mkDemand :: Supply -> UGen
+mkDemand p = out ("out"@@0) (demand ("t_trig"@@0) 0 p' * ("t_trig"@@0)) where
+  p' = evalSupply p (mkStdGen 0x92af8afff)
+
+mkTdrn :: Supply -> UGen
+mkTdrn pat = mrg [fval, gval] where
+  fval = out ("outf"@@0) (midiCPS (gate val (val >* 0)) `lag` ("lag"@@0.6))
+  gval = out ("outg"@@0) $ 0 <=* val
+  val = demand ("t_trig"@@0) ("t_reset"@@0) $
+        evalSupply pat (mkStdGen 0xafcd08921fb)
+
+cd2tkl :: UGen
+cd2tkl = cd2tkl' ("t_trig"@@1)
+cd2tkl' tick =
+  out ("out"@@0) $ decay2 tick 1e-3 1.2 * sig * 0.2 where
+    sig = foldr f sig' (map (\i -> rand i 0.001 0.05) "abwewpoew")
+    f a b = allpassN b 0.05 a 4
+    sig' = ringz nz (4400) rt
+    nz = pinkNoise 'a' ar
+    rt = mouseX kr 0.04 4 Linear 0.1
+
+--
+-- scratch
+--
+
+el000 :: UGen
+el000 = el000' ("amp"@@0.3) ("gate"@@1)
+el000' amp gt = out ("out"@@0) sig where
+  sig = sinOsc ar freq 0 * amp
+  freq = envGen kr gt 1 0 1 DoNothing $
+         env [0, 2500, 0, 5000, 0, 7500, 0]
+         -- [200e-3, 120e-3, 200e-3, 400e-3, 200e-3, 100e-3]
+         [2, 1.2, 0.2, 4, 0.25, 1]
+         [EnvLin] 5 0
+
+dt000 :: UGen
+dt000 = out 0 (sinOsc ar (f * mce2 1 1.01) 0 * 0.1) where
+  f = duty kr n0 0 RemoveSynth n1
+  n0 = drand 'ᄔ' dinf (mce [0.01, 0.2, 0.4])
+  n1 = dseq 'ᄓ' dinf (mce [204, 400, 201, 502, 300, 200])
 
 wixc :: UGen
 wixc = wixc' ("t_trig"@@0)
@@ -257,31 +339,8 @@ cd2drn' amp gt freq = out ("out"@@0) sig where
          env [0, 1, 0.8, 0.8, 0]
          [5e-3, 20e-3, 20e-3, 30e-3] [EnvCub] 2 1
 
-cd2tdrn2 :: UGen
-cd2tdrn2 = cd2tdrn
-
-cd2tdrn :: UGen
-cd2tdrn = cd2tdrn' ("t_trig"@@1)
-cd2tdrn' tick = mrg [fval, rval] where
-  fval = out ("outf"@@0) $ midiCPS (gate val (val >* 0))
-  rval = out ("outg"@@0) $ 0 <=* val
-  val = demand tick 0 pat
-  pat = dseq 'ጷ' dinf $
-        mce [72, 0, -1, -1,  72, 0, 0, -1,  -1, 67, 0, -1, 65, 0, 0, 0
-            ,60, 0, -1, 62,  65, 0, 0, -1,  -1, 67, 0, -1, 60, 0, 0, 0]
-
-el000 :: UGen
-el000 = el000' ("amp"@@0.3) ("gate"@@1)
-el000' amp gt = out ("out"@@0) sig where
-  sig = sinOsc ar freq 0 * amp
-  freq = envGen kr gt 1 0 1 DoNothing $
-         env [0, 2500, 0, 5000, 0, 7500, 0]
-         -- [200e-3, 120e-3, 200e-3, 400e-3, 200e-3, 100e-3]
-         [2, 1.2, 0.2, 4, 0.25, 1]
-         [EnvLin] 5 0
-
-dt000 :: UGen
-dt000 = out 0 (sinOsc ar (f * mce2 1 1.01) 0 * 0.1) where
-  f = duty kr n0 0 RemoveSynth n1
-  n0 = drand 'ᄔ' dinf (mce [0.01, 0.2, 0.4])
-  n1 = dseq 'ᄓ' dinf (mce [204, 400, 201, 502, 300, 200])
+akse9d :: UGen
+akse9d = akse9d' ("t_in"@@0)
+akse9d' tick = out ("out"@@0) (ringz tick freq rngt) where
+  freq = (lfdNoise0 'f' kr 0.5 * 100 + 100) `lag2` 0.3
+  rngt = sinOsc kr (1/17) 0.423 * 0.49 + 0.5

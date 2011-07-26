@@ -154,7 +154,7 @@ t3 =
     ,Synth 1402 "hoge" ["t_trig":<-142,"flo":=880,"fhi":=1320]
     ,Synth 1403 "hoge" ["t_trig":<-141,"flo":=180,"fhi":=320]]]]
 
--- Tree that node#1411 has been removed from t3.
+-- Tree with node#1411 has been removed from t3.
 -- Should return 'n_free 1411' from diff(t3,t5)
 --
 -- XXX: Reordering not working properly when updating t3 <-> t4.
@@ -168,7 +168,7 @@ t4 =
     ,Synth 1402 "hoge" ["t_trig":<-142,"flo":=880,"fhi":=1320]
     ,Synth 1403 "hoge" ["t_trig":<-141,"flo":=180,"fhi":=320]]]]
 
--- Tree that 'freq' in node#1410 has been modified to 3.
+-- Tree with 'freq' in node#1410 has been modified to 3.
 -- Make 'n_set' message from diff(t3,t5)
 t5 =
   Group 0
@@ -181,7 +181,7 @@ t5 =
     ,Synth 1402 "hoge" ["t_trig":<-142,"flo":=440,"fhi":=1320]
     ,Synth 1403 "hoge" ["t_trig":<-141,"flo":=180,"fhi":=320]]]]
 
--- Tree that node#1404 inserted after node#1401 to t3.
+-- Tree with node#1404 inserted after node#1401 to t3.
 t6 =
   Group 0
   [Group 1
