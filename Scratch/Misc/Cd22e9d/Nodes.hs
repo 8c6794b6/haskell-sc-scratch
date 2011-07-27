@@ -34,8 +34,6 @@ n0 =
      ["bpm":=295,"out":=100]
     ,Synth 1001 "tr9d"
      ["t_trig":<-100,"out":=99]
-    ,Synth 1002 "fo9d"
-     ["t_barCount":<-100, "out":=1001]
     ]
    ,n11      -- control
    ,n20      -- source
@@ -45,6 +43,11 @@ n0 =
      [Synth 9999 "cd2mst"
       ["out":=0,"amp":=1]]]
   ]
+
+nbell =
+  Group 20
+  [Synth 2001 "cd2bell"
+   ["out":=21,"t_trig":<-100,"freq":=440]]
 
 -- controls, for recording
 n11 =
@@ -67,7 +70,98 @@ n11 =
    ["out":=108,"t_trig":<-100]
   ,Synth 1108 "cd2tpua"
    ["out":=111,"t_trig":<-100]
+  ,Synth 1109 "cd2tshw"
+   ["out":=112,"t_trig":<-100]
+  ,Synth 1110 "cd2tbell"
+   ["out":=113,"t_trig":<-100]
   ]
+
+-- source
+n20 =
+  Group 20
+  [Synth 2001 "cd2huh"
+   ["out":=10,"t_trig":<-101]
+  ,Synth 2002 "cd2hat"
+   ["out":=11,"t_trig":<-102]
+  ,Synth 2003 "cd2snr"
+   ["out":=12,"t_trig":<-103]
+  ,Synth 2004 "cd2kik"
+   ["out":=13,"t_trig":<-104]
+  ,Synth 2005 "cd2pu"
+   ["out":=17,"t_trig":<-100,"amp":=0.3,"freq":<-111]
+  ,Synth 2006 "cd2drn"
+   ["out":=14,"gate":<-105,"freq":<-106]
+  ,Synth 20061 "cd2drn"
+   ["out":=19,"gate":<-109,"freq":<-110]
+  ,Synth 2007 "cd2huh"
+   ["out":=15,"t_trig":<-107]
+  ,Synth 2008 "cd2huh"
+   ["out":=16,"t_trig":<-108]
+  ,Synth 2009 "cd2shw"
+   ["out":=20,"t_trig":<-112]
+  ,Synth 2010 "cd2bell"
+   ["out":=21,"t_trig":<-100,"freq":<-113,"amp":=0.3]
+  ]
+
+-- effects
+n21 =
+  Group 21
+  [Synth 2101 "cd2rev"
+   ["out":=10,"a_in":<=10,"dlyt":=0.01,"dmul":=0.008]
+  ,Synth 2102 "cd2rev"
+   ["out":=12,"a_in":<=12,"dlyt":=0.02,"dmul":=0.008]
+  ,Synth 2103 "cd2dly"
+   ["out":=21,"a_in":<=21,"maxdt":=0.8]
+  ]
+
+-- mix
+n90 =
+  Group 90
+  [Synth 9001 "cd2mix" -- huh
+   ["out":=0,"a_in":<=10,"amp":=1.4,"pan":=0.0]
+  ,Synth 9002 "cd2mix" -- hat
+   ["out":=0,"a_in":<=11,"amp":=0.1,"pan":=(-0.2)]
+  ,Synth 9003 "cd2mix" -- snr
+   ["out":=0,"a_in":<=12,"amp":=0.3,"pan":=(-0.1)]
+  ,Synth 9004 "cd2mix" -- kik
+   ["out":=0,"a_in":<=13,"amp":=0.8,"pan":=0.03]
+  ,Synth 9005 "cd2mix" -- drn a
+   ["out":=0,"a_in":<=14,"amp":=0.5,"pan":=(-0.15)]
+  ,Synth 90051 "cd2mix" -- drn b
+   ["out":=0,"a_in":<=19,"amp":=0.5,"pan":=(0.15)]
+  ,Synth 9006 "cd2mix" -- huh2
+   ["out":=0,"a_in":<=15,"amp":=1.2,"pan":=(-0.8)]
+  ,Synth 9007 "cd2mix" -- huh3
+   ["out":=0,"a_in":<=16,"amp":=1.2,"pan":=0.8]
+  ,Synth 9008 "cd2mixm" -- pu right
+   ["out":=0,"a_in":<=17,"amp":=1]
+  ,Synth 9009 "cd2mixm" -- pu left
+   ["out":=1,"a_in":<=18,"amp":=1]
+  ,Synth 9010 "lfsin" -- pan for shw
+   ["out":=201,"freq":=0.793,"mul":=1,"add":=0]
+  ,Synth 9011 "cd2mix" -- shw
+   ["out":=0,"a_in":<=20,"pan":<-201,"amp":=0.9]
+  ,Synth 9012 "cd2mix" -- bell
+   ["out":=0,"a_in":<=21,"pan":=0.1,"amp":=0.8]
+  ]
+
+w = withSC3
+
+respond :: Transport t => t -> IO b
+respond fd = do
+  async fd (notify True)
+  forever $ wait fd "/cd22e9d" >>= flip work fd
+
+work :: Transport t => OSC -> t -> IO ()
+work (Message "/cd22e9d" [Int _,Int _,Float v]) =
+  let n = ceiling v :: Int
+      (q,r) = n `quotRem` 64
+  in  case r of
+    0 -> case q of
+      q | q `mod` 4 == 1 -> patchNode n11b
+        | otherwise      -> patchNode n11a
+    _ -> const $ return ()
+
 
 -- controls, variant a
 n11a =
@@ -110,77 +204,3 @@ n11b =
   ,Synth 1108 "cd2tpua"
    ["out":=111,"t_trig":<-100]
   ]
-
--- source
-n20 =
-  Group 20
-  [Synth 2001 "cd2huh"
-   ["out":=10,"t_trig":<-101]
-  ,Synth 2002 "cd2hat"
-   ["out":=11,"t_trig":<-102]
-  ,Synth 2003 "cd2snr"
-   ["out":=12,"t_trig":<-103]
-  ,Synth 2004 "cd2kik"
-   ["out":=13,"t_trig":<-104]
-  ,Synth 2005 "cd2pu"
-   ["out":=17,"t_trig":<-100,"amp":=0.3,"freq":<-111]
-  ,Synth 2006 "cd2drn"
-   ["out":=14,"gate":<-105,"freq":<-106]
-  ,Synth 20061 "cd2drn"
-   ["out":=19,"gate":<-109,"freq":<-110]
-  ,Synth 2007 "cd2huh"
-   ["out":=15,"t_trig":<-107]
-  ,Synth 2008 "cd2huh"
-   ["out":=16,"t_trig":<-108]
-  ]
-
--- effects
-n21 =
-  Group 21
-  [Synth 2101 "cd2rev"
-   ["out":=10,"a_in":<=10,"dlyt":=0.01,"dmul":=0.008]
-  ,Synth 2102 "cd2rev"
-   ["out":=12,"a_in":<=12,"dlyt":=0.02,"dmul":=0.008]
-  ]
-
--- mix
-n90 =
-  Group 90
-  [Synth 9001 "cd2mix" -- huh
-   ["out":=0,"a_in":<=10,"amp":=1.4,"pan":=0.0]
-  ,Synth 9002 "cd2mix" -- hat
-   ["out":=0,"a_in":<=11,"amp":=0.1,"mamp":<-1001,"pan":=(-0.2)]
-  ,Synth 9003 "cd2mix" -- snr
-   ["out":=0,"a_in":<=12,"amp":=0.4,"mamp":<-1001,"pan":=(-0.1)]
-  ,Synth 9004 "cd2mix" -- kik
-   ["out":=0,"a_in":<=13,"amp":=0.9,"pan":=0.03]
-  ,Synth 9005 "cd2mix" -- drn
-   ["out":=0,"a_in":<=14,"amp":=0.5,"mamp":<-1001,"pan":=(-0.15)]
-  ,Synth 90051 "cd2mix" -- drn b
-   ["out":=0,"a_in":<=19,"amp":=0.5,"mamp":<-1001,"pan":=(0.15)]
-  ,Synth 9006 "cd2mix" -- huh2
-   ["out":=0,"a_in":<=15,"amp":=0.6,"pan":=(-0.8)]
-  ,Synth 9007 "cd2mix" -- huh3
-   ["out":=0,"a_in":<=16,"amp":=0.6,"pan":=0.8]
-  ,Synth 9008 "cd2mixm" -- pu right
-   ["out":=0,"a_in":<=17,"mamp":<-1001,"amp":=1]
-  ,Synth 9009 "cd2mixm" -- pu left
-   ["out":=1,"a_in":<=18,"mamp":<-1001,"amp":=1]
-  ]
-
-w = withSC3
-
-respond :: Transport t => t -> IO b
-respond fd = do
-  async fd (notify True)
-  forever $ wait fd "/cd22e9d" >>= flip work fd
-
-work :: Transport t => OSC -> t -> IO ()
-work (Message "/cd22e9d" [Int _,Int _,Float v]) =
-  let n = ceiling v :: Int
-      (q,r) = n `quotRem` 64
-  in  case r of
-    0 -> case q of
-      q | q `mod` 4 == 1 -> patchNode n11b
-        | otherwise      -> patchNode n11a
-    _ -> const $ return ()
