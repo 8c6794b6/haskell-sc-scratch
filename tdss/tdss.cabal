@@ -1,6 +1,6 @@
-name:          fts
+name:          tdss
 version:       0.3.1
-synopsis:      Simple web app with tokyo dystopia
+synopsis:      Tokyo dystopia snap search
 license:       BSD4
 author:        8c6794b6
 maintainer:    8c6794b6@gmail.com
@@ -10,10 +10,10 @@ build-type:    Simple
 cabal-version: >=1.2
 description:
   Simple web app for full text searching with using tokyo dystopia and snap web
-  framework. CLI has command for indexing and serving the site.
+  framework, including command line interface for indexing and serving the site.
 
-executable fts
-  main-is: fts.hs
+executable tdss
+  main-is: tdss.hs
   ghc-options:
     -O2 -Wall -threaded -funbox-strict-fields -fno-warn-unused-do-bind
   build-depends:

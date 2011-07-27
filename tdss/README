@@ -1,5 +1,5 @@
-fts - full text search
-======================
+tdss - tokyo dystopia snap search
+=================================
 
 Summary
 -------
@@ -7,12 +7,12 @@ Full text search for html files with tokyodystopia and snap web framework.
 
 Commands overview
 -----------------
-For detailed argument, run `fts --help`.
+For detailed argument, run `tdss --help`.
 
-* `fts index`
+* `tdss index`
     * Index html files under given directory, and write indexed data.
 
-* `fts serve`
+* `tdss serve`
     * Run server program with given template path and db path.
 
 Database schema

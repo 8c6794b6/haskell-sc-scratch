@@ -8,7 +8,7 @@
 -- Stability   : unstable
 -- Portability : non-portable
 --
-module Fts.Command.Serve where
+module Tdss.Command.Serve where
 
 import Control.Applicative ((<|>))
 import Control.Concurrent (MVar, newMVar, readMVar)
@@ -23,7 +23,7 @@ import Text.Templating.Heist (TemplateState)
 import qualified Snap.Util.FileServe as FS
 import qualified Text.Templating.Heist as HE
 
-import qualified Fts.Control as C
+import qualified Tdss.Control as C
 
 -- | Serve the site.
 run :: Int      -- ^ Port number

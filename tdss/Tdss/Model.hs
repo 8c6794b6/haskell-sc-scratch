@@ -8,7 +8,7 @@
 -- Stability   : unstable
 -- Portability : non-portable
 --
-module Fts.Model where
+module Tdss.Model where
 
 import Data.ByteString ( ByteString )
 import System.FilePath ((</>))

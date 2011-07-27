@@ -9,7 +9,7 @@
 -- Stability   : unstable
 -- Portability : non-portable
 --
-module Fts.View where
+module Tdss.View where
 
 import Data.ByteString (ByteString)
 import Data.Maybe (catMaybes)
@@ -23,7 +23,7 @@ import qualified Network.URI as URI
 import qualified Snap.Types as ST
 import qualified Text.XmlHtml as X
 
-import Fts.Model (SearchResult(..))
+import Tdss.Model (SearchResult(..))
 
 mkResults :: [SearchResult] -> Splice Snap
 mkResults rs = return [X.Element "ul" [] (map mkResult rs)]

@@ -7,7 +7,7 @@
 -- Stability   : unstable
 -- Portability : non-portable
 --
-module Fts.Command.Index where
+module Tdss.Command.Index where
 
 import Control.Monad (join)
 import Control.Concurrent (newMVar, putMVar, takeMVar)
@@ -22,7 +22,7 @@ import qualified Database.TokyoCabinet.HDB as HDB
 import qualified Database.TokyoDystopia as TD
 import qualified Database.TokyoDystopia.IDB as IDB
 
-import qualified Fts.Model as M
+import qualified Tdss.Model as M
 
 -- | Index html files under specified directory and make it searchable.
 run :: FilePath -- ^ DB path

@@ -8,7 +8,7 @@
 -- Stability   : unstable
 -- Portability : non-portable
 --
-module Fts.Control where
+module Tdss.Control where
 
 import Control.Concurrent (MVar, readMVar)
 import qualified Data.ByteString.Char8 as C8
@@ -20,8 +20,8 @@ import Text.Templating.Heist ( TemplateState )
 import qualified Snap.Types as ST
 import qualified Text.Templating.Heist as HE
 
-import qualified Fts.Model as M
-import qualified Fts.View as V
+import qualified Tdss.Model as M
+import qualified Tdss.View as V
 
 -- | Show first page of search results.
 queryPhrase :: FilePath -> MVar (TemplateState Snap) -> Snap ()
