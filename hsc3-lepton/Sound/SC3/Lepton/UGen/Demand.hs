@@ -132,6 +132,10 @@ instance Fractional a => Fractional (Demand a) where
   recip a = fmap recip a
   fromRational = return . fromRational
 
+instance Enum a => Enum (Demand a) where
+  fromEnum d = fromEnum $ evalState (unDemand d) (mkStdGen 0)
+  toEnum = return . toEnum
+
 -- | Run demand ugen with given StdGen.
 runSupply :: Supply -> StdGen -> (UGen,StdGen)
 runSupply d g = runState (unDemand d) g
