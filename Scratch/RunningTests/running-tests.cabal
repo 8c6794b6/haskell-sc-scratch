@@ -1,0 +1,51 @@
+name:		RunningTests
+version:	0.0.0
+synopsis:       Scratch for running tests
+author:         8c6794b6
+maintainer:     8c6794b6@gmail.com
+cabal-version:  >= 1.9.2
+build-type:     Simple
+license:        BSD3
+category:       GUI
+stability:      experimental
+description:
+  Scratch for running tests.
+
+-- executable scshell
+--   ghc-options:
+--     -O2 -Wall -fno-warn-unused-do-bind -fno-warn-orphans
+--   main-is:
+--      scshell.hs
+--   build-depends:
+--     base,
+--     cmdargs,
+--     containers >= 0.3.0.0,
+--     mtl >= 2.0.0,
+--     parsec >= 3.0.0,
+--     syb,
+--     uniplate >= 1.6,
+--     hosc,
+--     hsc3,
+--     hsc3-lepton >= 0.0.3,
+--     Shellac >= 0.9.5,
+--     Shellac-haskeline >= 0.2
+
+-- test-suite test-foo
+--   type:
+--     exitcode-stdio-1.0
+--   main-is:
+--     tests.hs
+--   build-depends:
+--     base,
+--     Cabal >= 1.10.1,
+--     cmdargs,
+--     containers >= 0.3.0.0,
+--     mtl >= 2.0.0,
+--     parsec >= 3.0.0,
+--     syb,
+--     uniplate >= 1.6,
+--     hosc,
+--     hsc3,
+--     hsc3-lepton >= 0.0.3,
+--     Shellac >= 0.9.5,
+--     Shellac-haskeline >= 0.2

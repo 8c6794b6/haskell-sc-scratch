@@ -14,7 +14,7 @@ triggering ugen to hit percussive synths.
 -}
 module Cd22e9d.Nodes where
 
-import Control.Monad
+import Control.Monad (forever)
 
 import Sound.OpenSoundControl
 import Sound.SC3
@@ -22,9 +22,7 @@ import Sound.SC3.Lepton
 
 main = w respond
 
-go = w $ \fd -> do
-  send fd $ c_set [(1001,1)]
-  patchNode n0 fd
+go = w $ patchNode n0
 
 n0 =
   Group 0
@@ -43,11 +41,6 @@ n0 =
      [Synth 9999 "cd2mst"
       ["out":=0,"amp":=1]]]
   ]
-
-nbell =
-  Group 20
-  [Synth 2001 "cd2bell"
-   ["out":=21,"t_trig":<-100,"freq":=440]]
 
 -- controls, for recording
 n11 =
@@ -71,7 +64,7 @@ n11 =
   ,Synth 1108 "cd2tpua"
    ["out":=111,"t_trig":<-100]
   ,Synth 1109 "cd2tshw"
-   ["out":=112,"t_trig":<-100]
+   ["outa":=112,"outt":=114,"t_trig":<-100]
   ,Synth 1110 "cd2tbell"
    ["out":=113,"t_trig":<-100]
   ]
@@ -98,7 +91,7 @@ n20 =
   ,Synth 2008 "cd2huh"
    ["out":=16,"t_trig":<-108]
   ,Synth 2009 "cd2shw"
-   ["out":=20,"t_trig":<-112]
+   ["out":=20,"t_trig":<-112,"t_envr":<-114]
   ,Synth 2010 "cd2bell"
    ["out":=21,"t_trig":<-100,"freq":<-113,"amp":=0.3]
   ]

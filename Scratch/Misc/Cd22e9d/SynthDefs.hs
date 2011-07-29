@@ -77,8 +77,7 @@ cd2that =
              ,srand 1 [0.5,0.8,1.0]]]
    ,sseq 32 [0]
    ,sseq 1
-    [srand 8 [0,0.3,0.6,0.8,1], sseq 8 [0]
-    ,srand 16 [0,0,0,0.3,0.6,0.8,1]]]]
+    [sseq 28 [0], srand 4 [0,0.3,0.6,0.8,1]]]]
 
 cd2tsnr :: UGen
 cd2tsnr =
@@ -155,12 +154,23 @@ lfsin =
   out ("out"@@100) $ sinOsc kr ("freq"@@1) 0 * ("mul"@@1) + ("add"@@0)
 
 cd2tshw :: UGen
-cd2tshw  =
-  mkDemand $ sseq sinf
-  [sseq 48 [0], sseq 5 [1,1,0], sseq 1 [1]
-  ,sseq sinf
-   [sseq 1 [1,0], sseq 3 [1,1,0],
-    sseq 32 [0], sseq 7 [1,1,0], sseq 1 [0]]]
+cd2tshw  = mrg [mkOut "outa" ta, mkOut "outt" tt] where
+  mkOut n pt = out (n@@0) $ demand t 0 pt * t
+  t = "t_trig"@@0
+  (ta,tt) = (evalSupply ampPat g0, evalSupply trigPat g0)
+  g0 = mkStdGen 0
+  ampPat =
+    sseq sinf
+    [sseq 40 [0], sseq 5 [1,1,0],1
+    ,sseq sinf
+     [sseq 5 [1,1,0],1,sseq 48 [0]
+     ,sseq 64 [0]]]
+  trigPat =
+    sseq sinf
+    [sseq 39 [0], 1, sseq 16 [0]
+    ,sseq sinf
+     [sseq 48 [0], sseq 64 [0]
+     ,sseq 15 [0], 1]]
 
 cd2tbell :: UGen
 cd2tbell = out ("out"@@0) $ midiCPS $ (t * f) where
@@ -289,8 +299,9 @@ cd2shw' tick = out ("out"@@0) (resonz sig freq bw) where
   tamp = decay2 tick 1e-3 1
   freq = el * ("freq"@@8000) + 50
   bw = el * 0.8 + 0.1
-  el = lfdNoise3 'f' kr 0.5 * 0.5 + 0.5
-  tick' = pulseDivider tick 3 15
+  el = envGen kr ("t_envr"@@0) 1 0 1 DoNothing $
+       -- env [1e-3,1,1e-3] [25e-3,7.3] [EnvCub] (-1) (-1)
+        env [2.5e-2,1,2.5e-2] [25e-3,8.4] [EnvCub] (-1) (-1)
 
 --
 -- effects
