@@ -9,10 +9,6 @@
 --
 -- TODO:
 --
--- * Add a noise with slow attack, 4beat.
---
--- * Add hat like sound?
---
 -- * Add melody.
 --
 -- * Add kick?
@@ -106,7 +102,7 @@ boF1 :: Supply
 boF1 =
   sseq sinf
   [sseq 1 [sseq 16 [52], srand 16 [52,64]
-          ,srand 16 [52,64,76], srand 16 [52,64]
+          ,srand 16 [52,64,76], srand 16 base
           ,sseq 16 [52], srand 16 [52,64]
           ,srand 16 [52,64,76], sseq 2 base]
   ,sseq 3 [sseq 48 base
@@ -124,7 +120,14 @@ snt1 =
 
 hatt1 :: Supply
 hatt1 =
-  sseq sinf [1,w1,w2,w1]
+  sseq sinf [1,w1,w2,0]
+  where
+    w1 = swhite 1 0.3 0.6
+    w2 = swhite 1 0.4 0.8
+    
+hatt2 :: Supply
+hatt2 =
+  sseq sinf [1,0,w2,w1]
   where
     w1 = swhite 1 0.3 0.6
     w2 = swhite 1 0.4 0.8
@@ -142,9 +145,9 @@ b002met = mrg [out ("outt"@@0) sig, out ("outb"@@0) cnt] where
 
 quickNoiseC :: UGen
 quickNoiseC = quickNoiseC' ("t_trig"@@0)
-quickNoiseC' tick = mrg [out ("outt"@@0) t,out ("outf"@@0) f] where
-  t = demand tick 0 (supply0 qnT1) * tick
-  f = demand tick 0 $ supply0 qnF1
+quickNoiseC' t_trig = mrg [out ("outt"@@0) t,out ("outf"@@0) f] where
+  t = demand t_trig 0 (supply0 qnT1) * t_trig
+  f = demand t_trig 0 $ supply0 qnF1
 
 quickNoise :: UGen
 quickNoise = quickNoise' ("t_trig"@@0) dur atck ("freq"@@6600) envn where
@@ -186,8 +189,12 @@ slowNoise' tick amp = out ("out"@@0) sig where
          env [0,1,0] [atk,30e-3] [EnvNum 4] 0 (-1)
   atk = 200e-3
 
-hatLikeC :: UGen
-hatLikeC = out ("out"@@0) (t * demand t 0 (supply0 hatt1)) where
+hatLike1C :: UGen
+hatLike1C = out ("out"@@0) (t * demand t 0 (supply0 hatt1)) where
+  t = "t_trig"@@1
+  
+hatLike2C :: UGen
+hatLike2C = out ("out"@@0) (t * demand t 0 (supply0 hatt2)) where
   t = "t_trig"@@1
 
 hatLike :: UGen
@@ -214,9 +221,10 @@ bosc :: UGen
 bosc = bosc' ("gt"@@0) ("freq"@@0) ("amp"@@1)
 
 bosc' tick freq amp = out ("out"@@0) sig where
-  sig = clip2 (rlpf sig' filtf filtq) 1 * amp -- (latch amp tick)
-  -- sig' = pulse ar (freq * mce [1,0.9998]) nh * aenv -- ) bf bq
-  sig' = sum [(sig1 + sig2 + sig3) * aenv -- lfCub ar (freq * mce [1,0.9998]) 0 * aenv
+  sig = clip2 (rlpf sig' filtf filtq) 1 * amp
+  -- sig' = pulse ar (freq * mce [1,0.9998]) nh * aenv
+  sig' = sum [(sig1 + sig2 + sig3) * aenv 
+              -- lfCub ar (freq * mce [1,0.9998]) 0 * aenv
              ,pulse ar (freq * mce [1.0001,1]) 0.7 * atk]
   sig1 = combL nz 0.2 (1/ (freq * mce [1,0.9998]))
          (0.7 + (lfdNoise3 'q' kr 1 * 0.25))

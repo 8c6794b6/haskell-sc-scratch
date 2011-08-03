@@ -12,6 +12,8 @@ module Main where
 import Control.Monad
 import System.Environment
 import Data.Data
+import Data.List (intercalate)
+import Data.Map (Map)
 
 import Data.Generics.Uniplate.Operations (universeBi)
 import Language.Haskell.Interpreter
@@ -21,6 +23,8 @@ import Sound.OpenSoundControl
 import Sound.SC3
 import Sound.SC3.Lepton
 import System.Console.CmdArgs
+
+import qualified Data.Map as M
 
 {-|
 Read a haskell source code with UGen definitoin written, and write
@@ -66,7 +70,7 @@ defaultArg = ReadSynthdefs
 
 work :: Bool -> Maybe (String, Int) -> FilePath -> IO ()
 work toWrite hp path = do
-  pairOfDefs <- runInterpreter $ parseContents path
+  pairOfDefs <- runInterpreter $ parseContents2 path
   case pairOfDefs of
     Left err   -> print err
     Right defs -> do
@@ -102,3 +106,41 @@ parseIt path = do
           p _                                                    = False
           f (HsTypeSig _ (HsIdent n:_) _) = n
       return (moduleName, [f exp | exp <- universeBi mod, p exp])
+
+parseContents2 :: FilePath -> Interpreter [(String,UGen)]
+parseContents2 path = do
+  (modName, ugs) <- liftIO $ parseIt2 path
+  loadModules [path]
+  setTopLevelModules [modName]
+  setImports ["Prelude","Sound.SC3","Sound.SC3.UGen","Sound.SC3.Lepton"]
+  forM (M.toList ugs) $ \(n,ps) -> do
+    let ugString = intercalate " " (n : map (\p -> "(\""++p++"\"@@0)") ps)
+    u <- interpret ugString (as :: UGen)
+    return (n,u)
+
+parseIt2 :: FilePath -> IO (String,Map String [String])
+parseIt2 path = do
+  mdl <- parseModule `fmap` readFile path
+  case mdl of
+    ParseFailed loc err -> print loc >> error err
+    ParseOk mdl'@(HsModule _ (Module moduleName) _ _ _) -> do
+      let p (HsTypeSig _ _ (HsQualType _ t)) = isUGenType t
+          p _                 = False
+          f (HsTypeSig _ (HsIdent n:_) _) = n
+          g (HsMatch _ (HsIdent fname) ps _ _) = (fname, params) where
+                params = [h e | e <- universeBi ps]
+                h (HsIdent n) = trim n
+                q (HsPVar _) = True
+                q _ = False
+          trim = filter (`notElem` "'")
+          ugNames = [f e | e <- universeBi mdl', p e]
+          params = [g e | e <- universeBi mdl']
+          tm = M.fromList $ zip ugNames $ repeat []
+          pm = M.fromList $ params
+      return (moduleName,
+              M.filterWithKey (\k _ -> M.member k tm) $ M.union pm tm)
+
+isUGenType :: HsType -> Bool
+isUGenType (HsTyCon (UnQual (HsIdent "UGen"))) = True
+isUGenType (HsTyFun (HsTyCon (UnQual (HsIdent "UGen"))) t) = isUGenType t
+isUGenType _ = False

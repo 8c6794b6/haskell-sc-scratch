@@ -66,7 +66,7 @@ mkZip n self = lamE pYs (caseE (tupE eYs) [m1,m2])
     m2 = match (tupP (replicate n wildP)) (normalB [|[]|]) []
     pcons x xs = infixP x '(:) xs
     b = [|$(tupE eXs) : $(apps (self:eXSs))|]
-    
+
     -- b = infixE (Just $ tupE eXs) (conE '(:)) (Just $ apps (self:eXSs))
     -- m2 = match (tupP (replicate n wildP)) (normalB (listE [])) []
 
@@ -85,18 +85,18 @@ cross2b :: ExpQ -> ExpQ -> ExpQ
 cross2b f g =
   lamE [tupP [varP $ mkName "x", varP $ mkName "y"]]
   (tupE [appE f (varE $ mkName "x"), (appE g (varE $ mkName "y"))])
-  
+
 cross2c :: ExpQ -> ExpQ -> ExpQ
-cross2c f g = do  
+cross2c f g = do
   x <- newName "x"
   y <- newName "y"
-  f' <- f 
+  f' <- f
   g' <- g
   return $
     LamE [TupP [VarP x, VarP y]]
-    (TupE [AppE f' (VarE x) 
+    (TupE [AppE f' (VarE x)
           ,AppE g' (VarE y)])
-    
+
 cross2d :: ExpQ -> ExpQ -> ExpQ
 cross2d f g = do
   x <- newName "x"
@@ -122,5 +122,3 @@ infoExample n = do
     VarI n t d f ->
       stringE $ unwords ["Var:", show n, show t, show d]
     TyVarI _ _ -> stringE "tyVar"
-
-   

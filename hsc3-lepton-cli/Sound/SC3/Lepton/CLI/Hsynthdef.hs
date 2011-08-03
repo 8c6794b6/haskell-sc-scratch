@@ -11,6 +11,8 @@ module Sound.SC3.Lepton.CLI.Hsynthdef where
 
 import Control.Monad
 import Data.Data
+import Data.List (intercalate)
+import Data.Map (Map)
 
 import Data.Generics.Uniplate.Operations (universeBi)
 import Language.Haskell.Interpreter
@@ -35,13 +37,14 @@ Suppose that, contents of a file MyUGens.hs is shown as below:
 >   out 0 $ sinOsc ar 440 0 *
 >   envGen kr 1 1 0 1 RemoveSynth (envPerc 1e-2 1)
 >
-> ug002 :: UGen
-> ug002 =
->   out 0 $ lfPar ar 330 0 *
->   envGen kr 1 1 0 1 RemoveSynth (envPerc 5e-2 5e-2)
+> ug002 :: UGen -> UGen -> UGen -> UGen
+> ug002 t_trig amp freq =
+>   out 0 $ lfPar ar freq 0 *
+>   envGen kr t_trig amp 0 1 RemoveSynth (envPerc 5e-2 5e-2)
 
 This action will parse this file and write synthdef for ug001 and ug002.
 To write synthdef, explicitly put type UGen signature to the function.
+
 -}
 main :: IO ()
 main = do

@@ -1,14 +1,27 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE DeriveDataTypeable #-}
+{-|
+
+Module      : $Header$
+License     : BSD3
+Maintainer  : 8c6794b6@gmail.com
+Stability   : unstable
+Portability : non-portable (DeriveDataTypeable)
+
+Module to parse the contents of synthdef files.
+
+-}
 module Main where
 
+import Control.Applicative
 import Control.Monad
 import Data.Data
 import Data.Int
 import Data.Word
 
 import Data.Binary
-import Text.Parsec
+import Data.Attoparsec
+import Data.Attoparsec.Char8 (anyChar)
 import System.Directory
 import System.FilePath
 
@@ -16,9 +29,10 @@ import Sound.OpenSoundControl
 import Sound.SC3 hiding (synthdef, Binary)
 import Sound.SC3.Lepton
 
+import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as C8S
 import qualified Data.ByteString.Lazy as B
 import qualified Data.ByteString.Lazy.Char8 as C8
-import qualified Text.Parsec.ByteString as PB
 
 data SynthDefFile = SynthDefFile
   { sdVersion :: Int32
@@ -59,48 +73,46 @@ simple2 = out 0 (pan2 sig ("pan"@@0) 1) where
 go defname = parseSynthdefFile $ synthDefRoot </> defname ++ ".scsyndef"
 synthDefRoot = "/home/atsuro/share/SuperCollider/synthdefs/"
 
-parseSynthdefFile :: FilePath -> IO (Either ParseError SynthDefFile)
-parseSynthdefFile = PB.parseFromFile synthdefFile
+parseSynthdefFile :: FilePath -> IO (Result SynthDefFile)
+parseSynthdefFile path =
+  parse synthdefFile <$> BS.readFile path
 
-synthdefFile :: PB.Parser SynthDefFile
+synthdefFile :: Parser SynthDefFile
 synthdefFile = do
-  string "SCgf"
+  string $ C8S.pack "SCgf"
   version <- int32
   numSynth <- int16
-  sdefs <- replicateM (fromIntegral numSynth) synthdef
+  sdefs <- count (fromIntegral numSynth) synthdefSpec
   return $ SynthDefFile version sdefs
 
-synthdef :: PB.Parser SynthDef
-synthdef = do
+synthdefSpec :: Parser SynthDef
+synthdefSpec = do
   name <- pstring
   numConstant <- int16
-  constants <- replicateM (fromIntegral numConstant) float32
+  constants <- count (fromIntegral numConstant) float32
   numParameters <- int16
-  parameters <- replicateM (fromIntegral numParameters) float32
+  parameters <- count (fromIntegral numParameters) float32
   numParamNames <- int16
-  paramNames <- replicateM (fromIntegral numParamNames) parameterName
+  paramNames <- count (fromIntegral numParamNames) parameterName
   numUGens <- int16
-  ugens <- replicateM (fromIntegral numUGens) ugenSpec
+  ugens <- count (fromIntegral numUGens) ugenSpec
   return $ SynthDef name constants parameters paramNames ugens
 
-parameterName :: PB.Parser ParamPair
-parameterName = do
-  name <- pstring
-  idx <- int16
-  return $ ParamPair name idx
+parameterName :: Parser ParamPair
+parameterName = ParamPair <$> pstring <*> int16
 
-ugenSpec :: PB.Parser UGenSpec
+ugenSpec :: Parser UGenSpec
 ugenSpec = do
   className <- pstring
   calcRate <- int8
   numInput <- int16
   numOutput <- int16
   specialIndex <- int16
-  inputSpecs <- replicateM (fromIntegral numInput) inputSpec
-  outputSpecs <- replicateM (fromIntegral numOutput) outputSpec
+  inputSpecs <- count (fromIntegral numInput) inputSpec
+  outputSpecs <- count (fromIntegral numOutput) outputSpec
   return $ UGenSpec className calcRate inputSpecs outputSpecs
 
-inputSpec :: PB.Parser InputSpec
+inputSpec :: Parser InputSpec
 inputSpec = do
   isIdxOrConstant <- int16
   idx <- int16
@@ -108,31 +120,39 @@ inputSpec = do
      then IsConstant idx
      else IsUgenOut idx
 
-outputSpec :: PB.Parser Int8
-outputSpec = do
-  calcRate <- int8
-  return calcRate
+outputSpec :: Parser Int8
+outputSpec = int8
 
-pstring :: PB.Parser String
+pstring :: Parser String
 pstring = do
-  oneByte <- anyChar
-  str <- replicateM (fromEnum oneByte) anyChar
+  numChar <- anyChar
+  str <- count (fromEnum numChar) anyChar
   return str
 
-int8 :: PB.Parser Int8
+int8 :: Parser Int8
 int8 = manyBytes 1
 
-int16 :: PB.Parser Int16
+int16 :: Parser Int16
 int16 = manyBytes 2
 
-int32 :: PB.Parser Int32
+int32 :: Parser Int32
 int32 = manyBytes 4
 
-float32 :: PB.Parser Double
+float32 :: Parser Double
 float32 = do
-  fourBytes <- replicateM 4 anyChar
+  fourBytes <- count 4 anyChar
   let w = decode_f32 $ C8.pack fourBytes :: Double
   return w
 
-manyBytes :: Binary a => Int -> PB.Parser a
-manyBytes n = (decode . C8.pack) `fmap` (replicateM n anyChar)
+manyBytes :: Binary a => Int -> Parser a
+manyBytes n = (decode . B.pack) <$> (count n anyWord8)
+{-# INLINE manyBytes #-}
+
+test :: IO ()
+test = do
+  names <- getDirectoryContents synthDefRoot
+  forM_ (filter (`notElem` [".", ".."]) names) $ \n ->
+    print =<< (parseSynthdefFile $ synthDefRoot </> n)
+
+main :: IO ()
+main = test

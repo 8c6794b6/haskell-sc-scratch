@@ -28,3 +28,17 @@ selR = unwords ["last element of", show t, "is", show ($(sel 5 5) t), "\n"]
     
 infoR :: String
 infoR = $(infoExample "zipN")
+
+zip11 :: [t]
+      -> [t1]
+      -> [t2]
+      -> [t3]
+      -> [t4]
+      -> [t5]
+      -> [t6]
+      -> [t7]
+      -> [t8]
+      -> [t9]
+      -> [t10]
+      -> [(t, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10)]
+zip11 = $(zipN 11)

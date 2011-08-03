@@ -68,23 +68,23 @@ deg04 = out 0 $ sinOsc ar (freq * mce [1, 1.21]) 0 * 0.1 where
   freq = demandEnvGen kr vs 0.1 5 0.3 gt 1 1 0 1 DoNothing
   vs = supply0 $ srand sinf $ map sval [300,400..1000]
   gt = (mouseX kr 0 1 Linear 0.1 >* 0.5) + 0.1
-  
-deg05 :: UGen  
+
+deg05 :: UGen
 deg05 = out 0 $ sinOsc ar (freq * mce [1,1.21]) 0 * 0.1 where
   freq = demandEnvGen kr vs 0.1 shp crv gt rst 1 0 1 DoNothing
   vs = supply0 $ sseq 2 [sseries 5 400 200, 800, 530, 4000, 900]
-  shp = 3 
+  shp = 3
   crv = 0
   gt = (mouseX kr 0 1 Linear 0.1 >* 0.5) - 0.1
   rst = (mouseButton kr 0 1 0.1 >* 0.5) * 2
-  
-mkDeg01 deg = out 0 $ sinOsc ar (deg * mce [1,1.01]) 0 * 0.1 
-  
+
+mkDeg01 deg = out 0 $ sinOsc ar (deg * mce [1,1.01]) 0 * 0.1
+
 deg06 :: UGen
-deg06 = 
-  mkDeg01 $ demandEnvGen kr vs 0.2 shp crv gt rst ls lo ts RemoveSynth 
+deg06 =
+  mkDeg01 $ demandEnvGen kr vs 0.2 shp crv gt rst ls lo ts RemoveSynth
   where
-    shp = 1 
+    shp = 1
     crv = 0
     gt = 1
     rst = 0
@@ -94,7 +94,7 @@ deg06 =
     vs = supply0 $ sseq 1 [1300,500,800,300,400]
 
 deg07 :: UGen
-deg07 = 
+deg07 =
   mkDeg01 $ demandEnvGen kr vs 0.2 shp crv gt rst ls lo ts RemoveSynth
   where
     shp = 0
@@ -105,23 +105,76 @@ deg07 =
     lo = 0
     ts = 1
     vs = supply0 $ sseq 1 [1300,500,800,300,400]
-    
+
 deg08 = mkDeg01 deg where
   deg = demandEnvGen kr vs 0.03 1 0 gt rst 1 0 1 DoNothing
   vs = supply0 $ sseq sinf [500,800,600]
   gt = toggleFF (dust 'd' kr 5) + 0.1
   rst = 1
-  
-deg10 = out 0 sig where  
-  sig = demandEnvGen ar vs ts shp 0 gt rst 1 0 1 DoNothing 
+
+deg10 = out 0 sig where
+  sig = demandEnvGen ar vs ts shp 0 gt rst 1 0 1 DoNothing
   vs = supply0 $ sseq sinf [sseries 20 (-0.1) 0.01
                            ,sseries 20 (-0.1) 0.01
                            ,sseries 5 (-0.1) 0.1]
   ts = sampleDur * mouseY kr 1 100 Linear 0.1
   shp = 1
-  gt = impulse ar (mouseX kr 1 
+  gt = impulse ar (mouseX kr 1
                    (sampleRate * mouseX kr 2e-4 1 Linear 0.1) Linear 0.1) 0
   rst = 0
 
 -- donce
 -- dfsm, is as of sc-3.4, in extra-plugins.
+
+-- | Compare these:
+--
+-- >>> audition $ dswEx01 dswitch
+-- >>> audition $ dswEx01 dswitch1
+--
+dswEx01 :: (Char -> UGen -> UGen -> UGen) -> UGen
+dswEx01 dmn = out 0 o where
+  o = sinOsc ar f 0 * 0.1
+  f = demand t 0 d * 300 + 400
+  d = dmn 'd' i $ mce [a0,a1,a2]
+  t = impulse kr 4 0
+  a0 = dwhite 'a' 2 3 4
+  a1 = dwhite 'b' 2 0 1
+  a2 = dseq 'c' 2 $ mce [1,1,1,0]
+  i = dseq 'd' 2 $ mce [0,1,2,1,0]
+
+-- | Try below and move mouse:
+--
+-- >>> audition $ dswEx02 dswitch
+--
+-- Compare with:
+--
+-- >>> auditon $ dswEx02 dswitch1
+--
+dswEx02 :: (Char -> UGen -> UGen -> UGen) -> UGen
+dswEx02 ds = out 0 $ sinOsc ar f 0 * 0.1 where
+  f = demand t 0 n * 30 + 340
+  t = impulse kr 3 0
+  n = ds 'x' x $ mce [1,3,y,2,w]
+  w = dwhite 'w' dinf 20 23
+  x = mouseX kr 0 4 Linear 0.1
+  y = mouseY kr 1 15 Linear 0.1
+
+-- | Left mouse button will reset the sequence.
+dser01 :: UGen
+dser01 = out 0 $ sinOsc ar f 0 * 0.1 where
+  f = demand t r a * 30 + 340
+  t = impulse kr x 0
+  x = mouseX kr 1 40 Exponential 0.1
+  a = dser 'a' 7 $ mce [1,3,2,7,8]
+  r = mouseButton kr 0 1 1e-3
+
+-- | Controlling demandEnvGen.
+goD :: IO ()
+goD = audition $ testGateD $ gateMe $ impulse kr 4 0
+
+testGateD :: UGen -> UGen
+testGateD g = out ("out"@@0) $ sinOsc ar (mce [440,439.999]) 0 * 0.3 * e where
+  e = demandEnvGen kr levels times 1 1 g reset 1 0  1 DoNothing
+  levels = supply0 $ sseq 1 [0,     1,     0.2,  0.2,      0]
+  times  = supply0 $ sseq 1 [  1e-3,  2e-1,   0,    2e-1]
+  reset = dust 'r' kr 1

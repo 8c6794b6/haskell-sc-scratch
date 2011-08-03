@@ -23,7 +23,7 @@ n0 =
   [g 1
    [g 10 -- master control
     [s 1001 "b002met"
-     ["bpm":=290,"outt":=100,"outb":=101]
+     ["bpm":=280,"outt":=100,"outb":=101]
     ]
    ,g 20 -- controls
     [s 2001 "quickNoiseC"
@@ -32,8 +32,10 @@ n0 =
      ["outg":=203,"outf":=204,"t_trig":<-100]
     ,s 2003 "slowNoiseC"
      ["out":=205,"t_trig":<-100]
-    ,s 2004 "hatLikeC"
+    ,s 2004 "hatLike1C"
      ["out":=206,"t_trig":<-100]
+    ,s 2005 "hatLike2C"
+     ["out":=207,"t_trig":<-100]
     ]
    ,g 30 -- sources
     [s 3001 "quickNoise"
@@ -44,22 +46,26 @@ n0 =
      ["out":=24,"t_trig":<-205]
     ,s 3004 "hatLike"
      ["out":=25,"t_trig":<-206]
+    ,s 3005 "hatLike"
+     ["out":=26,"t_trig":<-207]
     ]
    ,g 40 -- effects
     []
    ,g 50 -- mix
     [s 5001 "b002mix2" -- quickNoise
-     ["out":=0,"a_inl":<=20, "a_inr":<=21,"amp":=1.0 {- 0 -}]
+     ["out":=0,"a_inl":<=20, "a_inr":<=21,"amp":=2.0 {- 0 -}]
     ,s 5002 "b002mix2" -- bosc
      ["out":=0,"a_inl":<=22, "a_inr":<=23,"amp":=0.3 {- 0 -}]
     ,s 5003 "b002mix1" -- slowNoise
-     ["out":=0,"a_in":<=24,"amp":=1.8,"pan":=(-0.8)]
-    ,s 5004 "b002mix1" -- hat
-     ["out":=0,"a_in":<=25,"amp":=1.4,"pan":=0.75]
+     ["out":=0,"a_in":<=24,"amp":=1.8,"pan":=(-0.1)]
+    ,s 5004 "b002mix1" -- hat1
+     ["out":=0,"a_in":<=25,"amp":=1.0,"pan":=0.95]
+    ,s 5005 "b002mix1" -- hat2
+     ["out":=0,"a_in":<=26,"amp":=1.0,"pan":=(-0.95)]
     ]
    ,g 99 -- master
     [s 9901 "b002mst"
-    ["amp":=1,"a_inl":<=0,"a_inr":<=1]]
+     ["amp":=1,"a_inl":<=0,"a_inr":<=1]]
    ]]
 
 g :: NodeId -> [SCNode] -> SCNode
