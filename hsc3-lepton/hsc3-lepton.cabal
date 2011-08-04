@@ -37,6 +37,8 @@ library
     Sound.SC3.Lepton.Instance
     Sound.SC3.Lepton.Looper
     Sound.SC3.Lepton.Parser
+    Sound.SC3.Lepton.Parser.Datum
+    Sound.SC3.Lepton.Parser.SynthDef
     Sound.SC3.Lepton.Pattern
     Sound.SC3.Lepton.Pattern.Expression
     Sound.SC3.Lepton.Pattern.Interpreter
@@ -53,7 +55,9 @@ library
     Sound.SC3.Lepton.UGen.Missing
     Sound.SC3.Lepton.Util
   build-depends:
+    attoparsec,
     base == 4.*,
+    binary,
     bytestring,
     containers,
     filepath,

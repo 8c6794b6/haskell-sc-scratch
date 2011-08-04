@@ -60,7 +60,6 @@ module Sound.SC3.Lepton.Tree.Tree
 
 import Control.Monad
 import Data.Function (on)
--- import Data.Generics (Data, Typeable)
 import Data.Data
 import Data.List (unionBy)
 import Text.PrettyPrint hiding (int, double)
@@ -71,7 +70,7 @@ import Sound.SC3
 import Sound.OpenSoundControl
 
 import Sound.SC3.Lepton.Instance ()
-import Sound.SC3.Lepton.Parser
+import Sound.SC3.Lepton.Parser.Datum
 import Sound.SC3.Lepton.Util (queryTree, n_mapa)
 
 import qualified Text.PrettyPrint as P
@@ -201,7 +200,7 @@ nodeId (Synth i _ _) = i
 -- Only working with osc message including synth control parameters.
 parseNode :: OSC -> SCNode
 parseNode o = case o of
-  Message "/g_queryTree.reply" ds -> case parse parseGroup (tail ds) of
+  Message "/g_queryTree.reply" ds -> case parseDatum parseGroup (tail ds) of
     Right tree -> tree
     Left err   -> error $ show err
   _                               -> error "not a /g_queryTree.reply response"
@@ -243,14 +242,6 @@ parseParam = do
     Int x     -> return $ name := fromIntegral x
     e         -> error $ "Cannot make param from: " ++ show e
 
-------------------------------------------------------------------------------
---
--- Communicating with server
---
-------------------------------------------------------------------------------
-    
--- Moved!
-    
 ------------------------------------------------------------------------------
 --
 -- Converting functions

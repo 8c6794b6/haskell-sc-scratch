@@ -54,8 +54,6 @@ module Sound.SC3.Lepton.UGen.Demand
   , sxrand
   ) where
 
-import System.Random (newStdGen, randomRs)
-
 import Control.Applicative
 import Control.Monad.State
 import System.Random
@@ -112,7 +110,7 @@ type Supply = Demand UGen
 
 -- | Compare with running state using (mkStdGen 0).
 instance Eq a => Eq (Demand a) where
-  Demand a == Demand b = let g = mkStdGen 0 in evalState a g == evalState a g
+  Demand a == Demand b = let g = mkStdGen 0 in evalState a g == evalState b g
 
 -- | Show with evaluating state using (mkStdGen 0).
 instance Show a => Show (Demand a) where
