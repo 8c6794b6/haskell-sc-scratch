@@ -20,10 +20,12 @@ module Sound.SC3.Lepton.Parser.SynthDef
   , ParamPair(..)
   , UGenSpec(..)
   , InputSpec(..)
+  , Result(..) -- from Attoparsec
 
     -- * Parser
     -- ** Running Parser
   , parseSynthDefFile
+  , parse      -- from Attoparsec
     -- ** Synth Definition elements
   , synthDefFile
   , synthDefSpec
@@ -60,6 +62,12 @@ import qualified Data.ByteString.Char8 as C8S
 import qualified Data.ByteString.Lazy as B
 import qualified Data.ByteString.Lazy.Char8 as C8
 
+------------------------------------------------------------------------------
+--
+-- Types
+--
+------------------------------------------------------------------------------
+
 data SynthDefFile = SynthDefFile
   { sdVersion :: Int32
   , sdDefs :: [SynthDef] }
@@ -90,6 +98,12 @@ data InputSpec
   = IsConstant Int16
   | IsUGenOut Int16 Int16
   deriving (Eq, Show, Data, Typeable)
+
+------------------------------------------------------------------------------
+--
+-- Parsers
+--
+------------------------------------------------------------------------------
 
 parseSynthDefFile :: FilePath -> IO (Result SynthDefFile)
 parseSynthDefFile path = parse synthDefFile <$> BS.readFile path
