@@ -1,0 +1,51 @@
+name:		SynthDB
+version:	0.0.1
+synopsis:       Synthdef database
+author:         8c6794b6
+maintainer:     8c6794b6@gmail.com
+cabal-version:  >= 1.9.2
+build-type:     Simple
+license:        BSD3
+category:       Sound
+stability:      experimental
+description:
+
+executable synthdb
+  ghc-options:
+    -Wall -fno-warn-unused-do-bind -auto-all -rtsopts
+  main-is:
+    synthdb.hs
+  build-depends:
+    acid-state,
+    base,
+    bytestring,
+    containers,
+    cmdargs,
+    directory,
+    filepath,
+    hsc3,
+    hsc3-lepton,
+    ixset,
+    mtl,
+    parallel,
+    safecopy
+
+library
+  ghc-options:
+    -auto-all -rtsopts
+  exposed-modules:
+    SynthDB.Persist
+  build-depends:
+    acid-state,
+    base,
+    bytestring,
+    containers,
+    cmdargs,
+    directory,
+    filepath,
+    hsc3,
+    hsc3-lepton,
+    ixset,
+    mtl,
+    parallel,
+    safecopy
