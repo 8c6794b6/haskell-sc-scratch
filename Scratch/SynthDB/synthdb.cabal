@@ -10,42 +10,67 @@ category:       Sound
 stability:      experimental
 description:
 
+flag debug
+  description:
+    Enable debugging information
+  default:
+    False
+
 executable synthdb
   ghc-options:
-    -Wall -fno-warn-unused-do-bind -auto-all -rtsopts
+    -Wall -fno-warn-unused-do-bind -fno-warn-orphans -rtsopts
+  if flag(debug)
+    ghc-options: -auto-all
   main-is:
     synthdb.hs
   build-depends:
     acid-state,
     base,
+    blaze-html,
+    boomerang,
     bytestring,
     containers,
     cmdargs,
     directory,
     filepath,
+    happstack-server,
     hsc3,
     hsc3-lepton,
     ixset,
     mtl,
     parallel,
-    safecopy
+    safecopy,
+    web-routes,
+    web-routes-boomerang,
+    web-routes-happstack
 
 library
   ghc-options:
-    -auto-all -rtsopts
+    -Wall -fno-warn-unused-do-bind -fno-warn-orphans -rtsopts
+  if flag(debug)
+    ghc-options: -auto-all
   exposed-modules:
     SynthDB.Persist
+    SynthDB.Web
+  other-modules:
+    SynthDB.CLI
   build-depends:
     acid-state,
     base,
+    blaze-html,
+    boomerang,
     bytestring,
     containers,
     cmdargs,
     directory,
     filepath,
+    happstack-server,
     hsc3,
     hsc3-lepton,
     ixset,
     mtl,
     parallel,
-    safecopy
+    safecopy,
+    web-routes,
+    web-routes-boomerang,
+    web-routes-happstack

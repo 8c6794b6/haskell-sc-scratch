@@ -1,6 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE TypeSynonymInstances #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -15,28 +14,20 @@ Portability : non-portable
 
 Synthdef database using acid-state and ixset.
 
-Bit slower than Kyoto cabinet, though has querying function with conditions.
-
-TODO:
-
-* Add simple DSL for query condition.
-
-* Score matches, and sort by score.
-
-* Benchmark.
-
+Slower than Kyoto cabinet, though has querying function with conditions.
 -}
+
 module SynthDB.Persist where
 
 import Control.Monad (forM)
 import Data.ByteString (ByteString)
 import Data.Char (toLower)
-import Data.Data
+import Data.Data (Data,Typeable)
 import System.Directory (getDirectoryContents)
 import System.FilePath ((</>), dropExtension)
 import System.Environment (getEnv)
 
-import Control.Monad.State (get,put)
+import Control.Monad.State (put)
 import Control.Monad.Reader (ask)
 import Data.Acid
 import Data.IxSet
@@ -44,10 +35,19 @@ import Data.SafeCopy
 import Sound.SC3
 import Sound.SC3.Lepton (scSynthdefPath)
 import Sound.SC3.Lepton.Parser
-import System.Console.CmdArgs
 
 import qualified Data.ByteString.Char8 as C8
 import qualified Data.Map as M
+
+{-
+
+TODO:
+
+* Specify query condition.
+* Score matches, and sort by score.
+* Profile.
+
+-}
 
 ------------------------------------------------------------------------------
 -- For querying index.
@@ -134,7 +134,8 @@ mkUR uss = M.foldrWithKey g [] $ foldr f M.empty uss where
     | n == "BinaryOpUGen" = binaryName (fromIntegral s)
     | n == "UnaryOpUGen"  = unaryName (fromIntegral s)
     | otherwise           = n
-  toR u = case usRate u of 0 -> IR; 1 -> KR; 2 -> AR; 3 -> DR
+  toR u = case usRate u of
+    0 -> IR; 1 -> KR; 2 -> AR; 3 -> DR; _ -> error $ show u
 
 mkPR :: [Double] -> [ParamPair] -> [PR]
 mkPR cs ps = map f ps where
@@ -162,14 +163,18 @@ initSDefs = do
       cxs = foldr insert empty cs
   return (ixs, cxs)
 
-queryBy :: (IxSet SDR -> IxSet SDR) -> IO ()
+queryBy :: (IxSet SDR -> IxSet SDR) -> IO (IxSet SDR)
 queryBy f = do
   db <- openAcidState (SDB empty)
   r <- do
     ixs <- query db LoadSDB
     return $ f ixs
   closeAcidState db
-  mapM_ print $ toList r
+  return r
+
+queryUGs :: String -> IO [SDR]
+queryUGs q = return . toList =<<
+  queryBy (@* (map UGenName . C8.words . C8.pack $ q))
 
 ------------------------------------------------------------------------------
 -- For storing bytestring synthdef contents.
@@ -200,8 +205,21 @@ loadContentDB = ask >>= \(ContentDB ixs) -> return ixs
 
 $(makeAcidic ''ContentDB ['saveContentDB, 'loadContentDB])
 
+getDef :: String -> IO SynthDefFile
+getDef k = do
+  db <- openAcidState (ContentDB empty)
+  content <- do
+    cxs <- query db LoadContentDB
+    return $ cxs @= (SDCName (C8.pack k))
+  closeAcidState db
+  case getOne content of
+    Nothing  -> error $ "No such synthdef: " ++ k
+    Just sdc -> case parse synthDefFile $ sdcContents sdc of
+      Done _ sd -> return sd
+      _         -> error $ "Failed to parse synthdef: " ++ k
+
 ------------------------------------------------------------------------------
--- Wrapper for command actions.
+-- For command line interface.
 
 initDB :: IO ()
 initDB = do
@@ -214,37 +232,8 @@ initDB = do
   closeAcidState cdb
 
 search :: String -> IO ()
-search str = queryBy (@* (map UGenName . C8.words . C8.pack $ str))
+search str = mapM_ print . toList =<<
+  queryBy (@* (map UGenName . C8.words . C8.pack $ str))
 
-dumpDef :: String -> IO ()
-dumpDef k = do
-  db <- openAcidState (ContentDB empty)
-  content <- do
-    cxs <- query db LoadContentDB
-    return $ cxs @= (SDCName (C8.pack k))
-  closeAcidState db
-  case getOne content of
-    Nothing  -> putStrLn $ "No such synthdef: " ++ k
-    Just sdc -> case parse synthDefFile $ sdcContents sdc of
-      Done _ sd -> print $ prettyDefFile sd
-      _         -> putStrLn $ "Failed to parse synthdef: " ++ k
-
-------------------------------------------------------------------------------
--- Command line interface
-
-data SynthDB
-  = Init
-  | Search { qs :: String }
-  | Dump { keyName :: String }
-  deriving (Eq,Show,Data,Typeable)
-
-main :: IO ()
-main = do
-  arg <- cmdArgs $ modes
-    [ Init
-    , Search {qs = def &= args &= typ "ugen names"}
-    , Dump {keyName = def &= args &= typ "synthdef name"} ]
-  case arg of
-    Init     -> initDB
-    Search q -> search q
-    Dump n   -> dumpDef n
+dump :: String -> IO ()
+dump n = print . prettyDefFile =<< getDef n

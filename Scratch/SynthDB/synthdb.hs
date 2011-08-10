@@ -1,6 +1,6 @@
 module Main where
 
-import qualified SynthDB.Persist
+import qualified SynthDB.CLI
 
 main :: IO ()
-main = SynthDB.Persist.main
+main = SynthDB.CLI.main
