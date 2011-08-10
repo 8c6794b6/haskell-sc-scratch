@@ -20,7 +20,7 @@ data SynthDB
   = Init
   | Search { qs :: String }
   | Dump { keyName :: String }
-  | Serve
+  | Serve { port :: Int }
   deriving (Eq,Show,Data,Typeable)
 
 main :: IO ()
@@ -32,10 +32,10 @@ main = do
       help "search synthdef by ugen names"
     , Dump {keyName = def &= args &= typ "synthdef name"} &=
       help "dump contents of specified synthdef"
-    , Serve &=
-      help "start server for web ui"]
+    , Serve {port = 8000 &= help "port number to serve"} &=
+      help "start server for web ui" ]
   case arg of
     Init     -> initDB
     Search q -> search q
     Dump n   -> dump n
-    Serve    -> serve
+    Serve p  -> serve p

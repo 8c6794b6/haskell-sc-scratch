@@ -39,7 +39,9 @@ executable synthdb
     ixset,
     mtl,
     parallel,
+    pandoc,
     safecopy,
+    template-haskell,
     web-routes,
     web-routes-boomerang,
     web-routes-happstack
@@ -51,6 +53,7 @@ library
     ghc-options: -auto-all
   exposed-modules:
     SynthDB.Persist
+    SynthDB.QHereDoc
     SynthDB.Web
   other-modules:
     SynthDB.CLI
@@ -70,7 +73,9 @@ library
     ixset,
     mtl,
     parallel,
+    pandoc,
     safecopy,
+    template-haskell,
     web-routes,
     web-routes-boomerang,
     web-routes-happstack

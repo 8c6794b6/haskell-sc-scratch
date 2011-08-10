@@ -116,7 +116,7 @@ hoge = out ("out"@@0) (pan2 sig ("pan"@@0) 1) where
   d0 = tRand '1' 1e-3 0.5 t
   d1 = tRand '2' 1e-3 0.5 t 
   d2 = tRand '3' 1e-3 0.5 t
-  t = coinGate 'c' ("prob"@@0.5) ("t_trig"@@100)
+  t = coinGate 'c' ("prob"@@0.5) ("t_trig"@@1)
   
 pippo :: UGen
 pippo = replaceOut ("out"@@0) sig where

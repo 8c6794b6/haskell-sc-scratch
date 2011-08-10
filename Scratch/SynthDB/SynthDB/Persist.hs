@@ -22,6 +22,8 @@ module SynthDB.Persist where
 import Control.Monad (forM)
 import Data.ByteString (ByteString)
 import Data.Char (toLower)
+import Data.Function (on)
+import Data.List (sortBy)
 import Data.Data (Data,Typeable)
 import System.Directory (getDirectoryContents)
 import System.FilePath ((</>), dropExtension)
@@ -40,13 +42,11 @@ import qualified Data.ByteString.Char8 as C8
 import qualified Data.Map as M
 
 {-
-
 TODO:
 
 * Specify query condition.
-* Score matches, and sort by score.
+* Calculate scores, sort by score.
 * Profile.
-
 -}
 
 ------------------------------------------------------------------------------
@@ -77,7 +77,7 @@ data PR = PR
   , prValue :: ParamValue
   } deriving (Eq,Show,Ord,Data,Typeable)
 
-newtype ParamName = ParamName ByteString
+newtype ParamName = ParamName {unParamName :: ByteString}
   deriving (Eq,Show,Ord,Data,Typeable)
 
 newtype ParamValue = ParamValue Double
@@ -89,10 +89,10 @@ data UR = UR
   , ugCount :: UGenCount
   } deriving (Eq,Show,Ord,Data,Typeable)
 
-newtype UGenName = UGenName ByteString
+newtype UGenName = UGenName {unUGenName :: ByteString}
   deriving (Eq,Show,Ord,Data,Typeable)
 
-newtype UGenCount = UGenCount Int
+newtype UGenCount = UGenCount {unUGenCount :: Int}
   deriving (Eq,Show,Ord,Data,Typeable)
 
 newtype SDB = SDB (IxSet SDR)
@@ -130,12 +130,16 @@ mkUR uss = M.foldrWithKey g [] $ foldr f M.empty uss where
   g (n,r) v acc = UR (UGenName n) r (UGenCount v):acc
   f us m = M.insertWith (+)
            (C8.pack $ map toLower $ mkUN (usName us) (usSpecial us), toR us) 1 m
-  mkUN n s
-    | n == "BinaryOpUGen" = binaryName (fromIntegral s)
-    | n == "UnaryOpUGen"  = unaryName (fromIntegral s)
-    | otherwise           = n
-  toR u = case usRate u of
-    0 -> IR; 1 -> KR; 2 -> AR; 3 -> DR; _ -> error $ show u
+
+mkUN :: Integral a => String -> a -> String
+mkUN n s
+  | n == "BinaryOpUGen" = binaryName (fromIntegral s)
+  | n == "UnaryOpUGen"  = unaryName (fromIntegral s)
+  | otherwise           = n
+
+toR :: UGenSpec -> Rate
+toR u = case usRate u of
+  0 -> IR; 1 -> KR; 2 -> AR; 3 -> DR; _ -> error $ show u
 
 mkPR :: [Double] -> [ParamPair] -> [PR]
 mkPR cs ps = map f ps where
@@ -219,17 +223,64 @@ getDef k = do
       _         -> error $ "Failed to parse synthdef: " ++ k
 
 ------------------------------------------------------------------------------
+-- For statistics
+
+data Stat = Stat
+ { numSynthDefs :: Int
+ , numUGens :: Int
+ , ugenCounts :: [(String,Int)]
+ , paramCounts :: [(String,Int)]
+ } deriving (Eq,Show,Data,Typeable)
+
+newtype StatDB = StatDB Stat
+   deriving (Show,Data,Typeable)
+
+$(deriveSafeCopy 0 'base ''Stat)
+$(deriveSafeCopy 0 'base ''StatDB)
+
+nullStat :: Stat
+nullStat = Stat 0 0 [] []
+
+saveStatDB :: Stat -> Update StatDB ()
+saveStatDB st = put (StatDB st)
+
+loadStatDB :: Query StatDB Stat
+loadStatDB = ask >>= \(StatDB st) -> return st
+
+$(makeAcidic ''StatDB ['saveStatDB, 'loadStatDB])
+
+getStat :: IO Stat
+getStat = do
+  db <- openAcidState (StatDB nullStat)
+  st <- query db LoadStatDB
+  closeAcidState db
+  return st
+
+mkStat :: IxSet SDR -> Stat
+mkStat ixs = Stat (size ixs) (M.fold (+) 0 umap) urs prs where
+  urs = sortBy (flip compare `on` snd) . M.toList $ umap
+  umap = foldr f M.empty $ concatMap sdrUGens $ toList ixs
+  f u m = M.insertWith (+) (C8.unpack $ unUGenName $ ugName u)
+          (unUGenCount $ ugCount u) m
+  prs = sortBy (flip compare `on` snd) . M.toList .
+        foldr g M.empty $ concatMap sdrParams $ toList ixs
+  g p m = M.insertWith (+) (C8.unpack $ unParamName $ prName p) 1 m
+
+------------------------------------------------------------------------------
 -- For command line interface.
 
 initDB :: IO ()
 initDB = do
   idb <- openAcidState (SDB empty)
   cdb <- openAcidState (ContentDB empty)
+  sdb <- openAcidState (StatDB nullStat)
   (ixs,cxs) <- initSDefs
   update idb (SaveSDB ixs)
   update cdb (SaveContentDB cxs)
+  update sdb (SaveStatDB $ mkStat ixs)
   closeAcidState idb
   closeAcidState cdb
+  closeAcidState sdb
 
 search :: String -> IO ()
 search str = mapM_ print . toList =<<
