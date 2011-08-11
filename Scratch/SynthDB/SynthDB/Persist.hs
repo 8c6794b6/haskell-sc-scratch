@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-|
@@ -45,7 +46,6 @@ import qualified Data.Map as M
 TODO:
 
 * Specify query condition.
-* Calculate scores, sort by score.
 * Profile.
 -}
 
@@ -54,12 +54,13 @@ TODO:
 
 data SDR = SDR
   { sdrName :: SDName
+  , sdrNumUGens :: Int
   , sdrParams :: [PR]
   , sdrUGens :: [UR]
   } deriving (Eq,Ord,Data,Typeable)
 
 instance Show SDR where
-  show (SDR (SDName n) _ _) = "SDR " ++ C8.unpack n
+  show (SDR (SDName n) _ _ _) = "SDR " ++ C8.unpack n
 
 instance Indexable SDR where
   empty = ixSet
@@ -93,7 +94,7 @@ newtype UGenName = UGenName {unUGenName :: ByteString}
   deriving (Eq,Show,Ord,Data,Typeable)
 
 newtype UGenCount = UGenCount {unUGenCount :: Int}
-  deriving (Eq,Show,Ord,Data,Typeable)
+  deriving (Eq,Show,Ord,Data,Typeable,Num,Integral,Real,Enum)
 
 newtype SDB = SDB (IxSet SDR)
   deriving (Show, Data, Typeable)
@@ -121,9 +122,10 @@ synthdefFileToSDef :: SynthDefFile -> [SDR]
 synthdefFileToSDef = map synthdefToSDef . sdDefs
 
 synthdefToSDef :: SynthDef -> SDR
-synthdefToSDef sd = SDR (SDName $ C8.pack $ sdName sd) prs ugs where
+synthdefToSDef sd = SDR (SDName $ C8.pack $ sdName sd) nug prs ugs where
   prs = mkPR (sdConstants sd) (sdParamNames sd)
   ugs = mkUR (sdUGenSpecs sd)
+  nug = unUGenCount $ foldr (\ug acc -> ugCount ug + acc) 0 ugs
 
 mkUR :: [UGenSpec] -> [UR]
 mkUR uss = M.foldrWithKey g [] $ foldr f M.empty uss where
@@ -160,6 +162,7 @@ withAllSynthDefs act = do
 initSDefs :: IO (IxSet SDR, IxSet SDC)
 initSDefs = do
   sds <- withAllSynthDefs $ \path sd contents -> do
+    putStrLn $ "Inserting " ++ path
     return (synthdefFileToSDef sd,
             SDC (SDCName $ C8.pack $ dropExtension path) contents)
   let (is,cs) = unzip sds
@@ -177,8 +180,16 @@ queryBy f = do
   return r
 
 queryUGs :: String -> IO [SDR]
-queryUGs q = return . toList =<<
+queryUGs q = return . sortBy (compare `on` scoreUG q) . toList =<<
   queryBy (@* (map UGenName . C8.words . C8.pack $ q))
+
+scoreUG :: String -> SDR -> Double
+scoreUG ns r = foldr f 0 (sdrUGens r) where
+  f ur acc | p ur      = acc + (nUG / fromIntegral (ugCount ur))
+           | otherwise = acc
+  p ur = unUGenName (ugName ur) `elem` uns
+  nUG = fromIntegral (sdrNumUGens r)
+  uns = C8.words $ C8.pack ns
 
 ------------------------------------------------------------------------------
 -- For storing bytestring synthdef contents.
@@ -283,8 +294,7 @@ initDB = do
   closeAcidState sdb
 
 search :: String -> IO ()
-search str = mapM_ print . toList =<<
-  queryBy (@* (map UGenName . C8.words . C8.pack $ str))
+search str = mapM_ print =<< queryUGs str
 
 dump :: String -> IO ()
 dump n = print . prettyDefFile =<< getDef n

@@ -28,11 +28,11 @@ main = do
   arg <- cmdArgs $ modes
     [ Init &=
       help "initialize database"
-    , Search {qs = def &= args &= typ "ugen names"} &=
+    , Search {qs = def &= args &= typ "UGEN NAMES"} &=
       help "search synthdef by ugen names"
-    , Dump {keyName = def &= args &= typ "synthdef name"} &=
+    , Dump {keyName = def &= args &= typ "SYNTHDEF NAME"} &=
       help "dump contents of specified synthdef"
-    , Serve {port = 8000 &= help "port number to serve"} &=
+    , Serve {port = 8000 &= help "PORT NUMBER"} &=
       help "start server for web ui" ]
   case arg of
     Init     -> initDB
