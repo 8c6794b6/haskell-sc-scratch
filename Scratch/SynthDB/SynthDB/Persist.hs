@@ -45,7 +45,7 @@ import qualified Data.Map as M
 {-
 TODO:
 
-* Specify query condition.
+* Add more query condition.
 * Profile.
 -}
 
@@ -96,9 +96,6 @@ newtype UGenName = UGenName {unUGenName :: ByteString}
 newtype UGenCount = UGenCount {unUGenCount :: Int}
   deriving (Eq,Show,Ord,Data,Typeable,Num,Integral,Real,Enum)
 
-newtype SDB = SDB (IxSet SDR)
-  deriving (Show, Data, Typeable)
-
 $(deriveSafeCopy 0 'base ''UGenName)
 $(deriveSafeCopy 0 'base ''Rate)
 $(deriveSafeCopy 0 'base ''UGenCount)
@@ -108,15 +105,6 @@ $(deriveSafeCopy 0 'base ''ParamValue)
 $(deriveSafeCopy 0 'base ''PR)
 $(deriveSafeCopy 0 'base ''SDName)
 $(deriveSafeCopy 0 'base ''SDR)
-$(deriveSafeCopy 0 'base ''SDB)
-
-saveSDB :: IxSet SDR -> Update SDB ()
-saveSDB ixs = put (SDB ixs)
-
-loadSDB :: Query SDB (IxSet SDR)
-loadSDB = ask >>= \(SDB ixs) -> return ixs
-
-$(makeAcidic ''SDB ['saveSDB, 'loadSDB])
 
 synthdefFileToSDef :: SynthDefFile -> [SDR]
 synthdefFileToSDef = map synthdefToSDef . sdDefs
@@ -159,38 +147,6 @@ withAllSynthDefs act = do
       Done _ sd -> act file sd contents
       _         -> error $ "Failed to parse: " ++ file
 
-initSDefs :: IO (IxSet SDR, IxSet SDC)
-initSDefs = do
-  sds <- withAllSynthDefs $ \path sd contents -> do
-    putStrLn $ "Inserting " ++ path
-    return (synthdefFileToSDef sd,
-            SDC (SDCName $ C8.pack $ dropExtension path) contents)
-  let (is,cs) = unzip sds
-      ixs = foldr insert empty $ concat is
-      cxs = foldr insert empty cs
-  return (ixs, cxs)
-
-queryBy :: (IxSet SDR -> IxSet SDR) -> IO (IxSet SDR)
-queryBy f = do
-  db <- openAcidState (SDB empty)
-  r <- do
-    ixs <- query db LoadSDB
-    return $ f ixs
-  closeAcidState db
-  return r
-
-queryUGs :: String -> IO [SDR]
-queryUGs q = return . sortBy (compare `on` scoreUG q) . toList =<<
-  queryBy (@* (map UGenName . C8.words . C8.pack $ q))
-
-scoreUG :: String -> SDR -> Double
-scoreUG ns r = foldr f 0 (sdrUGens r) where
-  f ur acc | p ur      = acc + (nUG / fromIntegral (ugCount ur))
-           | otherwise = acc
-  p ur = unUGenName (ugName ur) `elem` uns
-  nUG = fromIntegral (sdrNumUGens r)
-  uns = C8.words $ C8.pack ns
-
 ------------------------------------------------------------------------------
 -- For storing bytestring synthdef contents.
 
@@ -205,33 +161,8 @@ newtype SDCName = SDCName ByteString
 instance Indexable SDC where
   empty = ixSet [ixFun (return . sdcName)]
 
-newtype ContentDB = ContentDB (IxSet SDC)
-  deriving (Show,Data,Typeable)
-
 $(deriveSafeCopy 0 'base ''SDCName)
 $(deriveSafeCopy 0 'base ''SDC)
-$(deriveSafeCopy 0 'base ''ContentDB)
-
-saveContentDB :: IxSet SDC -> Update ContentDB ()
-saveContentDB ixs = put (ContentDB ixs)
-
-loadContentDB :: Query ContentDB (IxSet SDC)
-loadContentDB = ask >>= \(ContentDB ixs) -> return ixs
-
-$(makeAcidic ''ContentDB ['saveContentDB, 'loadContentDB])
-
-getDef :: String -> IO SynthDefFile
-getDef k = do
-  db <- openAcidState (ContentDB empty)
-  content <- do
-    cxs <- query db LoadContentDB
-    return $ cxs @= (SDCName (C8.pack k))
-  closeAcidState db
-  case getOne content of
-    Nothing  -> error $ "No such synthdef: " ++ k
-    Just sdc -> case parse synthDefFile $ sdcContents sdc of
-      Done _ sd -> return sd
-      _         -> error $ "Failed to parse synthdef: " ++ k
 
 ------------------------------------------------------------------------------
 -- For statistics
@@ -243,29 +174,13 @@ data Stat = Stat
  , paramCounts :: [(String,Int)]
  } deriving (Eq,Show,Data,Typeable)
 
-newtype StatDB = StatDB Stat
-   deriving (Show,Data,Typeable)
-
 $(deriveSafeCopy 0 'base ''Stat)
-$(deriveSafeCopy 0 'base ''StatDB)
 
 nullStat :: Stat
 nullStat = Stat 0 0 [] []
 
-saveStatDB :: Stat -> Update StatDB ()
-saveStatDB st = put (StatDB st)
-
-loadStatDB :: Query StatDB Stat
-loadStatDB = ask >>= \(StatDB st) -> return st
-
-$(makeAcidic ''StatDB ['saveStatDB, 'loadStatDB])
-
-getStat :: IO Stat
-getStat = do
-  db <- openAcidState (StatDB nullStat)
-  st <- query db LoadStatDB
-  closeAcidState db
-  return st
+getStat :: AcidDB -> Stat
+getStat = stat
 
 mkStat :: IxSet SDR -> Stat
 mkStat ixs = Stat (size ixs) (M.fold (+) 0 umap) urs prs where
@@ -278,23 +193,79 @@ mkStat ixs = Stat (size ixs) (M.fold (+) 0 umap) urs prs where
   g p m = M.insertWith (+) (C8.unpack $ unParamName $ prName p) 1 m
 
 ------------------------------------------------------------------------------
+-- Acid database
+
+data AcidDB = AcidDB
+  { keyIx :: IxSet SDR
+  , valueIx :: IxSet SDC
+  , stat :: Stat
+  } deriving (Eq,Show,Data,Typeable)
+
+$(deriveSafeCopy 0 'base ''AcidDB)
+
+loadDB :: Query AcidDB AcidDB
+loadDB = ask
+
+saveDB :: AcidDB -> Update AcidDB ()
+saveDB = put
+
+$(makeAcidic ''AcidDB ['saveDB, 'loadDB])
+
+getDB :: IO AcidDB
+getDB = do
+  acid <- openAcidState (AcidDB empty empty nullStat)
+  query acid LoadDB
+
+getDef :: AcidDB -> String -> SynthDefFile
+getDef db k =
+  case getOne $ valueIx db @= (SDCName (C8.pack k)) of
+    Nothing -> error $ "No such synthdef: " ++ k
+    Just sdc -> case parse synthDefFile $ sdcContents sdc of
+      Done _ sd -> sd
+      _         -> error $ "Failed to parse synthdef: " ++ k
+
+queryBy :: AcidDB -> (IxSet SDR -> IxSet SDR) -> (IxSet SDR)
+queryBy db f = f (keyIx db)
+
+queryUGs :: AcidDB -> String -> [SDR]
+queryUGs db q = sortBy (compare `on` scoreUG q) . toList $
+             queryBy db (@* (map UGenName . C8.words . C8.pack $ q))
+
+scoreUG :: String -> SDR -> Double
+scoreUG ns r = foldr f 0 (sdrUGens r) where
+  f ur acc | p ur      = acc + (nUG / fromIntegral (ugCount ur))
+           | otherwise = acc
+  p ur = unUGenName (ugName ur) `elem` uns
+  nUG = fromIntegral (sdrNumUGens r)
+  uns = C8.words $ C8.pack ns
+
+initSDefs :: IO (IxSet SDR, IxSet SDC)
+initSDefs = do
+  sds <- withAllSynthDefs $ \path sd contents -> do
+    putStrLn $ "Inserting " ++ path
+    return (synthdefFileToSDef sd,
+            SDC (SDCName $ C8.pack $ dropExtension path) contents)
+  let (is,cs) = unzip sds
+      ixs = foldr insert empty $ concat is
+      cxs = foldr insert empty cs
+  return (ixs, cxs)
+
+------------------------------------------------------------------------------
 -- For command line interface.
 
 initDB :: IO ()
 initDB = do
-  idb <- openAcidState (SDB empty)
-  cdb <- openAcidState (ContentDB empty)
-  sdb <- openAcidState (StatDB nullStat)
+  db <- openAcidState (AcidDB empty empty nullStat)
   (ixs,cxs) <- initSDefs
-  update idb (SaveSDB ixs)
-  update cdb (SaveContentDB cxs)
-  update sdb (SaveStatDB $ mkStat ixs)
-  closeAcidState idb
-  closeAcidState cdb
-  closeAcidState sdb
+  update db (SaveDB $ AcidDB ixs cxs (mkStat ixs))
+  closeAcidState db
 
 search :: String -> IO ()
-search str = mapM_ print =<< queryUGs str
+search str = do
+  db <- getDB
+  mapM_ print $ queryUGs db str
 
 dump :: String -> IO ()
-dump n = print . prettyDefFile =<< getDef n
+dump n = do
+  db <- getDB
+  print . prettyDefFile $ getDef db n

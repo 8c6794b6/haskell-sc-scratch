@@ -22,7 +22,6 @@ import Control.Category (Category(..))
 import Control.Monad (msum,forM_,zipWithM_)
 import Data.Monoid (mconcat)
 
-import Control.Monad.Trans (liftIO)
 import Happstack.Server hiding (body, method)
 import Sound.SC3.Lepton.Parser
 import Text.Blaze.Html5 hiding (map)
@@ -128,14 +127,16 @@ instance ToHtml Pandoc where
            writeHtmlString defaultWriterOptions {writerWrapText=False}
 
 serve :: Int -> IO ()
-serve pn = simpleHTTP nullConf {port=pn} $ msum
-  [ dir "favicon.ico" $ notFound (toResponse ())
-  , implSite ("http://localhost:" ++ show pn ++ "/") "" site
-  , seeOther "" (toResponse ())
-  ]
+serve pn = do
+  db <- getDB
+  simpleHTTP nullConf {port=pn} $ msum
+    [ dir "favicon.ico" $ notFound (toResponse ())
+    , implSite ("http://localhost:" ++ show pn ++ "/") "" (site db)
+    , seeOther "" (toResponse ())
+    ]
 
-site :: Site Sitemap (ServerPartT IO Response)
-site = setDefault SSearch $ boomerangSite (runRouteT route) urlmap
+site :: AcidDB -> Site Sitemap (ServerPartT IO Response)
+site db = setDefault SSearch $ boomerangSite (runRouteT $ route db) urlmap
 
 urlmap :: Router Sitemap
 urlmap =
@@ -145,11 +146,11 @@ urlmap =
   rSHelp . (lit "help") <>
   rSAbout . (lit "about")
 
-route :: Sitemap -> RouteT Sitemap (ServerPartT IO) Response
-route url = case url of
-  SSearch         -> listPage
-  SDetail defName -> detailPage defName
-  SStat           -> statPage
+route :: AcidDB -> Sitemap -> RouteT Sitemap (ServerPartT IO) Response
+route db url = case url of
+  SSearch         -> listPage db
+  SDetail defName -> detailPage db defName
+  SStat           -> statPage db
   SHelp           -> helpPage
   SAbout          -> aboutPage
 
@@ -169,8 +170,8 @@ headerHtml =
   headerTpl <$>
   showURL SSearch <*> showURL SStat <*> showURL SHelp <*> showURL SAbout
 
-listPage :: RouteT Sitemap (ServerPartT IO) Response
-listPage = do
+listPage :: AcidDB -> RouteT Sitemap (ServerPartT IO) Response
+listPage db = do
   qs <- getDataFn $ look "q"
   listURL <- showURL SSearch
   headerH <- headerHtml
@@ -185,7 +186,7 @@ listPage = do
             headerH
             div ! class_ (toValue "searchform") $ inputForm listURL ""
     Right qs' -> do
-      rs <- liftIO $ queryUGs qs'
+      let rs = queryUGs db qs'
       links <- mapM mkLink rs
       ok $ toResponse $ html $ do
         head $ do
@@ -216,9 +217,9 @@ listPage = do
       url <- showURL (SDetail sdn)
       return $ li $ a ! href (toValue url) $ toHtml sdn
 
-detailPage :: String -> RouteT Sitemap (ServerPartT IO) Response
-detailPage defName = do
-  sd <- liftIO $ getDef defName
+detailPage :: AcidDB -> String -> RouteT Sitemap (ServerPartT IO) Response
+detailPage db defName = do
+  let sd = getDef db defName
   headerH <- headerHtml
   ok $ toResponse $ html $ do
     head $ do
@@ -229,10 +230,10 @@ detailPage defName = do
         headerH
         toHtml sd
 
-statPage :: RouteT Sitemap (ServerPartT IO) Response
-statPage = do
+statPage :: AcidDB -> RouteT Sitemap (ServerPartT IO) Response
+statPage db = do
   headerH <- headerHtml
-  stat <- liftIO getStat
+  let st = getStat db
   ok $ toResponse $ html $ do
     head $ do
       title $ toHtml "synthdb - stat"
@@ -240,7 +241,7 @@ statPage = do
     body $ do
       div ! class_ (toValue "wrapper") $ do
         headerH
-        toHtml stat
+        toHtml st
 
 dumbPage :: String -> RouteT Sitemap (ServerPartT IO) Response
 dumbPage mkd = do
@@ -276,7 +277,7 @@ Initializing database
 
 To serve the site, initialize the database with:
 
-    $ synthdb initialize
+    $ synthdb init
 
 then from the same directory:
 
@@ -297,7 +298,7 @@ css :: Html
 css = toHtml
  "body { font-size: 15px; }\
 \ div.wrapper { padding: 20px; }\
-\ input { margin: 15px 5px 5px 0; border: 1px solid }\
+\ input { margin: 15px 5px 5px 0; border: 1px solid #868686; }\
 \ ul { padding-left: 5px; list-style: none; }\
 \ a { text-decoration: none; }\
 \ div.synthdeffile { margin-top: 15px; }\

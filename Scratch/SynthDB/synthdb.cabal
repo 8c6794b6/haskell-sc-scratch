@@ -8,11 +8,12 @@ build-type:     Simple
 license:        BSD3
 category:       Sound
 stability:      experimental
+license-file:   LICENSE
 description:
 
 flag debug
   description:
-    Enable debugging information
+    Enable debugging
   default:
     False
 
