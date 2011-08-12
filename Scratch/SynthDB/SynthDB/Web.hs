@@ -141,7 +141,7 @@ site db = setDefault SSearch $ boomerangSite (runRouteT $ route db) urlmap
 urlmap :: Router Sitemap
 urlmap =
   rSSearch <>
-  rSDetail . (lit "detail" </> rList anyChar) <>
+  rSDetail . (lit "synthdef" </> rList anyChar) <>
   rSStat . (lit "stats") <>
   rSHelp . (lit "help") <>
   rSAbout . (lit "about")

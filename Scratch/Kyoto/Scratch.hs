@@ -190,7 +190,7 @@ dumpSynthDef path defName = do
   kcwithdbopen path [] [KCOWRITER] $ \db -> do
     content <- kcdbget db (B.pack $ "def:" ++ defName)
     case parseSDF <$> content of
-      Just (Done _ def) -> print $ {-# SCC "prettyDefFile" #-} prettyDefFile def
+      Just (Done _ def) -> print $ {-# SCC "prettying" #-} prettyDefFile def
       _                 -> return ()
 
 -- | Make db record for ugen values from synthdefs.
@@ -251,7 +251,6 @@ hasSubstring sub = not . B.null . snd . B.breakSubstring sub
 
 isSubstringOf sub = not . B.null . snd . B.breakSubstring sub
 
--- search :: FilePath -> String -> IO [Match]
 search :: String -> FilePath -> IO [(ByteString, Double)]
 search qs path = do
   mv <- newMVar M.empty

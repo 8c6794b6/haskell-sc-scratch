@@ -46,15 +46,22 @@ import Data.SafeCopy
 import Happstack.Server hiding (body, method)
 import System.Console.CmdArgs hiding (name)
 import System.Directory.Tree (readDirectoryWith, AnchoredDirTree(..))
-import Text.Blaze.Html5 hiding (base,map)
+import Text.Blaze.Html5 hiding (base,map,summary)
 import Text.Blaze.Html5.Attributes hiding
-  (dir,id,title,form,style,span,size)
+  (dir,id,title,form,style,span,size,summary)
 import Text.HTML.TagSoup (Tag(..), (~==), innerText, parseTags, sections)
 
 import qualified Data.ByteString.Char8 as C8
 import qualified Data.Foldable as F
 import qualified Data.Map as M
 import qualified Text.Blaze.Html5.Attributes as A
+
+
+{-
+TODO:
+* Add grouping condition with 'OR' and 'AND'.
+* Profile
+-}
 
 ------------------------------------------------------------------------------
 -- Database
@@ -84,7 +91,7 @@ newtype DocDB = DocDB {docIx :: IxSet Document}
 instance Indexable Document where
   empty = ixSet
     [ixFun (return . docPath)
-    ,ixFun (map Word . mkChunks . unContents . docContents)]
+    ,ixFun (map Word . nub . mkChunks . unContents . docContents)]
 
 mkChunks :: ByteString -> [ByteString]
 mkChunks = C8.splitWith (`elem` " \t\n.,!?&()[]{}<>;/\"'")
@@ -239,8 +246,7 @@ main = do
       help "Index documentas under given path"
     , Serve { portNum = 8000 &= typ "PORT" &= help "Port number to serve"} &=
       help "Serve database with web ui" ]
+    &= summary "ixfts: simple text search indexer and server"
   case args of
     Index path e -> index path e
-    Serve p      -> do
-      db <- getDB
-      db `seq` serve p $! db
+    Serve p      -> getDB >>= \db -> db `seq` serve p $! db
