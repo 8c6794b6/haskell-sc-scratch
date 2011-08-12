@@ -35,18 +35,21 @@ import Control.Monad
 import Data.ByteString (ByteString)
 import Data.Char (toLower)
 import Data.Data (Data,Typeable)
-import Data.List hiding (head,insert)
+import Data.List hiding (head,insert,find)
 import Data.Function (on)
 import Data.Map (Map)
 
 import Control.Monad.State (put)
 import Control.Monad.Reader (ask)
 import Data.Acid
+import Data.Iteratee (Iteratee, Enumerator, run, stream2stream)
+import Data.Iteratee.IO (enumFile)
 import Data.IxSet
-import Data.SafeCopy
+import System.FilePath.Find
+import Data.SafeCopy hiding (extension)
 import Happstack.Server hiding (body, method)
 import System.Console.CmdArgs hiding (name)
-import System.Directory.Tree (readDirectoryWithL, AnchoredDirTree(..))
+import System.FilePath.Find
 import Text.Blaze.Html5 hiding (base,map,summary)
 import Text.Blaze.Html5.Attributes hiding
   (dir,id,title,form,style,span,size,summary)
@@ -56,7 +59,6 @@ import qualified Data.ByteString.Char8 as C8
 import qualified Data.Foldable as F
 import qualified Data.Map as M
 import qualified Text.Blaze.Html5.Attributes as A
-
 
 {-
 TODO:
@@ -124,32 +126,38 @@ index root ext = do
   db <- openAcidState (DocDB empty)
   let mkIx = case ext of
         Just e | "html" `isSuffixOf` e -> mkHtmlDocument
-               | otherwise             -> mkDocument (e `isSuffixOf`) C8.pack
-        Nothing -> mkDocument (const True) C8.pack
+               | otherwise             ->
+                 mkDocument (fileName ~~? ("*"++e)) C8.pack
+        Nothing -> mkDocument always C8.pack
   ixs <- mkIx root
+  putStrLn "Creating index .... "
   update db (SaveDoc ixs)
+  createCheckpointAndClose db
   putStrLn "Done."
 
-mkDocument :: (FilePath -> Bool) -> (String -> ByteString)
+mkDocument :: FilterPredicate -> (String -> ByteString)
            -> FilePath -> IO (IxSet Document)
-mkDocument p f root = do
-  _ :/ docs <- flip readDirectoryWithL root $ \path -> do
-    if p path then do
-      putStrLn $ "Including: " ++ path
-      bs <- f <$> readFile path
-      let dpth = DocPath path
-          dcon = Contents bs
-          wds  = mkChunks bs
-          dmap = foldr (\w m -> M.insertWith (+) w 1 m) M.empty wds
-      return $ Just $ Document dpth (length wds) dmap dcon
-    else
-      return Nothing
-  return $ F.foldr (maybe id (insert)) empty docs
+mkDocument cond f root = foldM go empty =<< find always cond root where
+  go acc fi = do
+    contents <- f <$> work fi
+    let dp = DocPath fi
+        dc = Contents contents
+        ws = mkChunks contents
+        dm = foldr (\w m -> M.insertWith (+) w 1 m) M.empty ws
+    return $ insert (Document dp (length ws) dm dc) acc
+
+work :: FilePath -> IO String
+work path = do
+  putStrLn $ "Reading: " ++ path
+  run =<< enumFile 8192 path stream2stream
+
+htmlBody :: String -> ByteString
+htmlBody =
+  C8.pack . innerText . join . sections (~== (TagOpen "body" [])) .
+  parseTags . map toLower
 
 mkHtmlDocument :: FilePath -> IO (IxSet Document)
-mkHtmlDocument = mkDocument (".html" `isSuffixOf`) $ \cs ->
-  C8.pack . innerText . join . sections (~== (TagOpen "body" [])) .
-  parseTags . map toLower $ cs
+mkHtmlDocument = mkDocument (extension ==? ".html") htmlBody
 
 ------------------------------------------------------------------------------
 -- Server
