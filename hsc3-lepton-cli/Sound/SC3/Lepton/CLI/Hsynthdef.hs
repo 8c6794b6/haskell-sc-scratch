@@ -23,6 +23,8 @@ import Sound.SC3
 import Sound.SC3.Lepton
 import System.Console.CmdArgs
 
+import qualified Data.Map as M
+
 {-|
 Read a haskell source code with UGen definitoin written, and write
 synthdef files.
@@ -43,7 +45,7 @@ Suppose that, contents of a file MyUGens.hs is shown as below:
 >   envGen kr t_trig amp 0 1 RemoveSynth (envPerc 5e-2 5e-2)
 
 This action will parse this file and write synthdef for ug001 and ug002.
-To write synthdef, explicitly put type UGen signature to the function.
+To write synthdef, explicitly put type signature to the function.
 
 -}
 main :: IO ()
@@ -85,23 +87,52 @@ work toWrite hp path = do
         writeSynthdef n ug
         putStrLn "done."
 
+-- | Parse and interpret the contents from haskell source file.
 parseContents :: FilePath -> Interpreter [(String,UGen)]
 parseContents path = do
   (modName, ugs) <- liftIO $ parseIt path
   loadModules [path]
   setTopLevelModules [modName]
   setImports ["Prelude","Sound.SC3","Sound.SC3.UGen","Sound.SC3.Lepton"]
-  forM ugs $ \n -> interpret n (as :: UGen) >>= \u -> return (n,u)
+  forM (M.toList ugs) $ \(n,ps) -> do
+    let ugString = intercalate " " (n : map (\p -> "(\""++p++"\"@@0)") ps)
+    u <- interpret ugString (as :: UGen)
+    return (n,u)
 
-parseIt :: FilePath -> IO (String,[String])
+-- | Parse contents of given haskell source, and extract function
+-- names and its arguments
+--
+-- When function name contains \', it will be ignored.
+--
+parseIt :: FilePath
+  -- ^ Path to haskell source code.
+  -> IO (String,Map String [String])
+  -- ^ Pair of module name and map containing function name and its arguments.
 parseIt path = do
   mdl <- parseModule `fmap` readFile path
   case mdl of
     ParseFailed loc err -> print loc >> error err
     ParseOk mdl'@(HsModule _ (Module moduleName) _ _ _) -> do
-      let p (HsTypeSig _ _
-             (HsQualType _ (HsTyCon (UnQual (HsIdent "UGen"))))) = True
-          p _                                                    = False
+      let p (HsTypeSig _ _ (HsQualType _ t)) = canWriteDef t
+          p _                 = False
           f (HsTypeSig _ (HsIdent n:_) _) = n
-          f _ = ""
-      return (moduleName, [f e | e <- universeBi mdl', p e])
+          g (HsMatch _ (HsIdent fname) ps _ _) = (fname, params) where
+                params = [h e | e <- universeBi ps]
+                h (HsIdent n) = trim n
+                q (HsPVar _) = True
+                q _ = False
+          trim = filter (`notElem` "'")
+          ugNames = [f e | e <- universeBi mdl', p e]
+          params = [g e | e <- universeBi mdl']
+          tm = M.fromList $ zip ugNames $ repeat []
+          pm = M.fromList $ params
+      return (moduleName,
+              M.filterWithKey (\k _ -> M.member k tm) $ M.union pm tm)
+
+-- | Determine whether the type could be written as synthdef or not.
+-- When a function has its type signature 'UGen', or a function with
+-- all of its argument having 'UGen', then return True.
+canWriteDef :: HsType -> Bool
+canWriteDef (HsTyCon (UnQual (HsIdent "UGen")))             = True
+canWriteDef (HsTyFun (HsTyCon (UnQual (HsIdent "UGen"))) t) = canWriteDef t
+canWriteDef _                                               = False

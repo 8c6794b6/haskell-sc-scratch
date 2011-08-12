@@ -11,10 +11,10 @@ Maintainer  : 8c6794b6@gmail.com
 Stability   : unstable
 Portability : non-portable
 
-Simple adhoc ixset searching web ui with indexer. Document database
+Simple adhoc ixset search indexer and web ui. Document database
 contains word chunks of given file, separating the contents with
-space.  May not so much useful with documents that not using space as
-separator.
+spaces and couple punctuation characters.  May not so much useful with
+documents that not using space as separator.
 
 Since the server is loading the whole set of indice, the first query
 after running the server will be slow. From the second query, it will
@@ -30,6 +30,7 @@ import Prelude hiding ((.),id,div,head)
 
 import Control.Applicative (Applicative(..), (<$>))
 import Control.Category
+import Control.Concurrent
 import Control.Monad
 import Data.ByteString (ByteString)
 import Data.Char (toLower)
@@ -45,7 +46,7 @@ import Data.IxSet
 import Data.SafeCopy
 import Happstack.Server hiding (body, method)
 import System.Console.CmdArgs hiding (name)
-import System.Directory.Tree (readDirectoryWith, AnchoredDirTree(..))
+import System.Directory.Tree (readDirectoryWithL, AnchoredDirTree(..))
 import Text.Blaze.Html5 hiding (base,map,summary)
 import Text.Blaze.Html5.Attributes hiding
   (dir,id,title,form,style,span,size,summary)
@@ -132,18 +133,17 @@ index root ext = do
 mkDocument :: (FilePath -> Bool) -> (String -> ByteString)
            -> FilePath -> IO (IxSet Document)
 mkDocument p f root = do
-  _ :/ docs <- flip readDirectoryWith root $ \path -> do
+  _ :/ docs <- flip readDirectoryWithL root $ \path -> do
     if p path then do
       putStrLn $ "Including: " ++ path
       bs <- f <$> readFile path
       let dpth = DocPath path
           dcon = Contents bs
-          wds = mkChunks bs
+          wds  = mkChunks bs
           dmap = foldr (\w m -> M.insertWith (+) w 1 m) M.empty wds
       return $ Just $ Document dpth (length wds) dmap dcon
     else
       return Nothing
-  putStrLn "Working .... "
   return $ F.foldr (maybe id (insert)) empty docs
 
 mkHtmlDocument :: FilePath -> IO (IxSet Document)

@@ -23,7 +23,7 @@ n0 =
   [g 1
    [g 10 -- master control
     [s 1001 "b002met"
-     ["bpm":=280,"outt":=100,"outb":=101]
+     ["bpm":=295,"outt":=100,"outb":=101]
     ]
    ,g 20 -- controls
     [s 2001 "quickNoiseC"
@@ -55,7 +55,7 @@ n0 =
     [s 5001 "b002mix2" -- quickNoise
      ["out":=0,"a_inl":<=20, "a_inr":<=21,"amp":=2.0 {- 0 -}]
     ,s 5002 "b002mix2" -- bosc
-     ["out":=0,"a_inl":<=22, "a_inr":<=23,"amp":=0.3 {- 0 -}]
+     ["out":=0,"a_inl":<=22, "a_inr":<=23,"amp":=0.4 {- 0 -}]
     ,s 5003 "b002mix1" -- slowNoise
      ["out":=0,"a_in":<=24,"amp":=1.8,"pan":=(-0.1)]
     ,s 5004 "b002mix1" -- hat1
