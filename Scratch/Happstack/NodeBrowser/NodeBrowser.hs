@@ -16,7 +16,8 @@ module NodeBrowser where
 import Prelude hiding (head,div,span)
 
 import Control.Concurrent
-import Control.Monad (forever,msum)
+import Control.Monad (forever,msum,when)
+import Data.Monoid (mconcat)
 import Data.Time.LocalTime
 
 import Control.Monad.Trans (liftIO)
@@ -25,43 +26,58 @@ import Sound.OpenSoundControl
 import Sound.SC3
 import Sound.SC3.Lepton
 import Text.Blaze.Html5 hiding (base,map,summary)
-import Text.Blaze.Html5.Attributes hiding 
-  (dir,id,title,form,style,span,size,summary)
-  
-instance ToHtml SCNode where  
+import Text.Blaze.Html5.Attributes hiding
+  (dir,id,title,form,style,span,summary)
+
+import qualified Text.Blaze.Html5.Attributes as A
+
+instance ToHtml SCNode where
   toHtml (Group gid ns) = do
-    div ! class_ (toValue "group_node") $ do
-      div ! class_ (toValue "group_id") $ do 
-        span ! class_ (toValue "synth_free") $ do
-          a ! href (toValue $ "/n_free/" ++ show gid) $ toHtml " x "
-        span ! class_ (toValue "group_id_num") $ toHtml $ show gid 
-        span ! class_ (toValue "group_id_symbol") $ toHtml " group"
-      div ! class_ (toValue "group_children") $ do 
-        mapM_ toHtml ns
-        
+    div ! 
+      class_ (toValue "group_node") ! 
+      A.id (toValue $ "node_" ++ show gid) $ do
+        div ! class_ (toValue "group_id") $ do
+          span ! class_ (toValue "group_id_num") $ toHtml $ show gid
+          span ! class_ (toValue "group_id_symbol") $ toHtml " group"
+          when (gid /= 0) $ do 
+            span ! class_ (toValue "synth_free") $ do
+              button ! onclick (toValue $ "n_free(" ++ show gid ++ ")") $ 
+                toHtml "free"
+        div ! class_ (toValue "group_children") $ do
+          mapM_ toHtml ns
   toHtml (Synth nid defn ps) = do
-    div ! class_ (toValue "synth_node") $ do
-      div ! class_ (toValue "synth_id") $ do 
-        span ! class_ (toValue "synth_free") $ do
-          a ! href (toValue $ "/n_free/" ++ show nid) $ toHtml " x "
+    div 
+      ! class_ (toValue "synth_node") 
+      ! A.id (toValue $ "node_" ++ show nid) $ do
+      div ! class_ (toValue "synth_id") $ do
         span ! class_ (toValue "synth_id_num") $ toHtml $ show nid
-        span ! class_ (toValue "synth_id_name") $ do 
-          -- XXX: Where to get this link?
+        span ! class_ (toValue "synth_id_name") $ do
+          -- XXX: get this link from command line arg.
           a ! href (toValue $ "http://localhost:8002/synthdef/" ++ defn) $ do
             toHtml defn
+        span ! class_ (toValue "synth_free") $ do
+          button ! onclick (toValue $ "n_free(" ++ show nid ++ ")") $ 
+            toHtml "free"
       div ! class_ (toValue "synth_params") $ do
         mapM_ toHtml ps
 
 instance ToHtml SynthParam where
-  toHtml (n:=v) = do 
+  toHtml (n:=v) = do
     span ! class_ (toValue "param_value") $ do
       span ! class_ (toValue "param_name") $ toHtml (n ++ ":")
-      span ! class_ (toValue "param_value_num") $ toHtml $ show v
-  toHtml (n:<-v) = do 
+      span !
+        class_ (toValue "param_value_num") $ do
+          input ! 
+            type_ (toValue "text") !
+            A.name (toValue n) !
+            value (toValue $ show v) !
+            size (toValue "5") !
+            onchange (toValue "n_set(this)")
+  toHtml (n:<-v) = do
     span ! class_ (toValue "param_control_bus") $ do
       span ! class_ (toValue "param_name") $ toHtml (n ++ ":")
       span ! class_ (toValue "param_control_bus_num") $ toHtml ('c':show v)
-  toHtml (n:<=v) = do 
+  toHtml (n:<=v) = do
     span ! class_ (toValue "param_audio_bus") $ do
       span ! class_ (toValue "param_name") $ toHtml (n ++ ":")
       span ! class_ (toValue "param_audio_bus_num") $ toHtml ('a':show v)
@@ -88,51 +104,76 @@ nodeWatcher mv fd = do
 serve :: MVar SCNode -> IO ()
 serve mv = simpleHTTP nullConf $ msum
   [ dir "favicon.ico" $ notFound $ toResponse ()
-  , dir "n_set" $ path $ \nid -> nSet (read nid)
+  , dir "n_set" $ path $ \nid -> nSet mv (read nid)
   , dir "n_free" $ path $ \nid -> nFree mv (read nid)
-  , showTree mv ]
-  
-showTree :: MVar SCNode -> ServerPartT IO Response  
-showTree mv = do 
-  tree <- liftIO $ readMVar mv
-  ok $ toResponse $ html $ do
-    head $ do
-      title $ toHtml "showTree"
-      css 
-    body $ do
-      div $ toHtml tree
+  , dir "echo" echo
+  , dir "js" $ serveDirectory EnableBrowsing [] "js"    
+  , dir "css" $ serveDirectory EnableBrowsing [] "css"
+  , showTree mv  
+  ]
 
-nSet :: Int -> ServerPartT IO Response
-nSet nid = do
+showTree :: MVar SCNode -> ServerPartT IO Response
+showTree mv = do
+  tree <- liftIO $ readMVar mv
+  ok $ toResponse $ do 
+    preEscapedString "<!doctype html>" 
+    html $ do
+      head $ do
+        title $ toHtml "showTree"
+        meta !
+          httpEquiv (toValue "Content-type") !
+          content (toValue "text/html;charset=UTF-8")
+        css
+        js
+      body $ do
+        div ! class_ (toValue "root") $ toHtml tree
+
+nSet :: MVar SCNode -> Int -> ServerPartT IO Response
+nSet mv nid = do
   rq <- askRq
-  ok $ toResponse $ html $ do
-    div $ toHtml $ unwords ["n_set", show nid] 
-    div $ toHtml $ "rqQuery = " ++ rqQuery rq
-    div $ toHtml $ "rqInputsQuery = " ++ show (rqInputsQuery rq)
-    
-nFree :: MVar SCNode -> Int -> ServerPartT IO Response    
+  let paramStrings = mkParam $ rqQuery rq
+      paramValues = map (\(a,b) -> (a,read b)) paramStrings
+      msg = n_set nid paramValues
+  liftIO $ withSC3 $ \fd -> do
+    send fd msg
+    modifyMVar_ mv (const $ getRootNode fd)
+  ok $ toResponse $ show msg
+
+echo :: ServerPartT IO Response
+echo = do
+  rq <- askRq
+  liftIO $ print rq
+  ok $ toResponse $ show rq
+
+mkParam :: String -> [(String,String)]
+mkParam qs | null qs = []
+           | otherwise = go '&' [] (tail qs)
+  where
+    go c acc [] = acc
+    go c acc xs | null ys = y:acc | otherwise = y:go c acc (tail ys)
+      where (y',ys) = break (== c) xs
+            y | null zs = (z,[]) | otherwise = (z,tail zs)
+            (z,zs) = break (== '=') y'
+
+nFree :: MVar SCNode -> Int -> ServerPartT IO Response
 nFree mv nid = do
-  liftIO $ withSC3 $ \fd -> do 
+  liftIO $ withSC3 $ \fd -> do
     send fd $ n_free [nid]
     modifyMVar_ mv (const $ getRootNode fd)
   showTree mv
-      
-css :: Html      
-css = style ! type_ (toValue "text/css") $ toHtml
- "body { font-size: 14px; } \
-\a { text-decoration: none; color: #3344FF;} \
-\a:visited { color: #3344FF; } \
-\a:hover { text-decoration: underline; } \
-\div.group_node { margin-left: 20px; padding: 3px; } \
-\div.group_id { } \
-\span.group_id_num { color: #FA0300; } \
-\span.group_id_symbol { } \
-\div.group_children { } \
-\div.synth_node { margin-left: 20px; padding: 2px; } \
-\div.synth_id { } \
-\span.synth_id_num { color: #129A13; } \
-\span.synth_id_name { padding-left: 5px; } \
-\div.synth_params { margin-left: 20px; border-left: solid 2px #9A9A9A; } \
-\span.param_value { padding-left: 10px; } \
-\span.param_control_bus { padding-left: 10px; } \
-\span.param_audio_bus { padding-left: 10px; }"
+
+css :: Html
+css = 
+  link !
+  rel (toValue "stylesheet") ! 
+  type_ (toValue "text/css") ! 
+  href (toValue "css/style.css")
+
+js :: Html
+js = do
+  script !
+    type_ (toValue "text/javascript") !
+    src (toValue "js/jquery-1.6.2.min.js") $ return ()
+  script !
+    type_ (toValue "text/javascript") !
+    src (toValue "js/nb.js") $ return ()
