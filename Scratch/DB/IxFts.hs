@@ -1,5 +1,4 @@
 {-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
 {-|
@@ -31,13 +30,15 @@ import Prelude hiding ((.),id,div,head)
 import Control.Applicative (Applicative(..), (<$>))
 import Control.Category
 import Control.Concurrent
+import Control.Parallel
 import Control.Monad
 import Data.ByteString (ByteString)
 import Data.Char (toLower)
 import Data.Data (Data,Typeable)
 import Data.List hiding (head,insert,find)
-import Data.Function (on)
 import Data.Map (Map)
+import Data.Ord
+import System.FilePath
 
 import Control.Monad.State (put)
 import Control.Monad.Reader (ask)
@@ -45,9 +46,8 @@ import Data.Acid
 import Data.Iteratee (Iteratee, Enumerator, run, stream2stream)
 import Data.Iteratee.IO (enumFile)
 import Data.IxSet
-import System.FilePath.Find
 import Data.SafeCopy hiding (extension)
-import Happstack.Server hiding (body, method)
+import Happstack.Server hiding (body, method, port)
 import System.Console.CmdArgs hiding (name)
 import System.FilePath.Find
 import Text.Blaze.Html5 hiding (base,map,summary)
@@ -58,6 +58,7 @@ import Text.HTML.TagSoup (Tag(..), (~==), innerText, parseTags, sections)
 import qualified Data.ByteString.Char8 as C8
 import qualified Data.Foldable as F
 import qualified Data.Map as M
+import qualified Happstack.Server as H
 import qualified Text.Blaze.Html5.Attributes as A
 
 {-
@@ -113,26 +114,26 @@ loadDoc = ask
 
 $(makeAcidic ''DocDB ['saveDoc, 'loadDoc])
 
-getDB :: IO DocDB
-getDB = do
-  db <- openAcidState (DocDB empty)
+getDB :: FilePath -> IO DocDB
+getDB path = do
+  db <- openAcidStateFrom path (DocDB empty)
   query db LoadDoc
 
 ------------------------------------------------------------------------------
 -- Indexer
 
-index :: FilePath -> Maybe String -> IO ()
-index root ext = do
-  db <- openAcidState (DocDB empty)
+index :: FilePath -> Maybe String -> FilePath -> IO ()
+index root ext out = do
+  db <- openAcidStateFrom out (DocDB empty)
   let mkIx = case ext of
         Just e | "html" `isSuffixOf` e -> mkHtmlDocument
                | otherwise             ->
-                 mkDocument (fileName ~~? ("*"++e)) C8.pack
+                 mkDocument (fileName ~~? ('*':e)) C8.pack
         Nothing -> mkDocument always C8.pack
   ixs <- mkIx root
   putStrLn "Creating index .... "
   update db (SaveDoc ixs)
-  createCheckpointAndClose db
+  closeAcidState db
   putStrLn "Done."
 
 mkDocument :: FilterPredicate -> (String -> ByteString)
@@ -140,11 +141,12 @@ mkDocument :: FilterPredicate -> (String -> ByteString)
 mkDocument cond f root = foldM go empty =<< find always cond root where
   go acc fi = do
     contents <- f <$> work fi
-    let dp = DocPath fi
+    let dp = DocPath ("static" </> drop (length root) fi)
         dc = Contents contents
         ws = mkChunks contents
         dm = foldr (\w m -> M.insertWith (+) w 1 m) M.empty ws
-    return $ insert (Document dp (length ws) dm dc) acc
+        doc = Document dp (length ws) dm dc
+    return $! doc `par` (acc `pseq` insert doc acc)
 
 work :: FilePath -> IO String
 work path = do
@@ -153,7 +155,7 @@ work path = do
 
 htmlBody :: String -> ByteString
 htmlBody =
-  C8.pack . innerText . join . sections (~== (TagOpen "body" [])) .
+  C8.pack . innerText . join . sections (~== TagOpen "body" []) .
   parseTags . map toLower
 
 mkHtmlDocument :: FilePath -> IO (IxSet Document)
@@ -162,12 +164,12 @@ mkHtmlDocument = mkDocument (extension ==? ".html") htmlBody
 ------------------------------------------------------------------------------
 -- Server
 
-serve :: Int -> DocDB -> IO ()
-serve p db = do
+serve :: Int -> FilePath -> DocDB -> IO ()
+serve p stt db = do
   putStrLn $ "Starting server with port: " ++ show p
-  simpleHTTP nullConf {port=p} $ msum
+  simpleHTTP nullConf {H.port=p} $ msum
     [ dir "favicon.ico" $ notFound $ toResponse ()
-    , dir "static" $ serveDirectory EnableBrowsing [] "./static"
+    , dir "static" $ serveDirectory EnableBrowsing [] stt
     , searchPage db
     , seeOther "" $ toResponse () ]
 
@@ -175,7 +177,7 @@ searchPage :: DocDB -> ServerPartT IO Response
 searchPage db = do
   qs <- getDataFn $ look "q"
   case qs of
-    Left _ -> do
+    Left _ ->
       ok $ toResponse $ html $ do
         head $ do
           title $ toHtml "ixset search"
@@ -195,7 +197,7 @@ searchPage db = do
             div ! class_ (toValue "summary") $ toHtml $
               "search result for: \"" ++ qs' ++ "\", " ++
               "hit: " ++ show (size res) ++ ""
-            ul $ mapM_ mkLink (sortBy (compare `on` score qs') $ toList res)
+            ul $ mapM_ mkLink $ sortBy (comparing $ score qs') $ toList res
 
 score :: String -> Document -> Double
 score ws doc = foldr f 0 (C8.words $ C8.pack ws) where
@@ -204,10 +206,12 @@ score ws doc = foldr f 0 (C8.words $ C8.pack ws) where
   total = fromIntegral $ docWordCount doc
 
 mkLink :: Document -> Html
-mkLink doc = do
-  let path = unDocPath $ docPath doc
-  li $ a ! href (toValue path) $ do
-    toHtml $ dropWhile (/= '/') path
+mkLink doc =
+  li $ do
+    a ! href (toValue path) $ do
+      toHtml $ dropWhile (/= '/') path
+  where
+    path = unDocPath $ docPath doc
 
 inputForm :: String -> Html
 inputForm val =
@@ -240,21 +244,37 @@ css = style ! type_ (toValue "text/css") $ toHtml
 -- CLI
 
 data IxFts
-  = Index {docs :: FilePath, ext :: Maybe String}
-  | Serve {portNum :: Int}
+  = Index { doc :: FilePath
+          , ext :: Maybe String
+          , out :: String }
+  | Serve { port :: Int
+          , db :: String
+          , static :: FilePath }
     deriving (Eq,Show,Data,Typeable)
+
+commands :: IxFts
+commands = modes
+  [ Index
+      { doc = def &= typDir &=
+            help "Path to directory containing target documents"
+      , ext = def &= typ "EXTENSION" &=
+              help "File extension to read"
+      , out = "state" &= typDir &=
+              help "Path to output index directory (default:state)"
+      } &= help "Index documents under given path"
+  , Serve
+      { port = 8000 &= typ "PORT" &=
+           help "Port number to serve (default:8000)"
+      , db = "state" &= typDir &=
+           help "Path to index database (default:state)"
+      , static = "static" &= typDir &=
+                 help "Path to static contents directory (default:static)"
+      } &= help "Start HTTP server"
+  ] &= summary "ixfts: simple text search indexer and server"
 
 main :: IO ()
 main = do
-  args <- cmdArgs $ modes
-    [ Index { docs = def &= typ "PATH" &=
-                     help "Path to directory containing target documents"
-            , ext = def &= typ "EXTENSION" &=
-                    help "File extension to read" } &=
-      help "Index documentas under given path"
-    , Serve { portNum = 8000 &= typ "PORT" &= help "Port number to serve"} &=
-      help "Serve database with web ui" ]
-    &= summary "ixfts: simple text search indexer and server"
+  args <- cmdArgs commands
   case args of
-    Index path e -> index path e
-    Serve p      -> getDB >>= \db -> db `seq` serve p $! db
+    Index i e o -> index i e o
+    Serve p d s -> getDB d >>= \db -> db `seq` serve p s $! db
