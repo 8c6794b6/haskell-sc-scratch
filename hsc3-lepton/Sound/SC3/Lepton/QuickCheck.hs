@@ -13,8 +13,6 @@ module Sound.SC3.Lepton.QuickCheck () where
 
 import Control.Applicative ((<$>), (<*>))
 import Test.QuickCheck
---   (Arbitrary(..), Gen, choose, vectorOf, oneof, listOf1, elements, sized)
--- import qualified Test.QuickCheck as Q
 
 import Sound.OpenSoundControl
 import Sound.SC3
@@ -33,7 +31,7 @@ instance Arbitrary SCNode where
 instance Arbitrary SynthParam where
   arbitrary = oneof
     [(:=)  <$> nameChars <*> arbitrary
-    ,(:<-) <$> nameChars <*> arbitrary
+    ,(:<-) <$> nameChars <*> (arbitrary `suchThat` (> 0))
     ,(:<=) <$> nameChars <*> arbitrary]
 
 instance Arbitrary Datum where
@@ -66,15 +64,18 @@ instance Arbitrary EnvCurve where
     ,(EnvNum . constant) <$> (arbitrary::Gen Double)]
 
 instance CoArbitrary SynthParam where
-  coarbitrary (n:=v) =  variant 0 . coarbitrary n . coarbitrary v
-  coarbitrary (n:<-v) = variant 0 . coarbitrary n . coarbitrary v
-  coarbitrary (n:<=v) = variant 0 . coarbitrary n . coarbitrary v
+  coarbitrary (n:=v) = caSynthParam 0 n v
+  coarbitrary (n:<-v) = caSynthParam 1 n v
+  coarbitrary (n:<=v) = caSynthParam 2 n v
+
+caSynthParam :: (CoArbitrary a1, CoArbitrary a2) => Int-> a1 -> a2 -> Gen a -> Gen a
+caSynthParam i n v = variant i . coarbitrary n . coarbitrary v
 
 instance CoArbitrary SCNode where
   coarbitrary (Synth i n ps) =
-    variant 0 . coarbitrary i . coarbitrary n . coarbitrary ps
+    variant (0::Int) . coarbitrary i . coarbitrary n . coarbitrary ps
   coarbitrary (Group i ns) =
-    variant 1 . coarbitrary i . coarbitrary ns
+    variant (1::Int) . coarbitrary i . coarbitrary ns
 
 nameChars :: Gen String
 nameChars = listOf1 (elements $ ['A' .. 'Z'] ++ ['a'..'z'] ++ "_.")
@@ -87,17 +88,17 @@ instance Arbitrary SCPath where
 
 instance CoArbitrary SCPath where
   coarbitrary (SCPath n ls rs) =
-    variant 2 . coarbitrary n . coarbitrary ls . coarbitrary rs
+    variant (2::Int) . coarbitrary n . coarbitrary ls . coarbitrary rs
 
 instance CoArbitrary SCZipper where
   coarbitrary (SCZipper n ps) =
-    variant 3 . coarbitrary n . coarbitrary ps
+    variant (3::Int) . coarbitrary n . coarbitrary ps
 
 instance Arbitrary Step where
   arbitrary = oneof [return GoUp, return GoTop, GoDown <$> arbitrary]
 
 instance CoArbitrary Step where
   coarbitrary s = case s of
-    GoUp     -> variant 0
-    GoTop    -> variant 1
-    GoDown n -> variant 2 . coarbitrary n
+    GoUp     -> variant (0::Int)
+    GoTop    -> variant (1::Int)
+    GoDown n -> variant (2::Int) . coarbitrary n

@@ -34,7 +34,6 @@ import Data.Generics.Uniplate.Data
 
 import Sound.SC3
 import Sound.SC3.Lepton.Tree.Tree
-import Sound.SC3.Lepton.Query
 
 -- | Track current position and data to reconstruct the entire tree
 data SCZipper = SCZipper {

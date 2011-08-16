@@ -16,7 +16,7 @@ module Sound.SC3.Lepton.Scratch where
 import Control.Arrow (second)
 import Control.Concurrent (forkIO, threadDelay)
 import Control.Monad (zipWithM_)
-import System.Random (newStdGen, randomRs)
+import System.Random (StdGen, newStdGen, randomRs)
 import Data.Map ((!))
 import Data.Traversable (sequenceA)
 import qualified Data.Map as M
@@ -346,3 +346,130 @@ pBuzz =
     cm = [55, 67,72,75,79,84,87]
     fm = [60, 68,72,77,80,84,89]
     g7 = [50, 67,71,74,77,79,83]
+
+lam1 :: ((R a1 -> [a1]) -> [a]) -> R a
+lam1 f = R $ \g -> f (`unR` g)
+
+lam2 f = R $ \g -> unR (f (`unR` g)) g
+
+fooP :: (R a -> R b)
+fooP = undefined
+
+foo' :: (StdGen -> [a]) -> StdGen -> [b]
+foo' = unR . fooP . R
+
+foo'' f = unR . f . R
+
+-- bar :: (R a -> R b) -> (StdGen -> [a]) -> StdGen -> [b]
+-- bar f = unR . f . R
+
+bar' :: (R a -> R b) -> (StdGen -> [a]) -> R b
+bar' f = R . unR . f . R
+
+bar'' f = show . f . length
+
+-- buzz g f = let h = (bar foo f g) in h
+
+-- instance Plam V where
+-- vlam f = V $ "plam " ++ unV (f (V ""))
+
+class Ps p where
+  ps :: (Show a, Show b, Show c) => p (a->b->c) -> p (a->b) -> p a -> p c
+
+class Pk p where
+  pk :: (Show b) => p a -> p b -> p a
+
+instance Pk R where
+  pk (R a) (R b) = R $ \g -> a g
+
+instance Ps R where
+  ps (R px) (R py) (R pz) = R $ \g -> f (px g) (py g) (pz g)
+    where
+      f :: [a -> b -> c] -> [a -> b] -> [a] -> [c]
+      f (x:xs) (y:ys) (z:zs) = x z (y z) : f xs ys zs
+      f _ _ _ = []
+
+instance Pk S where
+  pk a b = S $ const $ "pk (" ++ showP a ++ ") (" ++ showP b ++ ")"
+
+
+
+------------------------------------------------------------------------------
+-- Simpler implementation for string representation of patterns.
+-- String representation of pattern /might/ take argument for showing variable.
+-- This implementation does not take argument.
+--
+-- Though still not sure /plam/ and /papp/ class would be made or not.
+-- When I hit an idea for implementing R of lam and app, may remove this.
+--
+newtype V s = V {unV :: (Show s) => String}
+
+viewP :: (Show a) => V a -> String
+viewP = unV
+
+instance (Show a) => Show (V a) where
+  show (V a) = a
+
+instance (Show a, Eq a) => Eq (V a) where
+  V a == V b = a == b
+
+instance Typeable1 V where
+  typeOf1 _ = mkTyConApp (mkTyCon "Sound.SC3.Lepton.Pattern.V") []
+
+instance (Num a) => Num (V a) where
+  V a + V b = V $ a ++ "+" ++ b
+  V a * V b = V $ a ++ "*" ++ b
+  abs (V v) = V $ "abs (" ++ v ++ ")"
+  negate (V n) = V $ "negate (" ++ n ++ ")"
+  signum (V n) = V $ "signum (" ++ n ++ ")"
+  fromInteger n = V $ "pval " ++ show n
+
+instance (Fractional a) => Fractional (V a) where
+  V a / V b = V $ a ++ " / " ++ b
+  fromRational n = V $ "pval " ++ show (fromRational n :: Double)
+
+instance (Show a, Enum a) => Enum (V a) where
+  pred (V n) = V $ "pred (" ++ n ++ ")"
+  succ (V n) = V $ "succ (" ++ n ++ ")"
+  fromEnum (V _) = undefined
+  toEnum n = V $ "pval " ++ show n
+
+--
+-- Instance definitions for expressions
+--
+
+instance Pval V where
+  pval x = V $ "pval " ++ show x
+
+instance Pempty V where
+  pempty = V "pempty"
+
+instance Plist V where
+  plist xs = V $ "plist " ++ showList xs ""
+
+instance Pseq V where
+  pseq (V n) ps = V $ "pseq (" ++ n ++ ") " ++ showList ps ""
+
+instance Prand V where
+  prand (V n) ps = V $ "prand (" ++ n ++ ") " ++ showList ps ""
+
+instance Prandom V where
+  prandom = V "prandom"
+
+instance Pshuffle V where
+  pshuffle ps = V $ "pshuffle " ++ showList ps ""
+
+instance Prange V where
+  prange (V lo) (V hi) = V $ "prange (" ++ lo ++ ") (" ++ hi ++ ")"
+
+instance Pchoose V where
+  pchoose (V n) ps = V $ "pchoose (" ++ n ++ ") " ++ showList ps ""
+
+instance Pcycle V where
+  pcycle ps = V $ "pcycle " ++ showList ps ""
+
+instance Prepeat V where
+  prepeat p = V $ "prepeat " ++ show p
+
+instance Pforever V where
+  pforever (V p) = V $ "pforever (" ++ p ++ ")"

@@ -28,12 +28,10 @@ import Control.Applicative (Applicative(..), (<$>))
 import Control.Category (Category(..))
 import Control.Monad (Functor(..), Monad(..))
 import Data.Data (Typeable1(..), mkTyCon, mkTyConApp)
-import Data.Map (Map)
 import Prelude
   ( Double, Enum(..), Eq(..), Fractional(..), Num(..), Show(..), IO, String, Int
-  , ($), (<), const, error, flip, fst, otherwise, read, snd, undefined)
+  , ($), (<), error, fst, otherwise, read, snd, undefined)
 import System.Random (StdGen, Random(..), RandomGen, next, newStdGen)
-import qualified Data.Map as M
 
 import Data.List.Stream
 
@@ -138,15 +136,15 @@ instance Pseq R where
 -- | Replicate given pattern for given time.
 instance Preplicate R where
   preplicate n p = R $ \g ->
-    let ps = concatMap (`replicate` p) (unR n g)
-    in  concat $ zipWith unR ps (gens g)
+    let p' = concatMap (`replicate` p) (unR n g)
+    in  concat $ zipWith unR p' (gens g)
 
 -- | Choose element from given list for number of given times.
 instance Prand R where
-  prand n ps = R $ \g ->
+  prand n p = R $ \g ->
     let gs = take (sum $ unR n g) (gens g)
-    in  concatMap (\h -> let (j,_) = randomR (0,length ps - 1) h
-                         in  unR (ps!!j) h) gs
+    in  concatMap (\h -> let (j,_) = randomR (0,length p - 1) h
+                         in  unR (p!!j) h) gs
 
 -- lo and hi bounds won't vary with: randomRs (lo, hi) g
 instance Prange R where
@@ -182,15 +180,15 @@ rlam :: (R a -> R b) -> R (a->b)
 rlam f = R $ \g -> rec (repeat func) (gens g)
    where
      rec (h:hs) (j:js) = h j : rec hs js
+     rec _ _ = []
      func g' x = head $ unR (f (R $ \_ -> [x])) g'
 
 -- rlam' :: (R a -> R b) -> R (a->b)
 -- rlam' f = R $ \g -> cycle [\x -> head $ unR (f (R $ \_ -> [x])) g]
-rlam' f = R $ \g -> rec (repeat func) (gens g)
-   where
-     rec (h:hs) (j:js) = h j : rec hs js
-     func g' x = unR (f (R $ const x)) g'
-
+-- rlam' f = R $ \g -> rec (repeat func) (gens g)
+--    where
+--      rec (h:hs) (j:js) = h j : rec hs js
+--      func g' x = unR (f (R $ const x)) g'
 
 ------------------------------------------------------------------------------
 --
@@ -224,11 +222,11 @@ instance (Num a) => Num (S a) where
   abs n = S $ \_ -> "abs (" ++ showP n ++ ")"
   negate n = S $ \_ -> "negate (" ++ showP n ++ ")"
   signum n = S $ \_ -> "signum (" ++ showP n ++ ")"
-  fromInteger n = S $ \_ -> "pval " ++ show (fromInteger n)
+  fromInteger n = S $ \_ -> "pval " ++ show (fromInteger n :: Int)
 
 instance (Fractional a) => Fractional (S a) where
   a / b = S $ \_ -> showP a ++ " / " ++ showP b
-  fromRational n = S $ \_ -> "pval " ++ show (fromRational n)
+  fromRational n = S $ \_ -> "pval " ++ show (fromRational n :: Double)
 
 instance (Show a, Enum a) => Enum (S a) where
   pred n = S $ \_ -> "pred (" ++ showP n ++ ")"
@@ -253,19 +251,19 @@ instance Plist S where
   plist a = S $ \_ -> "plist " ++ show a
 
 instance Pconcat S where
-  pconcat ps = S $ \_ -> "pconcat " ++ showList ps ""
+  pconcat p = S $ \_ -> "pconcat " ++ showList p ""
 
 instance Pappend S where
   pappend a b = S $ \_ -> "pappend (" ++ showP a ++ ") (" ++ showP b ++ ")"
 
 instance Pseq S where
-  pseq n ps = S $ \_ -> "pseq (" ++ showP n ++ ") " ++ showList ps ""
+  pseq n p = S $ \_ -> "pseq (" ++ showP n ++ ") " ++ showList p ""
 
 instance Preplicate S where
   preplicate n p = S $ \_ -> "preplicate (" ++ showP n ++ ") (" ++ showP p
 
 instance Prand S where
-  prand n ps = S $ \x -> "prand (" ++ unS n x ++ ") " ++ showList ps ""
+  prand n p = S $ \x -> "prand (" ++ unS n x ++ ") " ++ showList p ""
 
 instance Prange S where
   prange lo hi = S $ \_ -> "prange (" ++ showP lo ++ ") (" ++ showP hi ++ ")"
@@ -274,13 +272,13 @@ instance Prandom S where
   prandom = S $ \_ -> "prandom"
 
 instance Pshuffle S where
-  pshuffle ps = S $ \_ -> "pshuffle " ++ showList ps ""
+  pshuffle p = S $ \_ -> "pshuffle " ++ showList p ""
 
 instance Pchoose S where
-  pchoose n ps = S $ \_ -> "pchoose (" ++ showP n ++ ") " ++ showList ps ""
+  pchoose n p = S $ \_ -> "pchoose (" ++ showP n ++ ") " ++ showList p ""
 
 instance Pcycle S where
-  pcycle ps = S $ \x -> "pcycle " ++ showList ps ""
+  pcycle p = S $ \_ -> "pcycle " ++ showList p ""
 
 instance Prepeat S where
   prepeat a = S $ \_ -> "prepeat " ++ show a
@@ -289,92 +287,13 @@ instance Pforever S where
   pforever p = S $ \_ -> "pforever (" ++ show p ++ ")"
 
 instance Papp S where
-  papp a b = S $ \_ -> "papp "
+  papp _ _ = S $ \_ -> "papp "
 
 -- instance Plam S where
 --   plam f = S $ \_ -> "\\x -> " ++ unS (f (S $ const "")) () ++ ")"
 
 -- instance Papp S where
 --   papp a b = S $ \x -> "(" ++ unS a x ++ " " ++ unS b x ++ ")"
-
---
--- More simple version of viewing patterns.
--- String representation of pattern /might/ take argument for showing variable.
---
--- Though still not sure /plam/ and /papp/ class would be made or not.
--- When I hit an idea for implementing R of lam and app, may remove this.
---
-newtype V s = V {unV :: (Show s) => String}
-
-viewP :: (Show a) => V a -> String
-viewP = unV
-
-instance (Show a) => Show (V a) where
-  show (V a) = a
-
-instance (Show a, Eq a) => Eq (V a) where
-  V a == V b = a == b
-
-instance Typeable1 V where
-  typeOf1 _ = mkTyConApp (mkTyCon "Sound.SC3.Lepton.Pattern.V") []
-
-instance (Num a) => Num (V a) where
-  V a + V b = V $ a ++ "+" ++ b
-  V a * V b = V $ a ++ "*" ++ b
-  abs (V v) = V $ "abs (" ++ v ++ ")"
-  negate (V n) = V $ "negate (" ++ n ++ ")"
-  signum (V n) = V $ "signum (" ++ n ++ ")"
-  fromInteger n = V $ "pval " ++ show n
-
-instance (Fractional a) => Fractional (V a) where
-  V a / V b = V $ a ++ " / " ++ b
-  fromRational n = V $ "pval " ++ show (fromRational n)
-
-instance (Show a, Enum a) => Enum (V a) where
-  pred (V n) = V $ "pred (" ++ n ++ ")"
-  succ (V n) = V $ "succ (" ++ n ++ ")"
-  fromEnum (V n) = undefined
-  toEnum n = V $ "pval " ++ show n
-
---
--- Instance definitions for expressions
---
-
-instance Pval V where
-  pval x = V $ "pval " ++ show x
-
-instance Pempty V where
-  pempty = V "pempty"
-
-instance Plist V where
-  plist xs = V $ "plist " ++ showList xs ""
-
-instance Pseq V where
-  pseq (V n) ps = V $ "pseq (" ++ n ++ ") " ++ showList ps ""
-
-instance Prand V where
-  prand (V n) ps = V $ "prand (" ++ n ++ ") " ++ showList ps ""
-
-instance Prandom V where
-  prandom = V "prandom"
-
-instance Pshuffle V where
-  pshuffle ps = V $ "pshuffle " ++ showList ps ""
-
-instance Prange V where
-  prange (V lo) (V hi) = V $ "prange (" ++ lo ++ ") (" ++ hi ++ ")"
-
-instance Pchoose V where
-  pchoose (V n) ps = V $ "pchoose (" ++ n ++ ") " ++ showList ps ""
-
-instance Pcycle V where
-  pcycle ps = V $ "pcycle " ++ showList ps ""
-
-instance Prepeat V where
-  prepeat p = V $ "prepeat " ++ show p
-
-instance Pforever V where
-  pforever (V p) = V $ "pforever (" ++ p ++ ")"
 
 ------------------------------------------------------------------------------
 --
@@ -395,6 +314,7 @@ data Tree a = Leaf a
             | Node !Int (Tree a) (Tree a)
             deriving (Show)
 
+build_tree :: [a] -> Tree a
 build_tree = grow_level . map Leaf
   where
     grow_level [node] = node
@@ -416,6 +336,7 @@ shuffle1 elems rseq = shuffle1' (build_tree elems) rseq
     shuffle1' (Leaf e) [] = [e]
     shuffle1' tree (ri:r_others) =
       extract_tree ri tree (`shuffle1'` r_others)
+    shuffle1' _ _ = []
 
     extract_tree 0 (Node _ (Leaf e) r) k = e:k r
     extract_tree 1 (Node 2 l@Leaf{} (Leaf e)) k = e:k l
@@ -425,69 +346,11 @@ shuffle1 elems rseq = shuffle1' (build_tree elems) rseq
     extract_tree n (Node c l@(Node cl _ _) r) k
       | n < cl    = extract_tree n l (\l' -> k $ Node (c-1) l' r)
       | otherwise = extract_tree (n-cl) r (k . Node (c-1) l)
+    extract_tree _ _ _ = []
 
 make_rs :: RandomGen g => Int -> g -> ([Int],g)
-make_rs n g = loop [] n g
+make_rs n g0 = loop [] n g0
   where
     loop acc 0 g = (reverse acc, g)
-    loop acc n g = loop (r:acc) (pred n) g'
+    loop acc m g = loop (r:acc) (pred m) g'
       where (r,g') = randomR (0,n) g
-
-
-
-------------------------------------------------------------------------------
---
--- Junks !!!
---
-------------------------------------------------------------------------------
-
-lam1 :: ((R a1 -> [a1]) -> [a]) -> R a
-lam1 f = R $ \g -> f (`unR` g)
-
-lam2 f = R $ \g -> unR (f (`unR` g)) g
-
-foo :: (R a -> R b)
-foo = undefined
-
-foo' :: (StdGen -> [a]) -> StdGen -> [b]
-foo' = unR . foo . R
-
-foo'' f = unR . f . R
-
-bar :: (R a -> R b) -> (StdGen -> [a]) -> StdGen -> [b]
-bar f = unR . f . R
-
-bar' :: (R a -> R b) -> (StdGen -> [a]) -> R b
-bar' f = R . unR . f . R
-
-bar'' f = show . f . length
-
-buzz g f = let h = (bar foo f g) in h
-
--- instance Plam V where
-vlam f = V $ "plam " ++ unV (f (V ""))
-
-class Ps p where
-  ps :: (Show a, Show b, Show c) => p (a->b->c) -> p (a->b) -> p a -> p c
-
-class Pk p where
-  pk :: (Show b) => p a -> p b -> p a
-
-instance Pk R where
-  pk (R a) (R b) = R $ \g -> a g
-
-instance Ps R where
-  ps (R px) (R py) (R pz) = R $ \g -> f (px g) (py g) (pz g)
-    where
-      f :: [a -> b -> c] -> [a -> b] -> [a] -> [c]
-      f (x:xs) (y:ys) (z:zs) = x z (y z) : f xs ys zs
-      f _ _ _ = []
-
-instance Pk S where
-  pk a b = S $ const $ "pk (" ++ showP a ++ ") (" ++ showP b ++ ")"
-
-k :: a -> b -> a
-k a _ = a
-
-s :: (a -> b -> c) -> (a -> b) -> a -> c
-s x y z = x z (y z)

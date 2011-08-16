@@ -29,7 +29,7 @@ import Sound.SC3
 import Sound.SC3.Lepton.Tree.Tree
 import Sound.SC3.Lepton.Tree.Diff
 
-import Sound.SC3.Lepton.Util (queryTree, n_mapa)
+import Sound.SC3.Lepton.Util (queryTree)
 
 -- | Send OSC message for constructing given @SCNode@.
 -- New node will be added to tail of target id.

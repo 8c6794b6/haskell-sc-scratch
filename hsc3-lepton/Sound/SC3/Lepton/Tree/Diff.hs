@@ -35,7 +35,6 @@ import Sound.SC3.Lepton.Util
 
 import Data.Generic.Diff
 
-import qualified Data.IntSet as IS
 import qualified Data.IntMap as IM
 
 {-|
@@ -106,7 +105,7 @@ toRose (Group i ns) = Node (Gnode i) (map toRose ns)
 toRose (Synth i n ps) = Node (Snode i n ps) []
 
 dumpDiff :: EditScriptL TFamily txs tys -> IO ()
-dumpDiff d = case d of
+dumpDiff df = case df of
   Ins n d -> putStrLn ("Ins " ++ show n) >> dumpDiff d
   Cpy n d -> putStrLn ("Cpy " ++ show n) >> dumpDiff d
   Del n d -> putStrLn ("Del " ++ show n) >> dumpDiff d
@@ -186,11 +185,11 @@ accToOSC (MsgAcc _ _ is ds)
     nms = foldl' mkNew [] is'
     dms = [n_free (IM.keys ds')]
     ums = concat $ IM.elems $ IM.intersectionWithKey assort ds ns
-    mkNew os (_,(pos,n)) = case pos of
+    mkNew os (_,(pst,n)) = case pst of
       After j -> treeToNewWith AddAfter j n ++ os
       Head  j -> treeToNewWith AddToHead j n ++ os
-    mkSet (_,n) os = treeToSet n ++ os
-    (dupIs, ns') = IM.partitionWithKey (\k _ -> k `IM.member` ds) ns
+    -- mkSet (_,n) os = treeToSet n ++ os
+    -- (dupIs, ns') = IM.partitionWithKey (\k _ -> k `IM.member` ds) ns
     ns = IM.fromList is
     is' = filter (\(i,_) -> i `IM.notMember` ds) is
     ds' = IM.difference ds ns
@@ -203,19 +202,17 @@ assort :: Int               -- ^ node id
 assort i nd (p,ni) = case (nd,ni) of
   (Group _ _, Group _ _) ->
     let (a,j) = at p in [n_order a j i]
-  (Group _ _, Synth _ n _) ->
+  (Group _ _, Synth _ _ _) ->
     let (a,j) = at p in n_free [i]:treeToNewWith a j ni
   (Synth _ _ _, Group _ _) ->
     let (a,j) = at p in [n_free [i],g_new [(i,a,j)]]
-  (Synth i1 n1 ps1, Synth i2 n2 ps2)
+  (Synth _ n1 ps1, Synth _ n2 ps2)
     | n1 == n2 && ps1 == ps2 ->
       let (a,j) = at p in [n_order a j i]
-    | n1 == n2 ->
-      -- let (a,j) = at p in n_order a j i:treeToSet ni
-      let (a,j) = at p in treeToSet ni
+    | n1 == n2 -> treeToSet ni
     | otherwise -> let (a,j) = at p in n_free [i]:treeToNewWith a j ni
   where
-    at p = case p of Head j -> (AddToHead, j); After j -> (AddAfter, j)
+    at pst = case pst of Head j -> (AddToHead, j); After j -> (AddAfter, j)
 
 scnId :: SCN -> Int
 scnId (Gnode i)     = i
@@ -239,7 +236,7 @@ ddm a b = do
 -- | Sends given actions in asynchronus manner.
 (>>*) :: Transport t => (t -> IO a) -> (t -> IO b) -> t -> IO b
 (act1 >>* act2) fd = do
-  sessId <- randomRIO (0,2^16)
+  sessId <- randomRIO (0,2^(16::Int))
   act1 fd
   send fd $ sync sessId
   Message _ [Int replyId] <- wait fd "/synced"

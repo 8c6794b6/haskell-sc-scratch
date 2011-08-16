@@ -221,10 +221,12 @@ prettyUGenName n i
   | otherwise           = text n
 
 prettyRate :: Int8 -> Doc
-prettyRate 0 = text "ir"
-prettyRate 1 = text "kr"
-prettyRate 2 = text "ar"
-prettyRate 3 = text "dr"
+prettyRate n = case n of
+  0 -> text "ir"
+  1 -> text "kr"
+  2 -> text "ar"
+  3 -> text "dr"
+  _ -> text $ "Unknown rate: " ++ show n
 
 prettyIs :: [Double] -> InputSpec -> Doc
 prettyIs cs (IsConstant idx) = parens $ double (cs !! (fromIntegral idx))

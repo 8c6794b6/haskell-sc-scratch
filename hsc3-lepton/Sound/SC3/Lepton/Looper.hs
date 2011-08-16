@@ -338,7 +338,7 @@ tu :: Double -> InitialDelay
 tu n | n <= 0    = noDelay
      | otherwise = \i u -> (n*u - (i `grem` (n*u)))
   where
-    grem a b = a - (fromIntegral (fst (properFraction (a/b))) * b)
+    grem a b = a - (fromIntegral (fst (properFraction (a/b)) :: Integer) * b)
 
 -- | No delay.
 noDelay :: InitialDelay

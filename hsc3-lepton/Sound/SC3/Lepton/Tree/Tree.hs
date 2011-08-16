@@ -22,7 +22,7 @@ module Sound.SC3.Lepton.Tree.Tree
     -- * Types
     SCNode(..)
   , NodeId
-  , nodeId  
+  , nodeId
   , SynthName
   , SynthParam(..)
   , ParamName
@@ -31,16 +31,6 @@ module Sound.SC3.Lepton.Tree.Tree
 
     -- * Parser
   , parseNode
-
-  --   -- * Communicating with server
-  -- , addNode
-  -- , getNode
-  -- , setNode
-  -- , delNode
-  -- , modifyNode
-  -- , printNode
-  -- , getRootNode
-  -- , printRootNode
 
     -- * Converter
   , treeToNew
@@ -65,13 +55,12 @@ import Data.List (unionBy)
 import Text.PrettyPrint hiding (int, double)
 
 import Data.Generics.Uniplate.Data
-import Data.Generics.Uniplate.Operations
 import Sound.SC3
 import Sound.OpenSoundControl
 
 import Sound.SC3.Lepton.Instance ()
 import Sound.SC3.Lepton.Parser.Datum
-import Sound.SC3.Lepton.Util (queryTree, n_mapa)
+import Sound.SC3.Lepton.Util (n_mapa)
 
 import qualified Text.PrettyPrint as P
 import qualified Data.IntSet as IS
@@ -228,6 +217,11 @@ parseSynth nId = do
   params <- replicateM numParams parseParam
   return $ Synth nId name params
 
+-- | Parse parameter values for each synth.
+--
+-- Audio bus numbers shown for mapped audio controls are correct only when the
+-- number of audio busses used in the server equals to 128, the default value.
+--
 parseParam :: DatumParser SynthParam
 parseParam = do
   name <- string
@@ -236,7 +230,11 @@ parseParam = do
     Float x   -> return $ name := x
     Double x  -> return $ name := x
     String xs -> case xs of
-      'c':rest -> return $ name :<- read rest
+      'c':rest -> do
+        let busNum = read rest :: Int
+        return $ if busNum > 0
+          then name :<- busNum
+          else name :<= ((busNum - 4) `div` 64) + 129
       'a':rest -> return $ name :<= read rest
       _        -> error $ "Unknown param: " ++ xs
     Int x     -> return $ name := fromIntegral x
@@ -354,7 +352,7 @@ renderNode detail = render . n2doc where
     n:<-v -> text n <> char ':' <+> char 'c' <> P.int v
     n:<=v -> text n <> char ':' <+> char 'a' <> P.int v
 
--- | Dump SCNode. Dumped string could be parsed to read function.
+-- | Dump SCNode. Dumped string could be parsed with 'read' function.
 prettyDump :: SCNode -> String
 prettyDump = render . n2doc where
   n2doc :: SCNode -> Doc
@@ -365,10 +363,10 @@ prettyDump = render . n2doc where
     Synth i name ps ->
       text "Synth" <+> signedInt i <+> doubleQuotes (text name) $$
       nest 2 (brackets $ vcat (punctuate comma (map p2doc ps)))
-  p2doc :: SynthParam -> Doc
-  p2doc (k:=v)  = doubleQuotes (text k) <> text ":=" <> signedDouble v
-  p2doc (k:<-v) = doubleQuotes (text k) <> text ":<-" <> signedInt v
-  p2doc (k:<=v) = doubleQuotes (text k) <> text ":<=" <> signedInt v
+  p2doc p = case p of
+    (k:=v)  -> doubleQuotes (text k) <> text ":=" <> signedDouble v
+    (k:<-v) -> doubleQuotes (text k) <> text ":<-" <> signedInt v
+    (k:<=v) -> doubleQuotes (text k) <> text ":<=" <> signedInt v
 
 signedInt :: Int -> Doc
 signedInt n | n < 0     = parens (P.int n)
