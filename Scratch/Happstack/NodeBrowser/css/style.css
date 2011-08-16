@@ -1,101 +1,145 @@
-body { 
-  font-size: 14px; 
+body {
+  font-size: 14px;
 }
 
-a { 
+a {
     text-decoration: none;
     color: #3344FF;
 }
 
-a:visited { 
-    color: #3344FF; 
+a:visited {
+    color: #3344FF;
 }
 
-a:hover { 
-    text-decoration: underline; 
+a:hover {
+    text-decoration: underline;
 }
 
-button { 
-    border: solid 1px #868686; 
-    padding: 0px; 
-    margin: 0 0 0 5px; 
+button {
+    border: solid 1px #868686;
+    padding: 0px;
+    margin: 0 0 0 5px;
     background-color: #cecece;
 }
 
-button:hover { 
-    border: solid 1px #868686; 
-    padding: 0px; 
-    margin: 0 0 0 5px; 
+button:hover {
+    border: solid 1px #868686;
+    padding: 0px;
+    margin: 0 0 0 5px;
     background-color: #dfdfdf;
 }
 
 input {
   border: solid 1px #868686;
-  padding: 0px; 
+  padding: 0px;
   margin: 5px 0;
 }
 
+div.root {
+  float: left;
+  margin-right: 15px;
+  width: 50%;
+}
 
-div.group_node { 
+
+div.group_node {
     margin: 5px 0 5px 20px;
     padding: 4px;
 }
 
-div.group_node:hover {
-    margin: 5 0 5 20px;
-    padding: 3px;
-    border: solid 1px #dfdfdf;
-}
-
 div.group_id { }
 
-span.group_id_num { 
-    color: #FA0300; 
+span.group_id_num {
+    color: #FA0300;
 }
 
 span.group_id_symbol { }
 
 div.group_children { }
 
-div.synth_node { 
-    margin: 5px 0 5px 20px; 
-    padding: 6px; 
+div.synth_node {
+    margin: 5px 0 5px 20px;
+    padding: 6px;
 }
 
 div.synth_node:hover {
-    margin: 5 0 5 20px; 
-    padding: 4px; 
-    border: solid 2px #dfdfdf;
-    background-color: #efefef;
-    /* background-color: #ffefff; */
-    /* background-color: #efefef; */
+    margin: 5 0 5 20px;
+    padding: 4px;
+    border: solid 2px #dfdfff;
 }
 
+div .active {
+    background-color: #f0f0ff;
+}
 
+div.synth_node_detail {
+    margin: 5px;
+    padding: 5px;
+}
 
 div.synth_id { }
 
-span.synth_id_num { 
-    color: #129A13; 
+span.synth_id_num {
+    color: #129A13;
 }
 
-span.synth_id_name { 
+span.synth_id_name {
     padding-left: 5px;
 }
 
-div.synth_params { 
-    margin-left: 20px;
-    /* border-left: solid 2px #9A9A9A; */
+div.synth_params {
+    padding-top: 5px;
 }
 
-span.param_value { 
+div.synth_param {
+}
+
+div.param_value {
     padding-left: 10px;
 }
 
-span.param_control_bus { 
-    padding-left: 10px; 
+div.param_name {
+    width: 75px;
+    float: left;
+    padding-top: 5px;
 }
 
-span.param_audio_bus { 
-    padding-left: 10px; 
+div.param_control_bus {
+    padding-left: 10px;
+}
+
+div.param_audio_bus {
+    padding-left: 10px;
+}
+
+div.params {
+    border: solid 1px #dfdfdf;
+    margin: 1px 0 1px 1px;
+    padding: 1px 0 1px 2px;
+}
+
+div.right {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 50%;
+    overflow: hidden;
+}
+
+div.right_wrapper {
+    padding: 10px;
+    margin: 10px;
+}
+
+div.synth_stat {
+}
+
+ul.synth_stat_elems {
+    padding-left: 0px;
+    margin-top: 2px;
+    list-style: none;
+}
+
+span.synth_stat_name {
 }
