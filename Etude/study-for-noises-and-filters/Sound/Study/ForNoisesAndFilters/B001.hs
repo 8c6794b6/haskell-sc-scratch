@@ -18,7 +18,7 @@ import Sound.OpenSoundControl
 import Sound.SC3
 import Sound.SC3.ID
 import Sound.SC3.Lepton
-import Sound.SC3.Lepton.GUI
+-- import Sound.SC3.Lepton.GUI
 
 setup fd = do
   mapM_ (\(n,u) -> loadSynthdef n u fd)
@@ -53,7 +53,7 @@ rgGraph =
           ["a_in":<=2,"out_1":=2,"out_2":=3]
        ,syn 2103 "cmb001"
           ["a_in":<=2,"out":=2,"t_trig":<-100,"mix":=1
-          ,"rmin":=50,"rmax":={- 15 -} 1]
+          ,"rmin":=50,"rmax":=15 {- 1 -}]
        ,syn 2105 "lmt001"
           ["a_in1":<=2,"a_in2":<=3,"out":=2]
        ,syn 2106 "pan001"
