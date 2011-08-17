@@ -11,6 +11,7 @@ function n_free(nid) {
     url: "/n_free/" + nid,
     success: function() {
       $('#node_'+nid).remove();
+      $('#node_'+nid+'_tree').remove();
     }
   });
 }
@@ -54,40 +55,47 @@ function node_detail(nid) {
 }
 
 function focusNodeUp(evt) {
-  current = $(".synth_node.active");
-  if (current.length <= 0) {
-    return;
-  } else {
-    focused = current.prev();
-    if (focused.length <= 0) {
-      focused = current.parent().parent().prev().find(".synth_node").last();
-    }
-    if (focused.length > 0) {
-      node_detail(
-        focused[0].id
-          .replace(/[a-zA-Z_]+/, "")
-          .replace(/[a-zA-Z_]+/, "")
-      );
-    }
-  }
+  focusNodeWith(
+    function(e) {return e.last();},
+    function(e) {return e.prev();}
+  );
 }
 
 function focusNodeDown(evt) {
-  current = $(".synth_node.active");
+  focusNodeWith(
+    function(e) {return e.first();},
+    function(e) {return e.next();}
+  );
+}
+
+function focusNodeWith(f1, f2) {
+  var current = $(".synth_node.active");
+  var target;
   if (current.length <= 0) {
-    focused = $(".synth_node").first();
+    target = $(".synth_node").first();
   } else {
-    focused = current.next();
+    target = f2(current);
+    if (target.length <= 0) {
+      target = f1(getGroupWith(f2, current.parent().parent()).find(".synth_node"));
+    }
   }
-  if (focused.length <= 0) {
-    focused = current.parent().parent().next().find(".synth_node").first();
+  if (target.length > 0) {
+    nid = target[0].id.replace(/[^-0-9]+/,"").replace(/[^-0-9]+/,"");
+    node_detail(nid);
   }
-  if (focused.length > 0) {
-    node_detail(
-      focused[0].id
-        .replace(/[a-zA-Z_]+/, "")
-        .replace(/[a-zA-Z_]+/, "")
-    );
+}
+
+function getGroupWith(func,elem) {
+ if (elem.length <= 0) {
+    return $([]);
+  } else {
+    _g = func(elem);
+    _n = _g.find(".synth_node").first();
+    if (_n.length <= 0) {
+      return getGroupWith(func,_g);
+    } else {
+      return _g;
+    }
   }
 }
 
@@ -95,10 +103,18 @@ function focusFirstInput(evt) {
   $("input").first().focus();
 }
 
+function freeCurrentNode(evt) {
+  nid = $(".synth_node.active")[0].id
+    .replace(/[^-0-9]+/,"").replace(/[^-0-9]+/,"");
+  n_free(nid);
+  focusNodeUp();
+}
+
 function init() {
   $(document).ready(function() {
-    jQuery(document).bind('keypress', 'k', focusNodeUp);
-    jQuery(document).bind('keypress', 'j', focusNodeDown);
-    jQuery(document).bind('keypress', 'i', focusFirstInput);
+    $(document).bind('keypress', 'k', focusNodeUp);
+    $(document).bind('keypress', 'j', focusNodeDown);
+    $(document).bind('keypress', 'i', focusFirstInput);
+    $(document).bind('keypress', 'f', freeCurrentNode);
   });
 }

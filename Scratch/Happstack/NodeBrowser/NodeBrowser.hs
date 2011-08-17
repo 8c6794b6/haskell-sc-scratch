@@ -13,9 +13,13 @@ Web interface to browse synth nodes in running scsynth server.
 
 /TODO/:
 
+* Take server host, port, and protocol from command line arguments.
+
 * Add js hot key support for:
 
-    * Moving focus to right area and left area.
+    * Moving focus to left area.
+
+    * Free current selected node.
 
     * Showing help of which key does what.
 
