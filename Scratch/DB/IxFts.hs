@@ -178,26 +178,29 @@ searchPage db = do
   qs <- getDataFn $ look "q"
   case qs of
     Left _ ->
-      ok $ toResponse $ html $ do
-        head $ do
-          title $ toHtml "ixset search"
-          css
-        body $ do
-          div ! class_ (toValue "wrapper") $ do
-            inputForm ""
+      ok $ toResponse $ do
+        preEscapedString "<!doctype html>"
+        html $ do
+          head $ do
+            title $ toHtml "ixset search"
+            css
+          body $ do
+            div ! class_ (toValue "wrapper") $ inputForm ""
     Right qs' -> do
       let res = docIx db @* (map Word . C8.words . C8.pack $ qs')
-      ok $ toResponse $ html $ do
-        head $ do
-          title $ toHtml $ "search result for " ++ qs'
-          css
-        body $ do
-          div ! class_ (toValue "wrapper") $ do
-            inputForm qs'
-            div ! class_ (toValue "summary") $ toHtml $
-              "search result for: \"" ++ qs' ++ "\", " ++
-              "hit: " ++ show (size res) ++ ""
-            ul $ mapM_ mkLink $ sortBy (comparing $ score qs') $ toList res
+      ok $ toResponse $ do
+        preEscapedString "<!doctype html>"
+        html $ do
+          head $ do
+            title $ toHtml $ "search result for " ++ qs'
+            css
+          body $ do
+            div ! class_ (toValue "wrapper") $ do
+              inputForm qs'
+              div ! class_ (toValue "summary") $ toHtml $
+                "search result for: \"" ++ qs' ++ "\", " ++
+                "hit: " ++ show (size res) ++ ""
+              ul $ mapM_ mkLink $ sortBy (comparing $ score qs') $ toList res
 
 score :: String -> Document -> Double
 score ws doc = foldr f 0 (C8.words $ C8.pack ws) where

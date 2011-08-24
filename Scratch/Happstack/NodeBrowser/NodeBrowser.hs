@@ -19,9 +19,9 @@ Web interface to browse synth nodes in running scsynth server.
 
     * Moving focus to left area.
 
-    * Free current selected node.
-
     * Showing help of which key does what.
+
+    * Moving up/down when tree contains empty nested groups.
 
 * Add "dump current setting" feature.
 
@@ -85,6 +85,7 @@ serve mv = simpleHTTP nullConf $ msum
   , dir "n_map" $ path $ \nid -> nMap mv (read nid)
   , dir "n_mapa" $ path $ \nid -> nMapa mv (read nid)
   , dir "n_free" $ path $ \nid -> nFree mv (read nid)
+  , dir "n_run" $ path $ \nid -> path $ \val -> nRun (read nid) (read val)
   , dir "nodeDetail" $ path $ \nid -> nodeDetail mv (read nid)
   , dir "echo" echo
   , dir "js" $ serveDirectory EnableBrowsing [] "js"
@@ -178,6 +179,12 @@ nFree mv nid = do
     modifyMVar_ mv (const $ getRootNode fd)
   showTree mv
 
+nRun :: Int -> Int -> ServerPartT IO Response
+nRun nid val = do
+  let msg = n_run [(nid, if val == 1 then True else False)]
+  liftIO $ withSC3 $ \fd -> send fd msg
+  ok $ toResponse $ show msg
+
 nodeDetail :: MVar SCNode -> Int -> ServerPartT IO Response
 nodeDetail mv nid = do
   t <- liftIO $ readMVar mv
@@ -204,12 +211,23 @@ instance ToHtml SCNode where
           span ! class_ "group_id_num" $ toHtml $ show gid
           span ! class_ "group_id_symbol" $ " group"
           when (gid /= 0) $ do
+            span ! class_ "run 1" $ do
+              button ! onclick (toValue $ "n_run("++ show gid ++ ", 1)") $
+                "on"
+            span ! class_ "run 0" $ do
+              button ! onclick (toValue $ "n_run("++ show gid ++ ", 0)") $
+                "off"
             span ! class_ "synth_free" $ do
               button ! onclick (toValue $ "n_free(" ++ show gid ++ ")") $
                 "free"
         div ! class_ "group_children" $ do
           mapM_ toHtml ns
   toHtml n@(Synth nid defn ps) = synthNodeHtml n False
+
+instance ToHtml SynthParam where
+  toHtml (n:=v)  = mkParamHtml n (show v)
+  toHtml (n:<-v) = mkParamHtml n ('c':show v)
+  toHtml (n:<=v) = mkParamHtml n ('a':show v)
 
 synthNodeHtml :: SCNode -> Bool -> Html
 synthNodeHtml (Group _ _) _ = return ()
@@ -222,6 +240,12 @@ synthNodeHtml (Synth nid defn ps) detailed = do
         -- XXX: get this link from command line arg.
         a ! href (toValue $ "http://localhost:8002/synthdef/" ++ defn) $ do
           toHtml defn
+      span ! class_ "run 1" $ do
+        button ! onclick (toValue $ "n_run("++ show nid ++ ", 1)") $
+          "on"
+      span ! class_ "run 0" $ do
+        button ! onclick (toValue $ "n_run("++ show nid ++ ", 0)") $
+          "off"
       span ! class_ ("synth_free") $ do
         button ! onclick (toValue $ "n_free(" ++ show nid ++ ")") $
           "free"
@@ -238,11 +262,6 @@ mkSynthMain nid detailed h
     div ! class_ "synth_node" !
     A.id (toValue $ "node_" ++ show nid ++ "_tree") !
     onclick (toValue $ "node_detail(" ++ show nid ++ ")") $ h
-
-instance ToHtml SynthParam where
-  toHtml (n:=v)  = mkParamHtml n (show v)
-  toHtml (n:<-v) = mkParamHtml n ('c':show v)
-  toHtml (n:<=v) = mkParamHtml n ('a':show v)
 
 mkParamHtml :: String -> String -> Html
 mkParamHtml n val = do
@@ -284,3 +303,4 @@ helpMessage = do
     li $ "j - move focused node down"
     li $ "k - move focused node up"
     li $ "i - focus first input in right area"
+    li $ "f - free focused node"

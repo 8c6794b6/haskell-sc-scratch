@@ -16,6 +16,14 @@ function n_free(nid) {
   });
 }
 
+function n_run(nid,val) {
+  $.ajax({
+    type: "POST",
+    url: "/n_run/" + nid + "/" + val,
+    success: function() { }
+  });
+}
+
 function n_set(me) {
   var nid = $(me).parent().parent().parent().parent()[0].id
     .replace(/[a-zA-Z_]+/, "");

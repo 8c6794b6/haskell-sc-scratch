@@ -16,14 +16,17 @@ a:hover {
 }
 
 button {
-    border: solid 1px #868686;
+    /* border: solid 1px #868686; */
+    border: none;
     padding: 0px;
     margin: 0 0 0 5px;
-    background-color: #cecece;
+    /* background-color: #cecece; */
+    background-color: #ffffff;
 }
 
 button:hover {
-    border: solid 1px #868686;
+    /* border: solid 1px #868686; */
+    border: none;
     padding: 0px;
     margin: 0 0 0 5px;
     background-color: #dfdfdf;
