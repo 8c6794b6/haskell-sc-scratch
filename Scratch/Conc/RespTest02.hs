@@ -34,7 +34,7 @@ rspdef4 = out 0 $
 -- loop01 :: Transport t => t -> IO ()
 loop01 = mkSnew AddToTail 1 "rspdef1"
   [("dur",  pforever (1/17))
-  ,("freq", fmap midiCPS $ pforever $ pchoose 1 $
+  ,("freq", fmap midiCPS $ pforever $ prand 1 $
             [40,41,48,52,55,58,62,67,70,74,79,86,90])
   ,("pan",  pforever $ prange (-1) 1)
   ,("atk",  pforever $ prange 1e-4 1)

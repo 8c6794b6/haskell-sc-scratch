@@ -42,8 +42,14 @@ w k = withSC3 $ \fd -> bracket
 tr :: UGen
 tr = sendTrig ("t_trig"@@0) ("id"@@0) ("val"@@0)
 
+-- | Synthdef to
+doneS :: UGen
+doneS = freeSelf (impulse KR 1 0)
+
 setup :: Transport t => t -> IO OSC
-setup fd = async fd $ d_recv $ synthdef "tr" tr
+setup fd = async fd $ bundle immediately
+  [d_recv $ synthdef "tr" tr
+  ,d_recv $ synthdef "done" doneS]
 
 offsetDelay :: Double
 offsetDelay = 0.1
@@ -205,43 +211,34 @@ data MsgType
   | Nset NodeId
     deriving (Eq, Show)
 
-
 -- | Run message.
 runMsg :: Transport t => Msg Double -> t -> IO ()
 runMsg msg fd = do
   now <- utcr
-  foldM_ f now . groupBy (\_ b -> getDur b == 0) . shiftT' 0 =<<
+  foldM_ f now . groupBy (\_ b -> getDur b == 0) {- . shiftT' 0 -} =<<
     runPIO (unMsg msg)
   where
     f :: Double -> [ToOSC Double] -> IO Double
     f t0 os
-      | not (null os) = do
-        let o  = head os
-            dt = getDur o
-        (nid,msgs) <- mkOSCs os
-        print dt
-        mapM_ print msgs
-        send fd $ bundle (UTCr $ t0+dt+offsetDelay) msgs
-        waitUntil fd "/n_go" nid
-        return (t0+dt)
+      | null os = return t0
       | otherwise = do
         let o  = head os
             dt = getDur o
-        nid <- newNid
-        send fd $ bundle (UTCr $ t0+dt+offsetDelay)
-          [s_new "tr" nid AddToTail 0 []]
+        (nid,msgs) <- mkOSCs os
+        -- print dt
+        -- mapM_ print msgs
+        send fd $ bundle (UTCr $ t0+dt+offsetDelay) msgs
         waitUntil fd "/n_go" nid
-        send fd $ n_free [nid]
         return (t0+dt)
-
-        -- Nset nid -> do
-        --   -- XXX: Creating and freeing dummy tr synth.
-        --   trid <- newNid
-        --   send fd $ bundle (UTCr $ t0+dt+offsetDelay)
-        --     [toOSC o, s_new "tr" trid AddBefore nid [("t_trig",1)]]
-        --   waitUntil fd "/n_go" trid
-        --   send fd $ n_free [trid]
-        --   return (t0+dt)
+      -- | otherwise = do
+      --   let o  = head os
+      --       dt = getDur o
+      --   nid <- newNid
+      --   send fd $ bundle (UTCr $ t0+dt+offsetDelay)
+      --     [s_new "tr" nid AddToTail 0 []]
+      --   waitUntil fd "/n_go" nid
+      --   send fd $ n_free [nid]
+      --   return (t0+dt)
 
 {-# SPECIALISE runMsg :: Msg Double -> UDP -> IO () #-}
 {-# SPECIALISE runMsg :: Msg Double -> TCP -> IO () #-}
@@ -259,21 +256,26 @@ sendR r fd = runMsg (Msg r) fd
 mseq :: Msg a -> Msg a -> Msg a
 mseq (Msg m1) (Msg m2) = Msg (pappend m1 m2)
 
--- Need to merge the durations of m1 and m2.
+-- XXX:
+-- Not working as expected. Merge the durations of m1 and m2.
 mpar :: (Ord a, Num a) => Msg a -> Msg a -> Msg a
 mpar (Msg m1) (Msg m2) = Msg m3 where
-  m3 = R (\g -> let ps1 = fillAbsoluteTimes $ runP m1 g
-                    ps2 = fillAbsoluteTimes $ runP m2 g
-                in  merge ps1 ps2)
-  merge [] [] = []
-  merge [] bs = bs
-  merge as [] = as
-  merge (a:as) (b:bs) =
-    let ta = getAbsoluteTime a
-        tb = getAbsoluteTime b
-    in if ta <= tb
-          then tadjust "dur" (const (tb-ta)) a : merge as (b:bs)
-          else tadjust "dur" (const (ta-tb)) b : merge (a:as) bs
+  m3 = R $ \g ->
+    let p1 = runP m1 g
+        p2 = runP m2 g
+    in  merge (0,0) p1 p2
+  merge _       [] [] = []
+  merge (ta,tb) as [] = as
+  merge (ta,tb) [] bs = bs
+  merge (ta,tb) (a:as) (b:bs) =
+    let dta = getDur a
+        dtb = getDur b
+    in if (ta+dta) <= (tb+dtb) then
+         let dt = min dta (tb+dtb - (ta+dta))
+         in  tadjust "dur" (const dt) a : merge (ta+dta,tb) as (b:bs)
+       else
+         let dt = min dtb (ta+dta - (tb+dtb))
+         in  tadjust "dur" (const dt) b : merge (ta,tb+dtb) (a:as) bs
 
 getAbsoluteTime :: Num a => ToOSC a -> a
 getAbsoluteTime = M.findWithDefault 0 "when" . oscMap
@@ -299,6 +301,7 @@ mkSnew aa tid def ms = Msg $ (uncurry (flip $ ToOSC o)) <$> ms' where
 initialT :: Num a => M.Map String a
 initialT = M.singleton "dur" 0
 
+shiftT' :: Num a => a -> [ToOSC a] -> [ToOSC a]
 shiftT' t ms = case ms of
   (m1:m2:r) ->
     let m1' = tadjust "dur" (const t)m1
@@ -308,7 +311,8 @@ shiftT' t ms = case ms of
     let m1' = tadjust "dur" (const t) m1
         t'  = getDur m1
     in  [m1'
-        ,ToOSC (Snew "tr" Nothing AddToTail 1) (M.singleton "dur" t') True]
+        ,ToOSC (Snew "done" Nothing AddToTail 1)
+         (M.fromList [("dur",t'),("t_trig",1)]) True]
   _    -> []
 
 shiftT ::
@@ -358,16 +362,37 @@ madjust k f (Msg r) = Msg $ fmap (tadjust k f) r
 -- Sample
 
 m1 = mkSnew AddToTail 1 "rspdef1"
-  [("dur", pseq 2 [3/4,1/4])
-  ,("freq",fmap midiCPS $ pcycle [60,62])]
+  [("dur", plist [1/4,3/4])
+  ,("freq",fmap midiCPS $ pcycle [67,69])]
 
 m2 = mkSnew AddToTail 1 "rspdef1"
   [("dur", pseq 2 [3/4,1/4,2/4,2/4])
-  ,("freq", fmap midiCPS $ pseq 3 [48,55,60,63,67,70,72,75])]
+  ,("freq", fmap midiCPS $ pseq 3 [60,62,63,65,67,68,70,72])]
 
-m3 = madjust "dur" (*0.33)
+m2'seq = madjust "dur" (*0.33)
   (m2 `mseq`
    madjust "freq" (*2) m2 `mseq`
    madjust "freq" (*1.5) m2 `mseq`
-   madjust "freq" (*1.25) m2 `mseq`
+   madjust "freq" (*2) m2 `mseq`
+   madjust "freq" (*0.75) m2 `mseq`
    m2)
+
+m1m2 = m1 `mpar` m2
+
+m3 = mkSnew AddToTail 1 "rspdef1"
+  [("dur", pseq 2 [2/8,2/8,3/8,1/8])
+  ,("freq", fmap midiCPS $ pcycle [60,67,74,81])]
+
+m4 = mkSnew AddToTail 1 "rspdef1"
+  [("dur", pseq 32 [1/32])
+  ,("freq", fmap midiCPS $ pcycle [115,103])]
+
+m5 = mkSnew AddToTail 1 "rspdef1"
+  [("dur", pseq 8 [1/4])
+  ,("pan", prepeat 0.75)
+  ,("freq", fmap midiCPS $ pcycle [60,64,67,72])]
+
+m6 = mkSnew AddToTail 1 "rspdef1"
+  [("dur", plist [7/8, 1/8, 6/13, 7/13])
+  ,("pan", prepeat (-0.75))
+  ,("freq", fmap midiCPS $ plist [84,86,89,91])]
