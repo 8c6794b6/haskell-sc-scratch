@@ -1,3 +1,4 @@
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {-|
 Module      : $Header$
 License     : BSD3
@@ -30,8 +31,8 @@ rspdef4 :: UGen
 rspdef4 = out 0 $ 
   lfPar AR ("freq"@@440 `lag` 0.25) 0 * ("amp"@@0.3 `lag3` 0.3)
 
-loop01 :: Transport t => t -> IO ()
-loop01 = sNew AddToTail 1 "rspdef1"
+-- loop01 :: Transport t => t -> IO ()
+loop01 = mkSnew AddToTail 1 "rspdef1"
   [("dur",  pforever (1/17))
   ,("freq", fmap midiCPS $ pforever $ pchoose 1 $
             [40,41,48,52,55,58,62,67,70,74,79,86,90])
@@ -41,8 +42,8 @@ loop01 = sNew AddToTail 1 "rspdef1"
   ,("amp",  pforever $ prange 1e-3 1)
   ,("n_map/fmul", pforever 100)]
 
-loop02 :: Transport t => t -> IO ()
-loop02 = sNew AddToTail 1 "rspdef2"
+-- loop02 :: Transport t => t -> IO ()
+loop02 = mkSnew AddToTail 1 "rspdef2"
   [("dur",  pforever $ prange 1e-1 5e-1)
   ,("freq", pforever $ exp <$> prange (log <$> 110) (log <$> 11000))
   ,("atk",  pforever $ prange 1e-4 2)
