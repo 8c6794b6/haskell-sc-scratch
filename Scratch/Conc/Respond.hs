@@ -32,7 +32,7 @@ import qualified Data.Traversable as T
 w :: (UDP -> IO a) -> IO a
 w k = withSC3 $ \fd -> bracket
   (async fd (notify True) >> return fd)
-  (\fd' -> send fd' (notify False))
+  (flip send (notify False))
   k
 
 -- | Synthdef used for responding to 'n_set' messages.
@@ -41,6 +41,10 @@ w k = withSC3 $ \fd -> bracket
 tr :: UGen
 tr = sendTrig ("t_trig"@@0) ("id"@@0) ("val"@@0)
 
+-- | Silent UGen with done action.
+silenceS :: UGen
+silenceS = freeSelf (impulse KR 1 0)
+
 -- | Synthdef to
 doneS :: UGen
 doneS = freeSelf (impulse KR 1 0)
@@ -48,6 +52,7 @@ doneS = freeSelf (impulse KR 1 0)
 setup :: Transport t => t -> IO OSC
 setup fd = async fd $ bundle immediately
   [d_recv $ synthdef "tr" tr
+  ,d_recv $ synthdef "silence" silenceS
   ,d_recv $ synthdef "done" doneS]
 
 offsetDelay :: Double
@@ -61,7 +66,15 @@ newNidInBetween a b = do
   uq <- newUnique
   return $ a + ((hashUnique uq) `mod` (b-a))
 
-waitUntil :: Transport t => t -> String -> Int -> IO ()
+-- | Wait until specified message has been returned from server.
+waitUntil ::
+  Transport t
+  => t
+  -> String
+  -- ^ String to match in returned OSC message.
+  -> Int
+  -- ^ Int to match in first element of returned OSC message.
+  -> IO ()
 waitUntil fd str n = recv fd >>= \m -> case m of
   Message str' (Int n':_) | str == str' && n == n' -> return ()
   _                       -> waitUntil fd str n
@@ -69,7 +82,6 @@ waitUntil fd str n = recv fd >>= \m -> case m of
 {-# SPECIALISE waitUntil :: TCP -> String -> Int -> IO () #-}
 
 -- | Send 's_new' message using pattern.
---
 sNew :: Transport t
   => AddAction
   -- ^ Add action for s_new message
@@ -107,7 +119,6 @@ nSet :: Transport t
   -- ^ Pair of parameter and value
   -> t -> IO ()
 nSet aa tid def pms fd = do
-  -- XXX: Add gate releasing control with 'legato' value in map.
   nid  <- newNid
   trid <- newNid
   send fd $ bundle immediately
@@ -157,8 +168,7 @@ mkOpts nid a val acc = case break (== '/') a of
     ("c_set", '/':p) -> c_set [(read p, val)]:acc
     _                -> acc
 
-
-{-
+{-|
 
 So far, above message sequence is working well.
 
@@ -184,26 +194,23 @@ which runs given messages in parallel, and:
 
 to send and receive messages sequentially to specified server.
 
+... And, 'Msg' turned out to be a type synonym for 'R (ToOSC a)'.
+
 -}
+type Msg a = R (ToOSC a)
 
-newtype Msg a = Msg { unMsg :: R (ToOSC a) }
-  deriving (Eq, Show)
-
-instance Functor Msg where
-  fmap f (Msg r) = Msg (fmap (fmap f) r)
-
-instance Monoid (Msg a) where
-  mappend = mseq
-  mempty  = Msg pempty
-
+-- | OSC convertable data
 data ToOSC a = ToOSC
-  { oscType :: MsgType
+  { -- | Type of OSC message.
+    oscType :: MsgType
+    -- | Arguments for OSC message.
   , oscMap  :: M.Map String a
   } deriving (Eq, Show)
 
 instance Functor ToOSC where
   fmap f (ToOSC t m) = ToOSC t (fmap f m)
 
+-- | Type of OSC message.
 data MsgType
   = Snew String (Maybe NodeId) AddAction NodeId
   | Nset NodeId
@@ -213,46 +220,40 @@ data MsgType
 runMsg :: Transport t => Msg Double -> t -> IO ()
 runMsg msg fd = do
   now <- utcr
-  foldM_ f now . groupBy (\_ b -> getDur b == 0) =<<
-    runPIO (unMsg msg)
+  trid <- newNid
+  send fd $ s_new "tr" trid AddToHead 1 []
+  foldM_ (f trid) now . groupBy (\_ b -> getDur b == 0) =<< runPIO msg
   where
-    f t0 os = do
+    f trid t0 os = do
       let o  = head os
           dt = getDur o
-      (nid,msgs) <- mkOSCs os
+      (nid:_,msgs@(msg:_)) <- mkOSCs os trid
       send fd $ bundle (UTCr $ t0+dt+offsetDelay) msgs
-      waitUntil fd "/n_go" nid
+      case msg of
+        Message "/s_new" _ -> waitUntil fd "/n_go" nid
+        Message "/n_set" _ -> waitUntil fd "/tr" trid
+        _                  -> return ()
       return (t0+dt)
-
-      -- | otherwise = do
-      --   let o  = head os
-      --       dt = getDur o
-      --   nid <- newNid
-      --   send fd $ bundle (UTCr $ t0+dt+offsetDelay)
-      --     [s_new "tr" nid AddToTail 0 []]
-      --   waitUntil fd "/n_go" nid
-      --   send fd $ n_free [nid]
-      --   return (t0+dt)
 
 {-# SPECIALISE runMsg :: Msg Double -> UDP -> IO () #-}
 {-# SPECIALISE runMsg :: Msg Double -> TCP -> IO () #-}
 
-mkOSCs :: [ToOSC Double] -> IO (NodeId,[OSC])
-mkOSCs = foldM f v where
-  -- XXX: Only supporting s_new messages.
-  f (_,acc) o = newNid >>= \nid -> return (nid, toOSC (setNid nid o):acc)
-  v = (-1,[])
-
-sendR :: Transport t => R (ToOSC Double) -> t -> IO ()
-sendR r fd = runMsg (Msg r) fd
-
--- | Simply appending contents of 'Msg' with 'pappend'.
-mseq :: Msg a -> Msg a -> Msg a
-mseq (Msg m1) (Msg m2) = Msg (pappend m1 m2)
+mkOSCs :: [ToOSC Double] -> Int -> IO ([NodeId],[OSC])
+mkOSCs os tid = foldM f v os where
+  f (ns,acc) o = do
+    case oscType o of
+      Snew _ nid _ _ -> do
+        nid' <- maybe newNid return nid
+        let opts = M.foldrWithKey (mkOpts nid') [] (oscMap o)
+        return (nid':ns, (toOSC (setNid nid' o):opts) ++ acc)
+      Nset nid -> do
+        let t = ToOSC (Nset tid) (M.singleton "t_trig" 1)
+        return (nid:ns, toOSC o:toOSC t:acc)
+  v = ([],[])
 
 -- | Merge given messages in parallel.
 mpar :: (Ord a, Num a) => Msg a -> Msg a -> Msg a
-mpar (Msg m1) (Msg m2) = Msg m3 where
+mpar m1 m2 = m3 where
   m3 = R $ \g ->
     let p1 = unR m1 g
         p2 = unR m2 g
@@ -260,73 +261,60 @@ mpar (Msg m1) (Msg m2) = Msg m3 where
   merge _ _ [] [] = []
   merge _ _ as [] = as
   merge _ _ [] bs = bs
-  merge t (ta,tb) (a:as) (b:bs) =
-    let dta = getDur a
-        dtb = getDur b
-        ta' = ta+dta
-        tb' = tb+dtb
-    in if ta' <= tb'
-       then
-         tadjust "dur" (const $ ta'-t) a : merge ta' (ta',tb) as (b:bs)
-       else
-         tadjust "dur" (const $ tb'-t) b : merge tb' (ta,tb') (a:as) bs
-
-getAbsoluteTime :: Num a => ToOSC a -> a
-getAbsoluteTime = M.findWithDefault 0 "when" . oscMap
-
-setAbsoluteTime :: Num a => a -> ToOSC a -> ToOSC a
-setAbsoluteTime t o = o {oscMap = M.insert "when" t $ oscMap o}
-
-fillAbsoluteTimes :: Num a => [ToOSC a] -> [ToOSC a]
-fillAbsoluteTimes = scanl1 $
-  \a b -> setAbsoluteTime (getAbsoluteTime a + getDur b) b
+  merge t (ta,tb) (a:as) (b:bs)
+    | ua <= ub  = tadjust "dur" (const $ ua-t) a : merge ua (ua,tb) as (b:bs)
+    | otherwise = tadjust "dur" (const $ ub-t) b : merge ub (ta,ub) (a:as) bs
+    where
+      ua = ta + getDur a
+      ub = tb + getDur b
 
 -- | Make 's_new' messages.
 mkSnew :: Num a => AddAction -> Int -> String -> [(String, R a)] -> Msg a
-mkSnew aa tid def ms = Msg $ (ToOSC o) <$> ms' where
+mkSnew aa tid def ms = ToOSC o <$> ms' where
   o = Snew def Nothing aa tid
   ms' = R $ \g ->
     tail $ shiftT 0 $
-    unR (pval (M.singleton "dur" 0) `pappend` (T.sequenceA $ M.fromList ms)) g
+    unR (pval initialT `pappend` (T.sequenceA $ M.fromList ms)) g
 
-shiftT' :: Num a => a -> [ToOSC a] -> [ToOSC a]
-shiftT' t ms = case ms of
-  (m1:m2:r) ->
-    let m1' = tadjust "dur" (const t)m1
-        t'  = getDur m1
-    in  m1' : shiftT' t' (m2:r)
-  [m1] ->
-    let m1' = tadjust "dur" (const t) m1
-        t'  = getDur m1
-    in  [m1'
-        ,ToOSC (Snew "done" Nothing AddToTail 1)
-         (M.fromList [("dur",t'),("t_trig",1)])]
-  _    -> []
+{-# SPECIALISE mkSnew ::
+    AddAction -> Int -> String -> [(String, R Double)] -> Msg Double #-}
+{-# SPECIALISE mkSnew ::
+    AddAction -> Int -> String -> [(String, R Int)] -> Msg Int #-}
 
-shiftT ::
-  Num a
-  => a
-  -> [M.Map String a]
-  -> [M.Map String a]
-  -- ^ First element is True if last element.
+-- | Make 'n_set' messages.
+mkNset :: Num a => Int -> [(String,R a)] -> Msg a
+mkNset nid ms = ToOSC o <$> ms' where
+  o = Nset nid
+  ms' = R $ \g ->
+    tail $ shiftT 0 $
+    unR (pval initialT `pappend` (T.sequenceA $ M.fromList ms)) g
+
+{-# SPECIALISE mkNset :: Int -> [(String,R Double)] -> Msg Double #-}
+{-# SPECIALISE mkNset :: Int -> [(String,R Int)] -> Msg Int #-}
+
+initialT :: Num a => M.Map String a
+initialT = M.singleton "dur" 0
+
+shiftT :: Num a => a -> [M.Map String a] -> [M.Map String a]
 shiftT t ms = case ms of
   (m1:m2:r) ->
     let m1' = M.adjust (const t) "dur" m1
         t'  = M.findWithDefault 0 "dur" m1
     in  (m1'):shiftT t' (m2:r)
   [m1] ->
-    -- XXX: Sending dummy silent event at the end of list.
+    -- XXX:
+    -- Sending dummy silent event at the end of list,
+    -- to receive /n_go response message.
+    --
     -- Using "amp" = 0 message as adhoc solution.
+    -- Better modifying this to send silent synth, though
+    -- could not specify which synthdef to send inside this
+    -- function.
+    --
     let m1' = M.adjust (const t) "dur" m1
         t'  = M.findWithDefault 0 "dur" m1
     in  [m1',M.fromList [("dur", t'),("amp",0)]]
   _ -> []
-
--- | Make 'n_set' messages.
--- mkNset :: Int -> [(String,R a)] -> Msg a
--- mkNset nid ms = ToOSC o <$> ms' where
---   o = Nset nid
---   ms' = R $ runP $ T.sequenceA $ M.fromList ms
 
 toOSC :: ToOSC Double -> OSC
 toOSC (ToOSC t m) = case t of
@@ -338,40 +326,64 @@ setNid nid o = case oscType o of
   Snew def _ aa tid -> ToOSC (Snew def (Just nid) aa tid) (oscMap o)
   Nset _            -> ToOSC (Nset nid) (oscMap o)
 
-getDur :: (Num a) => ToOSC a -> a
+getDur :: Num a => ToOSC a -> a
 getDur o = fromMaybe 1 $ M.lookup "dur" (oscMap o)
+{-# SPECIALISE getDur :: ToOSC Double -> Double #-}
 
 tadjust :: String -> (a -> a) -> ToOSC a -> ToOSC a
 tadjust k f (ToOSC ot om) = ToOSC ot (M.adjust f k om)
 
 madjust :: String -> (a -> a) -> Msg a -> Msg a
-madjust k f (Msg r) = Msg $ fmap (tadjust k f) r
+madjust k f r = fmap (tadjust k f) r
 
--- Sample
 
+------------------------------------------------------------------------------
+-- parallel class
+
+class Ppar p where
+  ppar :: (Ord a, Num a) => [p (ToOSC a)] -> p (ToOSC a)
+
+instance Ppar R where
+  ppar = foldr1 mpar
+
+instance Ppar S where
+  ppar ps = S (\x -> "ppar [" ++ concatMap (\y -> unS y x) ps ++ "]")
+
+
+------------------------------------------------------------------------------
+-- Debugging
+
+dumpMsg :: Num a => Msg a -> IO ()
 dumpMsg m =
   mapM_ (\os -> putStrLn "--------" >> mapM_ print os) .
-  groupBy (\_ b -> getDur b == 0) =<< (runPIO $ unMsg m)
+  groupBy (\_ b -> getDur b == 0) =<< runPIO m
 
+dumpMsgFor :: Num a => Int -> Msg a -> IO ()
 dumpMsgFor n msg =
   mapM_ (\os -> putStrLn "--------" >> mapM_ print os) .
-  groupBy (\_ b -> getDur b == 0) . take n =<< (runPIO $ unMsg msg)
+  groupBy (\_ b -> getDur b == 0) . take n =<< runPIO msg
+
+------------------------------------------------------------------------------
+-- Sample
 
 m1 = mkSnew AddToTail 1 "rspdef1"
   [("dur", plist [1/4,3/4])
-  ,("freq",fmap midiCPS $ pcycle [67,69])]
+  ,("freq",fmap midiCPS $ pcycle [67,69])
+  ,("pan", pforever 0.3)]
 
 m2 = mkSnew AddToTail 1 "rspdef1"
   [("dur", pseq 2 [3/4,1/4,2/4,2/4])
   ,("freq", fmap midiCPS $ pseq 3 [60,62,63,65,67,68,70,72])]
 
 m2'seq = madjust "dur" (*0.33)
-  (m2 `mseq`
-   madjust "freq" (*2) m2 `mseq`
-   madjust "freq" (*1.5) m2 `mseq`
-   madjust "freq" (*2) m2 `mseq`
-   madjust "freq" (*0.75) m2 `mseq`
+  (m2 `pappend`
+   madjust "freq" (*2) m2 `pappend`
+   madjust "freq" (*1.5) m2 `pappend`
+   madjust "freq" (*2) m2 `pappend`
+   madjust "freq" (*0.75) m2 `pappend`
    m2)
+
+silence n = mkSnew AddToTail 1 "silence" [("dur",n)]
 
 m1m2 = m1 `mpar` m2
 
@@ -392,3 +404,15 @@ m6 = mkSnew AddToTail 1 "rspdef1"
   [("dur", plist [7/8, 1/8, 6/13, 7/13])
   ,("pan", prepeat (-0.75))
   ,("freq", fmap midiCPS $ plist [84,86,89,91])]
+
+m7 = silence 2
+
+m8 =
+  ppar
+    [pforever
+     (pchoose 1 [m2,m3,m4,m5,m6,m7])
+    ,pforever
+     (pappend
+      (madjust "freq" (*2) m1)
+      (madjust "freq" (*1.5) m1))
+    ]

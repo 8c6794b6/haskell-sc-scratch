@@ -9,6 +9,8 @@ Testing functions and actions in Respond.
 module RespTest01 where
 
 import Control.Applicative
+import Control.Concurrent
+import Control.Exception
 import System.Random
 
 import Sound.OpenSoundControl
@@ -19,6 +21,12 @@ import Sound.SC3.Lepton
 import Respond hiding (setup)
 import qualified Respond
 
+main :: IO ()
+main = do
+  t1 <- forkIO $ w loop01
+  t2 <- forkIO $ w loop02
+  w loop03
+
 setup :: Transport t => t -> IO OSC
 setup fd = do
   Respond.setup fd
@@ -28,7 +36,7 @@ setup fd = do
     ,d_recv $ synthdef "rspdef3" rspdef3
     ,c_set [(100,1)]]
   wait fd "/done"
-      
+
 rspdef1 :: UGen
 rspdef1 =
   out 0 $ pan2
@@ -51,48 +59,42 @@ rspdef3 :: UGen
 rspdef3 = out ("out"@@100) (tExpRand 'f' 0.25 4 ("t_trig"@@1))
 
 loop01 :: Transport t => t -> IO a
-loop01 fd = do
-  now <- utcr
-  go now
-  where
-    go :: Double -> IO a
-    go t0 = do
-      let dt = 1/17
-      let freqs = map midiCPS [40,41,48,52,55,58,62,67,70,74,79,86,90]
-      nid  <- (+10000) <$> newNid
-      freq <- (freqs !!) <$> randomRIO (0,length freqs -1)
-      pan  <- randomRIO (-1,1)
-      atk  <- randomRIO (1e-4,1)
-      dcy  <- randomRIO (1e-2,1)
-      amp  <- randomRIO (1e-3,1)
-      send fd $ bundle (UTCr $ t0+dt+offsetDelay)
-        [s_new "rspdef1" nid AddToTail 1
-         [("freq",freq),("pan",pan),("atk",atk),("dcy",dcy),("amp",amp)]
-        ,n_map nid [("fmul",100)]]
-      waitUntil fd "/n_go" nid
-      go (t0+dt)
+loop01 fd = go =<< utcr where
+  go :: Double -> IO a
+  go t0 = do
+    let dt = 1/17
+    let freqs = map midiCPS [40,41,48,52,55,58,62,67,70,74,79,86,90]
+    nid  <- (+10000) <$> newNid
+    freq <- (freqs !!) <$> randomRIO (0,length freqs -1)
+    pan  <- randomRIO (-1,1)
+    atk  <- randomRIO (1e-4,1)
+    dcy  <- randomRIO (1e-2,1)
+    amp  <- randomRIO (1e-3,1)
+    send fd $ bundle (UTCr $ t0+dt+offsetDelay)
+      [s_new "rspdef1" nid AddToTail 1
+       [("freq",freq),("pan",pan),("atk",atk),("dcy",dcy),("amp",amp)]
+      ,n_map nid [("fmul",100)]]
+    waitUntil fd "/n_go" nid
+    go (t0+dt)
 
 loop02 :: Transport t => t -> IO a
-loop02 fd = do
-  now <- utcr
-  go now
-  where
-    go :: Double -> IO a
-    go t0 = do
-      nid  <- newNid
-      dt   <- randomRIO (1e-1,5e-1)
-      freq <- exp <$> randomRIO (log 110, log 11000)
-      atk  <- randomRIO (1e-4,2)
-      dcy  <- randomRIO (1e-4,2)
-      amp  <- randomRIO (1e-2,1)
-      pan  <- randomRIO (-1,1)
-      q    <- randomRIO (1e-3,99e-2)
-      send fd $ bundle (UTCr $ t0+dt+offsetDelay)
-        [s_new "rspdef2" nid AddToTail 1
-         [("freq",freq),("pan",pan),("atk",atk)
-         ,("dcy",dcy),("amp",amp),("q",q)]]
-      waitUntil fd "/n_go" nid
-      go (t0+dt)
+loop02 fd = go =<< utcr where
+  go :: Double -> IO a
+  go t0 = do
+    nid  <- newNid
+    dt   <- randomRIO (1e-1,5e-1)
+    freq <- exp <$> randomRIO (log 110, log 11000)
+    atk  <- randomRIO (1e-4,2)
+    dcy  <- randomRIO (1e-4,2)
+    amp  <- randomRIO (1e-2,1)
+    pan  <- randomRIO (-1,1)
+    q    <- randomRIO (1e-3,99e-2)
+    send fd $ bundle (UTCr $ t0+dt+offsetDelay)
+      [s_new "rspdef2" nid AddToTail 1
+       [("freq",freq),("pan",pan),("atk",atk)
+       ,("dcy",dcy),("amp",amp),("q",q)]]
+    waitUntil fd "/n_go" nid
+    go (t0+dt)
 
 loop03 :: Transport t => t -> IO a
 loop03 fd = do
