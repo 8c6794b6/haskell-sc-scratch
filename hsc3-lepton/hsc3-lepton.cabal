@@ -17,6 +17,12 @@ flag hpc
   default:
     False
 
+flag debug
+  description:
+    Enable debugging options
+  default:
+    False
+
 test-suite main-tests
   ghc-options:
     -fhpc
@@ -27,11 +33,14 @@ test-suite main-tests
 
 library
   ghc-options:
-    -O2 -Wall
+    -Wall
     -fno-warn-unused-do-bind
     -fno-warn-orphans
+    -rtsopts
   if flag(hpc)
      ghc-options: -fhpc
+  if flag(debug)
+     ghc-options: -auto-all
   exposed-modules:
     Sound.SC3.Lepton
     Sound.SC3.Lepton.Instance

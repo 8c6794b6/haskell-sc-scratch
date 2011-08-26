@@ -78,12 +78,16 @@ instance Functor R where
 
 instance Monad R where
   return a = R $ \_ -> [a]
-  (R r) >>= k = R $ \g -> concatMap (\x -> unR (k x) g) (r g)
+  (R r) >>= k = R $ \g ->
+    let g' = snd . next $ g
+    in  concatMap (\x -> unR (k x) g) (r g')
 
 -- | Behaves same as ZipList.
 instance Applicative R where
   pure x = R $ \_ -> repeat x
-  R rf <*> R rv = R $ \g -> zipWith id (rf g) (rv g)
+  R rf <*> R rv = R $ \g ->
+    let g' = snd . next $ g
+    in  zipWith id (rf g') (rv g)
 
 instance Typeable1 R where
   typeOf1 _ = mkTyConApp (mkTyCon "Sound.SC3.Lepton.Pattern.R") []
@@ -125,7 +129,9 @@ instance Pconcat R where
   pconcat ps = R $ \g -> concat $ zipWith unR ps (gens g)
 
 instance Pappend R where
-  pappend pa pb = R $ \g -> unR pa g ++ unR pb g
+  pappend pa pb = R $ \g ->
+    let g' = snd . next $ g
+    in  unR pa g ++ unR pb g'
 
 -- | Repeats the list of pattern with given number.
 instance Pseq R where
@@ -142,14 +148,18 @@ instance Preplicate R where
 -- | Choose element from given list for number of given times.
 instance Prand R where
   prand n p = R $ \g ->
-    let gs = take (sum $ unR n g) (gens g)
+    let g' = snd . next $ g
+        gs = take (sum $ unR n g) (gens g')
     in  concatMap (\h -> let (j,_) = randomR (0,length p - 1) h
                          in  unR (p!!j) h) gs
 
 -- lo and hi bounds won't vary with: randomRs (lo, hi) g
 instance Prange R where
-  prange lo hi =  R $ \g ->
-    zipWith3 (\l h g' -> fst $ randomR (l,h) g') (unR lo g) (unR hi g) (gens g)
+  prange lo hi =  R $ \g0 ->
+    let g1 = snd . next $ g0
+        g2 = snd . next $ g1
+    in  zipWith3 (\l h g' -> fst $ randomR (l,h) g')
+          (unR lo g0) (unR hi g1) (gens g2)
 
 instance Prandom R where
   prandom = R randoms
@@ -167,7 +177,9 @@ instance Pforever R where
   pforever p = R $ \g -> concatMap (unR p) (gens g)
 
 instance Pshuffle R where
-  pshuffle ps = R $ \g -> concat $ zipWith unR (shuffle ps g) (gens g)
+  pshuffle ps = R $ \g ->
+    let g' = snd . next $ g
+    in  concat $ zipWith unR (shuffle ps g) (gens g')
 
 -- | Same as @(<*>)@.
 instance Papp R where
