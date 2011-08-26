@@ -11,7 +11,6 @@ Sequential OSC message sending without Control.Concurrent.threadDelay.
 module Respond where
 
 import Control.Applicative
-import Control.Concurrent
 import Control.Exception
 import Control.Monad
 import Data.Maybe (fromMaybe)
@@ -200,11 +199,10 @@ instance Monoid (Msg a) where
 data ToOSC a = ToOSC
   { oscType :: MsgType
   , oscMap  :: M.Map String a
-  , oscLast :: Bool
   } deriving (Eq, Show)
 
 instance Functor ToOSC where
-  fmap f (ToOSC t m l) = ToOSC t (fmap f m) l
+  fmap f (ToOSC t m) = ToOSC t (fmap f m)
 
 data MsgType
   = Snew String (Maybe NodeId) AddAction NodeId
@@ -215,21 +213,17 @@ data MsgType
 runMsg :: Transport t => Msg Double -> t -> IO ()
 runMsg msg fd = do
   now <- utcr
-  foldM_ f now . groupBy (\_ b -> getDur b == 0) {- . shiftT' 0 -} =<<
+  foldM_ f now . groupBy (\_ b -> getDur b == 0) =<<
     runPIO (unMsg msg)
   where
-    f :: Double -> [ToOSC Double] -> IO Double
-    f t0 os
-      | null os = return t0
-      | otherwise = do
-        let o  = head os
-            dt = getDur o
-        (nid,msgs) <- mkOSCs os
-        -- print dt
-        -- mapM_ print msgs
-        send fd $ bundle (UTCr $ t0+dt+offsetDelay) msgs
-        waitUntil fd "/n_go" nid
-        return (t0+dt)
+    f t0 os = do
+      let o  = head os
+          dt = getDur o
+      (nid,msgs) <- mkOSCs os
+      send fd $ bundle (UTCr $ t0+dt+offsetDelay) msgs
+      waitUntil fd "/n_go" nid
+      return (t0+dt)
+
       -- | otherwise = do
       --   let o  = head os
       --       dt = getDur o
@@ -256,26 +250,26 @@ sendR r fd = runMsg (Msg r) fd
 mseq :: Msg a -> Msg a -> Msg a
 mseq (Msg m1) (Msg m2) = Msg (pappend m1 m2)
 
--- XXX:
--- Not working as expected. Merge the durations of m1 and m2.
+-- | Merge given messages in parallel.
 mpar :: (Ord a, Num a) => Msg a -> Msg a -> Msg a
 mpar (Msg m1) (Msg m2) = Msg m3 where
   m3 = R $ \g ->
-    let p1 = runP m1 g
-        p2 = runP m2 g
-    in  merge (0,0) p1 p2
-  merge _       [] [] = []
-  merge (ta,tb) as [] = as
-  merge (ta,tb) [] bs = bs
-  merge (ta,tb) (a:as) (b:bs) =
+    let p1 = unR m1 g
+        p2 = unR m2 g
+    in  p1 `CP.par` (p2 `CP.pseq` merge 0 (0,0) p1 p2)
+  merge _ _ [] [] = []
+  merge _ _ as [] = as
+  merge _ _ [] bs = bs
+  merge t (ta,tb) (a:as) (b:bs) =
     let dta = getDur a
         dtb = getDur b
-    in if (ta+dta) <= (tb+dtb) then
-         let dt = min dta (tb+dtb - (ta+dta))
-         in  tadjust "dur" (const dt) a : merge (ta+dta,tb) as (b:bs)
+        ta' = ta+dta
+        tb' = tb+dtb
+    in if ta' <= tb'
+       then
+         tadjust "dur" (const $ ta'-t) a : merge ta' (ta',tb) as (b:bs)
        else
-         let dt = min dtb (ta+dta - (tb+dtb))
-         in  tadjust "dur" (const dt) b : merge (ta,tb+dtb) (a:as) bs
+         tadjust "dur" (const $ tb'-t) b : merge tb' (ta,tb') (a:as) bs
 
 getAbsoluteTime :: Num a => ToOSC a -> a
 getAbsoluteTime = M.findWithDefault 0 "when" . oscMap
@@ -289,17 +283,11 @@ fillAbsoluteTimes = scanl1 $
 
 -- | Make 's_new' messages.
 mkSnew :: Num a => AddAction -> Int -> String -> [(String, R a)] -> Msg a
--- mkSnew aa tid def ms = Msg $ (\m -> ToOSC o m False) <$> ms' where
---   o = Snew def Nothing aa tid
---   ms' = R $ \g -> runP (T.sequenceA $ M.fromList ms) g
-mkSnew aa tid def ms = Msg $ (uncurry (flip $ ToOSC o)) <$> ms' where
+mkSnew aa tid def ms = Msg $ (ToOSC o) <$> ms' where
   o = Snew def Nothing aa tid
   ms' = R $ \g ->
     tail $ shiftT 0 $
-    runP (pval initialT `pappend` (T.sequenceA $ M.fromList ms)) g
-
-initialT :: Num a => M.Map String a
-initialT = M.singleton "dur" 0
+    unR (pval (M.singleton "dur" 0) `pappend` (T.sequenceA $ M.fromList ms)) g
 
 shiftT' :: Num a => a -> [ToOSC a] -> [ToOSC a]
 shiftT' t ms = case ms of
@@ -312,26 +300,26 @@ shiftT' t ms = case ms of
         t'  = getDur m1
     in  [m1'
         ,ToOSC (Snew "done" Nothing AddToTail 1)
-         (M.fromList [("dur",t'),("t_trig",1)]) True]
+         (M.fromList [("dur",t'),("t_trig",1)])]
   _    -> []
 
 shiftT ::
   Num a
   => a
   -> [M.Map String a]
-  -> [(Bool,M.Map String a)]
+  -> [M.Map String a]
   -- ^ First element is True if last element.
 shiftT t ms = case ms of
   (m1:m2:r) ->
     let m1' = M.adjust (const t) "dur" m1
         t'  = M.findWithDefault 0 "dur" m1
-    in  (False,m1'):shiftT t' (m2:r)
+    in  (m1'):shiftT t' (m2:r)
   [m1] ->
     -- XXX: Sending dummy silent event at the end of list.
     -- Using "amp" = 0 message as adhoc solution.
     let m1' = M.adjust (const t) "dur" m1
         t'  = M.findWithDefault 0 "dur" m1
-    in  [(False,m1'),(True,M.fromList [("dur", t'),("amp",0)])]
+    in  [m1',M.fromList [("dur", t'),("amp",0)]]
   _ -> []
 
 -- | Make 'n_set' messages.
@@ -341,25 +329,33 @@ shiftT t ms = case ms of
 --   ms' = R $ runP $ T.sequenceA $ M.fromList ms
 
 toOSC :: ToOSC Double -> OSC
-toOSC (ToOSC t m _) = case t of
+toOSC (ToOSC t m) = case t of
   Snew def nid aa tid -> s_new def (fromMaybe (-1) nid) aa tid (M.assocs m)
   Nset nid            -> n_set nid (M.assocs m)
 
 setNid :: NodeId -> ToOSC a -> ToOSC a
 setNid nid o = case oscType o of
-  Snew def _ aa tid -> ToOSC (Snew def (Just nid) aa tid) (oscMap o) (oscLast o)
-  Nset _            -> ToOSC (Nset nid) (oscMap o) (oscLast o)
+  Snew def _ aa tid -> ToOSC (Snew def (Just nid) aa tid) (oscMap o)
+  Nset _            -> ToOSC (Nset nid) (oscMap o)
 
 getDur :: (Num a) => ToOSC a -> a
 getDur o = fromMaybe 1 $ M.lookup "dur" (oscMap o)
 
 tadjust :: String -> (a -> a) -> ToOSC a -> ToOSC a
-tadjust k f (ToOSC ot om ob) = ToOSC ot (M.adjust f k om) ob
+tadjust k f (ToOSC ot om) = ToOSC ot (M.adjust f k om)
 
 madjust :: String -> (a -> a) -> Msg a -> Msg a
 madjust k f (Msg r) = Msg $ fmap (tadjust k f) r
 
 -- Sample
+
+dumpMsg m =
+  mapM_ (\os -> putStrLn "--------" >> mapM_ print os) .
+  groupBy (\_ b -> getDur b == 0) =<< (runPIO $ unMsg m)
+
+dumpMsgFor n msg =
+  mapM_ (\os -> putStrLn "--------" >> mapM_ print os) .
+  groupBy (\_ b -> getDur b == 0) . take n =<< (runPIO $ unMsg msg)
 
 m1 = mkSnew AddToTail 1 "rspdef1"
   [("dur", plist [1/4,3/4])

@@ -22,16 +22,20 @@ import Respond hiding (setup)
 import RespTest01 hiding (setup,loop01,loop02,loop03)
 import qualified RespTest01 as ZeroOne
 
+main :: IO ()
+main =
+  w $ runMsg $ loop01 `mpar` loop02
+
 setup :: Transport t => t -> IO OSC
 setup fd = do
   ZeroOne.setup fd
   async fd $ d_recv $ synthdef "rspdef4" rspdef4
-  
+
 rspdef4 :: UGen
-rspdef4 = out 0 $ 
+rspdef4 = out 0 $
   lfPar AR ("freq"@@440 `lag` 0.25) 0 * ("amp"@@0.3 `lag3` 0.3)
 
--- loop01 :: Transport t => t -> IO ()
+loop01 :: Msg Double
 loop01 = mkSnew AddToTail 1 "rspdef1"
   [("dur",  pforever (1/17))
   ,("freq", fmap midiCPS $ pforever $ prand 1 $
@@ -42,13 +46,14 @@ loop01 = mkSnew AddToTail 1 "rspdef1"
   ,("amp",  pforever $ prange 1e-3 1)
   ,("n_map/fmul", pforever 100)]
 
--- loop02 :: Transport t => t -> IO ()
+loop02 :: Msg Double
 loop02 = mkSnew AddToTail 1 "rspdef2"
   [("dur",  pforever $ prange 1e-1 5e-1)
   ,("freq", pforever $ exp <$> prange (log <$> 110) (log <$> 11000))
   ,("atk",  pforever $ prange 1e-4 2)
   ,("dcy",  pforever $ prange 1e-4 2)
   ,("amp",  pforever $ prange 1e-2 1)
+  ,("pan",  pforever $ prange (-1) 1)
   ,("q",    pforever $ prange 1e-3 99e-2)]
 
 loop03 :: Transport t => t -> IO ()
