@@ -24,15 +24,15 @@ import qualified RespTest01 as RT01
 main :: IO ()
 main = w $ \fd -> do
   setup fd
+  send fd $ s_new "rspdef3" 1003 AddToHead 1 []
   runMsg (ppar [loop01, loop02, loop03]) fd
 
-setup :: Transport t => t -> IO ()
+setup :: Transport t => t -> IO OSC
 setup fd = do
   RT01.setup fd
   async fd $ bundle immediately
     [d_recv $ synthdef "rspdef4" rspdef4
     ,d_recv $ synthdef "rspdef5" rspdef5]
-  send fd $ s_new "rspdef3" 1001 AddToHead 1 []
 
 rspdef4 :: UGen
 rspdef4 = out 0 $
@@ -49,7 +49,14 @@ rspdef5 =
 
 loop01 :: Msg Double
 loop01 = mkSnew AddToTail 1 "rspdef1"
-  [("dur",  pforever (1/17))
+  [("dur",
+
+    -- pforever (1/17))
+    pcycle [preplicate 1024 (1/23)
+           ,preplicate 512 (2/23)
+           ,preplicate 256 (4/23)
+           ,preplicate 128 (8/23)])
+
   ,("freq", fmap midiCPS $ pforever $ prand 1 $
             [40,41,48,52,55,58,62,67,70,74,79,86,90])
   ,("pan",  pforever $ prange (-1) 1)
@@ -70,7 +77,7 @@ loop02 = mkSnew AddToTail 1 "rspdef2"
   ,("q",    pforever $ prange 1e-3 99e-2)]
 
 loop03 :: Msg Double
-loop03 = mkNset 1001
+loop03 = mkNset 1003
   [("dur",    pforever $ prange 4 32)
   ,("t_trig", pforever 1)]
 

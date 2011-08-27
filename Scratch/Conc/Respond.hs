@@ -53,6 +53,7 @@ setup :: Transport t => t -> IO OSC
 setup fd = async fd $ bundle immediately
   [d_recv $ synthdef "tr" tr
   ,d_recv $ synthdef "silence" silenceS
+  ,d_recv $ synthdef "rest" silenceS
   ,d_recv $ synthdef "done" doneS]
 
 offsetDelay :: Double
@@ -168,9 +169,10 @@ mkOpts nid a val acc = case break (== '/') a of
     ("c_set", '/':p) -> c_set [(read p, val)]:acc
     _                -> acc
 
-{-|
+-- | Composable, audible events with pattern.
+type Msg a = R (ToOSC a)
 
-So far, above message sequence is working well.
+{-
 
 Adding higher level language feature, sequencing multiple messages.
 
@@ -197,7 +199,6 @@ to send and receive messages sequentially to specified server.
 ... And, 'Msg' turned out to be a type synonym for 'R (ToOSC a)'.
 
 -}
-type Msg a = R (ToOSC a)
 
 -- | OSC convertable data
 data ToOSC a = ToOSC
@@ -217,6 +218,10 @@ data MsgType
     deriving (Eq, Show)
 
 -- | Run message.
+--
+-- When 'NaN' is found in 'freq' key of Map, replace the message
+-- with sending 's_new silence'.
+--
 runMsg :: Transport t => Msg Double -> t -> IO ()
 runMsg msg fd = do
   now <- utcr
@@ -238,10 +243,19 @@ runMsg msg fd = do
 {-# SPECIALISE runMsg :: Msg Double -> UDP -> IO () #-}
 {-# SPECIALISE runMsg :: Msg Double -> TCP -> IO () #-}
 
+nan :: Floating a => a
+nan = 0/0
+{-# SPECIALIZE nan :: Double #-}
+
 mkOSCs :: [ToOSC Double] -> Int -> IO ([NodeId],[OSC])
 mkOSCs os tid = foldM f v os where
-  f (ns,acc) o = do
-    case oscType o of
+  f (ns,acc) o
+    | isSilence o = do
+      nid <- newNid
+      let slt = Snew "rest" (Just nid) AddToTail 1
+          rest = toOSC (ToOSC slt (M.singleton "dur" (getDur o)))
+      return (nid:ns, rest:acc)
+    | otherwise   = case oscType o of
       Snew _ nid _ _ -> do
         nid' <- maybe newNid return nid
         let opts = M.foldrWithKey (mkOpts nid') [] (oscMap o)
@@ -250,6 +264,7 @@ mkOSCs os tid = foldM f v os where
         let t = ToOSC (Nset tid) (M.singleton "t_trig" 1)
         return (nid:ns, toOSC o:toOSC t:acc)
   v = ([],[])
+  isSilence m = (isNaN <$> M.lookup "freq" (oscMap m)) == Just True
 
 -- | Merge given messages in parallel.
 mpar :: (Ord a, Num a) => Msg a -> Msg a -> Msg a
@@ -269,7 +284,7 @@ mpar m1 m2 = m3 where
       ub = tb + getDur b
 
 -- | Make 's_new' messages.
-mkSnew :: Num a => AddAction -> Int -> String -> [(String, R a)] -> Msg a
+-- mkSnew :: Num a => AddAction -> Int -> String -> [(String, R a)] -> Msg a
 mkSnew aa tid def ms = ToOSC o <$> ms' where
   o = Snew def Nothing aa tid
   ms' = R $ \g ->
@@ -278,11 +293,11 @@ mkSnew aa tid def ms = ToOSC o <$> ms' where
 
 {-# SPECIALISE mkSnew ::
     AddAction -> Int -> String -> [(String, R Double)] -> Msg Double #-}
-{-# SPECIALISE mkSnew ::
-    AddAction -> Int -> String -> [(String, R Int)] -> Msg Int #-}
+-- {-# SPECIALISE mkSnew ::
+--     AddAction -> Int -> String -> [(String, R Int)] -> Msg Int #-}
 
 -- | Make 'n_set' messages.
-mkNset :: Num a => Int -> [(String,R a)] -> Msg a
+-- mkNset :: Num a => Int -> [(String,R a)] -> Msg a
 mkNset nid ms = ToOSC o <$> ms' where
   o = Nset nid
   ms' = R $ \g ->
@@ -290,12 +305,12 @@ mkNset nid ms = ToOSC o <$> ms' where
     unR (pval initialT `pappend` (T.sequenceA $ M.fromList ms)) g
 
 {-# SPECIALISE mkNset :: Int -> [(String,R Double)] -> Msg Double #-}
-{-# SPECIALISE mkNset :: Int -> [(String,R Int)] -> Msg Int #-}
+-- {-# SPECIALISE mkNset :: Int -> [(String,R Int)] -> Msg Int #-}
 
 initialT :: Num a => M.Map String a
 initialT = M.singleton "dur" 0
 
-shiftT :: Num a => a -> [M.Map String a] -> [M.Map String a]
+-- shiftT :: Num a => a -> [M.Map String a] -> [M.Map String a]
 shiftT t ms = case ms of
   (m1:m2:r) ->
     let m1' = M.adjust (const t) "dur" m1
@@ -306,14 +321,22 @@ shiftT t ms = case ms of
     -- Sending dummy silent event at the end of list,
     -- to receive /n_go response message.
     --
-    -- Using "amp" = 0 message as adhoc solution.
-    -- Better modifying this to send silent synth, though
-    -- could not specify which synthdef to send inside this
-    -- function.
+    -- ToOSC with NaN value freq in its map will be treated as rest.
+    -- in sendMsg.
     --
     let m1' = M.adjust (const t) "dur" m1
         t'  = M.findWithDefault 0 "dur" m1
-    in  [m1',M.fromList [("dur", t'),("amp",0)]]
+    in  [m1',M.fromList [("freq",nan),("dur",t')]]
+
+    --
+    -- Using "amp" = 0 message as alternative solution.
+    -- Better modifying this to send silent synth, though
+    -- could not specify which synthdef to send inside this
+    -- function. Type signature of this function could be modified to
+    -- Num.
+    --
+    -- in  [m1',M.fromList [("dur", t'),("amp",0),("t_amp",0),("gate",0)]]
+    --
   _ -> []
 
 toOSC :: ToOSC Double -> OSC
@@ -409,10 +432,8 @@ m7 = silence 2
 
 m8 =
   ppar
-    [pforever
-     (pchoose 1 [m2,m3,m4,m5,m6,m7])
-    ,pforever
-     (pappend
-      (madjust "freq" (*2) m1)
-      (madjust "freq" (*1.5) m1))
-    ]
+  [pforever
+   (pchoose 1 [m2,m3,m4,m5,m6,m7])
+  ,pcycle
+   [madjust "freq" (*2) m1
+   ,madjust "freq" (*1.5) m1]]

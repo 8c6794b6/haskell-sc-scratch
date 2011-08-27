@@ -75,10 +75,15 @@ go =
     [("dur",  prepeat 0.13)
     ,("freq", fmap midiCPS pspe)]
 
-go2 :: Transport t => t -> IO ()
+-- go2 :: Transport t => t -> IO ()
 go2 =
-  sNew AddToTail 1 "speSynth2"
-    [("dur",     prepeat (1/7))
-    ,("freq",    fmap midiCPS pspe)
-    ,("sustain", prepeat (1/7))]
-
+  ppar
+    [mkSnew AddToTail 1 "speSynth2"
+     [("dur",     prepeat (1/7))
+     ,("freq",    fmap ((* 0.5) . midiCPS) pspe)
+     ,("sustain", prepeat (1/7))]
+    ,mkSnew AddToTail 1 "speSynth2"
+     [("dur",     prepeat (3/7))
+     ,("freq",    fmap midiCPS (preplicate 3 pspe))
+     ,("sustain", prepeat (3/7))]
+    ]
