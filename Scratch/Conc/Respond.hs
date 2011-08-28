@@ -1,4 +1,5 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE BangPatterns #-}
 {-|
 Module      : $Header$
 License     : BSD3
@@ -32,7 +33,7 @@ import qualified Data.Traversable as T
 w :: (UDP -> IO a) -> IO a
 w k = withSC3 $ \fd -> bracket
   (async fd (notify True) >> return fd)
-  (flip send (notify False))
+  (\fd' -> send fd' $ notify False)
   k
 
 -- | Synthdef used for responding to 'n_set' messages.
@@ -77,8 +78,8 @@ waitUntil ::
   -- ^ Int to match in first element of returned OSC message.
   -> IO ()
 waitUntil fd str n = recv fd >>= \m -> case m of
-  Message str' (Int n':_) | str == str' && n == n' -> return ()
-  _                       -> waitUntil fd str n
+  Message !str' (Int !n':_) | str == str' && n == n' -> return ()
+  _                         -> waitUntil fd str n
 {-# SPECIALISE waitUntil :: UDP -> String -> Int -> IO () #-}
 {-# SPECIALISE waitUntil :: TCP -> String -> Int -> IO () #-}
 
@@ -222,27 +223,40 @@ data MsgType
 -- When 'NaN' is found in 'freq' key of Map, replace the message
 -- with sending 's_new silence'.
 --
+-- When delta time is small amount (> 10ms), latency occurs in
+-- server side. Modify to send messages in chunk, accumulate until
+-- enough duration has been passed in between messages. Try out from
+-- sending once in every more than 20 ms.
+--
+-- Try pattern converter and sender running in different thread. This
+-- may save couple computation time.
+--
+
 runMsg :: Transport t => Msg Double -> t -> IO ()
 runMsg msg fd = do
-  now <- utcr
-  trid <- newNid
+  now  <- utcr
+  trid <- {-# SCC "runMSG_newNid" #-} newNid
   send fd $ s_new "tr" trid AddToHead 1 []
-  foldM_ (f trid) now . groupBy (\_ b -> getDur b == 0) =<< runPIO msg
+  oscs <- {-# SCC "runMsg_runPIO" #-} runPIO msg
+  foldM_ (f trid) (now,now) . groupBy (\_ b -> getDur b == 0) $ oscs
   where
-    f trid t0 os = do
-      let o  = head os
-          dt = getDur o
-      (nid:_,msgs@(msg:_)) <- mkOSCs os trid
-      send fd $ bundle (UTCr $ t0+dt+offsetDelay) msgs
-      case msg of
+    f _    times   []       = return times
+    f trid (t0,tl) os@(o:_) = {-# SCC "runMsg_f" #-} do
+      let dt   = getDur o
+          wait = t0-tl > offsetDelay -- (offsetDelay*5)
+      (!nid:_,!msgs@(msg:_)) <- {-# SCC "runMsg_mkOSCs" #-} mkOSCs os trid
+      {-# SCC "runMsg_send" #-} send fd $ bundle (UTCr $ t0+dt+offsetDelay) msgs
+      tl' <- {-# SCC "runMsg_utcr" #-} if wait then utcr else return tl
+      {-# SCC "runMsg_when" #-} when wait $ case msg of
         Message "/s_new" _ -> waitUntil fd "/n_go" nid
         Message "/n_set" _ -> waitUntil fd "/tr" trid
         _                  -> return ()
-      return (t0+dt)
+      return (t0+dt,tl')
 
 {-# SPECIALISE runMsg :: Msg Double -> UDP -> IO () #-}
 {-# SPECIALISE runMsg :: Msg Double -> TCP -> IO () #-}
 
+-- | 'NaN' value made by @@0/0@@.
 nan :: Floating a => a
 nan = 0/0
 {-# SPECIALIZE nan :: Double #-}
@@ -254,15 +268,17 @@ mkOSCs os tid = foldM f v os where
       nid <- newNid
       let slt = Snew "rest" (Just nid) AddToTail 1
           rest = toOSC (ToOSC slt (M.singleton "dur" (getDur o)))
-      return (nid:ns, rest:acc)
+      slt `seq` rest `seq` return (nid:ns, rest:acc)
     | otherwise   = case oscType o of
       Snew _ nid _ _ -> do
         nid' <- maybe newNid return nid
-        let opts = M.foldrWithKey (mkOpts nid') [] (oscMap o)
-        return (nid':ns, (toOSC (setNid nid' o):opts) ++ acc)
+        let ops = M.foldrWithKey (mkOpts nid') [] (oscMap o)
+            o' = toOSC (setNid nid' o)
+        o' `seq` ops `seq` return (nid':ns, (toOSC (setNid nid' o):ops) ++ acc)
       Nset nid -> do
         let t = ToOSC (Nset tid) (M.singleton "t_trig" 1)
-        return (nid:ns, toOSC o:toOSC t:acc)
+            o' = toOSC o
+        o' `seq` t `seq` return (nid:ns, o':toOSC t:acc)
   v = ([],[])
   isSilence m = (isNaN <$> M.lookup "freq" (oscMap m)) == Just True
 
@@ -293,11 +309,10 @@ mkSnew aa tid def ms = ToOSC o <$> ms' where
 
 {-# SPECIALISE mkSnew ::
     AddAction -> Int -> String -> [(String, R Double)] -> Msg Double #-}
--- {-# SPECIALISE mkSnew ::
---     AddAction -> Int -> String -> [(String, R Int)] -> Msg Int #-}
 
 -- | Make 'n_set' messages.
 -- mkNset :: Num a => Int -> [(String,R a)] -> Msg a
+mkNset :: Floating a => NodeId -> [(String, R a)] -> Msg a
 mkNset nid ms = ToOSC o <$> ms' where
   o = Nset nid
   ms' = R $ \g ->
@@ -305,12 +320,12 @@ mkNset nid ms = ToOSC o <$> ms' where
     unR (pval initialT `pappend` (T.sequenceA $ M.fromList ms)) g
 
 {-# SPECIALISE mkNset :: Int -> [(String,R Double)] -> Msg Double #-}
--- {-# SPECIALISE mkNset :: Int -> [(String,R Int)] -> Msg Int #-}
 
 initialT :: Num a => M.Map String a
 initialT = M.singleton "dur" 0
 
 -- shiftT :: Num a => a -> [M.Map String a] -> [M.Map String a]
+shiftT :: Floating a => a -> [M.Map String a] -> [M.Map String a]
 shiftT t ms = case ms of
   (m1:m2:r) ->
     let m1' = M.adjust (const t) "dur" m1

@@ -25,7 +25,8 @@ import qualified Respond as R
 import qualified RespTest02 as RT02
 
 main :: IO ()
-main = w setup >> test
+main = w $ \fd ->
+  setup fd >> patchNode n0 fd >> runMsg allP fd
 
 setup :: Transport t => t -> IO OSC
 setup fd = do
@@ -54,7 +55,7 @@ n0 =
     [g 1
      [g 10
       [s 1000 "lfsin" []
-      ,s 1001 "cf2drn" 
+      ,s 1001 "cf2drn"
       ["out":=19,"gate":=1]
       ,s 1002 "cf2drn"
       ["out":=20,"gate":=1]]
@@ -104,8 +105,8 @@ n0 =
 
 bpm = 295
 
-allP = ppar 
-  [ huh1P, huh2P, huh3P
+allP = ppar
+  [ huh1P{-, huh2P, huh3P -}
   , kikP, snrP, hatP
   , puP, drn1P, drn2P, bellP
   ]
@@ -116,6 +117,34 @@ allP = ppar
 --             , RT02.loop01
 --             , RT02.loop02
 --             , RT02.loop03 ]
+
+g10 =
+  g 0
+  [g 1
+   [g 10 []]
+  ,g 8
+   [s 8000 "cf2mix" -- huh1
+    ["out":=0,"a_in":<=10,"amp":=1.4,"pan":=0]
+   ,s 8001 "cf2mix" -- huh2
+    ["out":=0,"a_in":<=11,"amp":=1.2,"pan":=(-0.8)]
+   ,s 8002 "cf2mix" -- huh3
+    ["out":=0,"a_in":<=12,"amp":=1.2,"pan":=0.8]
+   ,s 8003 "cf2mix" -- kik
+    ["out":=0,"a_in":<=13,"amp":=0.8,"pan":=0.03]
+   ]]
+  where
+    g = Group
+    s = Synth
+
+testHuh :: IO ()
+testHuh = w $ \fd -> do
+  reset fd
+  patchNode g10 fd
+  runMsg p fd
+  where
+    -- p = huh1P
+    -- p = ppar [huh1P, kikP, puP]
+    p = ppar [huh1P,huh2P,huh3P]
 
 huh1P =
   mkSnew AddToTail 10 "cf2huh"
@@ -210,16 +239,14 @@ puP =
   ,("out", pforever 16)
   ,("t_trig", pforever 1)
   ,("freq", fmap midiCPS $
-    pseq 1
-    [pseq 32 [0]
-    ,pcycle
-     [prand 7
-      [pseq 1 [36,55,62,36, 55,62,36,55]
-      ,pseq 1 [36,60,72,36, 60,72,36,60]
-      ,pseq 1 [36,53,58,36, 53,58,36,53]]
-     ,36, prand 2 [60,67]
-     ,36, prand 2 [67,72]
-     ,prand 2 [48,53,55,60,65,67]]])
+   pcycle
+   [prand 7
+    [pseq 1 [36,55,62,36, 55,62,36,55]
+    ,pseq 1 [36,60,72,36, 60,72,36,60]
+    ,pseq 1 [36,53,58,36, 53,58,36,53]]
+   ,36, prand 2 [60,67]
+   ,36, prand 2 [67,72]
+   ,prand 2 [48,53,55,60,65,67]])
   ]
 
 drn1P =
@@ -238,7 +265,7 @@ drn1P =
       [72, pseq 31 [0]
       ,60, pseq 31 [0]]]])
   ]
-  
+
 drn2P =
   mkNset 1002
   [("dur", pforever (60/bpm))
@@ -288,7 +315,8 @@ lfsin =
 -- certain seconds. When synths can free itself with envGen, this dummy
 -- line ugen could be removed.
 --
--- Using more memory than demand ugen version.
+-- Using more memory than demand ugen version, need to increase
+-- scsynth server memory with '-m' option.
 --
 
 -- | Synthdef for 'huh' human vowel like noise.
@@ -317,7 +345,7 @@ cf2nzf' amp freq = out ("out"@@0) sig where
   ae1 = mkAE [0,1,0.2,0.8,0] [28e-3,200e-3,100e-3,285e-3]
   ae2 = mkAE [0,0.5,0.8,0] [120e-3,30e-3, 130e-3]
   ae3 = mkAE [0,1,0.2,0] [25e-3, 180e-3, 310e-3]
-  mkAE vs ts = envGen kr amp amp 0 0.25 RemoveSynth $ 
+  mkAE vs ts = envGen kr amp amp 0 0.25 RemoveSynth $
                env vs ts [EnvNum 3] (-1) (-1)
 
 cf2kik :: UGen
@@ -355,7 +383,7 @@ cf2hat' tick = out ("out"@@0) (sig * amp) where
   d = line KR 1 1 1 RemoveSynth
 
 cf2drn :: UGen
-cf2drn = cf2drn' ("amp"@@0.3) ("gate"@@1) 
+cf2drn = cf2drn' ("amp"@@0.3) ("gate"@@1)
          ((("freq"@@440) `lag` 0.6 `lag` 0.6))
 cf2drn' amp gt freq = out ("out"@@0) sig where
   sig = foldr (\a b -> allpassN b 0.05 a 4) sig' $

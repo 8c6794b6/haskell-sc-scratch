@@ -11,6 +11,7 @@ module RespTest01 where
 import Control.Applicative
 import Control.Concurrent
 import Control.Exception
+import Control.Monad
 import System.Random
 
 import Sound.OpenSoundControl
@@ -21,11 +22,13 @@ import Sound.SC3.Lepton
 import Respond hiding (setup)
 import qualified Respond
 
+-- main :: IO ()
+-- main = do
+--   t1 <- forkIO $ w loop01
+--   t2 <- forkIO $ w loop02
+--   w loop03
 main :: IO ()
-main = do
-  t1 <- forkIO $ w loop01
-  t2 <- forkIO $ w loop02
-  w loop03
+main = w loop04
 
 setup :: Transport t => t -> IO OSC
 setup fd = do
@@ -114,3 +117,30 @@ loop03 fd = do
         ,n_set n2 [("t_trig",1)]]
       waitUntil fd "/tr" n2
       go n1 n2 (t0+dt)
+
+loop04 :: Transport t => t -> IO a
+loop04 fd = do
+  now <- utcr
+  go now 0
+  where
+    atks = as ++ reverse as
+    as = take 1024 $ iterate (*1.006) 0.002
+    go t0 idx = do
+      nid <- newNid
+      dur <- randomRIO (1e-3, 7.5e-2)
+      freq <- exp <$> randomRIO (log 80, log 12000)
+      let atk = atks !! idx
+      dcy <- randomRIO (1e-4,2e-1)
+      amp <- randomRIO (1e-1,3e-1)
+      pan <- randomRIO (-1,1)
+      send fd $ bundle (UTCr $ t0+dur+offsetDelay)
+        [s_new "rspdef1" nid AddToTail 1
+          [("freq",freq),("pan",pan),("atk",atk),("dcy",dcy),("amp",amp)]]
+      go (t0+dur) (succ idx `mod` 2048)
+
+  -- ,("freq", pforever $ exp <$> prange (log <$> 80) (log <$> 12000))
+  -- ,("atk",  let xs = take 1024 $ iterate (*1.006) 0.002
+  --           in  pcycle $ fmap pval (xs ++ reverse xs))
+  -- ,("dcy",  pforever $ prange 1e-4 2e-1)
+  -- ,("amp",  pforever $ prange 1e-1 3e-1)
+  -- ,("pan",  pforever $ prange (-1) 1)]

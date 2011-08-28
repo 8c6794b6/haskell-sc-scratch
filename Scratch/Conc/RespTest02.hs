@@ -18,7 +18,7 @@ import Sound.SC3.ID
 import Sound.SC3.Lepton
 
 import Respond hiding (setup)
-import RespTest01 hiding (main,setup,loop01,loop02,loop03)
+import RespTest01 hiding (main,setup,loop01,loop02,loop03,loop04)
 import qualified RespTest01 as RT01
 
 main :: IO ()
@@ -73,7 +73,7 @@ loop02 = mkSnew AddToTail 1 "rspdef2"
   ,("atk",  pforever $ prange 1e-4 2)
   ,("dcy",  pforever $ prange 1e-4 2)
   ,("amp",  pforever $ prange 1e-2 1)
-  ,("pan",  pforever $ prange (-1) 1.0)
+  ,("pan",  pforever $ prange (-1) 1)
   ,("q",    pforever $ prange 1e-3 99e-2)]
 
 loop03 :: Msg Double
@@ -86,3 +86,21 @@ loop03 = mkNset 1003
 --   [("dur", pcycle [1, 1/2, 1/4, 1/4, 1/2, 1/4, 1/4])
 --   ,("freq", pforever $ prange 110 8800)
 --   ,("amp",  pforever $ prange 1e-2 1)]
+
+loop04 :: R (ToOSC Double)
+loop04 = mkSnew AddToTail 1 "rspdef1"
+  [("dur",  pforever $ prange 1e-3 7.5e-2)
+  ,("freq", pforever $ exp <$> prange (log <$> 80) (log <$> 12000))
+  ,("atk",  let xs = take 1024 $ iterate (*1.006) 0.002
+            in  pcycle $ fmap pval (xs ++ reverse xs))
+  ,("dcy",  pforever $ prange 1e-4 2e-1)
+  ,("amp",  pforever $ prange 1e-1 3e-1)
+  ,("pan",  pforever $ prange (-1) 1)]
+
+msg01 :: Msg Double
+msg01 = mkSnew AddToTail 1 "rspdef1"
+  [("dur", pforever 20e-3)
+  ,("freq", preplicate 200 8000)
+  ,("atk", pforever 1e-3)
+  ,("dcy", pforever 10e-3)
+  ,("amp", pforever 0.3)]
