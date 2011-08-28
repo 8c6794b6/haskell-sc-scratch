@@ -66,11 +66,11 @@ n0 =
       ["out":=27,"a_in":<=3,"t_trig":<-208]]]
    ,g 50 -- mix
     [s 5000 "b002amps"
-     ["quickNoise":=3,"bosc":=0.75,"slowNoise":=4
+     ["quickNoise":=3,"bosc":=1.1,"slowNoise":=4
      ,"hat1":=1,"hat2":=1,"bhit":=0.1]
     ,s 5001 "b002mix1" -- quickNoise
      ["out":=0,"a_in":<=20,"amp":<-800
-     ,"pan":=(-0.1),"dtl":=1e-4,"dtr":=0]
+     ,"pan":=(0.1),"dtl":=1e-4,"dtr":=1.7e-4]
     ,s 5002 "b002mix2" -- bosc
      ["out":=0,"a_inl":<=22, "a_inr":<=23,"amp":<-801]
     ,s 5003 "b002mix1" -- slowNoise
@@ -87,4 +87,4 @@ n0 =
      ,"pan":=(-0.25),"dtr":=2e-4,"dtl":=0]]
    ,g 99 -- master
     [s 9901 "b002mst"
-     ["amp":=0.2,"a_inl":<=0,"a_inr":<=1]]]]
+     ["amp":=0.1,"a_inl":<=0,"a_inr":<=1]]]]

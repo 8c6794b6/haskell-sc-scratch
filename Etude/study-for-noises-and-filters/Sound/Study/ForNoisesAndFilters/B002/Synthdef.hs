@@ -97,7 +97,8 @@ boF1 =
   --         ,sseq 4 plus5, sseq 4 base]]
           -- ,srand 128 (minus5 ++ plus5)]]
   where
-    base = [52,57,59,64, 69,71,76,78]
+    base = [52,57,59, 64,69,71, 76,78]
+    -- plus2 = map (+ 2) base
     -- plus5 = map (+ 5) base
     -- plus7 = map (+ 7) base
     -- minus2 = map (+ (-2)) base
@@ -154,15 +155,17 @@ b002met = mrg [out ("outt"@@0) sig, out ("outb"@@0) cnt] where
 
 noises :: UGen -> UGen
 noises colour = out ("out"@@0) sig where
-  sig = select colour (mce nz)
-  nz = [ whiteNoise 'w' ar
-       , pinkNoise 'p' ar
-       , brownNoise 'b' ar
-       , grayNoise 'g' ar
-       , henonL ar (sampleRate/2) 0.1 0.3 x y
-       ]
+  sig = select colour $ mce nz
+  nz = [whiteNoise 'w' ar
+       ,pinkNoise 'p' ar
+       ,brownNoise 'b' ar
+       ,grayNoise 'g' ar
+       ,henonL ar (sampleRate/2) 0.1 0.3 x y
+       ,lorenzL ar sampleRate (x*10) (y*10) (z*12) h 0 0 0]
   x = linLin (lfdNoise3 'x' kr 1) (-1) 1 0 1.4
   y = linLin (lfdNoise3 'y' kr 1) (-1) 1 0 0.3
+  z = linLin (lfdNoise3 'z' kr 1) (-1) 1 0 0.8
+  h = linLin (lfdNoise3 'h' kr 1) (-1) 1 0 1
 
 quickNoiseC :: UGen
 quickNoiseC = quickNoiseC' ("t_trig"@@0)

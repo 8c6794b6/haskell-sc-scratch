@@ -18,7 +18,6 @@ import Sound.OpenSoundControl
 import Sound.SC3
 import Sound.SC3.ID
 import Sound.SC3.Lepton
--- import Sound.SC3.Lepton.GUI
 
 setup fd = do
   mapM_ (\(n,u) -> loadSynthdef n u fd)
@@ -44,7 +43,7 @@ rgGraph =
        ,syn 1002 "lzf001"
           ["out":=101]]
     ,grp 20
-       [syn 2001 "lz001" {- "hn001" -}
+       [syn 2001 {- "lz001" -} "hn001"
           ["out":=0,"freq":<-101]]
     ,grp 21
        [syn 2101 "hit001"
@@ -71,7 +70,7 @@ rgGraph =
        [syn 2301 "cmb002"
           ["a_in":<=0,"out":=8,"t_trig":<-100]
        ,syn 2302 "pan003"
-          ["a_in":<=8,"out":=8,"amp":={- 0 -} 0.125]]
+          ["a_in":<=8,"out":=8,"amp":=0 {- 0.125 -}]]
     ,grp 30
        [syn 3000 "mix001"
           ["a_l1":<=2,"a_r1":<=3
@@ -81,10 +80,10 @@ rgGraph =
 
 tr001 = mrg [d, out ("out"@@0) t] where
   t = impulse kr ("freq"@@8) 0
-  d = line kr 0 1 215 {- RemoveSynth -} DoNothing
+  d = line kr 0 1 215 RemoveSynth {- DoNothing -}
 
 lzf001 = out ("out"@@101) (o+20) where
-  o = envGen kr 1 (sampleRate-20) 0 1 {- RemoveSynth -} DoNothing shp
+  o = envGen kr 1 (sampleRate-20) 0 1 RemoveSynth {-  DoNothing -} shp
   shp = env [0,0,1,0.5,1,0.125,1,1,0,1] [0,30,15,30,15,30,60,30,10]
         [EnvCub] (-1) 0
 
@@ -92,7 +91,7 @@ lzf002 = out ("out"@@101) (o+20) where
   o = linLin (lfdNoise3 'f' kr (1/exp pi) * 0.5 + 0.5) 0 1 0 sampleRate
 
 lzf003 = out ("out"@@101) (o+20) where
-  o = envGen kr 1 (sampleRate/2-20) 0 1 {- RemoveSynth -} DoNothing shp
+  o = envGen kr 1 (sampleRate/2-20) 0 1 RemoveSynth {- DoNothing -} shp
   shp = env [0,0,1,0.5,1,0.125,1,1,0,1] [0,30,15,30,15,30,60,30,10]
         [EnvCub] (-1) 0
 
