@@ -23,7 +23,11 @@ module Sound.SC3.Lepton.Pattern.Expression
     Prandom(..), Prange(..), Pchoose(..), Prand(..), Pshuffle(..),
 
     -- * Lambda and application (experimental)
-    Plam(..), Papp(..)
+    Plam(..), Papp(..),
+
+    -- -- * Parallel
+    -- Ppar(..)
+
   ) where
 
 import System.Random (Random)
@@ -88,3 +92,6 @@ class Plam p where
 
 class Papp p where
   papp :: p (a->b) -> p a -> p b
+
+-- class Ppar p where
+--   ppar :: [p a] -> p a

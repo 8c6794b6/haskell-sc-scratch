@@ -1,3 +1,6 @@
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE StandaloneDeriving #-}
 --------------------------------------------------------------------------------
 -- |
 -- Module      : $Header$
@@ -5,7 +8,7 @@
 -- License     : BSD3
 -- Maintainer  : 8c6794b6@gmail.com
 -- Stability   : unstable
--- Portability : portable
+-- Portability : non-portable (DeriveDataTypeable, StandaloneDeriving)
 --
 -- Additional instance declarations for datat types found in Sound.SC3.
 --
@@ -13,13 +16,30 @@
 --
 module Sound.SC3.Lepton.Instance () where
 
-import Data.Generics
 import Data.Data
-import Data.Typeable
 
 import Sound.SC3
 import Sound.OpenSoundControl
 
+#if defined(__GLASGOW_HASKELL__) && __GLASGOW_HASKELL__ >= 700
+deriving instance Data Datum
+deriving instance Typeable Datum
+
+deriving instance Data OSC
+deriving instance Typeable OSC
+
+deriving instance Data Time
+deriving instance Typeable Time
+
+deriving instance Data Rate
+deriving instance Typeable Rate
+
+deriving instance Data Special
+deriving instance Typeable Special
+
+deriving instance Data UGen
+deriving instance Typeable UGen
+#else
 instance Typeable Datum where
   typeOf _  = mkTyConApp tc_Datum []
 
@@ -261,71 +281,4 @@ con_MRG = mkConstr ty_UGen "MRG" [] Prefix
 ty_UGen :: DataType
 ty_UGen = mkDataType "Sound.SC3.UGen.UGen"
           [con_Constant,con_Control,con_Primitive,con_Proxy,con_MCE,con_MRG]
-
---
--- Some tests
---
-
--- datumList :: [Datum]
--- datumList = [Int 1,
---              Int 2,
---              Float 1,
---              Double 1,
---              String "str",
---              Blob [],
---              TimeStamp (UTCr 1),
---              TimeStamp (NTPr 2),
---              TimeStamp (NTPi 3)
---             ]
-
--- test1_Datum = everywhere (mkT f) datumList
---     where f (Int i) = Int (i + 3)
---           f x = x
-
--- test2_Datum = everything (+) (0 `mkQ` f) datumList
---     where f (Int i) = i
---           f _ = 0
-
--- timeList :: [Time]
--- timeList = [UTCr 0,
---             UTCr 1,
---             NTPr 10,
---             NTPr 20,
---             NTPi 100,
---             NTPi 200]
-
--- test1_Time = everywhere (mkT f) timeList
---     where f (NTPi x) = NTPi (x + 100)
---           f a = a
-
--- test2_Time = everything (+) (0 `mkQ` f) datumList
---     where f (UTCr _) = 0
---           f (NTPi a) = fromInteger a
---           f (NTPr a) = a
-
--- oscMsg = Bundle (NTPi 0)
---          [
---           s_new "foo" 1000 AddToTail 1 [("amp",80),("freq",440)],
---           s_new "poo" 1001 AddToHead 1 [("out",0),("pan",0.2)]
---          ]
-
--- test1_OSC = everywhere (mkT f) oscMsg
---     where f (String s) | s == "foo" = String "bar"
---           f a = a
-
--- test2_OSC = everything (++) ([] `mkQ` f) oscMsg
---     where f (String s) = [s]
---           f _ = []
-
--- ugen = out 0 osc
---     where osc = sinOsc ar freq 0 * env
---           freq = control kr "freq" 440
---           env = xLine kr 1 0.1 1 RemoveSynth
-
--- test1_UGen = everywhere (mkT f) ugen
---     where f (Constant c) = Constant (c+10)
---           f a = a
-
--- test2_UGen = everything (+) (0 `mkQ` f) ugen
---     where f AR =  1
---           f _ = 0
+#endif

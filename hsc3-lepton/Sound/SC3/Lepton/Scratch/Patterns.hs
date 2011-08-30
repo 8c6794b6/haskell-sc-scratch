@@ -21,7 +21,6 @@ import Data.Map ((!))
 import Data.Traversable (sequenceA)
 import qualified Data.Map as M
 
-
 import Sound.OpenSoundControl
 import Sound.SC3
 import Sound.SC3.ID

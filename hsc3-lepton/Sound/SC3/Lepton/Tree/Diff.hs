@@ -31,7 +31,6 @@ import System.Random (randomRIO)
 import Sound.OpenSoundControl
 import Sound.SC3
 import Sound.SC3.Lepton.Tree.Tree
-import Sound.SC3.Lepton.Util
 
 import Data.Generic.Diff
 
@@ -201,14 +200,14 @@ assort :: Int               -- ^ node id
        -> [OSC]
 assort i nd (p,ni) = case (nd,ni) of
   (Group _ _, Group _ _) ->
-    let (a,j) = at p in [n_order a j i]
+    let (a,j) = at p in [n_order a j [i]]
   (Group _ _, Synth _ _ _) ->
     let (a,j) = at p in n_free [i]:treeToNewWith a j ni
   (Synth _ _ _, Group _ _) ->
     let (a,j) = at p in [n_free [i],g_new [(i,a,j)]]
   (Synth _ n1 ps1, Synth _ n2 ps2)
     | n1 == n2 && ps1 == ps2 ->
-      let (a,j) = at p in [n_order a j i]
+      let (a,j) = at p in [n_order a j [i]]
     | n1 == n2 -> treeToSet ni
     | otherwise -> let (a,j) = at p in n_free [i]:treeToNewWith a j ni
   where

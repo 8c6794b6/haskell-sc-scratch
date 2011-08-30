@@ -12,17 +12,17 @@
 -- Pattern interpreter with state monad.
 --
 
-module Sound.SC3.Lepton.PState where  
+module Sound.SC3.Lepton.Scratch.PState where
 
 import Data.Map (Map)
 import qualified Data.Map as M
 import System.Random
-  
-import "mtl" Control.Monad.State
+
+import Control.Monad.State
 import Sound.SC3.Lepton.Pattern
 
 ------------------------------------------------------------------------------
--- 
+--
 -- Pattern interpreter with state monad
 --
 ------------------------------------------------------------------------------
@@ -34,14 +34,13 @@ evalP' p g = evalState (unPS p) (PState M.empty g)
 evalPIO p = return . evalP' p =<< newStdGen
 
 data PState a = PState { psEnv :: Map String a
-                       , psGen :: StdGen }  
+                       , psGen :: StdGen }
 
 instance Pval PS where
   pval a = PS $ return [a]
-  
-instance Pempty PS where  
+
+instance Pempty PS where
   pempty = PS $ return []
-  
-instance Plist PS where  
+
+instance Plist PS where
   plist = PS . return
-  

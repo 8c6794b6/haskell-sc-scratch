@@ -28,9 +28,10 @@ module Sound.SC3.Lepton.Parser.Datum
   ) where
 
 import Data.Word (Word8)
-
 import Control.Monad.Identity (Identity)
 import Text.Parsec (ParsecT, ParseError)
+
+import qualified Data.ByteString.Lazy as L
 import qualified Text.Parsec as P
 
 import Sound.OpenSoundControl
@@ -63,7 +64,8 @@ string :: DatumParser String
 string = dp $ \d -> case d of String x -> Just x; _ -> Nothing
 
 -- | Parse OSC blob.
-blob :: DatumParser [Word8]
+-- blob :: DatumParser [Word8]
+blob :: DatumParser L.ByteString
 blob = dp $ \d -> case d of Blob x -> Just x; _ -> Nothing
 
 -- | Parse OSC timestamp.

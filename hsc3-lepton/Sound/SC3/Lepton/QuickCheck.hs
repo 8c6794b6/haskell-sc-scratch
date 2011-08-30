@@ -17,6 +17,8 @@ import Test.QuickCheck
 import Sound.OpenSoundControl
 import Sound.SC3
 
+import qualified Data.ByteString.Lazy as BL
+
 import Sound.SC3.Lepton.Tree
 
 instance Arbitrary SCNode where
@@ -39,7 +41,7 @@ instance Arbitrary Datum where
     [Int <$> arbitrary
     ,Float <$> arbitrary
     ,String <$> arbitrary
-    ,Blob <$> arbitrary
+    ,Blob . BL.pack . take 120 <$> listOf (elements [0..255])
     ,TimeStamp <$> arbitrary
     ,Midi <$> ((,,,) <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary)]
 

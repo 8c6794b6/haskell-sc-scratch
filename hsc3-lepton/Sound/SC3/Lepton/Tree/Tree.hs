@@ -60,7 +60,6 @@ import Sound.OpenSoundControl
 
 import Sound.SC3.Lepton.Instance ()
 import Sound.SC3.Lepton.Parser.Datum
-import Sound.SC3.Lepton.Util (n_mapa)
 
 import qualified Text.PrettyPrint as P
 import qualified Data.IntSet as IS

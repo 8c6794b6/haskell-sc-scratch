@@ -1,11 +1,12 @@
 name:		hsc3-lepton
-version:	0.0.4
+version:	0.0.5
 synopsis:       Client side utility collection for scsynth.
 author:         8c6794b6
 maintainer:     8c6794b6@gmail.com
 cabal-version:  >= 1.6
 build-type:     Simple
 license:        BSD3
+license-file:   LICENSE
 category:       Sound
 stability:      experimental
 description:
@@ -25,7 +26,7 @@ flag debug
 
 test-suite main-tests
   ghc-options:
-    -fhpc
+    -fhpc -rtsopts -auto-all
   type:
     exitcode-stdio-1.0
   main-is:
@@ -51,6 +52,8 @@ library
     Sound.SC3.Lepton.Pattern
     Sound.SC3.Lepton.Pattern.Expression
     Sound.SC3.Lepton.Pattern.Interpreter
+    Sound.SC3.Lepton.Pattern.Interpreter.R
+    Sound.SC3.Lepton.Pattern.Interpreter.S
     Sound.SC3.Lepton.Query
     Sound.SC3.Lepton.QuickCheck
     Sound.SC3.Lepton.Tree
@@ -64,6 +67,7 @@ library
     Sound.SC3.Lepton.UGen.Missing
     Sound.SC3.Lepton.Util
   build-depends:
+    QuickCheck >= 2.0,
     attoparsec,
     base == 4.*,
     binary,
@@ -71,13 +75,14 @@ library
     containers,
     filepath,
     gdiff >= 1.0,
-    random,
+    hosc >= 0.10,
+    hsc3 >= 0.10,
+    mersenne-random-pure64,
+    mtl,
     parsec >= 3.0,
     pretty,
-    syb,
-    mtl,
-    hosc >= 0.9,
-    hsc3 >= 0.9,
-    QuickCheck >= 2.0,
+    random,
     stream-fusion >= 0.1.2.2,
-    uniplate >= 1.6
+    syb,
+    uniplate >= 1.6,
+    vector

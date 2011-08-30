@@ -82,9 +82,9 @@ import Sound.SC3.Lepton.Pattern.Interpreter
 -- > go :: (Transport t) => t -> IO ()
 -- > go fd = do
 -- >   async fd . d_recv . synthdef "speSynth" =<< speSynth
--- >   mapM_ f =<< runPIO pspe
+-- >   foldPIO_ f () pspe
 -- >   where
--- >     f v = do
+-- >     f _ v = do
 -- >       send fd $ s_new "speSynth" (-1) AddToTail 1 [("freq",midiCPS v)]
 -- >       threadDelay (floor $ 0.13 * 1e6)
 -- >

@@ -29,10 +29,10 @@ ctrl :: String -- ^ Control name
      -> Double -- ^ Default value
      -> UGen
 ctrl name val
-  | "a_" `isPrefixOf` name = control ar name val
-  | "i_" `isPrefixOf` name = control ir name val
+  | "a_" `isPrefixOf` name = control AR name val
+  | "i_" `isPrefixOf` name = control IR name val
   | "t_" `isPrefixOf` name = tr_control name val
-  | otherwise              = control kr name val
+  | otherwise              = control KR name val
 
 -- | Infix variant of "ctrl".
 (@@) :: String -> Double -> UGen

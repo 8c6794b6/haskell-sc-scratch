@@ -6,7 +6,7 @@
 -- License     : BSD3
 -- Maintainer  : 8c6794b6@gmail.com
 -- Stability   : unstable
--- Portability : portable
+-- Portability : non-portable (DeriveDataTypeable)
 --
 -- Parse contents of sc synth definition file.
 --
@@ -54,7 +54,7 @@ import Data.Binary
 import Data.Attoparsec
 import Data.Attoparsec.Char8 (anyChar)
 
-import Sound.OpenSoundControl (decode_f32)
+import Sound.OpenSoundControl.Coding.Byte (decode_f32)
 import Sound.SC3 (binaryName, unaryName)
 
 import qualified Data.ByteString as BS

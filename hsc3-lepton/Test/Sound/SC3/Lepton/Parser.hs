@@ -18,6 +18,9 @@ import Data.ByteString (pack)
 import Sound.OpenSoundControl
 import Sound.SC3
 
+import qualified Data.ByteString as B
+import qualified Data.ByteString.Lazy as BL
+
 import Sound.SC3.Lepton.Parser
 import Sound.SC3.Lepton.QuickCheck
 
@@ -42,8 +45,8 @@ prop_parse_synthdef :: Property
 prop_parse_synthdef =
   forAll (arbitrary `suchThat` \(dn,cn,v) ->
            dn /= [] && cn /= []) $ \(dn,cn,v) ->
-  let sdef = synthdef dn $ out 0 (sinOsc ar (control kr cn v) 0)
-  in  case parse synthDefFile (pack sdef) of
+  let sdef = synthdef dn $ out 0 (sinOsc AR (control KR cn v) 0)
+  in  case parse synthDefFile (B.concat $ BL.toChunks $ synthdefData sdef) of
     Done _ (SynthDefFile _ (def:_)) ->
       sdName def == dn &&
       any (\pp -> ppName pp == cn) (sdParamNames def) &&
