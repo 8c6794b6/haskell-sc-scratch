@@ -1,5 +1,6 @@
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 {-|
 Module      : $Header$
 CopyRight   : (c) 8c6794b6
@@ -238,7 +239,10 @@ gens = unfoldr $ \g -> let (_,g') = next g in Just (g',g')
 
 {-
 
- do { r <- return $ sum [1..10]
+do { r <- return $ sum [1..10]
    ; putStrLn $ "sum is: " ++ show r }
+
+do { putStrLn "hello"
+   ; putStrLn "emacs" }
 
 -}

@@ -120,7 +120,7 @@ rspdef5 =
   ("pan"@@0) ("amp"@@1)
 
 loop01 :: Msg Double
-loop01 = mkSnew AddToTail 1 "rspdef1"
+loop01 = snew "rspdef1" Nothing AddToTail 1
   [("dur",
 
     -- pforever (1/33))
@@ -140,7 +140,7 @@ loop01 = mkSnew AddToTail 1 "rspdef1"
   ,("n_map/fmul", pforever 100)]
 
 loop02 :: Msg Double
-loop02 = mkSnew AddToTail 1 "rspdef2"
+loop02 = snew "rspdef2" Nothing AddToTail 1
   [("dur",  pforever $ prange 1e-1 5e-1)
   ,("freq", pforever $ exp <$> prange (log <$> 110) (log <$> 11000))
   ,("atk",  pforever $ prange 1e-4 2)
@@ -155,7 +155,7 @@ loop03 = mkNset 1003
   ,("t_trig", pforever 1)]
 
 loop04 :: R (ToOSC Double)
-loop04 = mkSnew AddToTail 1 "rspdef1"
+loop04 = snew "rspdef1" Nothing AddToTail 1
   [("dur",  pforever $ prange 1e-3 7.5e-2)
   ,("freq", pforever $ exp <$> prange (log <$> 80) (log <$> 12000))
   ,("atk",  let xs = take 1024 $ iterate (*1.006) 0.002
@@ -165,7 +165,7 @@ loop04 = mkSnew AddToTail 1 "rspdef1"
   ,("pan",  pforever $ prange (-1) 1)]
 
 msg01 :: Msg Double
-msg01 = mkSnew AddToTail 1 "rspdef1"
+msg01 = snew "rspdef1" Nothing AddToTail 1
   [("dur", pforever 20e-3)
   ,("freq", preplicate 200 8000)
   ,("atk", pforever 1e-3)
@@ -173,3 +173,61 @@ msg01 = mkSnew AddToTail 1 "rspdef1"
   ,("amp", pforever 0.3)]
 
 main = w gosw
+
+-- | Send 's_new' message using pattern.
+-- sNew :: Transport t
+--   => AddAction
+--   -- ^ Add action for s_new message
+--   -> Int
+--   -- ^ Node id of add target
+--   -> String
+--   -- ^ Synthdef name
+--   -> [(String,R Double)]
+--   -- ^ Param name and pattern for the param, passed to 'mkOpts'.
+--   -> t -> IO ()
+-- sNew aa tid def ps fd = join $ foldM_ f <$> utcr <*> k ps where
+--   k = runPIO . V.fromList . T.sequenceA . M.fromList
+--   f t0 m = do
+--     nid <- newNid
+--     let dt = M.findWithDefault 1 "dur" m
+--         (opts,ps) = M.partitionWithKey (\k _ -> '/' `elem` k) m
+--     send fd $ bundle (UTCr $ t0+dt+offsetDelay) $
+--       s_new def nid aa tid (M.assocs ps) : M.foldrWithKey (mkOpts nid) [] opts
+--     waitUntil fd "/n_go" nid
+--     return (t0+dt)
+-- {-# SPECIALISE sNew ::
+--    AddAction -> Int -> String -> [(String,R Double)] -> UDP -> IO () #-}
+-- {-# SPECIALISE sNew ::
+--    AddAction -> Int -> String -> [(String,R Double)] -> TCP -> IO () #-}
+--
+
+-- | Send 'n_set' message using pattern.
+-- nSet :: Transport t
+--   => AddAction
+--   -- ^ Add action
+--   -> Int
+--   -- ^ Target node id of AddAction
+--   -> String
+--   -- ^ Synthdef name
+--   -> [(String,R Double)]
+--   -- ^ Pair of parameter and value
+--   -> t -> IO ()
+-- nSet aa tid def pms fd = do
+--   nid  <- newNid
+--   trid <- newNid
+--   send fd $ bundle immediately
+--     [s_new def nid aa tid [],s_new "tr" trid AddBefore nid []]
+--   join $ foldM_ (f nid trid) <$> utcr <*> k pms
+--   where
+--     k = runPIO . T.sequenceA . M.fromList
+--     f nid trid t0 m = do
+--       let dt = M.findWithDefault 1 "dur" m
+--       send fd $ bundle (UTCr $ t0+dt+offsetDelay)
+--         [n_set nid (M.assocs m),n_set trid [("t_trig",1)]]
+--       waitUntil fd "/tr" trid
+--       return (t0+dt)
+-- {-# SPECIALISE nSet ::
+--    AddAction -> Int -> String -> [(String,R Double)] -> UDP -> IO () #-}
+-- {-# SPECIALISE nSet ::
+--    AddAction -> Int -> String -> [(String,R Double)] -> TCP -> IO () #-}
+

@@ -18,7 +18,7 @@ import Sound.OpenSoundControl
 import Sound.SC3
 import Sound.SC3.ID
 import Sound.SC3.Lepton
-import Sound.SC3.Lepton.Respond
+import Sound.SC3.Lepton.Respond hiding (setup)
 
 import qualified Sound.SC3.Lepton.Respond as Respond
 
@@ -111,7 +111,7 @@ allP =
   ]
 
 huh1P =
-  mkSnew AddToTail 10 "cf2huh"
+  snew "cf2huh" Nothing AddToTail 10
   [("dur", pforever (60/bpm))
   ,("out", pforever 10)
   ,("t_trig",
@@ -123,7 +123,7 @@ huh1P =
   ]
 
 huh2P =
-  mkSnew AddToTail 10 "cf2huh"
+  snew "cf2huh" Nothing AddToTail 10
   [("dur", pforever (60/bpm))
   ,("out", pforever 11)
   ,("t_trig",
@@ -135,7 +135,7 @@ huh2P =
   ]
 
 huh3P =
-  mkSnew AddToTail 10 "cf2huh"
+  snew "cf2huh" Nothing AddToTail 10
   [("dur", pforever (60/bpm))
   ,("out", pforever 12)
   ,("t_trig",
@@ -147,7 +147,7 @@ huh3P =
    ]
 
 kikP =
-  mkSnew AddToTail 10 "cf2kik"
+  snew "cf2kik" Nothing AddToTail 10
   [("dur", pforever (60/bpm))
   ,("out", pforever 13)
   ,("t_trig",
@@ -163,7 +163,7 @@ kikP =
    ]
 
 snrP =
-  mkSnew AddToTail 10 "cf2snr"
+  snew "cf2snr" Nothing AddToTail 10
   [("dur", pforever (60/bpm))
   ,("out", pforever 14)
   ,("t_trig",
@@ -181,7 +181,7 @@ snrP =
    ]
 
 hatP =
-  mkSnew AddToTail 10 "cf2hat"
+  snew "cf2hat" Nothing AddToTail 10
   [("dur", pforever (60/bpm))
   ,("out", pforever 15)
   ,("t_trig",
@@ -197,7 +197,7 @@ hatP =
   ]
 
 puP =
-  mkSnew AddToTail 10 "cf2pu"
+  snew "cf2pu" Nothing AddToTail 10
   [("dur", pforever (60/bpm))
   ,("out", pforever 16)
   ,("t_trig", pforever 1)
@@ -213,7 +213,7 @@ puP =
   ]
 
 drn1P =
-  mkNset 1001
+  nset 1001
   [("dur", pforever (60/bpm))
   ,("freq", fmap (\x -> if x == 0 then nan else midiCPS x) $
     pconcat
@@ -230,7 +230,7 @@ drn1P =
   ]
 
 drn2P =
-  mkNset 1002
+  nset 1002
   [("dur", pforever (60/bpm))
   ,("freq", fmap (\x -> if x == 0 then nan else midiCPS x) $
    pconcat
@@ -247,7 +247,7 @@ drn2P =
    ]
 
 bellP =
-  mkSnew AddToTail 10 "cf2bell"
+  snew "cf2bell" Nothing AddToTail 10
   [("dur", pforever (60/bpm))
   ,("out", pforever 18)
   ,("t_trig", pforever 1)

@@ -2,6 +2,7 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 {-|
 Module      : $Header$
 License     : BSD3
@@ -9,6 +10,30 @@ Stability   : unstable
 Portability : portable
 
 Sequential OSC message sending without Control.Concurrent.threadDelay.
+
+Adding higher level language feature, sequencing multiple messages.
+
+we have a sequence like:
+
+> m1, m2 :: Msg Double
+
+What can we do when we want to play m2 after m1?
+
+We would like to write a function:
+
+> mseq :: Msg a -> Msg a -> Msg a
+
+which concatenate given messages sequentially, and:
+
+> mpar :: Msg a -> Msg a -> Msg a
+
+which runs given messages in parallel, and:
+
+> runMsg :: Transport t => Msg a -> t -> IO ()
+
+to send and receive messages sequentially to specified server.
+
+... And, 'Msg' turned out to be a type synonym for 'R (ToOSC a)'.
 
 -}
 module Sound.SC3.Lepton.Respond where
@@ -28,7 +53,6 @@ import Sound.SC3
 import Sound.SC3.Lepton.Pattern
 import Sound.SC3.Lepton.Tree.Tree
 import Sound.SC3.Lepton.UGen.Factory
-import Sound.SC3.Lepton.Util
 
 import qualified Control.Parallel as CP
 import qualified Data.Map as M
@@ -94,62 +118,6 @@ waitUntil fd str n = recv fd >>= \m -> case m of
 {-# SPECIALISE waitUntil :: UDP -> String -> Int -> IO () #-}
 {-# SPECIALISE waitUntil :: TCP -> String -> Int -> IO () #-}
 
--- | Send 's_new' message using pattern.
--- sNew :: Transport t
---   => AddAction
---   -- ^ Add action for s_new message
---   -> Int
---   -- ^ Node id of add target
---   -> String
---   -- ^ Synthdef name
---   -> [(String,R Double)]
---   -- ^ Param name and pattern for the param, passed to 'mkOpts'.
---   -> t -> IO ()
--- sNew aa tid def ps fd = join $ foldM_ f <$> utcr <*> k ps where
---   k = runPIO . V.fromList . T.sequenceA . M.fromList
---   f t0 m = do
---     nid <- newNid
---     let dt = M.findWithDefault 1 "dur" m
---         (opts,ps) = M.partitionWithKey (\k _ -> '/' `elem` k) m
---     send fd $ bundle (UTCr $ t0+dt+offsetDelay) $
---       s_new def nid aa tid (M.assocs ps) : M.foldrWithKey (mkOpts nid) [] opts
---     waitUntil fd "/n_go" nid
---     return (t0+dt)
--- {-# SPECIALISE sNew ::
---    AddAction -> Int -> String -> [(String,R Double)] -> UDP -> IO () #-}
--- {-# SPECIALISE sNew ::
---    AddAction -> Int -> String -> [(String,R Double)] -> TCP -> IO () #-}
---
--- | Send 'n_set' message using pattern.
--- nSet :: Transport t
---   => AddAction
---   -- ^ Add action
---   -> Int
---   -- ^ Target node id of AddAction
---   -> String
---   -- ^ Synthdef name
---   -> [(String,R Double)]
---   -- ^ Pair of parameter and value
---   -> t -> IO ()
--- nSet aa tid def pms fd = do
---   nid  <- newNid
---   trid <- newNid
---   send fd $ bundle immediately
---     [s_new def nid aa tid [],s_new "tr" trid AddBefore nid []]
---   join $ foldM_ (f nid trid) <$> utcr <*> k pms
---   where
---     k = runPIO . T.sequenceA . M.fromList
---     f nid trid t0 m = do
---       let dt = M.findWithDefault 1 "dur" m
---       send fd $ bundle (UTCr $ t0+dt+offsetDelay)
---         [n_set nid (M.assocs m),n_set trid [("t_trig",1)]]
---       waitUntil fd "/tr" trid
---       return (t0+dt)
--- {-# SPECIALISE nSet ::
---    AddAction -> Int -> String -> [(String,R Double)] -> UDP -> IO () #-}
--- {-# SPECIALISE nSet ::
---    AddAction -> Int -> String -> [(String,R Double)] -> TCP -> IO () #-}
-
 -- | Make OSC message from given name.
 --
 -- [@n_set/PARAM_NAME@] @n_set@ message will be sent to @PARAM_NAME@
@@ -181,36 +149,11 @@ mkOpts nid a val acc = case break (== '/') a of
     ("c_set", '/':p) -> c_set [(read p, val)]:acc
     _                -> acc
 
--- | Composable, audible events with pattern.
+-- ----------------------------------------------------------------------------
+-- Types
+
+-- | Composable and audible events pattern.
 type Msg a = R (ToOSC a)
-
-{-
-
-Adding higher level language feature, sequencing multiple messages.
-
-we have a sequence like:
-
-> m1, m2 :: Msg Double
-
-What can we do when we want to play m2 after m1?
-
-We would like to write a function:
-
-> mseq :: Msg a -> Msg a -> Msg a
-
-which concatenate given messages sequentially, and:
-
-> mpar :: Msg a -> Msg a -> Msg a
-
-which runs given messages in parallel, and:
-
-> runMsg :: Transport t => Msg a -> t -> IO ()
-
-to send and receive messages sequentially to specified server.
-
-... And, 'Msg' turned out to be a type synonym for 'R (ToOSC a)'.
-
--}
 
 -- | OSC convertable data
 data ToOSC a = ToOSC
@@ -227,7 +170,113 @@ instance Functor ToOSC where
 data MsgType
   = Snew String (Maybe NodeId) AddAction NodeId
   | Nset NodeId
-    deriving (Eq, Show)
+  deriving (Eq, Show)
+
+-- ---------------------------------------------------------------------------
+-- Classes and instances
+
+-- | Merge two patterns.
+class Pmerge p where
+  pmerge :: Mergable (p m) => p m -> p m -> p m
+
+-- | Parallelise patterns in given list.
+class Ppar p where
+  ppar :: Mergable (p m) => [p m] -> p m
+
+instance Pmerge R where
+  pmerge = merge
+
+instance Ppar R where
+  ppar = foldr1 pmerge
+
+instance Pmerge S where
+  pmerge a b = S (\_ -> "pmerge (" ++ showP a ++ ") (" ++ showP b ++ ")")
+
+instance Ppar S where
+  ppar ps = S (\_ -> "ppar " ++ showList ps "")
+
+class Mergable m where
+  merge :: m -> m -> m
+
+instance Show a => Mergable (S a) where
+  merge a b = S (\_ -> unwords ["merge", show a, show b])
+
+instance (Ord a, Num a) => Mergable (R (ToOSC a)) where
+  merge p1 p2 = R $ \g ->
+    let p1' = unR p1 g
+        p2' = unR p2 g
+    in  p1' `CP.par` (p2' `CP.pseq` merge p1' p2')
+
+instance (Ord a, Num a) => Mergable [ToOSC a] where
+  merge a b = mergeL 0 (0,0) a b
+
+instance (Ord a, Num a) => Mergable (S.Stream (ToOSC a)) where
+  merge a b = mergeS 0 (0,0) a b
+
+mergeL ::
+  (Ord a, Num a) =>
+  a -> (a, a) -> [ToOSC a] -> [ToOSC a] -> [ToOSC a]
+mergeL _ _ [] [] = []
+mergeL t (ta,_) (a:as) [] = tadjust "dur" (const $ getDur a + ta - t) a : as
+mergeL t (_,tb) [] (b:bs) = tadjust "dur" (const $ getDur b + tb - t) b : bs
+mergeL t (ta,tb) (a:as) (b:bs)
+  | ua <= ub  = tadjust "dur" (const $ ua-t) a : mergeL ua (ua,tb) as (b:bs)
+  | otherwise = tadjust "dur" (const $ ub-t) b : mergeL ub (ta,ub) (a:as) bs
+  where
+    ua = ta + getDur a
+    ub = tb + getDur b
+
+mergeS ::
+  (Ord a, Num a) =>
+  a -> (a, a) -> S.Stream (ToOSC a) -> S.Stream (ToOSC a) -> S.Stream (ToOSC a)
+mergeS t (ta,tb) ass bss
+  | S.null ass && S.null bss = S.empty
+  | S.null ass =
+    let a = S.head as
+    in  tadjust "dur" (const $ ua-t) a `S.cons` S.tail as
+  | S.null bss =
+    let b = S.head bs
+    in  tadjust "dur" (const $ ub-t) b `S.cons` S.tail bs
+  | ua <= ub  = tadjust "dur" (const $ ua - t) a `S.cons` mergeS ua (ua,tb) as bss
+  | otherwise = tadjust "dur" (const $ ub - t) b `S.cons` mergeS ub (ta,ub) bs ass
+  where
+    as = S.tail ass
+    bs = S.tail bss
+    a = S.head ass
+    b = S.head ass
+    ua = ta + getDur a
+    ub = tb + getDur b
+
+class Event e where
+  type Evalue e :: *
+  eOSC :: e (Evalue e) -> OSC
+  eDur :: e (Evalue e) -> Double
+
+instance Event ToOSC where
+  type Evalue ToOSC = Double
+  eOSC = toOSC
+  eDur = getDur
+
+class Snew s where
+  snew :: String -> Maybe Int -> AddAction -> Int
+       -> [(String, s Double)] -> s (ToOSC Double)
+
+instance Snew R where
+  snew = mkSnew
+
+instance Snew S where
+  snew def nid aa tid ms =
+    S (\_ -> show $ ToOSC (Snew def nid aa tid) (M.fromList ms))
+
+class Nset s where
+  nset :: Int -> [(String, s Double)] -> s (ToOSC Double)
+
+instance Nset R where
+  nset = mkNset
+
+instance Nset S where
+  nset i ms = S (\_ -> show $ ToOSC (Nset i) (M.fromList ms))
+
 
 -- | Run message.
 --
@@ -287,9 +336,9 @@ runMsg msg fd = do
 --           _                  -> return ()
 --         return (t0+dt,tl')
 
-{-# SPECIALISE runMsg :: Msg Double -> UDP -> IO () #-}
-{-# SPECIALISE runMsg :: Msg Double -> TCP -> IO () #-}
-
+-- {-# SPECIALISE runMsg :: Msg Double -> UDP -> IO () #-}
+-- {-# SPECIALISE runMsg :: Msg Double -> TCP -> IO () #-}
+--
 -- | 'NaN' value made by @@0/0@@.
 nan :: Floating a => a
 nan = 0/0
@@ -316,57 +365,26 @@ mkOSCs os tid = foldM f v os where
   v = ([],[])
   isSilence m = (isNaN <$> M.lookup "freq" (oscMap m)) == Just True
 
--- | Merge given messages in parallel.
-mergeR :: (Ord a, Num a) => Msg a -> Msg a -> Msg a
-mergeR m1 m2 = m3 where
-  m3 = R $ \g ->
-    let p1 = unR m1 g
-        p2 = unR m2 g
-    in  p1 `CP.par` (p2 `CP.pseq` merge p1 p2)
-    -- in  p1 `CP.par` (p2 `CP.pseq` merge 0 (0,0) p1 p2)
-
-  -- merge t (ta,tb) as bs
-  --   | S.null as && S.null bs = S.empty
-  --   | S.null as = bs
-  --   | S.null bs = as
-  --   | ua <= ub  =
-  --     tadjust "dur" (const $ ua-t) a `S.cons` merge ua (ua,tb) (S.tail as) bs
-  --   | otherwise =
-  --     tadjust "dur" (const $ ub-t) b `S.cons` merge ub (ta,ub) as (S.tail bs)
-  --   where
-  --     ua = ta + getDur a
-  --     ub = tb + getDur b
-  --     a = S.head as
-  --     b = S.head bs
-
-  -- merge _ _ [] [] = []
-  -- merge t (ta,_) (a:as) [] = tadjust "dur" (const $ getDur a + ta - t) a : as
-  -- merge t (_,tb) [] (b:bs) = tadjust "dur" (const $ getDur b + tb - t) b : bs
-  -- merge t (ta,tb) (a:as) (b:bs)
-  --   | ua <= ub  = tadjust "dur" (const $ ua-t) a : merge ua (ua,tb) as (b:bs)
-  --   | otherwise = tadjust "dur" (const $ ub-t) b : merge ub (ta,ub) (a:as) bs
-  --   where
-  --     ua = ta + getDur a
-  --     ub = tb + getDur b
-
 -- | Make 's_new' messages.
 -- mkSnew :: Num a => AddAction -> Int -> String -> [(String, R a)] -> Msg a
-mkSnew :: Floating a => AddAction -> Int -> String -> [(String, R a)] -> Msg a
-mkSnew aa tid def ms = ToOSC o <$> ms' where
-  o = Snew def Nothing aa tid
+mkSnew ::
+  Floating a =>
+  String -> Maybe Int -> AddAction -> Int -> [(String, R a)] -> Msg a
+mkSnew def nid aa tid ms = ToOSC o <$> ms' where
+  o = Snew def nid aa tid
   ms' = R $ \g ->
     tail $ shiftT 0 $
-    initialT : unR (T.sequenceA $ M.fromList ms) g
+    unR (pappend (pval initialT) (T.sequenceA $ M.fromList ms)) g
 
   -- ms' = R $ \g ->
   --   S.tail $ shiftT 0 $
   --   S.cons initialT (unR (T.sequenceA $ M.fromList ms) g)
 
 {-# SPECIALISE mkSnew ::
-    AddAction -> Int -> String -> [(String, R Double)] -> Msg Double #-}
+    String -> Maybe Int -> AddAction -> Int
+    -> [(String, R Double)] -> Msg Double #-}
 
 -- | Make 'n_set' messages.
--- mkNset :: Num a => Int -> [(String,R a)] -> Msg a
 mkNset :: Floating a => NodeId -> [(String, R a)] -> Msg a
 mkNset nid ms = ToOSC o <$> ms' where
   o = Nset nid
@@ -436,54 +454,9 @@ getDur o = fromMaybe 1 $ M.lookup "dur" (oscMap o)
 tadjust :: String -> (a -> a) -> ToOSC a -> ToOSC a
 tadjust k f (ToOSC ot om) = ToOSC ot (M.adjust f k om)
 
-madjust :: String -> (a -> a) -> Msg a -> Msg a
+madjust :: Functor f => String -> (a -> a) -> f (ToOSC a) -> f (ToOSC a)
 madjust k f r = fmap (tadjust k f) r
-
--- ---------------------------------------------------------------------------
--- Parallel class
-
-class Ppar p where
-  ppar :: (Ord a, Num a) => [p (ToOSC a)] -> p (ToOSC a)
-
-instance Ppar R where
-  ppar = foldr1 mergeR
-
-instance Ppar S where
-  ppar ps = S (\x -> "ppar [" ++ concatMap (\y -> unS y x) ps ++ "]")
-
-class Mergable m where
-  type Merge m :: *
-  mnext :: m -> m -> Merge m
-  merge :: m -> m -> m
-
-instance (Ord a, Num a) => Mergable [ToOSC a] where
-  type Merge [ToOSC a] = ToOSC a
-  mnext a b = mnextL a b
-  merge a b = mergeL 0 (0,0) a b
-
-instance (Ord a, Num a) => Mergable (Seq (ToOSC a)) where
-  type Merge (Seq (ToOSC a)) = ToOSC a
-  mnext a b = undefined
-  merge a b = undefined
-
-mnextL :: (Ord a, Num a) => [ToOSC a] -> [ToOSC a] -> ToOSC a
-mnextL []    []    = ToOSC (Snew "silence" Nothing AddToTail 1) M.empty
-mnextL (a:_) []    = a
-mnextL []    (b:_) = b
-mnextL (a:_) (b:_) = if getDur a <= getDur b then a else b where
-
-mergeL ::
-  (Ord a, Num a) =>
-  a -> (a, a) -> [ToOSC a] -> [ToOSC a] -> [ToOSC a]
-mergeL _ _ [] [] = []
-mergeL t (ta,_) (a:as) [] = tadjust "dur" (const $ getDur a + ta - t) a : as
-mergeL t (_,tb) [] (b:bs) = tadjust "dur" (const $ getDur b + tb - t) b : bs
-mergeL t (ta,tb) (a:as) (b:bs)
-  | ua <= ub  = tadjust "dur" (const $ ua-t) a : mergeL ua (ua,tb) as (b:bs)
-  | otherwise = tadjust "dur" (const $ ub-t) b : mergeL ub (ta,ub) (a:as) bs
-  where
-    ua = ta + getDur a
-    ub = tb + getDur b
+{-# SPECIALISE madjust :: String -> (a -> a) -> R (ToOSC a) -> R (ToOSC a) #-}
 
 -- ----------------------------------------------------------------------------
 -- Stream functions
@@ -519,31 +492,31 @@ mergeL t (ta,tb) (a:as) (b:bs)
 -- ---------------------------------------------------------------------------
 -- Sample
 
-m1 = mkSnew AddToTail 1 "rspdef1"
+silence n = snew "silence" Nothing AddToTail 1 [("dur",n)]
+
+m1 = snew "rspdef1" Nothing AddToTail 1
   [("dur", plist [1/4,3/4])
   ,("freq",fmap midiCPS $ pcycle [67,69])
   ,("pan", pforever 0.3)]
 
-m2 = mkSnew AddToTail 1 "rspdef1"
+m2 = snew "rspdef1" Nothing AddToTail 1
   [("dur",  pseq 2 [3/4,1/4,2/4,2/4])
   ,("freq", fmap midiCPS $ pseq 3 [60,62,63,65,67,68,70,72])]
 
-silence n = mkSnew AddToTail 1 "silence" [("dur",n)]
-
-m3 = mkSnew AddToTail 1 "rspdef1"
+m3 = snew "rspdef1" Nothing AddToTail 1
   [("dur", pseq 2 [2/8,2/8,3/8,1/8])
-  ,("freq", fmap midiCPS $ pcycle [60,67,74,81])]
+  ,("freq", fmap midiCPS $ pcycle $ [60,67,74,81])]
 
-m4 = mkSnew AddToTail 1 "rspdef1"
+m4 = snew "rspdef1" Nothing AddToTail 1
   [("dur", pseq 32 [1/32])
   ,("freq", fmap midiCPS $ pcycle [115,103])]
 
-m5 = mkSnew AddToTail 1 "rspdef1"
+m5 = snew "rspdef1" Nothing AddToTail 1
   [("dur", pseq 8 [1/4])
   ,("pan", prepeat 0.75)
   ,("freq", fmap midiCPS $ pcycle [60,64,67,72])]
 
-m6 = mkSnew AddToTail 1 "rspdef1"
+m6 = snew "rspdef1" Nothing AddToTail 1
   [("dur", plist [7/8, 1/8, 6/13, 7/13])
   ,("pan", prepeat (-0.75))
   ,("freq", fmap midiCPS $ plist [84,86,89,91])]

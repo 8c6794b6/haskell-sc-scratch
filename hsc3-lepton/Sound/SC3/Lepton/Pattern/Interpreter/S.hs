@@ -15,8 +15,11 @@ XXX: /Rewrite with using blaze-builder/.
 -}
 module Sound.SC3.Lepton.Pattern.Interpreter.S where
 
+import Control.Applicative
 import Data.Data
+import Text.Show.Functions ()
 
+-- import Sound.SC3
 import Sound.SC3.Lepton.Pattern.Expression
 
 -- | \"S\" for showing patterns.
@@ -60,6 +63,39 @@ instance (Show a, Enum a) => Enum (S a) where
     ["pval", x] -> fromEnum (read x :: Double) -- XXX: how to tell the type?
     e           -> error $ "fromEnum: " ++ show e
   toEnum n = S $ \_ -> "pval " ++ show n
+
+instance Functor S where
+  fmap f (S _) = S (\_ -> show f)
+
+instance Applicative S where
+  pure a = S (\_ -> show a)
+  S f <*> S _ = S (\_ -> show f)
+
+instance (Show a, Ord a) => Ord (S a) where
+  compare _ _ = EQ
+
+instance Floating a => Floating (S a) where
+  pi = S (const "pi")
+  exp = showFloating "exp"
+  log = showFloating "log"
+  sqrt = showFloating "sqrt"
+  a ** b = S (const $ show a ++ " ** " ++ show b)
+  sin = showFloating "sin"
+  cos = showFloating "cos"
+  asin = showFloating "asin"
+  atan = showFloating "atan"
+  acos = showFloating "acos"
+  sinh = showFloating "sinh"
+  cosh = showFloating "cosh"
+  asinh = showFloating "asinh"
+  atanh = showFloating "atanh"
+  acosh = showFloating "acosh"
+
+showFloating :: Show a => String -> a -> S s
+showFloating f x = S (const $ f ++ " (" ++ show x ++ ")")
+
+-- instance UnaryOp a => UnaryOp (S a) where
+--   midiCPS a = S (\x -> "midiCPS " ++ show a)
 
 --
 -- Instance for expressions
