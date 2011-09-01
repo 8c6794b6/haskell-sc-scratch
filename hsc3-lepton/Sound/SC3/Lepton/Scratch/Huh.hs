@@ -7,6 +7,7 @@ Stability   : unstable
 Portability : portable
 
 Scratch for /huh/ composition.
+Rewrite nusing pattern instead of demand ugens.
 
 -}
 module Sound.SC3.Lepton.Scratch.Huh where
@@ -18,18 +19,23 @@ import Sound.OpenSoundControl
 import Sound.SC3
 import Sound.SC3.ID
 import Sound.SC3.Lepton
-import Sound.SC3.Lepton.Respond hiding (setup)
+import Sound.SC3.Lepton.Pattern.Play
+import Sound.SC3.Lepton.Pattern.ToOSC
+import qualified Sound.SC3.Lepton.Pattern.Play as Play
 
-import qualified Sound.SC3.Lepton.Respond as Respond
+main :: IO ()
+main = withSC3 goHuh
 
-goHuh :: IO ()
-goHuh = w $ \fd ->
-  setupHuh fd >> patchNode n0 fd >>
-  runMsg (ppar allP) fd
+goHuh :: Transport t => t -> IO ()
+goHuh fd =
+  bracket_
+    (setupHuh fd >> patchNode n0 fd)
+    (return ())
+    (play fd (ppar allP :: R (ToOSC Double)))
 
 setupHuh :: Transport t => t -> IO OSC
 setupHuh fd = do
-  Respond.setup fd
+  Play.setup fd
   async fd $ bundle immediately $
     map (d_recv . uncurry synthdef)
       [("cf2huh", cf2huh)
@@ -251,13 +257,13 @@ bellP =
   [("dur", pforever (60/bpm))
   ,("out", pforever 18)
   ,("t_trig", pforever 1)
-  ,("freq", fmap midiCPS $
+  ,("freq", fmap (\x -> if x == 0 then nan else midiCPS x) $ 
     pconcat
-    [pseq 64 [0]
-    ,pseq 24 [0]
+    [pseq 16 [0,0,0,0]
+    ,pseq 6 [0,0,0,0]
     ,pcycle
      [prand 16 (map pval $ replicate 16 0 ++ [79,84,89,91,96])
-     ,pseq 48 [0]]])
+     ,pseq 12 [0,0,0,0]]])
   ]
 
 shwP =

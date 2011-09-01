@@ -3,7 +3,7 @@
 -- Module      : $Header$
 -- CopyRight   : (c) 8c6794b6
 -- License     : BSD3
--- Maintainer  : 8c6794b6@gmail.com
+-- Maintainer  : 8c6794b6
 -- Stability   : unstable
 -- Portability : non-portable (Rank2Types, FlexibleContexts)
 --
@@ -29,13 +29,13 @@ module Sound.SC3.Lepton.Pattern
     -- * Low level tweaks
     -- $example_low_level
 
-    -- * Modules
-    module Sound.SC3.Lepton.Pattern.Expression
-  , module Sound.SC3.Lepton.Pattern.Interpreter
+    module All
   ) where
 
-import Sound.SC3.Lepton.Pattern.Expression
-import Sound.SC3.Lepton.Pattern.Interpreter
+import Sound.SC3.Lepton.Pattern.Expression as All
+import Sound.SC3.Lepton.Pattern.Interpreter as All
+import Sound.SC3.Lepton.Pattern.Play as All
+import Sound.SC3.Lepton.Pattern.ToOSC as All
 
 -- $example_intro
 --

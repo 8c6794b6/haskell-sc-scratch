@@ -1,4 +1,5 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE Rank2Types #-}
 ------------------------------------------------------------------------------
 -- |
 -- Module      : $Header$
@@ -17,6 +18,7 @@ import Control.Arrow (second)
 import Control.Concurrent (forkIO, threadDelay)
 import Control.Monad (zipWithM_)
 import System.Random (StdGen, newStdGen, randomRs)
+import Data.Data
 import Data.Map ((!))
 import Data.Traversable (sequenceA)
 import qualified Data.Map as M
@@ -354,18 +356,18 @@ lam2 f = R $ \g -> unR (f (`unR` g)) g
 fooP :: (R a -> R b)
 fooP = undefined
 
-foo' :: (StdGen -> [a]) -> StdGen -> [b]
-foo' = unR . fooP . R
+-- foo' :: (StdGen -> [a]) -> StdGen -> [b]
+-- foo' = unR . fooP . R
 
-foo'' f = unR . f . R
+-- foo'' f = unR . f . R
 
 -- bar :: (R a -> R b) -> (StdGen -> [a]) -> StdGen -> [b]
 -- bar f = unR . f . R
 
-bar' :: (R a -> R b) -> (StdGen -> [a]) -> R b
-bar' f = R . unR . f . R
+-- bar' :: (R a -> R b) -> (StdGen -> [a]) -> R b
+-- bar' f = R . unR . f . R
 
-bar'' f = show . f . length
+-- bar'' f = show . f . length
 
 -- buzz g f = let h = (bar foo f g) in h
 

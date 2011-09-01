@@ -1,6 +1,7 @@
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE TypeSynonymInstances #-}
-{-# LANGUAGE NoImplicitPrelude #-}
 {-|
 Module      : $Header$
 CopyRight   : (c) 8c6794b6
@@ -10,6 +11,10 @@ Stability   : unstable
 Portability : non-portable
 
 Fusion pattern interpreter.
+
+TODO:
+
+* 'pcycle' is not returning value when merged. Fix this.
 
 -}
 module Sound.SC3.Lepton.Pattern.Interpreter.Fusion where
@@ -36,6 +41,7 @@ import qualified Data.Vector.Fusion.Stream.Size as SZ
 
 import Sound.SC3.Lepton.Pattern.Expression
 import Sound.SC3.Lepton.Pattern.Interpreter.R (shuffle)
+import Sound.SC3.Lepton.Pattern.ToOSC
 
 -- | \"F\" for running pattern and achieving 'Stream'.
 newtype R a = R {unR :: RandomGen g => g -> Stream a}
@@ -165,12 +171,51 @@ instance Pcycle R where
   -- pcycle ps = R $ \g -> concatMap (zipWith . unR) (cycle (fromList ps)) (gens g)
   -- pcycle ps = R $ \g ->
   --   cycle $ concat $ zipWith unR (fromList ps) (gens g)
-  pcycle ps = pforever (pseq 1 ps)
+  pcycle ps = pforever (pconcat ps)
 
 instance Pshuffle R where
   pshuffle ps = R $ \g ->
     let g' = snd . next $ g
     in  concat $ zipWith unR (fromList $ shuffle ps g) (gens g')
+
+instance (Ord a, Num a) => Mergable (Stream (ToOSC a)) where
+  merge = mergeS 0 (0,0)
+
+instance (Ord a, Num a) => Mergable (R (ToOSC a)) where
+  merge p1 p2 = R $ \g ->
+    let p1' = unR p1 g
+        p2' = unR p2 g
+    in  merge p1' p2'
+
+instance Pmerge R where
+  pmerge = merge
+
+instance Ppar R where
+  ppar = Prelude.foldr1 pmerge
+
+mergeS ::
+  (Ord a, Num a) =>
+  a -> (a, a) -> Stream (ToOSC a) -> Stream (ToOSC a) -> Stream (ToOSC a)
+mergeS t (ta,tb) ass bss
+  | null ass && null bss = empty
+  | null bss  = tadjust "dur" (const $ ua-t) a `cons` as
+  | null ass  = tadjust "dur" (const $ ub-t) b `cons` bs
+  | ua <= ub  = tadjust "dur" (const $ ua - t) a `cons` mergeS ua (ua,tb) as bss
+  | otherwise = tadjust "dur" (const $ ub - t) b `cons` mergeS ub (ta,ub) bs ass
+  where
+    as = if null ass then empty else tail ass
+    bs = if null bss then empty else tail bss
+    a = head ass
+    b = head bss
+    ua = ta + getDur a
+    ub = tb + getDur b
+
+-- mergeT :: (Ord a, Num a) =>
+--   a -> (a, a) -> Stream (ToOSC a) -> Stream (ToOSC a) -> Stream (ToOSC a)
+-- mergeT t (ta,tb) sa@(SM.Stream stepA sdA szA) sb@(SM.Stream stepB sdB szB)
+--   | null sa && null sb = empty
+--   | null sa =
+--     let a
 
 -- ---------------------------------------------------------------------------
 -- Utils

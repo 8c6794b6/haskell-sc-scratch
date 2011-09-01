@@ -24,7 +24,7 @@
 module Sound.SC3.Lepton.Query where
 
 import Control.Exception (bracket)
-import "mtl" Control.Monad.Reader
+import Control.Monad.Reader
   ( ReaderT(..)
   , MonadReader(..)
   , MonadIO(..) )

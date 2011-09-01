@@ -25,8 +25,8 @@ module Sound.SC3.Lepton.Pattern.Expression
     -- * Lambda and application (experimental)
     Plam(..), Papp(..),
 
-    -- -- * Parallel
-    -- Ppar(..)
+    -- * Parallel
+    Pmerge(..), Ppar(..), Mergable(..)
 
   ) where
 
@@ -93,5 +93,13 @@ class Plam p where
 class Papp p where
   papp :: p (a->b) -> p a -> p b
 
--- class Ppar p where
---   ppar :: [p a] -> p a
+class Pmerge p where
+  pmerge :: Mergable (p m) => p m -> p m -> p m
+
+class Ppar p where
+  ppar :: Mergable (p m) => [p m] -> p m
+
+-- | Class for merging patterns in paralle.
+class Mergable m where
+  merge :: m -> m -> m
+

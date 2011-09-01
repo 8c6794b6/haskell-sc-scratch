@@ -13,17 +13,15 @@ module Sound.SC3.Lepton.Scratch.RespTest where
 
 import Control.Applicative
 import Control.Concurrent
-import Control.Exception (bracket)
+import Control.Exception (bracket, bracket_)
 import System.Random
 
 import Sound.OpenSoundControl
 import Sound.SC3
 import Sound.SC3.ID
-import Sound.SC3.Lepton
+import Sound.SC3.Lepton hiding (setup)
 
-import Sound.SC3.Lepton.Pattern.Interpreter
-import Sound.SC3.Lepton.Respond hiding (setup)
-import qualified Sound.SC3.Lepton.Respond as Respond
+import qualified Sound.SC3.Lepton.Pattern.Play as Play
 
 -- | Load synth def and play the pattern.
 gospe :: (Transport t) => t -> IO ()
@@ -34,6 +32,12 @@ gospe fd = do
     f v = do
       send fd $ s_new "speSynth" (-1) AddToTail 1 [("freq",midiCPS v)]
       threadDelay (floor $ 0.13 * 1e6)
+
+gospe' :: Transport t => t -> IO ()
+gospe' fd = do
+  async fd . d_recv . synthdef "speSynth" =<< speSynth
+  play fd $ snew "speSynth" Nothing AddToTail 1
+    [("dur", pforever 0.13),("freq", fmap midiCPS pspe)]
 
 -- | Synthdef for spe example.
 speSynth :: IO UGen
@@ -59,25 +63,78 @@ pspe =
     ,prand (prange 3 9)
        [74,75,77,79,81]]
 
+-- ---------------------------------------------------------------------------
+-- Parallel tests
+
+silence :: R Double -> Msg Double
+silence n = snew "silence" Nothing AddToTail 1 [("dur",n)]
+
+m1,m2,m3,m4,m5,m6,m7,m8 :: Msg Double
+
+m1 = snew "rspdef1" Nothing AddToTail 1
+  [("dur", plist [1/4,3/4])
+  ,("freq",fmap midiCPS $ pcycle [67,69])
+  ,("pan", pforever 0.3)]
+
+m2 = snew "rspdef1" Nothing AddToTail 1
+  [("dur",  pseq 2 [3/4,1/4,2/4,2/4])
+  ,("freq", fmap midiCPS $ pseq 3 [60,62,63,65,67,68,70,72])]
+
+m3 = snew "rspdef1" Nothing AddToTail 1
+  [("dur", pseq 2 [2/8,2/8,3/8,1/8])
+  ,("freq", fmap midiCPS $ pcycle $ [60,67,74,81])]
+
+m4 = snew "rspdef1" Nothing AddToTail 1
+  [("dur", pseq 32 [1/32])
+  ,("freq", fmap midiCPS $ pcycle [115,103])]
+
+m5 = snew "rspdef1" Nothing AddToTail 1
+  [("dur", pseq 8 [1/4])
+  ,("pan", prepeat 0.75)
+  ,("freq", fmap midiCPS $ pcycle [60,64,67,72])]
+
+m6 = snew "rspdef1" Nothing AddToTail 1
+  [("dur", plist [7/8, 1/8, 6/13, 7/13])
+  ,("pan", prepeat (-0.75))
+  ,("freq", fmap midiCPS $ plist [84,86,89,91])]
+
+m7 = silence 2
+
+m8 =
+  ppar
+  [pforever
+   (pchoose 1 [m2,m3,m4,m5,m6,m7])
+  ,pcycle
+   [madjust "freq" (*2) m1
+   ,madjust "freq" (*1.5) m1]
+  ,pforever
+   (madjust "freq" (*0.5) $
+    madjust "pan" (const (-0.8)) $
+    madjust "dur" (*2) $
+    madjust "atk" (const 1) $
+    m1)]
+
 ------------------------------------------------------------------------------
 -- Sine and whitenoises
 
 gosw :: Transport t => t -> IO ()
-gosw fd = do
-  setup fd
-  send fd $ s_new "rspdef3" 1003 AddToHead 1 []
-  runMsg (ppar [loop01, loop02, loop03]) fd
+gosw fd =
+  bracket_
+    (Play.setup fd >> setup fd >>
+     patchNode (Group 1 [Synth 1003 "rspdef3" []]) fd)
+    (send fd $ n_free [1003])
+    (play fd (ppar [loop01, loop02, loop03]))
 
 gosw2 :: IO ()
 gosw2 =
   bracket
-    (mapM (forkIO . w . runMsg) [loop02,loop03])
+    (mapM (forkIO . sc3 . runMsg) [loop02,loop03])
     (mapM_ killThread)
-    (const $ w $ runMsg loop01)
+    (const $ sc3 $ runMsg loop01)
 
 setup :: Transport t => t -> IO OSC
 setup fd = do
-  Respond.setup fd
+  Play.setup fd
   async fd $ bundle immediately
     [d_recv $ synthdef "rspdef1" rspdef1
     ,d_recv $ synthdef "rspdef2" rspdef2
@@ -88,7 +145,7 @@ setup fd = do
 rspdef1 :: UGen
 rspdef1 =
   out 0 $ pan2
-  (sinOsc AR ("freq"@@440 * ("fmul"@@1 `lag2` 3.5)) 0 * 0.3 *
+  (fSinOsc AR ("freq"@@440 * ("fmul"@@1 `lag2` 3.5)) 0 * 0.3 *
    envGen KR ("t_trig"@@1) 1 0 1 RemoveSynth
    (env [0,1,0] [("atk"@@1e-4),("dcy"@@999e-4)] [EnvCub] (-1) 0))
   ("pan"@@0) ("amp"@@1)
@@ -121,15 +178,10 @@ rspdef5 =
 
 loop01 :: Msg Double
 loop01 = snew "rspdef1" Nothing AddToTail 1
-  [("dur",
-
-    -- pforever (1/33))
-
-    pcycle [preplicate 1024 (1/23)
-           ,preplicate 512 (2/23)
-           ,preplicate 256 (4/23)
-           ,preplicate 128 (8/23)])
-
+  [("dur", pcycle [preplicate 1024 (1/23)
+                  ,preplicate 512 (2/23)
+                  ,preplicate 256 (4/23)
+                  ,preplicate 128 (8/23)])
   ,("freq", fmap midiCPS $ pforever $ prand 1 $
             [40,41,48,52,55,58,62,67,70,74,79,86,90])
   ,("pan",  pforever $ prange (-1) 1)
@@ -159,7 +211,7 @@ loop04 = snew "rspdef1" Nothing AddToTail 1
   [("dur",  pforever $ prange 1e-3 7.5e-2)
   ,("freq", pforever $ exp <$> prange (log <$> 80) (log <$> 12000))
   ,("atk",  let xs = take 1024 $ iterate (*1.006) 0.002
-            in  pcycle $ fmap pval (xs ++ reverse xs))
+            in  pforever $ plist (xs ++ reverse xs))
   ,("dcy",  pforever $ prange 1e-4 2e-1)
   ,("amp",  pforever $ prange 1e-1 3e-1)
   ,("pan",  pforever $ prange (-1) 1)]
@@ -167,67 +219,9 @@ loop04 = snew "rspdef1" Nothing AddToTail 1
 msg01 :: Msg Double
 msg01 = snew "rspdef1" Nothing AddToTail 1
   [("dur", pforever 20e-3)
-  ,("freq", preplicate 200 8000)
+  ,("freq", preplicate 20 (prange 20 20000))
   ,("atk", pforever 1e-3)
-  ,("dcy", pforever 10e-3)
+  ,("dcy", pforever 5e-3)
   ,("amp", pforever 0.3)]
 
-main = w gosw
-
--- | Send 's_new' message using pattern.
--- sNew :: Transport t
---   => AddAction
---   -- ^ Add action for s_new message
---   -> Int
---   -- ^ Node id of add target
---   -> String
---   -- ^ Synthdef name
---   -> [(String,R Double)]
---   -- ^ Param name and pattern for the param, passed to 'mkOpts'.
---   -> t -> IO ()
--- sNew aa tid def ps fd = join $ foldM_ f <$> utcr <*> k ps where
---   k = runPIO . V.fromList . T.sequenceA . M.fromList
---   f t0 m = do
---     nid <- newNid
---     let dt = M.findWithDefault 1 "dur" m
---         (opts,ps) = M.partitionWithKey (\k _ -> '/' `elem` k) m
---     send fd $ bundle (UTCr $ t0+dt+offsetDelay) $
---       s_new def nid aa tid (M.assocs ps) : M.foldrWithKey (mkOpts nid) [] opts
---     waitUntil fd "/n_go" nid
---     return (t0+dt)
--- {-# SPECIALISE sNew ::
---    AddAction -> Int -> String -> [(String,R Double)] -> UDP -> IO () #-}
--- {-# SPECIALISE sNew ::
---    AddAction -> Int -> String -> [(String,R Double)] -> TCP -> IO () #-}
---
-
--- | Send 'n_set' message using pattern.
--- nSet :: Transport t
---   => AddAction
---   -- ^ Add action
---   -> Int
---   -- ^ Target node id of AddAction
---   -> String
---   -- ^ Synthdef name
---   -> [(String,R Double)]
---   -- ^ Pair of parameter and value
---   -> t -> IO ()
--- nSet aa tid def pms fd = do
---   nid  <- newNid
---   trid <- newNid
---   send fd $ bundle immediately
---     [s_new def nid aa tid [],s_new "tr" trid AddBefore nid []]
---   join $ foldM_ (f nid trid) <$> utcr <*> k pms
---   where
---     k = runPIO . T.sequenceA . M.fromList
---     f nid trid t0 m = do
---       let dt = M.findWithDefault 1 "dur" m
---       send fd $ bundle (UTCr $ t0+dt+offsetDelay)
---         [n_set nid (M.assocs m),n_set trid [("t_trig",1)]]
---       waitUntil fd "/tr" trid
---       return (t0+dt)
--- {-# SPECIALISE nSet ::
---    AddAction -> Int -> String -> [(String,R Double)] -> UDP -> IO () #-}
--- {-# SPECIALISE nSet ::
---    AddAction -> Int -> String -> [(String,R Double)] -> TCP -> IO () #-}
-
+main = withSC3 gosw

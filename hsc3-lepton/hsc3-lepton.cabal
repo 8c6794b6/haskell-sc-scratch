@@ -11,7 +11,7 @@ category:       Sound
 stability:      experimental
 description:
   Collection of client side utility for scsynth using hsc3.
-
+  See "Sound.SC3.Lepton" for overview.
 flag hpc
   description:
     Enable compiling with hpc flag turned on
@@ -54,7 +54,9 @@ library
     Sound.SC3.Lepton.Pattern.Interpreter
     Sound.SC3.Lepton.Pattern.Interpreter.R
     Sound.SC3.Lepton.Pattern.Interpreter.S
-    Sound.SC3.Lepton.Query
+    Sound.SC3.Lepton.Pattern.Play
+    Sound.SC3.Lepton.Pattern.ToOSC
+    -- Sound.SC3.Lepton.Query
     Sound.SC3.Lepton.QuickCheck
     Sound.SC3.Lepton.Tree
     Sound.SC3.Lepton.Tree.Tree
@@ -79,6 +81,7 @@ library
     hsc3 >= 0.10,
     mersenne-random-pure64,
     mtl,
+    parallel,
     parsec >= 3.0,
     pretty,
     random,

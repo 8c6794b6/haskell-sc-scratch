@@ -1,5 +1,5 @@
-{-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-|
 Module      : $Header$
 CopyRight   : (c) 8c6794b6
@@ -27,8 +27,10 @@ import Data.List.Stream
 import System.Random.Mersenne.Pure64
 
 import Sound.SC3.Lepton.Pattern.Expression
+import Sound.SC3.Lepton.Pattern.ToOSC
 
 import qualified Prelude
+import qualified Control.Parallel as CP
 
 -- | \"R\" for running patterns.
 --
@@ -43,10 +45,10 @@ import qualified Prelude
 --
 -- > runPIO $ prand 1 $ map pval [0.1,0.2..1.0]
 --
-newtype R a = R {unR :: forall g. RandomGen g => g -> [a]}
+newtype R a = R {unR :: PureMT -> [a]}
 
 -- | Run pattern with given seed.
-runP :: RandomGen g => R a -> g -> [a]
+runP :: R a -> PureMT -> [a]
 runP = unR
 
 -- | Run pattern with new seed.
@@ -179,7 +181,35 @@ instance Pshuffle R where
     let g' = snd . next $ g
     in  concat $ zipWith unR (shuffle ps g) (gens g')
 
--- | Same as @(<*>)@.
+instance Pmerge R where
+  pmerge = merge
+
+instance Ppar R where
+  ppar = foldr1 pmerge
+
+instance (Ord a, Num a) => Mergable (R (ToOSC a)) where
+  merge p1 p2 = R $ \g ->
+    let p1' = unR p1 g
+        p2' = unR p2 g
+    in  p1' `CP.par` (p2' `CP.pseq` merge p1' p2')
+
+instance (Ord a, Num a) => Mergable [ToOSC a] where
+  merge a b = mergeL 0 (0,0) a b
+
+mergeL ::
+  (Ord a, Num a) =>
+  a -> (a, a) -> [ToOSC a] -> [ToOSC a] -> [ToOSC a]
+mergeL _ _ [] [] = []
+mergeL t (ta,_) (a:as) [] = tadjust "dur" (const $ getDur a + ta - t) a : as
+mergeL t (_,tb) [] (b:bs) = tadjust "dur" (const $ getDur b + tb - t) b : bs
+mergeL t (ta,tb) (a:as) (b:bs)
+  | ua <= ub  = tadjust "dur" (const $ ua-t) a : mergeL ua (ua,tb) as (b:bs)
+  | otherwise = tadjust "dur" (const $ ub-t) b : mergeL ub (ta,ub) (a:as) bs
+  where
+    ua = ta + getDur a
+    ub = tb + getDur b
+
+-- | Same as @(\<*\>)@.
 instance Papp R where
   papp = (<*>)
 
@@ -207,7 +237,8 @@ rlam f = R $ \g -> rec (repeat func) (gens g)
 ------------------------------------------------------------------------------
 
 -- | Generates infinite list of RandomGen.
-gens :: (RandomGen g) => g -> [g]
+-- gens :: (RandomGen g) => g -> [g]
+gens :: PureMT -> [PureMT]
 gens = iterate (snd . next)
 
 -- | Shuffle the elements in list, inspired from 'perfect random shuffle' by

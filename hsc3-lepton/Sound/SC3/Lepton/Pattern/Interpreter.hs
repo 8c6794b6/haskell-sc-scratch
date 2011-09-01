@@ -28,4 +28,3 @@ module Sound.SC3.Lepton.Pattern.Interpreter
 -- import Sound.SC3.Lepton.Pattern.Interpreter.Fusion
 import Sound.SC3.Lepton.Pattern.Interpreter.R
 import Sound.SC3.Lepton.Pattern.Interpreter.S
-

@@ -19,7 +19,6 @@ import Control.Applicative
 import Data.Data
 import Text.Show.Functions ()
 
--- import Sound.SC3
 import Sound.SC3.Lepton.Pattern.Expression
 
 -- | \"S\" for showing patterns.
@@ -148,6 +147,15 @@ instance Pforever S where
 
 instance Papp S where
   papp _ _ = S $ \_ -> "papp "
+
+instance Pmerge S where
+  pmerge a b = S (\_ -> "pmerge (" ++ showP a ++ ") (" ++ showP b ++ ")")
+
+instance Ppar S where
+  ppar ps = S (\_ -> "ppar " ++ showList ps "")
+
+instance Show a => Mergable (S a) where
+  merge a b = S (\_ -> unwords ["merge", show a, show b])
 
 -- instance Plam S where
 --   plam f = S $ \_ -> "\\x -> " ++ unS (f (S $ const "")) () ++ ")"
