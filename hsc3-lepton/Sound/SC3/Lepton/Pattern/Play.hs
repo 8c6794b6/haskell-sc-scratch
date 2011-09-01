@@ -55,7 +55,7 @@ instance Audible (R (ToOSC Double)) where
 -- with sending 's_new silence'.
 --
 runMsg :: Transport t
-   => Msg Double
+   => R (ToOSC Double)
    -- ^ Pattern to play
    -> Int
    -- ^ Node id used for trigger synth

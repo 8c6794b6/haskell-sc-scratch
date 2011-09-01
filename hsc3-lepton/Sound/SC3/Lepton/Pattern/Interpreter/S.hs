@@ -19,6 +19,8 @@ import Control.Applicative
 import Data.Data
 import Text.Show.Functions ()
 
+import Sound.SC3
+
 import Sound.SC3.Lepton.Pattern.Expression
 import Sound.SC3.Lepton.Pattern.ToOSC
 
@@ -96,8 +98,30 @@ instance Floating a => Floating (S a) where
 showFloating :: Show a => String -> a -> S s
 showFloating f x = S (const $ f ++ " (" ++ show x ++ ")")
 
--- instance UnaryOp a => UnaryOp (S a) where
---   midiCPS a = S (\x -> "midiCPS " ++ show a)
+instance UnaryOp a => UnaryOp (S a) where
+  ampDb = showFloating "ampDb"
+  asFloat = showFloating "asFloat"
+  asInt = showFloating "asInt"
+  bitNot = showFloating "bitNot"
+  cpsMIDI = showFloating "cpsMIDI"
+  cpsOct = showFloating "cpsOct"
+  cubed = showFloating "cubed"
+  dbAmp = showFloating "dbAmp"
+  distort = showFloating "distort"
+  frac = showFloating "frac"
+  isNil = showFloating "isNil"
+  log10 = showFloating "log10"
+  log2 = showFloating "log2"
+  midiCPS = showFloating "midiCPS"
+  midiRatio = showFloating "midiRatio"
+  notE = showFloating "notE"
+  notNil = showFloating "notNil"
+  octCPS = showFloating "octCPS"
+  ramp_ = showFloating "ramp_"
+  ratioMIDI = showFloating "ratioMIDI"
+  softClip = showFloating "softClip"
+  squared = showFloating "squared"
+
 
 --
 -- Instance for expressions
@@ -166,7 +190,6 @@ instance Psnew S where
 
 instance Pnset S where
   pnset i ms = S (\_ -> show $ ToOSC (Nset i) (M.fromList ms))
-
 
 -- instance Plam S where
 --   plam f = S $ \_ -> "\\x -> " ++ unS (f (S $ const "")) () ++ ")"

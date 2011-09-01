@@ -15,7 +15,7 @@
 --
 module Sound.SC3.Lepton.Pattern.Interpreter
   ( -- * Running patterns
-    R(..), runP, runPIO, foldPIO, foldPIO_, mapPIO_,
+    R(..), runP, runPIO, foldPIO, foldPIO_, mapPIO_, nan,
 
     -- * Showing patterns
     S(..), showP,

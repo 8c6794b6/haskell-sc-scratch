@@ -17,6 +17,7 @@ module Sound.SC3.Lepton.Pattern.Interpreter.R
   , mapPIO_
   , foldPIO
   , foldPIO_
+  , nan
   ) where
 
 import Control.Applicative (Applicative(..), (<$>))
@@ -113,6 +114,53 @@ instance (Num a) => Num (R a) where
 instance (Fractional a) => Fractional (R a) where
   a / b = (/) <$> a <*> b
   fromRational = return . fromRational
+
+instance Floating a => Floating (R a) where
+  pi = pure pi
+  exp = fmap exp
+  sqrt = fmap sqrt
+  log = fmap log
+  (**) a b = (**) <$> a <*> b
+  logBase a b = logBase <$> a <*> b
+  sin = fmap sin
+  tan = fmap tan
+  cos = fmap cos
+  asin = fmap asin
+  atan = fmap atan
+  acos = fmap acos
+  sinh = fmap sinh
+  tanh = fmap tanh
+  cosh = fmap cosh
+  asinh = fmap asinh
+  atanh = fmap atanh
+  acosh = fmap acosh
+
+instance UnaryOp a => UnaryOp (R a) where
+  ampDb = fmap ampDb
+  asFloat = fmap asFloat
+  asInt = fmap asInt
+  bitNot = fmap bitNot
+  cpsMIDI = fmap cpsMIDI
+  cpsOct = fmap cpsOct
+  cubed = fmap cubed
+  dbAmp = fmap dbAmp
+  distort = fmap distort
+  frac = fmap frac
+  isNil = fmap isNil
+  log10 = fmap log10
+  log2 = fmap log2
+  midiCPS = fmap midiCPS
+  midiRatio = fmap midiRatio
+  notE = fmap notE
+  notNil = fmap notNil
+  octCPS = fmap octCPS
+  ramp_ = fmap ramp_
+  ratioMIDI = fmap ratioMIDI
+  softClip = fmap softClip
+  squared = fmap squared
+
+instance Ord a => Ord (R a) where
+  compare a b = head $ unR (compare <$> a <*> b) (pureMT 0)
 
 instance (Enum a) => Enum (R a) where
   succ = fmap succ

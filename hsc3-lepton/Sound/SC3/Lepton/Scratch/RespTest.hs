@@ -1,3 +1,4 @@
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {-|
 Module      : $Header$
 CopyRight   : (c) 8c6794b6
@@ -37,7 +38,7 @@ gospe' :: Transport t => t -> IO ()
 gospe' fd = do
   async fd . d_recv . synthdef "speSynth" =<< speSynth
   play fd $ psnew "speSynth" Nothing AddToTail 1
-    [("dur", pforever 0.13),("freq", fmap midiCPS pspe)]
+    [("dur", pforever 0.13),("freq", midiCPS (pspe :: R Double))]
 
 -- | Synthdef for spe example.
 speSynth :: IO UGen
@@ -69,34 +70,34 @@ pspe =
 silence :: R Double -> Msg Double
 silence n = psnew "silence" Nothing AddToTail 1 [("dur",n)]
 
-m1,m2,m3,m4,m5,m6,m7,m8 :: Msg Double
+-- m1,m2,m3,m4,m5,m6,m7,m8 :: Msg Double
 
 m1 = psnew "rspdef1" Nothing AddToTail 1
   [("dur", plist [1/4,3/4])
-  ,("freq",fmap midiCPS $ pcycle [67,69])
+  ,("freq",midiCPS $ pcycle [67,69])
   ,("pan", pforever 0.3)]
 
 m2 = psnew "rspdef1" Nothing AddToTail 1
   [("dur",  pseq 2 [3/4,1/4,2/4,2/4])
-  ,("freq", fmap midiCPS $ pseq 3 [60,62,63,65,67,68,70,72])]
+  ,("freq", midiCPS $ pseq 3 [60,62,63,65,67,68,70,72])]
 
 m3 = psnew "rspdef1" Nothing AddToTail 1
   [("dur", pseq 2 [2/8,2/8,3/8,1/8])
-  ,("freq", fmap midiCPS $ pcycle $ [60,67,74,81])]
+  ,("freq", midiCPS $ pcycle $ [60,67,74,81])]
 
 m4 = psnew "rspdef1" Nothing AddToTail 1
   [("dur", pseq 32 [1/32])
-  ,("freq", fmap midiCPS $ pcycle [115,103])]
+  ,("freq", midiCPS $ pcycle [115,103])]
 
 m5 = psnew "rspdef1" Nothing AddToTail 1
   [("dur", pseq 8 [1/4])
   ,("pan", prepeat 0.75)
-  ,("freq", fmap midiCPS $ pcycle [60,64,67,72])]
+  ,("freq", midiCPS $ pcycle [60,64,67,72])]
 
 m6 = psnew "rspdef1" Nothing AddToTail 1
   [("dur", plist [7/8, 1/8, 6/13, 7/13])
   ,("pan", prepeat (-0.75))
-  ,("freq", fmap midiCPS $ plist [84,86,89,91])]
+  ,("freq", midiCPS $ plist [84,86,89,91])]
 
 m7 = silence 2
 
@@ -123,14 +124,16 @@ gosw fd =
     (Play.setup fd >> setup fd >>
      patchNode (Group 1 [Synth 1003 "rspdef3" []]) fd)
     (send fd $ n_free [1003])
-    (play fd (ppar [loop01, loop02, loop03]))
+    (play fd ps)
+  where
+    ps = ppar [loop01, loop02, loop03] :: R (ToOSC Double)
 
 gosw2 :: IO ()
 gosw2 = 
   bracket
-    (mapM (forkIO . audition) [loop02,loop03])
+    (mapM (forkIO . audition) [loop02,loop03 :: R (ToOSC Double)])
     (mapM_ killThread)
-    (const $ audition loop01)
+    (const $ audition (loop01 :: R (ToOSC Double)))
 
 setup :: Transport t => t -> IO OSC
 setup fd = do
@@ -176,13 +179,12 @@ rspdef5 =
    (env [0,1,0] [("atk"@@1e-4),("dcy"@@999e-4)] [EnvCub] (-1) 0))
   ("pan"@@0) ("amp"@@1)
 
-loop01 :: Msg Double
 loop01 = psnew "rspdef1" Nothing AddToTail 1
   [("dur", pcycle [preplicate 1024 (1/23)
                   ,preplicate 512 (2/23)
                   ,preplicate 256 (4/23)
                   ,preplicate 128 (8/23)])
-  ,("freq", fmap midiCPS $ pforever $ prand 1 $
+  ,("freq", midiCPS $ pforever $ prand 1 $
             [40,41,48,52,55,58,62,67,70,74,79,86,90])
   ,("pan",  pforever $ prange (-1) 1)
   ,("atk",  pforever $ prange 1e-4 1)
@@ -191,25 +193,22 @@ loop01 = psnew "rspdef1" Nothing AddToTail 1
   -- ,("fmul", pforever 100)
   ,("n_map/fmul", pforever 100)]
 
-loop02 :: Msg Double
 loop02 = psnew "rspdef2" Nothing AddToTail 1
   [("dur",  pforever $ prange 1e-1 5e-1)
-  ,("freq", pforever $ exp <$> prange (log <$> 110) (log <$> 11000))
+  ,("freq", pforever $ exp $ prange (log 110) (log 11000))
   ,("atk",  pforever $ prange 1e-4 2)
   ,("dcy",  pforever $ prange 1e-4 2)
   ,("amp",  pforever $ prange 1e-2 1)
   ,("pan",  pforever $ prange (-1) 1)
   ,("q",    pforever $ prange 1e-3 99e-2)]
 
-loop03 :: Msg Double
 loop03 = pnset 1003
   [("dur",    pforever $ prange 4 32)
   ,("t_trig", pforever 1)]
 
-loop04 :: R (ToOSC Double)
 loop04 = psnew "rspdef1" Nothing AddToTail 1
   [("dur",  pforever $ prange 1e-3 7.5e-2)
-  ,("freq", pforever $ exp <$> prange (log <$> 80) (log <$> 12000))
+  ,("freq", pforever $ exp $ prange (log 80) (log 12000))
   ,("atk",  let xs = take 1024 $ iterate (*1.006) 0.002
             in  pforever $ plist (xs ++ reverse xs))
   ,("dcy",  pforever $ prange 1e-4 2e-1)

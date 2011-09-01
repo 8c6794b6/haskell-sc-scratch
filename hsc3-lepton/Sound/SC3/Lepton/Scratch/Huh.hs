@@ -1,3 +1,4 @@
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {-|
 Module      : $Header$
 CopyRight   : (c) 8c6794b6
@@ -31,7 +32,7 @@ goHuh fd =
   bracket_
     (setupHuh fd >> patchNode n0 fd)
     (return ())
-    (play fd (ppar allP :: R (ToOSC Double)))
+    (play fd (allP :: R (ToOSC Double)))
 
 setupHuh :: Transport t => t -> IO OSC
 setupHuh fd = do
@@ -110,11 +111,10 @@ n0 =
 
 bpm = 295
 
-allP =
+allP = ppar
   [ huh1P, huh2P, huh3P
   , kikP, snrP, hatP
-  , puP, drn1P, drn2P, bellP
-  ]
+  , puP, drn1P, drn2P, bellP ]
 
 huh1P =
   psnew "cf2huh" Nothing AddToTail 10
@@ -207,7 +207,7 @@ puP =
   [("dur", pforever (60/bpm))
   ,("out", pforever 16)
   ,("t_trig", pforever 1)
-  ,("freq", fmap midiCPS $
+  ,("freq", midiCPS $
    pcycle
    [prand 7
     [plist [36,55,62,36, 55,62,36,55]
@@ -257,7 +257,7 @@ bellP =
   [("dur", pforever (60/bpm))
   ,("out", pforever 18)
   ,("t_trig", pforever 1)
-  ,("freq", fmap (\x -> if x == 0 then nan else midiCPS x) $ 
+  ,("freq", fmap (\x -> if x == 0 then nan else midiCPS x) $
     pconcat
     [pseq 16 [0,0,0,0]
     ,pseq 6 [0,0,0,0]
