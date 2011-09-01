@@ -26,11 +26,18 @@ module Sound.SC3.Lepton.Pattern.Expression
     Plam(..), Papp(..),
 
     -- * Parallel
-    Pmerge(..), Ppar(..), Mergable(..)
+    Pmerge(..), Ppar(..), Mergable(..),
+
+    -- * OSC message patterns
+    Psnew(..), Pnset(..)
 
   ) where
 
 import System.Random (Random)
+
+import Sound.SC3
+
+import Sound.SC3.Lepton.Pattern.ToOSC
 
 ------------------------------------------------------------------------------
 --
@@ -103,3 +110,25 @@ class Ppar p where
 class Mergable m where
   merge :: m -> m -> m
 
+-- | Pattern for 's_new' messages.
+class Psnew s where
+  psnew :: String
+    -- ^ Synthdef name.
+    -> Maybe Int
+    -- ^ Node id for new synth. 'Nothing' for auto generated id by server.
+    -> AddAction
+    -- ^ Add action in 's_new' message.
+    -> Int
+    -- ^ Add target id.
+    -> [(String, s Double)]
+    -- ^ Parameter name and its values.
+    -> s (ToOSC Double)
+
+-- | Pattern for 'n_set' message.
+class Pnset s where
+  pnset ::
+    Int
+    -- ^ Target node id.
+    -> [(String, s Double)]
+    -- ^ Parameter name and its values.
+    -> s (ToOSC Double)

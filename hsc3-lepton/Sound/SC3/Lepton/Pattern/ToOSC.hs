@@ -1,4 +1,6 @@
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE Rank2Types #-}
 {-|
 Module      : $Header$
 CopyRight   : (c) 8c6794b6
@@ -83,7 +85,7 @@ madjust k f r = fmap (tadjust k f) r
 --   eOSC = toOSC
 --   eDur = getDur
 
-class Cue a where
+class Show a => Cue a where
   cueDur   :: a -> Double
   asOSC    :: a -> OSC
   setCueId :: Int -> a -> a
@@ -91,7 +93,9 @@ class Cue a where
   isRest   :: a -> Bool
 
 data Sn = Sn String (Maybe Int) AddAction Int (M.Map String Double)
+        deriving (Eq,Show)
 data Ns = Ns Int (M.Map String Double)
+        deriving (Eq,Show)
 
 instance Cue Sn where
   cueDur (Sn _ _ _ _ m) = M.findWithDefault 1 "dur" m
@@ -116,3 +120,16 @@ instance Cue (ToOSC Double) where
 
 zeroOrNaN :: Double -> Bool
 zeroOrNaN x = isNaN x || x == 0
+
+data Event where
+  Event :: forall e. Cue e => e -> Event
+
+instance Cue Event where
+  asOSC (Event n) = asOSC n
+  isRest (Event n) = isRest n
+  cueDur (Event n) = cueDur n
+  getCueId (Event n) = getCueId n
+  setCueId i (Event n) = Event (setCueId i n)
+
+instance Show Event where
+  show (Event n) = shows ("Event: " ++ show n) ""

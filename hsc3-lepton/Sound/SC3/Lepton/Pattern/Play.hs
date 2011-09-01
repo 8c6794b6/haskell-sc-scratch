@@ -19,15 +19,11 @@ import Data.Unique
 import Sound.OpenSoundControl
 import Sound.SC3
 
-import Sound.SC3.Lepton.Pattern.Expression
 import Sound.SC3.Lepton.Pattern.Interpreter
 import Sound.SC3.Lepton.Pattern.ToOSC
-import Sound.SC3.Lepton.Tree.Tree
 import Sound.SC3.Lepton.UGen.Factory
 
 import qualified Data.Map as M
-import qualified Data.Traversable as T
-import qualified Data.Vector.Fusion.Stream as S
 
 -- ----------------------------------------------------------------------------
 -- Types
@@ -35,44 +31,12 @@ import qualified Data.Vector.Fusion.Stream as S
 -- | Composable, audible event pattern.
 type Msg a = R (ToOSC a)
 
-
--- | Pattern for 's_new' messages.
-class Psnew s where
-  psnew :: String
-    -- ^ Synthdef name.
-    -> Maybe Int
-    -- ^ Node id for new synth. 'Nothing' for auto generated id by server.
-    -> AddAction
-    -- ^ Add action in 's_new' message.
-    -> Int
-    -- ^ Add target id.
-    -> [(String, s Double)]
-    -- ^ Parameter name and its values.
-    -- -> s (ToOSC Double)
-    -> s (ToOSC Double)
-
-instance Psnew R where
-  psnew = mkSnew
-
--- instance Psnew S where
---   psnew def nid aa tid ms =
---     S (\_ -> show $ Sn def nid aa tid (M.fromList (map ms))
-
--- | Pattern for 'n_set' message.
-class Pnset s where
-  pnset ::
-    Int
-    -- ^ Target node id.
-    -> [(String, s Double)]
-    -- ^ Parameter name and its values.
-    -> s (ToOSC Double)
-
-instance Pnset R where
-  pnset = mkNset
-
--- instance Pnset S where
---   pnset i ms = S (\_ -> show $ ToOSC (Nset i) (M.fromList ms))
-
+-- | Plays pattern.
+--
+-- A synthdef containing sendTrig ugen will be sent to server for each
+-- invokation of play action to pattern. When this synth has been removed, pattern
+-- sequence will stop.
+--
 instance Audible (R (ToOSC Double)) where
   play fd r = bracket
     (do send fd (notify True)
@@ -101,9 +65,10 @@ runMsg :: Transport t
 runMsg msg trid fd = bracket_ newTrigger freeTrigger work where
   --
   -- When delta time is small amount, latency (> 1ms) occurs in
-  -- server side. Sending messages in (offsetDelay * 2) chunk, accumulate
-  -- until enough duration has been passed in between messages.
+  -- server side. Sending messages in chunk, accumulate until enough
+  -- duration has been passed in betweenmessages.
   --
+  -- XXX:
   -- Try pattern converter and sender running in different thread, with
   -- passing around chunks via MVar. This may save couple computation time.
   --
@@ -117,7 +82,7 @@ runMsg msg trid fd = bracket_ newTrigger freeTrigger work where
     | getDur o == 0 || null acc = return (t0,t1,o:acc)
     | otherwise                 = do
       let dt = getDur o
-          enoughTime = (t0+dt)-t1 > (offsetDelay*2)
+          enoughTime = (t0+dt)-t1 > (offsetDelay*5)
       msgs <- mkOSCs acc trid
       send fd $ bundle (UTCr $ t0+offsetDelay) (tick:msgs)
       t1' <- if enoughTime then utcr else return t1
@@ -129,34 +94,25 @@ runMsg msg trid fd = bracket_ newTrigger freeTrigger work where
 {-# SPECIALISE runMsg :: Msg Double -> Int -> TCP -> IO () #-}
 
 mkOSCs :: [ToOSC Double] -> Int -> IO [OSC]
-mkOSCs os tid = foldM f v os where
+mkOSCs os tid = foldM f [] os where
   f acc o
     | isSilence o = do
       nid <- newNid
       let slt = Snew "rest" (Just nid) AddToTail 1
-          rest = asOSC (ToOSC slt (M.singleton "dur" (cueDur o)))
+          rest = toOSC (ToOSC slt (M.singleton "dur" (getDur o)))
       slt `seq` rest `seq` return (rest:acc)
     | otherwise   = case oscType o of
       Snew _ nid _ _ -> do
         nid' <- maybe newNid return nid
         let ops = M.foldrWithKey (mkOpts nid') [] (oscMap o)
-            o' = asOSC (setNid nid' o)
+            o' = toOSC (setNid nid' o)
         o' `seq` ops `seq` return ((toOSC (setNid nid' o):ops) ++ acc)
-      Nset nid -> do
+      Nset _ -> do
         let t = ToOSC (Nset tid) (M.singleton "t_trig" 1 :: M.Map String Double)
-            o' = asOSC o
-        o' `seq` t `seq` return (o':asOSC t:acc)
-  v = []
-  isSilence m = isRest m
-  -- isSilence m = (isNaN <$> M.lookup "freq" (oscMap m)) == Just True
-
--- | Wraps sending @notify True@ and @notify False@ messages before and
--- after 'withSC3'.
-sc3 :: (UDP -> IO a) -> IO a
-sc3 k = withSC3 $ \fd -> bracket
-  (async fd (notify True) >> return fd)
-  (\fd' -> send fd' $ notify False)
-  k
+            o' = toOSC o
+        o' `seq` t `seq` return (o':toOSC t:acc)
+  isSilence m =
+    ((\x -> isNaN x || x == 0) <$> M.lookup "freq" (oscMap m)) == Just True
 
 -- | Synthdef used for responding to 'n_set' messages.
 --
@@ -231,78 +187,6 @@ mkOpts nid a val acc = case break (== '/') a of
     ("n_mapa",'/':p) -> n_mapa nid [(p,ceiling val)]:acc
     ("c_set", '/':p) -> c_set [(read p, val)]:acc
     _                -> acc
-
--- | 'NaN' value made by @0/0@.
-nan :: Floating a => a
-nan = 0/0
-{-# SPECIALIZE nan :: Double #-}
-
--- | Make 's_new' messages.
--- mkSnew :: Num a => AddAction -> Int -> String -> [(String, R a)] -> Msg a
--- mkSnew ::
---   Floating a =>
---   String -> Maybe Int -> AddAction -> Int -> [(String, R a)] -> Msg a
--- mkSnew def nid aa tid ms = ToOSC o <$> ms' where
---   o = Snew def nid aa tid
---   ms' = R $ \g ->
---     tail $ shiftT 0 $
---     unR (pappend (pval initialT) (T.sequenceA $ M.fromList ms)) g
-mkSnew def nid aa tid ms = ToOSC sn <$> ms' where
-  sn = Snew def nid aa tid
-  ms' = R $ \g ->
-    tail $ shiftT 0 $
-    unR (pappend (pval initialT) (T.sequenceA $ M.fromList ms)) g
-
--- {-# SPECIALISE mkSnew ::
---     String -> Maybe Int -> AddAction -> Int
---     -> [(String, R Double)] -> Msg Double #-}
---
--- | Make 'n_set' messages.
-mkNset :: Floating a => NodeId -> [(String, R a)] -> Msg a
-mkNset nid ms = ToOSC o <$> ms' where
-  o = Nset nid
-  ms' = R $ \g ->
-    tail $ shiftT 0 $
-    unR (pappend (pval initialT) (T.sequenceA $ M.fromList ms)) g
-{-# SPECIALISE mkNset :: Int -> [(String,R Double)] -> Msg Double #-}
-
-initialT :: Num a => M.Map String a
-initialT = M.singleton "dur" 0
-{-# SPECIALIZE initialT :: M.Map String Double #-}
-
-shiftT :: Floating a => a -> [M.Map String a] -> [M.Map String a]
-shiftT t ms = case ms of
-  (m1:m2:r) ->
-    let m1' = M.adjust (const t) "dur" m1
-        t'  = M.findWithDefault 0 "dur" m1
-    in  (m1'):shiftT t' (m2:r)
-  [m1] ->
-    -- XXX:
-    -- Sending dummy silent event at the end of list
-    -- to receive /n_go response from server.
-    --
-    let m1' = M.adjust (const t) "dur" m1
-        t'  = M.findWithDefault 0 "dur" m1
-    in  [m1',M.fromList [("freq",nan),("dur",t')]]
-  _ -> []
-
--- shiftT ::
---   Floating a => a -> S.Stream (M.Map String a) -> S.Stream (M.Map String a)
--- shiftT t ms
---   | S.null ms          = S.empty
---   | S.null (S.tail ms) =
---     let m1  = S.head ms
---         m1' = M.adjust (const t) "dur" m1
---         t'  = M.findWithDefault 0 "dur" m1
---         end = S.singleton $ M.fromList [("freq",nan),("dur",t')]
---     in  S.cons m1' end
---   | otherwise          =
---     let m1  = S.head ms
---         m1' = M.adjust (const t) "dur" m1
---         m2  = S.head (S.tail ms)
---         r   = S.drop 2 ms
---         t'  = M.findWithDefault 0 "dur" m1
---     in  S.cons m1' (shiftT t' (S.cons m2 r))
 
 -- ----------------------------------------------------------------------------
 -- Debugging

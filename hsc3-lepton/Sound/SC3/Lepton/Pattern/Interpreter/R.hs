@@ -1,4 +1,3 @@
-{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-|
 Module      : $Header$
@@ -6,12 +5,19 @@ CopyRight   : (c) 8c6794b6
 License     : BSD3
 Maintainer  : 8c6794b6@gmail.com
 Stability   : unstable
-Portability : non-portable
+Portability : non-portable (FlexibleInstances)
 
 'R' pattern interpreter.
 
 -}
-module Sound.SC3.Lepton.Pattern.Interpreter.R where
+module Sound.SC3.Lepton.Pattern.Interpreter.R
+  ( R(..)
+  , runP
+  , runPIO
+  , mapPIO_
+  , foldPIO
+  , foldPIO_
+  ) where
 
 import Control.Applicative (Applicative(..), (<$>))
 import Data.Data (Typeable1(..), mkTyCon, mkTyConApp)
@@ -23,6 +29,7 @@ import System.Random (Random(..), RandomGen(..))
 
 import Control.Monad.Stream
 import Data.List.Stream
+import Sound.SC3
 import System.Random.Mersenne.Pure64
 import System.Random.Shuffle (shuffle')
 
@@ -31,6 +38,8 @@ import Sound.SC3.Lepton.Pattern.ToOSC
 
 import qualified Prelude
 import qualified Control.Parallel as CP
+import qualified Data.Map as M
+import qualified Data.Traversable as T
 
 -- | \"R\" for running patterns.
 --
@@ -40,7 +49,7 @@ import qualified Control.Parallel as CP
 -- not work:
 --
 -- > runPIO $ prand 1 [0.1,0.2..2.0]
----
+--
 -- In above case, explicitly use pattern language to make desired value:
 --
 -- > runPIO $ prand 1 $ map pval [0.1,0.2..1.0]
@@ -55,12 +64,15 @@ runP = unR
 runPIO :: R a -> IO [a]
 runPIO p = unR p `fmap` newPureMT
 
+-- | Apply given IO action to pattern.
 mapPIO_ :: (a -> IO b) -> R a -> IO ()
 mapPIO_ k p = mapM_ k =<< runPIO p
 
+-- | Fold pattern with given IO action.
 foldPIO :: (b -> a -> IO b) -> b -> R a -> IO b
 foldPIO k z p = foldM k z =<< runPIO p
 
+-- | Fold pattern with given IO action, discarding result.
 foldPIO_ :: (b -> a -> IO b) -> b -> R a -> IO ()
 foldPIO_ k z p = foldPIO k z p >> return ()
 
@@ -209,6 +221,58 @@ mergeL t (ta,tb) (a:as) (b:bs)
     ua = ta + getDur a
     ub = tb + getDur b
 
+instance Psnew R where
+  psnew = mkSnew
+
+instance Pnset R where
+  pnset = mkNset
+
+-- | Make 's_new' messages.
+mkSnew ::
+  Floating a =>
+  String -> Maybe Int -> AddAction -> Int -> [(String, R a)] -> R (ToOSC a)
+mkSnew def nid aa tid ms = ToOSC sn <$> ms' where
+  sn = Snew def nid aa tid
+  ms' = R $ \g ->
+    tail $ shiftT 0 $
+    unR (pappend (pval initialT) (T.sequenceA $ M.fromList ms)) g
+{-# INLINE mkSnew #-}
+{-# SPECIALISE mkSnew ::
+    String -> Maybe Int -> AddAction -> Int
+    -> [(String, R Double)] -> R (ToOSC Double) #-}
+
+-- | Make 'n_set' messages.
+mkNset :: Floating a => Int -> [(String, R a)] -> R (ToOSC a)
+mkNset nid ms = ToOSC o <$> ms' where
+  o = Nset nid
+  ms' = R $ \g ->
+    tail $ shiftT 0 $
+    unR (pappend (pval initialT) (T.sequenceA $ M.fromList ms)) g
+{-# INLINE mkNset #-}
+{-# SPECIALISE mkNset :: Int -> [(String,R Double)] -> R (ToOSC Double) #-}
+
+initialT :: Num a => M.Map String a
+initialT = M.singleton "dur" 0
+{-# INLINE initialT #-}
+{-# SPECIALIZE initialT :: M.Map String Double #-}
+
+shiftT :: Floating a => a -> [M.Map String a] -> [M.Map String a]
+shiftT t ms = case ms of
+  (m1:m2:r) ->
+    let m1' = M.adjust (const t) "dur" m1
+        t'  = M.findWithDefault 0 "dur" m1
+    in  (m1'):shiftT t' (m2:r)
+  [m1] ->
+    -- XXX:
+    -- Sending dummy silent event at the end of list
+    -- to receive /n_go response from server.
+    --
+    let m1' = M.adjust (const t) "dur" m1
+        t'  = M.findWithDefault 0 "dur" m1
+    in  [m1',M.fromList [("freq",nan),("dur",t')]]
+  _ -> []
+{-# INLINE shiftT #-}
+
 -- | Same as @(\<*\>)@.
 instance Papp R where
   papp = (<*>)
@@ -240,3 +304,8 @@ rlam f = R $ \g -> rec (repeat func) (gens g)
 -- gens :: (RandomGen g) => g -> [g]
 gens :: PureMT -> [PureMT]
 gens = iterate (snd . next)
+
+-- | 'NaN' value made by @0/0@.
+nan :: Floating a => a
+nan = 0/0
+{-# SPECIALIZE nan :: Double #-}

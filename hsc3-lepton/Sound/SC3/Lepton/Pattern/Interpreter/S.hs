@@ -20,6 +20,9 @@ import Data.Data
 import Text.Show.Functions ()
 
 import Sound.SC3.Lepton.Pattern.Expression
+import Sound.SC3.Lepton.Pattern.ToOSC
+
+import qualified Data.Map as M
 
 -- | \"S\" for showing patterns.
 --
@@ -156,6 +159,14 @@ instance Ppar S where
 
 instance Show a => Mergable (S a) where
   merge a b = S (\_ -> unwords ["merge", show a, show b])
+
+instance Psnew S where
+  psnew def nid aa tid ms =
+    S (\_ -> show $ ToOSC (Snew def nid aa tid) (M.fromList ms))
+
+instance Pnset S where
+  pnset i ms = S (\_ -> show $ ToOSC (Nset i) (M.fromList ms))
+
 
 -- instance Plam S where
 --   plam f = S $ \_ -> "\\x -> " ++ unS (f (S $ const "")) () ++ ")"

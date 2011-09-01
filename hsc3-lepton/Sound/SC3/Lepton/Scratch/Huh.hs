@@ -219,7 +219,7 @@ puP =
   ]
 
 drn1P =
-  nset 1001
+  pnset 1001
   [("dur", pforever (60/bpm))
   ,("freq", fmap (\x -> if x == 0 then nan else midiCPS x) $
     pconcat
@@ -236,7 +236,7 @@ drn1P =
   ]
 
 drn2P =
-  nset 1002
+  pnset 1002
   [("dur", pforever (60/bpm))
   ,("freq", fmap (\x -> if x == 0 then nan else midiCPS x) $
    pconcat
