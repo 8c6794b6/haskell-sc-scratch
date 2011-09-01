@@ -96,12 +96,12 @@ import Sound.SC3.Lepton.Pattern.ToOSC as All
 -- >   return $ out 0 $ mkSig dl dr
 -- >   where
 -- >     mkSig dl dr = foldr f v (take 4 $ zipWith mce2 dl dr)
--- >     v = rlpf (lfSaw ar freq 0 * evl) nz 0.1
+-- >     v = rlpf (lfSaw AR freq 0 * evl) nz 0.1
 -- >     f a b = allpassN b 0.05 a 4
--- >     evl = envGen kr 1 1 0 1 RemoveSynth shp * 0.3
+-- >     evl = envGen KR 1 1 0 1 RemoveSynth shp * 0.3
 -- >     shp = envPerc 10e-3 1
--- >     nz = midiCPS (lfNoise1 'z' kr 1 * 36 + 110)
--- >     freq = control kr "freq" 440
+-- >     nz = midiCPS (lfNoise1 'z' KR 1 * 36 + 110)
+-- >     freq = control KR "freq" 440
 -- >
 -- > -- Pattern used for pitches.
 -- > pspe =
@@ -127,7 +127,7 @@ import Sound.SC3.Lepton.Pattern.ToOSC as All
 
 -- $example_combine
 --
--- Group with Data.Map and traverse with @sequenceA@ from Data.Traverse.
+-- Playing patterns with play function from 'Audible' class.
 --
 -- > import Control.Concurrent (threadDelay)
 -- > import Data.Map ((!))
@@ -144,38 +144,35 @@ import Sound.SC3.Lepton.Pattern.ToOSC as All
 -- > goBuzz :: (Transport t) => t -> IO ()
 -- > goBuzz fd = do
 -- >   async fd $ d_recv $ synthdef "buzz" buzz
--- >   ps <- runPIO . sequenceA . M.fromList $ pBuzz
--- >   mapM_ f ps
--- >   where
--- >     f m = do
--- >       send fd $ s_new "buzz" (-1) AddToTail 1 (M.assocs m)
--- >       threadDelay $ floor $ (m!"dur") * 1e6 * (60/bpm)
--- >     bpm = 160
+-- >   play fd (madjust "dur" (\t -> t*60/160) pBuzz :: R (ToOSC Double))
 -- >
--- > -- | Ugen with amp, freq, and pan controls.
+-- > -- | UGen for buzz.
 -- > buzz :: UGen
 -- > buzz = out 0 $ pan2 sig pan 1
 -- >   where
--- >     sig = sinOsc ar freq 0 * amp * e
--- >     e = linen tr 5e-3 1 (10e-3+(330/freq)) RemoveSynth ^ 3
--- >     amp = control kr "amp" 0.3
--- >     freq = control kr "freq" 440
--- >     pan = control kr "pan" 0
+-- >     sig = sinOsc AR freq 0 * amp * e
+-- >     e = linen tr 5e-3 1 (10e-3+(220/freq)) RemoveSynth ^ 2
+-- >     amp = control KR "amp" 0.3
+-- >     freq = control KR "freq" 440
+-- >     pan = control KR "pan" 0
 -- >     tr = tr_control "t_trig" 1
 -- >
 -- > -- Pattern for amp, dur, freq, and pan.
--- > pBuzz =
+-- > pBuzz = snew "buzz" Nothing AddToTail 1
 -- >   [("amp", pcycle [0.3, 0.1,  0.1,   0.3,  0.1,  0.1,  0.1])
 -- >   ,("dur", pcycle [1,   0.55, 0.45,  0.54, 0.46, 0.53, 0.47])
 -- >   ,("freq", fmap midiCPS $
--- >             pcycle [48, prand 13 cm, 53, prand 13 fm
--- >                    ,48, prand 13 cm, 43, prand 13 g7])
--- >   ,("pan", pcycle [plist [-1,-0.95..1], plist [1,0.95..(-1)]])]
+-- >             pcycle [48, pchoose 13 cm, 53, pchoose 13 fm
+-- >                    ,48, pchoose 13 cm, 43, pchoose 13 g7
+-- >                    ,48, pchoose 13 cm, 53, pchoose 13 fm
+-- >                    ,50, pchoose 6 fm, 43, pchoose 6 g7
+-- >                    ,48, pchoose 6 cm, 55, pchoose 6 cm])
+-- >   ,("pan", pcycle [plist [-1,-0.9..1], plist [1,0.9..(-1)]])]
 -- >   where
--- >     cm = [55, 67,72,75,79]
--- >     fm = [60, 68,72,77,80]
--- >     g7 = [50, 67,71,74,77]
--- >
+-- >     cm = [55, 67,72,75,79,84,87]
+-- >     fm = [60, 68,72,77,80,84,89]
+-- >     g7 = [50, 67,71,74,77,79,83]
+--
 
 -- $example_low_level
 --

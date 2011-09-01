@@ -1,5 +1,6 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TypeFamilies #-}
 {-|
 Module      : $Header$
 License     : BSD3
@@ -11,7 +12,7 @@ Sends OSC message sequentially with responding to server.
 module Sound.SC3.Lepton.Pattern.Play where
 
 import Control.Applicative
-import Control.Exception (bracket)
+import Control.Exception (bracket, bracket_)
 import Control.Monad
 
 import Data.Unique
@@ -34,33 +35,52 @@ import qualified Data.Vector.Fusion.Stream as S
 -- | Composable, audible event pattern.
 type Msg a = R (ToOSC a)
 
--- | Representing 's_new' messages.
-class Snew s where
-  snew :: String -> Maybe Int -> AddAction -> Int
-       -> [(String, s Double)] -> s (ToOSC Double)
 
-instance Snew R where
-  snew = mkSnew
+-- | Pattern for 's_new' messages.
+class Psnew s where
+  psnew :: String
+    -- ^ Synthdef name.
+    -> Maybe Int
+    -- ^ Node id for new synth. 'Nothing' for auto generated id by server.
+    -> AddAction
+    -- ^ Add action in 's_new' message.
+    -> Int
+    -- ^ Add target id.
+    -> [(String, s Double)]
+    -- ^ Parameter name and its values.
+    -- -> s (ToOSC Double)
+    -> s (ToOSC Double)
 
-instance Snew S where
-  snew def nid aa tid ms =
-    S (\_ -> show $ ToOSC (Snew def nid aa tid) (M.fromList ms))
+instance Psnew R where
+  psnew = mkSnew
 
--- | Representing 'n_set' message.
-class Nset s where
-  nset :: Int -> [(String, s Double)] -> s (ToOSC Double)
+-- instance Psnew S where
+--   psnew def nid aa tid ms =
+--     S (\_ -> show $ Sn def nid aa tid (M.fromList (map ms))
 
-instance Nset R where
-  nset = mkNset
+-- | Pattern for 'n_set' message.
+class Pnset s where
+  pnset ::
+    Int
+    -- ^ Target node id.
+    -> [(String, s Double)]
+    -- ^ Parameter name and its values.
+    -> s (ToOSC Double)
 
-instance Nset S where
-  nset i ms = S (\_ -> show $ ToOSC (Nset i) (M.fromList ms))
+instance Pnset R where
+  pnset = mkNset
+
+-- instance Pnset S where
+--   pnset i ms = S (\_ -> show $ ToOSC (Nset i) (M.fromList ms))
 
 instance Audible (R (ToOSC Double)) where
   play fd r = bracket
-    (send fd (notify True) >> return fd)
-    (\fd' -> send fd' (notify False))
-    (\fd' -> runMsg r fd')
+    (do send fd (notify True)
+        trid <- newNid
+        return (fd,trid))
+    (\(fd',trid) ->
+      send fd' (bundle immediately [notify False, n_free [trid]]))
+    (\(fd',trid) -> runMsg r trid fd')
 
 -- ---------------------------------------------------------------------------
 -- Guts
@@ -70,61 +90,65 @@ instance Audible (R (ToOSC Double)) where
 -- When 'NaN' is found in 'freq' key of Map, replace the message
 -- with sending 's_new silence'.
 --
-runMsg :: Transport t => Msg Double -> t -> IO ()
-runMsg msg fd = bracket newTrigger freeTrigger go where
+runMsg :: Transport t
+   => Msg Double
+   -- ^ Pattern to play
+   -> Int
+   -- ^ Node id used for trigger synth
+   -> t
+   -- ^ Destination
+   -> IO ()
+runMsg msg trid fd = bracket_ newTrigger freeTrigger work where
   --
   -- When delta time is small amount, latency (> 1ms) occurs in
-  -- server side. Sending messages in (offsetDelay * 10) chunk, accumulate
+  -- server side. Sending messages in (offsetDelay * 2) chunk, accumulate
   -- until enough duration has been passed in between messages.
   --
   -- Try pattern converter and sender running in different thread, with
   -- passing around chunks via MVar. This may save couple computation time.
   --
   newTrigger = do
-    trid <- newNid
     send fd $ s_new "tr" trid AddToHead 1 []
-    return trid
-  freeTrigger trid = send fd $ n_free [trid]
-  go trid = do
-    now  <- utcr
-    foldPIO_ (f trid) (now,now,[]) msg
-  f trid (t0,t1,acc) o
+  freeTrigger = send fd $ n_free [trid]
+  work = do
+    now <- utcr
+    foldPIO_ go (now,now,[]) msg
+  go (t0,t1,acc) o
     | getDur o == 0 || null acc = return (t0,t1,o:acc)
     | otherwise                 = do
       let dt = getDur o
-          enoughTime = (t0+dt)-t1 > offsetDelay*10
-      (!nid:_,!msgs@(m:_)) <- mkOSCs acc trid
-      send fd $ bundle (UTCr $ t0+offsetDelay) msgs
+          enoughTime = (t0+dt)-t1 > (offsetDelay*2)
+      msgs <- mkOSCs acc trid
+      send fd $ bundle (UTCr $ t0+offsetDelay) (tick:msgs)
       t1' <- if enoughTime then utcr else return t1
-      when enoughTime $ case m of
-        Message "/s_new" _ -> waitUntil fd "/n_go" nid
-        Message "/n_set" _ -> waitUntil fd "/tr" trid
-        _                  -> return ()
+      when enoughTime $ waitUntil fd "/tr" trid
       return (t0+dt,t1',[o])
+  tick = n_set trid [("t_trig",1)]
 
-{-# SPECIALISE runMsg :: Msg Double -> UDP -> IO () #-}
-{-# SPECIALISE runMsg :: Msg Double -> TCP -> IO () #-}
+{-# SPECIALISE runMsg :: Msg Double -> Int -> UDP -> IO () #-}
+{-# SPECIALISE runMsg :: Msg Double -> Int -> TCP -> IO () #-}
 
-mkOSCs :: [ToOSC Double] -> Int -> IO ([NodeId],[OSC])
+mkOSCs :: [ToOSC Double] -> Int -> IO [OSC]
 mkOSCs os tid = foldM f v os where
-  f (ns,acc) o
+  f acc o
     | isSilence o = do
       nid <- newNid
       let slt = Snew "rest" (Just nid) AddToTail 1
-          rest = toOSC (ToOSC slt (M.singleton "dur" (getDur o)))
-      slt `seq` rest `seq` return (nid:ns, rest:acc)
+          rest = asOSC (ToOSC slt (M.singleton "dur" (cueDur o)))
+      slt `seq` rest `seq` return (rest:acc)
     | otherwise   = case oscType o of
       Snew _ nid _ _ -> do
         nid' <- maybe newNid return nid
         let ops = M.foldrWithKey (mkOpts nid') [] (oscMap o)
-            o' = toOSC (setNid nid' o)
-        o' `seq` ops `seq` return (nid':ns, (toOSC (setNid nid' o):ops) ++ acc)
+            o' = asOSC (setNid nid' o)
+        o' `seq` ops `seq` return ((toOSC (setNid nid' o):ops) ++ acc)
       Nset nid -> do
-        let t = ToOSC (Nset tid) (M.singleton "t_trig" 1)
-            o' = toOSC o
-        o' `seq` t `seq` return (nid:ns, o':toOSC t:acc)
-  v = ([],[])
-  isSilence m = (isNaN <$> M.lookup "freq" (oscMap m)) == Just True
+        let t = ToOSC (Nset tid) (M.singleton "t_trig" 1 :: M.Map String Double)
+            o' = asOSC o
+        o' `seq` t `seq` return (o':asOSC t:acc)
+  v = []
+  isSilence m = isRest m
+  -- isSilence m = (isNaN <$> M.lookup "freq" (oscMap m)) == Just True
 
 -- | Wraps sending @notify True@ and @notify False@ messages before and
 -- after 'withSC3'.
@@ -182,16 +206,13 @@ waitUntil fd str n = recv fd >>= \m -> case m of
 
 -- | Make OSC message from given name.
 --
--- [@n_set/PARAM_NAME@] @n_set@ message will be sent to @PARAM_NAME@
--- parameter of newly created node.
+-- [@n_set/PARAM_NAME@] @n_set@ message with @PARAM_NAME@ used as parameter.
 --
--- [@n_map/PARAM_NAME@] @n_map@ message will be sent to @PARAM_NAME@
--- parameter of newly created node.
+-- [@n_map/PARAM_NAME@] @n_map@ message with @PARAM_NAME@ used as parameter.
 --
--- [@n_mapa/PARAM_NAME@] @n_mapa@ message will be sent to @PARAM_NAME@
--- parameter of newly created node.
+-- [@n_mapa/PARAM_NAME@] @n_mapa@ message with @PARAM_NAME@ used as parameter.
 --
--- [@c_set/BUSID@] @c_set@ message will sent to bus which its id is BUSID.
+-- [@c_set/BUSID@] @c_set@ message with BUSID as bus id.
 --
 mkOpts ::
   Int
@@ -199,7 +220,7 @@ mkOpts ::
   -> String
   -- ^ Key name
   -> Double
-  -- ^ Value
+  -- ^ Value in result message.
   -> [OSC]
   -- ^ List of OSC used as accumulator
   -> [OSC]
@@ -218,19 +239,24 @@ nan = 0/0
 
 -- | Make 's_new' messages.
 -- mkSnew :: Num a => AddAction -> Int -> String -> [(String, R a)] -> Msg a
-mkSnew ::
-  Floating a =>
-  String -> Maybe Int -> AddAction -> Int -> [(String, R a)] -> Msg a
-mkSnew def nid aa tid ms = ToOSC o <$> ms' where
-  o = Snew def nid aa tid
+-- mkSnew ::
+--   Floating a =>
+--   String -> Maybe Int -> AddAction -> Int -> [(String, R a)] -> Msg a
+-- mkSnew def nid aa tid ms = ToOSC o <$> ms' where
+--   o = Snew def nid aa tid
+--   ms' = R $ \g ->
+--     tail $ shiftT 0 $
+--     unR (pappend (pval initialT) (T.sequenceA $ M.fromList ms)) g
+mkSnew def nid aa tid ms = ToOSC sn <$> ms' where
+  sn = Snew def nid aa tid
   ms' = R $ \g ->
     tail $ shiftT 0 $
     unR (pappend (pval initialT) (T.sequenceA $ M.fromList ms)) g
 
-{-# SPECIALISE mkSnew ::
-    String -> Maybe Int -> AddAction -> Int
-    -> [(String, R Double)] -> Msg Double #-}
-
+-- {-# SPECIALISE mkSnew ::
+--     String -> Maybe Int -> AddAction -> Int
+--     -> [(String, R Double)] -> Msg Double #-}
+--
 -- | Make 'n_set' messages.
 mkNset :: Floating a => NodeId -> [(String, R a)] -> Msg a
 mkNset nid ms = ToOSC o <$> ms' where

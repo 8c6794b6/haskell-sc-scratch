@@ -36,7 +36,7 @@ gospe fd = do
 gospe' :: Transport t => t -> IO ()
 gospe' fd = do
   async fd . d_recv . synthdef "speSynth" =<< speSynth
-  play fd $ snew "speSynth" Nothing AddToTail 1
+  play fd $ psnew "speSynth" Nothing AddToTail 1
     [("dur", pforever 0.13),("freq", fmap midiCPS pspe)]
 
 -- | Synthdef for spe example.
@@ -67,33 +67,33 @@ pspe =
 -- Parallel tests
 
 silence :: R Double -> Msg Double
-silence n = snew "silence" Nothing AddToTail 1 [("dur",n)]
+silence n = psnew "silence" Nothing AddToTail 1 [("dur",n)]
 
 m1,m2,m3,m4,m5,m6,m7,m8 :: Msg Double
 
-m1 = snew "rspdef1" Nothing AddToTail 1
+m1 = psnew "rspdef1" Nothing AddToTail 1
   [("dur", plist [1/4,3/4])
   ,("freq",fmap midiCPS $ pcycle [67,69])
   ,("pan", pforever 0.3)]
 
-m2 = snew "rspdef1" Nothing AddToTail 1
+m2 = psnew "rspdef1" Nothing AddToTail 1
   [("dur",  pseq 2 [3/4,1/4,2/4,2/4])
   ,("freq", fmap midiCPS $ pseq 3 [60,62,63,65,67,68,70,72])]
 
-m3 = snew "rspdef1" Nothing AddToTail 1
+m3 = psnew "rspdef1" Nothing AddToTail 1
   [("dur", pseq 2 [2/8,2/8,3/8,1/8])
   ,("freq", fmap midiCPS $ pcycle $ [60,67,74,81])]
 
-m4 = snew "rspdef1" Nothing AddToTail 1
+m4 = psnew "rspdef1" Nothing AddToTail 1
   [("dur", pseq 32 [1/32])
   ,("freq", fmap midiCPS $ pcycle [115,103])]
 
-m5 = snew "rspdef1" Nothing AddToTail 1
+m5 = psnew "rspdef1" Nothing AddToTail 1
   [("dur", pseq 8 [1/4])
   ,("pan", prepeat 0.75)
   ,("freq", fmap midiCPS $ pcycle [60,64,67,72])]
 
-m6 = snew "rspdef1" Nothing AddToTail 1
+m6 = psnew "rspdef1" Nothing AddToTail 1
   [("dur", plist [7/8, 1/8, 6/13, 7/13])
   ,("pan", prepeat (-0.75))
   ,("freq", fmap midiCPS $ plist [84,86,89,91])]
@@ -126,11 +126,11 @@ gosw fd =
     (play fd (ppar [loop01, loop02, loop03]))
 
 gosw2 :: IO ()
-gosw2 =
+gosw2 = 
   bracket
-    (mapM (forkIO . sc3 . runMsg) [loop02,loop03])
+    (mapM (forkIO . audition) [loop02,loop03])
     (mapM_ killThread)
-    (const $ sc3 $ runMsg loop01)
+    (const $ audition loop01)
 
 setup :: Transport t => t -> IO OSC
 setup fd = do
@@ -177,7 +177,7 @@ rspdef5 =
   ("pan"@@0) ("amp"@@1)
 
 loop01 :: Msg Double
-loop01 = snew "rspdef1" Nothing AddToTail 1
+loop01 = psnew "rspdef1" Nothing AddToTail 1
   [("dur", pcycle [preplicate 1024 (1/23)
                   ,preplicate 512 (2/23)
                   ,preplicate 256 (4/23)
@@ -192,7 +192,7 @@ loop01 = snew "rspdef1" Nothing AddToTail 1
   ,("n_map/fmul", pforever 100)]
 
 loop02 :: Msg Double
-loop02 = snew "rspdef2" Nothing AddToTail 1
+loop02 = psnew "rspdef2" Nothing AddToTail 1
   [("dur",  pforever $ prange 1e-1 5e-1)
   ,("freq", pforever $ exp <$> prange (log <$> 110) (log <$> 11000))
   ,("atk",  pforever $ prange 1e-4 2)
@@ -202,12 +202,12 @@ loop02 = snew "rspdef2" Nothing AddToTail 1
   ,("q",    pforever $ prange 1e-3 99e-2)]
 
 loop03 :: Msg Double
-loop03 = mkNset 1003
+loop03 = pnset 1003
   [("dur",    pforever $ prange 4 32)
   ,("t_trig", pforever 1)]
 
 loop04 :: R (ToOSC Double)
-loop04 = snew "rspdef1" Nothing AddToTail 1
+loop04 = psnew "rspdef1" Nothing AddToTail 1
   [("dur",  pforever $ prange 1e-3 7.5e-2)
   ,("freq", pforever $ exp <$> prange (log <$> 80) (log <$> 12000))
   ,("atk",  let xs = take 1024 $ iterate (*1.006) 0.002
@@ -217,7 +217,7 @@ loop04 = snew "rspdef1" Nothing AddToTail 1
   ,("pan",  pforever $ prange (-1) 1)]
 
 msg01 :: Msg Double
-msg01 = snew "rspdef1" Nothing AddToTail 1
+msg01 = psnew "rspdef1" Nothing AddToTail 1
   [("dur", pforever 20e-3)
   ,("freq", preplicate 20 (prange 20 20000))
   ,("atk", pforever 1e-3)

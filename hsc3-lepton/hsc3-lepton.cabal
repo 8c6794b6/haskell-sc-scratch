@@ -56,7 +56,6 @@ library
     Sound.SC3.Lepton.Pattern.Interpreter.S
     Sound.SC3.Lepton.Pattern.Play
     Sound.SC3.Lepton.Pattern.ToOSC
-    -- Sound.SC3.Lepton.Query
     Sound.SC3.Lepton.QuickCheck
     Sound.SC3.Lepton.Tree
     Sound.SC3.Lepton.Tree.Tree
@@ -85,6 +84,7 @@ library
     parsec >= 3.0,
     pretty,
     random,
+    random-shuffle,
     stream-fusion >= 0.1.2.2,
     syb,
     uniplate >= 1.6,

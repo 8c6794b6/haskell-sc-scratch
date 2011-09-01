@@ -31,6 +31,7 @@ import Prelude hiding
 import Data.Vector.Fusion.Stream
 import Data.Vector.Fusion.Stream.Size
 import System.Random.Mersenne.Pure64
+import System.Random.Shuffle (shuffle')
 
 import qualified Prelude
 
@@ -40,7 +41,6 @@ import qualified Data.Vector.Fusion.Stream.Monadic as SM
 import qualified Data.Vector.Fusion.Stream.Size as SZ
 
 import Sound.SC3.Lepton.Pattern.Expression
-import Sound.SC3.Lepton.Pattern.Interpreter.R (shuffle)
 import Sound.SC3.Lepton.Pattern.ToOSC
 
 -- | \"F\" for running pattern and achieving 'Stream'.
@@ -176,7 +176,8 @@ instance Pcycle R where
 instance Pshuffle R where
   pshuffle ps = R $ \g ->
     let g' = snd . next $ g
-    in  concat $ zipWith unR (fromList $ shuffle ps g) (gens g')
+    in  concat $ zipWith unR
+        (fromList $ shuffle' ps (Prelude.length ps) g) (gens g')
 
 instance (Ord a, Num a) => Mergable (Stream (ToOSC a)) where
   merge = mergeS 0 (0,0)
@@ -257,12 +258,10 @@ scycle :: Stream a -> Stream a
 scycle = cycle
 
 concat :: Stream (Stream a) -> Stream a
--- concat = foldr1 (++)
--- concat = foldl1' (++)
 concat = concatMap id
 
 {-
-concat = concatMap id
+concat = foldr1' (++)
 -}
 
 repeat :: a -> Stream a

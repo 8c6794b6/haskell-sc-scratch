@@ -117,7 +117,7 @@ allP =
   ]
 
 huh1P =
-  snew "cf2huh" Nothing AddToTail 10
+  psnew "cf2huh" Nothing AddToTail 10
   [("dur", pforever (60/bpm))
   ,("out", pforever 10)
   ,("t_trig",
@@ -129,7 +129,7 @@ huh1P =
   ]
 
 huh2P =
-  snew "cf2huh" Nothing AddToTail 10
+  psnew "cf2huh" Nothing AddToTail 10
   [("dur", pforever (60/bpm))
   ,("out", pforever 11)
   ,("t_trig",
@@ -141,7 +141,7 @@ huh2P =
   ]
 
 huh3P =
-  snew "cf2huh" Nothing AddToTail 10
+  psnew "cf2huh" Nothing AddToTail 10
   [("dur", pforever (60/bpm))
   ,("out", pforever 12)
   ,("t_trig",
@@ -153,7 +153,7 @@ huh3P =
    ]
 
 kikP =
-  snew "cf2kik" Nothing AddToTail 10
+  psnew "cf2kik" Nothing AddToTail 10
   [("dur", pforever (60/bpm))
   ,("out", pforever 13)
   ,("t_trig",
@@ -169,7 +169,7 @@ kikP =
    ]
 
 snrP =
-  snew "cf2snr" Nothing AddToTail 10
+  psnew "cf2snr" Nothing AddToTail 10
   [("dur", pforever (60/bpm))
   ,("out", pforever 14)
   ,("t_trig",
@@ -187,7 +187,7 @@ snrP =
    ]
 
 hatP =
-  snew "cf2hat" Nothing AddToTail 10
+  psnew "cf2hat" Nothing AddToTail 10
   [("dur", pforever (60/bpm))
   ,("out", pforever 15)
   ,("t_trig",
@@ -203,7 +203,7 @@ hatP =
   ]
 
 puP =
-  snew "cf2pu" Nothing AddToTail 10
+  psnew "cf2pu" Nothing AddToTail 10
   [("dur", pforever (60/bpm))
   ,("out", pforever 16)
   ,("t_trig", pforever 1)
@@ -253,7 +253,7 @@ drn2P =
    ]
 
 bellP =
-  snew "cf2bell" Nothing AddToTail 10
+  psnew "cf2bell" Nothing AddToTail 10
   [("dur", pforever (60/bpm))
   ,("out", pforever 18)
   ,("t_trig", pforever 1)

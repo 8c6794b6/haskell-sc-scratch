@@ -13,7 +13,6 @@ Portability : non-portable
 -}
 module Sound.SC3.Lepton.Pattern.Interpreter.R where
 
-
 import Control.Applicative (Applicative(..), (<$>))
 import Data.Data (Typeable1(..), mkTyCon, mkTyConApp)
 import Prelude hiding
@@ -25,6 +24,7 @@ import System.Random (Random(..), RandomGen(..))
 import Control.Monad.Stream
 import Data.List.Stream
 import System.Random.Mersenne.Pure64
+import System.Random.Shuffle (shuffle')
 
 import Sound.SC3.Lepton.Pattern.Expression
 import Sound.SC3.Lepton.Pattern.ToOSC
@@ -179,7 +179,7 @@ instance Pforever R where
 instance Pshuffle R where
   pshuffle ps = R $ \g ->
     let g' = snd . next $ g
-    in  concat $ zipWith unR (shuffle ps g) (gens g')
+    in  concat $ zipWith unR (shuffle' ps (length ps) g) (gens g')
 
 instance Pmerge R where
   pmerge = merge
@@ -240,53 +240,3 @@ rlam f = R $ \g -> rec (repeat func) (gens g)
 -- gens :: (RandomGen g) => g -> [g]
 gens :: PureMT -> [PureMT]
 gens = iterate (snd . next)
-
--- | Shuffle the elements in list, inspired from 'perfect random shuffle' by
--- Oleg.
-shuffle :: (RandomGen g) => [a] -> g -> [a]
-shuffle xs g = shuffle1 xs $ fst $ make_rs (Prelude.length xs - 1) g
-
-data Tree a = Leaf a
-            | Node !Int (Tree a) (Tree a)
-            deriving (Show)
-
-build_tree :: [a] -> Tree a
-build_tree = grow_level . Prelude.map Leaf
-  where
-    grow_level [node] = node
-    grow_level l = grow_level $ inner l
-
-    inner [] = []
-    inner x@[_] = x
-    inner (e1:e2:rest) = joinTree e1 e2 : inner rest
-
-    joinTree l r = case (l,r) of
-      (Leaf _,Leaf _)             -> Node 2 l r
-      (Node ct _ _,Leaf _)        -> Node (ct+1) l r
-      (Leaf _,Node ct _ _)        -> Node (ct+1) l r
-      (Node ctl _ _,Node ctr _ _) -> Node (ctl+ctr) l r
-
-shuffle1 :: [a] -> [Int] -> [a]
-shuffle1 elems rseq = shuffle1' (build_tree elems) rseq
-  where
-    shuffle1' (Leaf e) [] = [e]
-    shuffle1' tree (ri:r_others) =
-      extract_tree ri tree (`shuffle1'` r_others)
-    shuffle1' _ _ = []
-
-    extract_tree 0 (Node _ (Leaf e) r) k = e:k r
-    extract_tree 1 (Node 2 l@Leaf{} (Leaf e)) k = e:k l
-    extract_tree n (Node c l@Leaf{} r) k =
-      extract_tree (n-1) r (k . Node (c-1) l)
-    extract_tree n (Node n1 l (Leaf e)) k | n+1 == n1 = e:k l
-    extract_tree n (Node c l@(Node cl _ _) r) k
-      | n < cl    = extract_tree n l (\l' -> k $ Node (c-1) l' r)
-      | otherwise = extract_tree (n-cl) r (k . Node (c-1) l)
-    extract_tree _ _ _ = []
-
-make_rs :: RandomGen g => Int -> g -> ([Int],g)
-make_rs n g0 = loop [] n g0
-  where
-    loop acc 0 g = (reverse acc, g)
-    loop acc m g = loop (r:acc) (pred m) g'
-      where (r,g') = randomR (0,n) g

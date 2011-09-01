@@ -1,10 +1,11 @@
+{-# LANGUAGE FlexibleInstances #-}
 {-|
 Module      : $Header$
 CopyRight   : (c) 8c6794b6
 License     : BSD3
 Maintainer  : 8c6794b6@gmail.com
 Stability   : unstable
-Portability : non-portable (Rank2Types, FlexibleContexts)
+Portability : non-portable (FlexibleInstances)
 
 Types for OSC messages.
 
@@ -52,6 +53,10 @@ setNid nid o = case oscType o of
 -- | Get duration of ToOSC.
 --
 -- Expecting duration defined as length of time until the next event.
+--
+-- This function will lookup for \"dur\" key in oscMap of ToOSC.
+-- When there's no value, returns 1.
+--
 getDur :: Num a => ToOSC a -> a
 getDur o = fromMaybe 1 $ M.lookup "dur" (oscMap o)
 {-# SPECIALIZE getDur :: ToOSC Double -> Double #-}
@@ -77,3 +82,37 @@ madjust k f r = fmap (tadjust k f) r
 --   type Evalue ToOSC = Double
 --   eOSC = toOSC
 --   eDur = getDur
+
+class Cue a where
+  cueDur   :: a -> Double
+  asOSC    :: a -> OSC
+  setCueId :: Int -> a -> a
+  getCueId :: a -> Int
+  isRest   :: a -> Bool
+
+data Sn = Sn String (Maybe Int) AddAction Int (M.Map String Double)
+data Ns = Ns Int (M.Map String Double)
+
+instance Cue Sn where
+  cueDur (Sn _ _ _ _ m) = M.findWithDefault 1 "dur" m
+  asOSC (Sn def nid aa tid m) = s_new def (fromMaybe (-1) nid) aa tid (M.assocs m)
+  setCueId nid (Sn def _ aa tid m) = Sn def (Just nid) aa tid m
+  getCueId (Sn _ nid _ _ _) = fromMaybe (-1) nid
+  isRest (Sn _ _ _ _ m) = maybe False zeroOrNaN $ M.lookup "freq" m
+
+instance Cue Ns where
+  cueDur (Ns _ m) = M.findWithDefault 1 "dur" m
+  asOSC  (Ns i m) = n_set i (M.assocs m)
+  setCueId i (Ns _ m) = Ns i m
+  getCueId (Ns i _) = i
+  isRest (Ns _ m) = maybe False zeroOrNaN $ M.lookup "freq" m
+
+instance Cue (ToOSC Double) where
+  cueDur = getDur
+  asOSC o = toOSC o
+  setCueId = setNid
+  getCueId = undefined
+  isRest (ToOSC _ m) = maybe False zeroOrNaN $ M.lookup "freq" m
+
+zeroOrNaN :: Double -> Bool
+zeroOrNaN x = isNaN x || x == 0

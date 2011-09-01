@@ -51,7 +51,7 @@ go fd = do
 
 go2 n fd = do
   async fd . d_recv . synthdef "speSynth" =<< speSynth
-  zipWithM_ f [n..] =<< runPIO pspe2
+  zipWithM_ f [n..] =<< runPIO p2 -- pspe2
   where
     f nid pch = do
       send fd $ s_new "speSynth" nid AddToTail 1 [("freq",midiCPS pch)]
@@ -313,13 +313,7 @@ fmod = control kr "fmod" 0
 goBuzz :: (Transport t) => t -> IO ()
 goBuzz fd = do
   async fd $ d_recv $ synthdef "buzz" buzz
-  pms <- runPIO . sequenceA . M.fromList $ pBuzz
-  mapM_ f pms
-  where
-    f m = do
-      send fd $ s_new "buzz" (-1) AddToTail 1 (M.assocs m)
-      threadDelay $ floor $ (m!"dur") * 1e6 * (60/bpm)
-    bpm = 160
+  play fd (madjust "dur" (\t -> t*60/160) pBuzz :: R (ToOSC Double))
 
 -- | UGen for buzz.
 buzz :: UGen
@@ -333,7 +327,7 @@ buzz = out 0 $ pan2 sig pan 1
     tr = tr_control "t_trig" 1
 
 -- Pattern for amp, dur, freq, and pan.
-pBuzz =
+pBuzz = snew "buzz" Nothing AddToTail 1
   [("amp", pcycle [0.3, 0.1,  0.1,   0.3,  0.1,  0.1,  0.1])
   ,("dur", pcycle [1,   0.55, 0.45,  0.54, 0.46, 0.53, 0.47])
   ,("freq", fmap midiCPS $
