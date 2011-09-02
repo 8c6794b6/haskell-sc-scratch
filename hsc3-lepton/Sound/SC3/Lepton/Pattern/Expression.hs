@@ -28,7 +28,7 @@ module Sound.SC3.Lepton.Pattern.Expression
     -- * Parallel
     Pmerge(..), Ppar(..), Mergable(..),
 
-    -- * OSC message patterns
+    -- * OSC message
     Psnew(..), Pnset(..)
 
   ) where

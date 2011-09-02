@@ -12,16 +12,6 @@
 module Sound.SC3.Lepton
   ( -- * Overview
     -- $overview
-
-    -- * Node Mapping
-    -- $node_mapping
-
-    -- * Patterns
-    -- $patterns
-
-    -- * Parsers
-    -- $parsers
-
     module All
   ) where
 
@@ -42,27 +32,15 @@ This module re-exports most modules in hsc3-lepton packages, except for
 Parsers. When any functions in "Sound.SC3.Lepton.Parser" is needed, import them
 individually.
 
--}
-
-{-$node_mapping
-
 "Sound.SC3.Lepton.Tree" module contains functions to map synth and groups in
-declarative style. See "Sound.SC3.Lepton.Tree" for example usage.
+declarative style. 'Synth' and 'Group' nodes could be expressed as haskell data
+type, for sending to and receiving from scsynth server.
 
--}
+"Sound.SC3.Lepton.Pattern" contains functions to compose patterns.
+Patterns could be used for expressing sequential audible events in higher level.
 
-{-$patterns
-
-"Sound.SC3.Lepton.Pattern" contains functions to compose patterns. See
-"Sound.SC3.Lepton.Pattern" for example usage.
-
--}
-
-
-{-$parsers
-
-The package contains parsers for OSC datum message and supercollider synth
-definition file format. To read the contents of synthdef file, use
-'parseSynthDefFile'.
+"Sound.SC3.Lepton.Parser" contains parsers for OSC datum message and
+supercollider synth definition file format. To read the contents of synthdef
+file, use 'parseSynthDefFile'.
 
 -}

@@ -31,16 +31,16 @@ import qualified Data.Map as M
 -- Enumeration for floating points are not working here also.
 -- fromEnum and toEnum are assuming pval only.
 --
-newtype S s = S {unS :: forall a. (Show s) => a -> String}
+newtype S s = S {unS :: forall a. Show s => a -> String}
 
 -- | Show string representation of pattern.
-showP :: (Show a) => S a -> String
+showP :: Show a => S a -> String
 showP p = unS p ()
 
 instance (Show a, Eq a) => Eq (S a) where
   a == b = showP a == showP b
 
-instance (Show a) => Show (S a) where
+instance Show a => Show (S a) where
   show = showP
 
 instance Typeable1 S where
@@ -122,7 +122,6 @@ instance UnaryOp a => UnaryOp (S a) where
   softClip = showFloating "softClip"
   squared = showFloating "squared"
 
-
 --
 -- Instance for expressions
 --
@@ -186,10 +185,13 @@ instance Show a => Mergable (S a) where
 
 instance Psnew S where
   psnew def nid aa tid ms =
-    S (\_ -> show $ ToOSC (Snew def nid aa tid) (M.fromList ms))
+    -- S (\_ -> show $ ToOSC (Snew def nid aa tid) (M.fromList ms))
+    S (\_ -> show (Snew def nid aa tid) ++ " " ++ show ms)
 
 instance Pnset S where
-  pnset i ms = S (\_ -> show $ ToOSC (Nset i) (M.fromList ms))
+  pnset i ms =
+    -- S (\_ -> show $ ToOSC (Nset i) (M.fromList ms))
+    S (\_ -> show (Nset i) ++ " " ++ show ms)
 
 -- instance Plam S where
 --   plam f = S $ \_ -> "\\x -> " ++ unS (f (S $ const "")) () ++ ")"

@@ -40,6 +40,12 @@ gospe' fd = do
   play fd $ psnew "speSynth" Nothing AddToTail 1
     [("dur", pforever 0.13),("freq", midiCPS (pspe :: R Double))]
 
+gospe'p p fd = do
+  async fd . d_recv . synthdef "speSynth" =<< speSynth
+  play fd $ psnew "speSynth" Nothing AddToTail 1
+    [("dur", pforever 0.13),("freq", midiCPS p)]
+
+
 -- | Synthdef for spe example.
 speSynth :: IO UGen
 speSynth = do
@@ -67,10 +73,11 @@ pspe =
 -- ---------------------------------------------------------------------------
 -- Parallel tests
 
-silence :: R Double -> Msg Double
-silence n = psnew "silence" Nothing AddToTail 1 [("dur",n)]
+type E = R (ToOSC Double)
 
--- m1,m2,m3,m4,m5,m6,m7,m8 :: Msg Double
+-- m1,m2,m3,m4,m5,m6,m7,m8 :: E
+
+silence n = psnew "silence" Nothing AddToTail 1 [("dur",n)]
 
 m1 = psnew "rspdef1" Nothing AddToTail 1
   [("dur", plist [1/4,3/4])
@@ -105,15 +112,16 @@ m8 =
   ppar
   [pforever
    (pchoose 1 [m2,m3,m4,m5,m6,m7])
-  ,pcycle
-   [madjust "freq" (*2) m1
-   ,madjust "freq" (*1.5) m1]
-  ,pforever
-   (madjust "freq" (*0.5) $
-    madjust "pan" (const (-0.8)) $
-    madjust "dur" (*2) $
-    madjust "atk" (const 1) $
-    m1)]
+  ,pcycle [m1,m1]
+   -- [madjust "freq" (*2) m1
+   -- ,madjust "freq" (*1.5) m1]
+  ,pforever m1]
+  -- ,pforever
+  --  (madjust "freq" (*0.5) $
+  --   madjust "pan" (const (-0.8)) $
+  --   madjust "dur" (*2) $
+  --   madjust "atk" (const 1) $
+  --   m1)]
 
 ------------------------------------------------------------------------------
 -- Sine and whitenoises
@@ -129,7 +137,7 @@ gosw fd =
     ps = ppar [loop01, loop02, loop03] :: R (ToOSC Double)
 
 gosw2 :: IO ()
-gosw2 = 
+gosw2 =
   bracket
     (mapM (forkIO . audition) [loop02,loop03 :: R (ToOSC Double)])
     (mapM_ killThread)
@@ -215,7 +223,6 @@ loop04 = psnew "rspdef1" Nothing AddToTail 1
   ,("amp",  pforever $ prange 1e-1 3e-1)
   ,("pan",  pforever $ prange (-1) 1)]
 
-msg01 :: Msg Double
 msg01 = psnew "rspdef1" Nothing AddToTail 1
   [("dur", pforever 20e-3)
   ,("freq", preplicate 20 (prange 20 20000))
