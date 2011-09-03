@@ -256,6 +256,14 @@ instance (Ord a, Num a) => Mergable (R (ToOSC a)) where
 instance (Ord a, Num a) => Mergable [ToOSC a] where
   merge a b = mergeL 0 (0,0) a b
 
+instance Mergable (R Double) where
+  -- XXX: dummy
+  merge = undefined
+
+instance Mergable (R Int) where
+  -- XXX: dummy
+  merge = undefined
+
 mergeL ::
   (Ord a, Num a) =>
   a -> (a, a) -> [ToOSC a] -> [ToOSC a] -> [ToOSC a]
@@ -277,7 +285,7 @@ instance Pnset R where
 
 -- | Make 's_new' messages.
 mkSnew ::
-  Floating a =>
+  Num a =>
   String -> Maybe Int -> AddAction -> Int -> [(String, R a)] -> R (ToOSC a)
 mkSnew def nid aa tid ms = ToOSC sn <$> ms' where
   sn = Snew def nid aa tid
@@ -290,7 +298,7 @@ mkSnew def nid aa tid ms = ToOSC sn <$> ms' where
     -> [(String, R Double)] -> R (ToOSC Double) #-}
 
 -- | Make 'n_set' messages.
-mkNset :: Floating a => Int -> [(String, R a)] -> R (ToOSC a)
+mkNset :: Num a => Int -> [(String, R a)] -> R (ToOSC a)
 mkNset nid ms = ToOSC o <$> ms' where
   o = Nset nid
   ms' = R $ \g ->
@@ -304,7 +312,7 @@ initialT = M.singleton "dur" 0
 {-# INLINE initialT #-}
 {-# SPECIALIZE initialT :: M.Map String Double #-}
 
-shiftT :: Floating a => a -> [M.Map String a] -> [M.Map String a]
+shiftT :: Num a => a -> [M.Map String a] -> [M.Map String a]
 shiftT t ms = case ms of
   (m1:m2:r) ->
     let m1' = M.adjust (const t) "dur" m1
@@ -317,7 +325,7 @@ shiftT t ms = case ms of
     --
     let m1' = M.adjust (const t) "dur" m1
         t'  = M.findWithDefault 0 "dur" m1
-    in  [m1',M.fromList [("freq",nan),("dur",t')]]
+    in  [m1',M.fromList [("freq",0),("dur",t')]]
   _ -> []
 {-# INLINE shiftT #-}
 

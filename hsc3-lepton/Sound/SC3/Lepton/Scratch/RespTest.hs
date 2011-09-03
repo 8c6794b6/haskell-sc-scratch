@@ -134,14 +134,14 @@ gosw fd =
     (send fd $ n_free [1003])
     (play fd ps)
   where
-    ps = ppar [loop01, loop02, loop03] :: R (ToOSC Double)
+    ps = ppar [loop01, loop02, loop03] :: E
 
 gosw2 :: IO ()
 gosw2 =
   bracket
-    (mapM (forkIO . audition) [loop02,loop03 :: R (ToOSC Double)])
+    (mapM (forkIO . audition) [loop02,loop03 :: E])
     (mapM_ killThread)
-    (const $ audition (loop01 :: R (ToOSC Double)))
+    (const $ audition (loop01 :: E))
 
 setup :: Transport t => t -> IO OSC
 setup fd = do
@@ -188,17 +188,16 @@ rspdef5 =
   ("pan"@@0) ("amp"@@1)
 
 loop01 = psnew "rspdef1" Nothing AddToTail 1
-  [("dur", pcycle [preplicate 1024 (1/23)
-                  ,preplicate 512 (2/23)
-                  ,preplicate 256 (4/23)
-                  ,preplicate 128 (8/23)])
+  [("dur", pcycle [preplicate 1024 (1/41)
+                  ,preplicate 512 (2/41)
+                  ,preplicate 256 (4/41)
+                  ,preplicate 128 (8/41)])
   ,("freq", midiCPS $ pforever $ prand 1 $
             [40,41,48,52,55,58,62,67,70,74,79,86,90])
   ,("pan",  pforever $ prange (-1) 1)
   ,("atk",  pforever $ prange 1e-4 1)
   ,("dcy",  pforever $ prange 1e-2 1)
   ,("amp",  pforever $ prange 1e-3 1)
-  -- ,("fmul", pforever 100)
   ,("n_map/fmul", pforever 100)]
 
 loop02 = psnew "rspdef2" Nothing AddToTail 1

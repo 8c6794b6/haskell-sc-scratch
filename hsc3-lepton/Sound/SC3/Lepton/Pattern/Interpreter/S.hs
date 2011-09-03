@@ -10,8 +10,6 @@ Portability : non-portable
 
 'S' for showing patterns.
 
-XXX: /Rewrite with using blaze-builder/.
-
 -}
 module Sound.SC3.Lepton.Pattern.Interpreter.S where
 

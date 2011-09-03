@@ -29,7 +29,19 @@ data ToOSC a = ToOSC
     oscType :: MsgType
     -- | Arguments for OSC message.
   , oscMap  :: M.Map String a
-  } deriving (Eq, Show)
+  } deriving (Eq, Show, Read)
+
+instance Read AddAction where
+  readsPrec _ s = readAddAction s
+
+readAddAction :: ReadS AddAction
+readAddAction s = case lex s of
+  [("AddToHead",s')] -> [(AddToHead,s')]
+  [("AddToTail",s')] -> [(AddToTail,s')]
+  [("AddBefore",s')] -> [(AddBefore,s')]
+  [("AddAfter",s')] -> [(AddAfter,s')]
+  [("AddReplace",s')] -> [(AddReplace,s')]
+{-# INLINE readAddAction #-}
 
 instance Functor ToOSC where
   fmap f (ToOSC t m) = ToOSC t (fmap f m)
@@ -38,7 +50,7 @@ instance Functor ToOSC where
 data MsgType
   = Snew String (Maybe NodeId) AddAction NodeId
   | Nset NodeId
-  deriving (Eq, Show)
+  deriving (Eq, Show, Read)
 
 -- | Converts to OSC messages.
 toOSC :: ToOSC Double -> OSC

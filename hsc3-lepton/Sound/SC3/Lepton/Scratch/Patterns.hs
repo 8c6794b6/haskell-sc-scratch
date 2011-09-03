@@ -327,7 +327,7 @@ buzz = out 0 $ pan2 sig pan 1
     tr = tr_control "t_trig" 1
 
 -- Pattern for amp, dur, freq, and pan.
-pBuzz = snew "buzz" Nothing AddToTail 1
+pBuzz = psnew "buzz" Nothing AddToTail 1
   [("amp", pcycle [0.3, 0.1,  0.1,   0.3,  0.1,  0.1,  0.1])
   ,("dur", pcycle [1,   0.55, 0.45,  0.54, 0.46, 0.53, 0.47])
   ,("freq", fmap midiCPS $
@@ -384,8 +384,8 @@ instance Ps R where
       f (x:xs) (y:ys) (z:zs) = x z (y z) : f xs ys zs
       f _ _ _ = []
 
-instance Pk S where
-  pk a b = S $ const $ "pk (" ++ showP a ++ ") (" ++ showP b ++ ")"
+-- instance Pk S where
+--   pk a b = S $ const $ "pk (" ++ showP a ++ ") (" ++ showP b ++ ")"
 
 
 
@@ -412,8 +412,8 @@ instance Typeable1 V where
   typeOf1 _ = mkTyConApp (mkTyCon "Sound.SC3.Lepton.Pattern.V") []
 
 instance (Num a) => Num (V a) where
-  V a + V b = V $ a ++ "+" ++ b
-  V a * V b = V $ a ++ "*" ++ b
+  V a + V b = V $ a ++ " + " ++ b
+  V a * V b = V $ a ++ " * " ++ b
   abs (V v) = V $ "abs (" ++ v ++ ")"
   negate (V n) = V $ "negate (" ++ n ++ ")"
   signum (V n) = V $ "signum (" ++ n ++ ")"

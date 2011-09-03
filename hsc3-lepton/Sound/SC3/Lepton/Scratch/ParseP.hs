@@ -57,19 +57,21 @@ runnables = rPatterns
 
 rPatterns = choice
   [ psnew, pnset, pmerge, ppar
+  , pempty, prandom
   , pconcat rPatterns, pappend rPatterns, pseq intP rPatterns
   , preplicate intP rPatterns, pcycle rPatterns
-  , {- prepeat rPatterns, -} pforever rPatterns
+  , pforever rPatterns
   , prandom, prange rPatterns, pchoose intP rPatterns
   , prand intP rPatterns, pshuffle rPatterns
   ]
 
 patterns p = choice
-  [ pval p, plist p, pempty
+  [ pval p, plist p, prepeat p
+  , pempty, prandom
   , pconcat (patterns p), pappend (patterns p), pseq intP (patterns p)
   , preplicate intP (patterns p), pcycle (patterns p)
-  , prepeat p, pforever (patterns p)
-  , prandom, prange (patterns p), pchoose intP (patterns p)
+  , pforever (patterns p)
+  , prange (patterns p), pchoose intP (patterns p)
   , prand intP (patterns p), pshuffle (patterns p)
   ]
 

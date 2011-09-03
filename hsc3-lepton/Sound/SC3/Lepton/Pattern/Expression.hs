@@ -11,13 +11,13 @@
 --
 module Sound.SC3.Lepton.Pattern.Expression
   ( -- * Fundamental
-    Pval(..), Plist(..),
+    Pempty(..), Pval(..), Prepeat(..), Plist(..),
 
     -- * Monoid alike
-    Pempty(..), Pappend(..), Pconcat(..),
+    Pappend(..), Pconcat(..),
 
     -- * Looping
-    Pseq(..), Pcycle(..), Pforever(..), Prepeat(..), Preplicate(..),
+    Pseq(..), Pcycle(..), Pforever(..), Preplicate(..),
 
     -- * Random
     Prandom(..), Prange(..), Pchoose(..), Prand(..), Pshuffle(..),
@@ -45,13 +45,16 @@ import Sound.SC3.Lepton.Pattern.ToOSC
 --
 ------------------------------------------------------------------------------
 
+-- | Empty pattern.
+class Pempty p where
+  pempty :: p a
+
 -- | Lifts given value to pattern.
 class Pval p where
   pval :: a -> p a
 
--- | Empty pattern.
-class Pempty p where
-  pempty :: p a
+class Prepeat p where
+  prepeat :: a -> p a
 
 -- | Make pattern from list.
 class Plist p where
@@ -72,9 +75,6 @@ class Preplicate p where
 
 class Pcycle p where
   pcycle :: [p a] -> p a
-
-class Prepeat p where
-  prepeat :: a -> p a
 
 class Pforever p where
   pforever :: p a -> p a
@@ -106,7 +106,7 @@ class Pmerge p where
 class Ppar p where
   ppar :: Mergable (p m) => [p m] -> p m
 
--- | Class for merging patterns in paralle.
+-- | Class for merging patterns in parallel.
 class Mergable m where
   merge :: m -> m -> m
 
