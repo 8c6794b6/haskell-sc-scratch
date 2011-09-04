@@ -50,17 +50,16 @@ import Data.Data
 import Data.Int
 import Text.PrettyPrint
 
-import Data.Binary
+import Data.Serialize hiding (Result)
 import Data.Attoparsec
 import Data.Attoparsec.Char8 (anyChar)
 
 import Sound.OpenSoundControl.Coding.Byte (decode_f32)
 import Sound.SC3 (binaryName, unaryName)
 
-import qualified Data.ByteString as BS
-import qualified Data.ByteString.Char8 as C8S
-import qualified Data.ByteString.Lazy as B
-import qualified Data.ByteString.Lazy.Char8 as C8
+import qualified Data.ByteString as B
+import qualified Data.ByteString.Char8 as C8
+import qualified Data.ByteString.Lazy as BL
 
 ------------------------------------------------------------------------------
 --
@@ -106,11 +105,11 @@ data InputSpec
 ------------------------------------------------------------------------------
 
 parseSynthDefFile :: FilePath -> IO (Result SynthDefFile)
-parseSynthDefFile path = parse synthDefFile <$> BS.readFile path
+parseSynthDefFile path = parse synthDefFile <$> B.readFile path
 
 synthDefFile :: Parser SynthDefFile
 synthDefFile = do
-  string $ C8S.pack "SCgf"
+  string $ C8.pack "SCgf"
   version <- int32
   numSynth <- int16
   sdefs <- count (fromIntegral numSynth) synthDefSpec
@@ -175,13 +174,16 @@ int32 = manyBytes 4
 
 float32 :: Parser Double
 float32 = do
-  fourBytes <- count 4 anyChar
-  let w = decode_f32 $ C8.pack fourBytes :: Double
+  fourBytes <- count 4 anyWord8
+  let w = decode_f32 . BL.fromChunks . (:[]) $ B.pack fourBytes
   return w
 {-# INLINE float32 #-}
 
-manyBytes :: Binary a => Int -> Parser a
-manyBytes n = (decode . B.pack) <$> (count n anyWord8)
+manyBytes :: Serialize a => Int -> Parser a
+manyBytes n = (f . decode . B.pack) <$> (count n anyWord8)
+  where
+    f (Right x) = x
+    f _         = error "Failed to decode"
 {-# INLINE manyBytes #-}
 
 ------------------------------------------------------------------------------

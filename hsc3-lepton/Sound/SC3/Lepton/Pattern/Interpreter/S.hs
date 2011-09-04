@@ -22,8 +22,6 @@ import Sound.SC3
 import Sound.SC3.Lepton.Pattern.Expression
 import Sound.SC3.Lepton.Pattern.ToOSC
 
-import qualified Data.Map as M
-
 -- | \"S\" for showing patterns.
 --
 -- Enumeration for floating points are not working here also.

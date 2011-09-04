@@ -70,6 +70,9 @@ pspe =
     ,prand (prange 3 9)
        [74,75,77,79,81]]
 
+pspe' = psnew "speSynth" Nothing AddToTail 1
+  [("dur", prepeat 0.13), ("freq", midiCPS pspe)]
+
 -- ---------------------------------------------------------------------------
 -- Parallel tests
 
@@ -129,12 +132,11 @@ m8 =
 gosw :: Transport t => t -> IO ()
 gosw fd =
   bracket_
-    (Play.setup fd >> setup fd >>
-     patchNode (Group 1 [Synth 1003 "rspdef3" []]) fd)
+    (Play.setup fd >> setup fd)
     (send fd $ n_free [1003])
     (play fd ps)
   where
-    ps = ppar [loop01, loop02, loop03] :: E
+    ps = psw :: E
 
 gosw2 :: IO ()
 gosw2 =
@@ -187,6 +189,8 @@ rspdef5 =
    (env [0,1,0] [("atk"@@1e-4),("dcy"@@999e-4)] [EnvCub] (-1) 0))
   ("pan"@@0) ("amp"@@1)
 
+psw = pappend set03 (ppar [loop01, loop02, loop03])
+
 loop01 = psnew "rspdef1" Nothing AddToTail 1
   [("dur", pcycle [preplicate 1024 (1/41)
                   ,preplicate 512 (2/41)
@@ -212,6 +216,8 @@ loop02 = psnew "rspdef2" Nothing AddToTail 1
 loop03 = pnset 1003
   [("dur",    pforever $ prange 4 32)
   ,("t_trig", pforever 1)]
+
+set03 = psnew "rspdef3" (Just 1003) AddToHead 1 [("dur",pval 0.1)]
 
 loop04 = psnew "rspdef1" Nothing AddToTail 1
   [("dur",  pforever $ prange 1e-3 7.5e-2)

@@ -1,5 +1,6 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 {-|
 Module      : $Header$
 CopyRight   : (c) 8c6794b6
@@ -14,23 +15,22 @@ Syntax of patterns for serialization and deserialization.
 module Sound.SC3.Lepton.Pattern.Interpreter.Syntax where
 
 import Control.Applicative
-import Control.Arrow
-import Control.Monad
+import Data.Data
 import Data.Either
+import Data.Word
 import System.Random
 
+import Data.Serialize
 import Sound.SC3
 
 import Sound.SC3.Lepton.Pattern.Expression
 import Sound.SC3.Lepton.Pattern.ToOSC
 
-import Sound.SC3.Lepton.Pattern.Interpreter.R
-import Sound.SC3.Lepton.Pattern.Interpreter.S
-import Sound.SC3.Lepton.Scratch.RespTest (pspe,loop01,loop02,loop03)
+import qualified Data.ByteString as B
 
 {-
 
-XXX: Might rewrite to use ByteString instead of String.
+XXX: Write tests.
 
 -}
 -- | Pattern syntax tree.
@@ -39,11 +39,24 @@ data Expr s
   | Node String [Expr s]
   | NodeI String (Expr Int) [Expr s]
   | NodeO MsgType [(String,Expr Double)]
-  deriving (Eq,Read,Show)
+  deriving (Eq,Read,Show,Data,Typeable)
+
+instance Serialize s => Serialize (Expr s) where
+  put e = case e of
+    Leaf n       -> put (0::Word8) *> put n
+    Node s es    -> put (1::Word8) *> put s *> put es
+    NodeI s i es -> put (2::Word8) *> put s *> put i *> put es
+    NodeO s ps   -> put (3::Word8) *> put s *> put ps
+  get = getWord8 >>= \i -> case i of
+    0 -> Leaf <$> get
+    1 -> Node <$> get <*> get
+    2 -> NodeI <$> get <*> get <*> get
+    3 -> NodeO <$> get <*> get
+    n -> error $ "Unexpected Expr in deserialization: " ++ show n
 
 unLeaf :: Expr s -> Either String s
 unLeaf n = case n of
-  Leaf n -> Right n
+  Leaf x -> Right x
   _      -> Left "not a leaf"
 
 toExpr :: Expr s -> Expr s
@@ -74,12 +87,14 @@ And change pval, plist, and prepeat as below:
 fromExprE f e = case e of
   Node "pempty" []        -> pure pempty
   Node "pval" [Leaf n]    -> pure $ pval n
-  Node "plist" ps         -> pure $ plist $ rights $ map unLeaf ps
   Node "prepeat" [Leaf n] -> pure $ prepeat n
+  Node "plist" ps         -> pure $ plist $ rights $ map unLeaf ps
+  Node "pconcat" ps       -> pure $ pconcat (rights $ map f ps)
+  Node "pappend" [p1,p2]  -> pappend <$> f p1 <*> f p2
   Node "pcycle" ps        -> pure $ pcycle (rights $ map f ps)
+  Node "pforever" [p]     -> pforever <$> (f p)
   Node "prange" [p1,p2]   -> prange <$> f p1 <*> f p2
   Node "prandom" []       -> pure prandom
-  Node "pforever" [p]     -> pforever <$> (f p)
   Node "pshuffle" ps      -> pure $ pshuffle (rights $ map f ps)
   Node "pmerge" [p1,p2]   -> pmerge <$> f p1 <*> f p2
   Node "ppar" ps          -> pure $ ppar $ rights $ map f ps
@@ -176,56 +191,8 @@ fromExpr' = fix2 fromExprI (fix $ fix2 fromExprI)
 -- Using fix2, to isolate recursion of ('ToOSC' 'Double').
 fromExpr = fix2 fromExprO fromExpr'
 
--- Reads expression from file.
-fromFile path = fromExpr . read <$> readFile path
-
-{-
-
-let p = ppar [loop01,loop02,loop03]
-in  writeFile "Sound/SC3/Lepton/Scratch/sw.txt" (show $ toExpr p)
-
-do { Right r <- fromFile "Sound/SC3/Lepton/Scratch/sw.txt"
-   ; audition (r :: R (ToOSC Double)) }
-
--}
-
--- ---------------------------------------------------------------------------
--- Sample patterns
-
-pspe' =
-  psnew "speSynth" Nothing AddToTail 1
-    [("dur",prepeat 0.13)
-    ,("freq", midiCPS pspe)]
-
-p1 =
-  pcycle
-  [plist [1,2,3]
-  ,pval 4
-  ,prange (pval 5) (pval 10)]
-
-p2 =
-  psnew "foo" Nothing AddToTail 1
-    [("dur", prepeat 1)
-    ,("amp", pforever (prepeat 0.1 * plist [1,2,3]))
-    ,("freq",
-      pcycle
-      [pseq (prange 1 8)
-       [plist [1,2,3]
-       ,prand 3 [4,5,6]]
-      ,prand (prange 1 8)
-       [prange 1 10, prange 101 110, prange 1001 1010]])]
-
-p3 =
-  pnset 1000
-    [("dur", pforever 1)
-    ,("amp", plist [1,2,3])]
-
-p4 = ppar [p2,p3,pspe']
-
-p5 =
-  psnew "bar" Nothing AddToTail 1
-    [("dur", prepeat 1 + pcycle [1.0,2.0,3.5,2.0])
-    ,("freq", midiCPS $ prepeat 60 + pseq (prange 1 8) [0,7,14])]
+-- Reads expression from file containing bytestring encoded data of Expr.
+fromFile path = (\x -> decode x >>= fromExpr) <$> B.readFile path
 
 -- ---------------------------------------------------------------------------
 -- XXX: Dummy instances.
@@ -244,16 +211,16 @@ instance Random a => Random (ToOSC a) where
   randomR = undefined
 
 instance Num a => Num (ToOSC a) where
-  a + b = undefined
-  a * b = undefined
-  a - b = undefined
-  negate a = undefined
-  abs a = undefined
-  signum a = undefined
-  fromInteger a = undefined
+  (+) = undefined
+  (*) = undefined
+  (-) = undefined
+  negate = undefined
+  abs = undefined
+  signum = undefined
+  fromInteger = undefined
 
 instance Fractional a => Fractional (ToOSC a) where
-  a / b = undefined
+  (/) = undefined
   recip = undefined
   fromRational = undefined
 
@@ -262,96 +229,96 @@ instance Ord a => Ord (ToOSC a) where
 
 instance Floating a => Floating (ToOSC a) where
   pi = undefined
-  exp a = undefined
-  sqrt a = undefined
-  log a = undefined
-  a ** b = undefined
-  logBase a b = undefined
-  sin a = undefined
-  tan a = undefined
-  cos a = undefined
-  asin a = undefined
-  atan a = undefined
-  acos a = undefined
-  sinh a = undefined
-  tanh a = undefined
-  cosh a = undefined
-  asinh a = undefined
-  atanh a = undefined
-  acosh a = undefined
+  exp = undefined
+  sqrt = undefined
+  log = undefined
+  (**)= undefined
+  logBase = undefined
+  sin = undefined
+  tan = undefined
+  cos = undefined
+  asin = undefined
+  atan = undefined
+  acos = undefined
+  sinh = undefined
+  tanh = undefined
+  cosh = undefined
+  asinh = undefined
+  atanh = undefined
+  acosh = undefined
 
 instance UnaryOp a => UnaryOp (ToOSC a) where
-  ampDb a = undefined
-  asFloat a = undefined
-  asInt a = undefined
-  bitNot a = undefined
-  cpsMIDI a = undefined
-  cpsOct a = undefined
-  cubed a = undefined
-  dbAmp a = undefined
-  distort a = undefined
-  frac a = undefined
-  isNil a = undefined
-  log10 a = undefined
-  log2 a = undefined
-  midiCPS a = undefined
-  midiRatio a = undefined
-  notE a = undefined
-  notNil a = undefined
-  octCPS a = undefined
-  ramp_ a = undefined
-  ratioMIDI a = undefined
-  softClip a = undefined
-  squared a = undefined
+  ampDb = undefined
+  asFloat = undefined
+  asInt = undefined
+  bitNot = undefined
+  cpsMIDI = undefined
+  cpsOct = undefined
+  cubed = undefined
+  dbAmp = undefined
+  distort = undefined
+  frac = undefined
+  isNil = undefined
+  log10 = undefined
+  log2 = undefined
+  midiCPS = undefined
+  midiRatio = undefined
+  notE = undefined
+  notNil = undefined
+  octCPS = undefined
+  ramp_ = undefined
+  ratioMIDI = undefined
+  softClip = undefined
+  squared = undefined
 
 instance Fractional Int where
-  a / b = undefined
+  (/) = undefined
   recip = undefined
   fromRational = undefined
 
 instance Floating Int where
   pi = undefined
-  exp a = undefined
-  sqrt a = undefined
-  log a = undefined
-  a ** b = undefined
-  logBase a b = undefined
-  sin a = undefined
-  tan a = undefined
-  cos a = undefined
-  asin a = undefined
-  atan a = undefined
-  acos a = undefined
-  sinh a = undefined
-  tanh a = undefined
-  cosh a = undefined
-  asinh a = undefined
-  atanh a = undefined
-  acosh a = undefined
+  exp = undefined
+  sqrt = undefined
+  log = undefined
+  (**) = undefined
+  logBase = undefined
+  sin = undefined
+  tan = undefined
+  cos = undefined
+  asin = undefined
+  atan = undefined
+  acos = undefined
+  sinh = undefined
+  tanh = undefined
+  cosh = undefined
+  asinh = undefined
+  atanh = undefined
+  acosh = undefined
 
 instance UnaryOp Int where
-  ampDb a = undefined
-  asFloat a = undefined
-  asInt a = undefined
-  bitNot a = undefined
-  cpsMIDI a = undefined
-  cpsOct a = undefined
-  cubed a = undefined
-  dbAmp a = undefined
-  distort a = undefined
-  frac a = undefined
-  isNil a = undefined
-  log10 a = undefined
-  log2 a = undefined
-  midiCPS a = undefined
-  midiRatio a = undefined
-  notE a = undefined
-  notNil a = undefined
-  octCPS a = undefined
-  ramp_ a = undefined
-  ratioMIDI a = undefined
-  softClip a = undefined
-  squared a = undefined
+  ampDb = undefined
+  asFloat = undefined
+  asInt = undefined
+  bitNot = undefined
+  cpsMIDI = undefined
+  cpsOct = undefined
+  cubed = undefined
+  dbAmp = undefined
+  distort = undefined
+  frac = undefined
+  isNil = undefined
+  log10 = undefined
+  log2 = undefined
+  midiCPS = undefined
+  midiRatio = undefined
+  notE = undefined
+  notNil = undefined
+  octCPS = undefined
+  ramp_ = undefined
+  ratioMIDI = undefined
+  softClip = undefined
+  squared = undefined
 
 -- ---------------------------------------------------------------------------
 -- Numeric classes
@@ -391,7 +358,7 @@ instance Floating a => Floating (Expr a) where
   acosh a = Node "acosh" [a]
 
 instance Ord a => Ord (Expr a) where
-  compare a b = EQ
+  compare _ _ = EQ
 
 instance UnaryOp a => UnaryOp (Expr a) where
   ampDb a = Node "ampDb" [a]
@@ -419,9 +386,6 @@ instance UnaryOp a => UnaryOp (Expr a) where
 
 -- ---------------------------------------------------------------------------
 -- Pattern classes
-
-instance Mergable (Expr a) where
-  merge a b = Node "merge" [a,b]
 
 instance Pempty Expr where
   pempty = Node "pempty" []
@@ -467,6 +431,9 @@ instance Prand Expr where
 
 instance Pshuffle Expr where
   pshuffle ps = Node "pshuffle" ps
+
+instance Mergable (Expr a) where
+  merge a b = Node "merge" [a,b]
 
 instance Pmerge Expr where
   pmerge p1 p2 = Node "pmerge" [p1,p2]

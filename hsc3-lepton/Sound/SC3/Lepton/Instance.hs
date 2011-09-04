@@ -1,19 +1,33 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE StandaloneDeriving #-}
---------------------------------------------------------------------------------
--- |
--- Module      : $Header$
--- CopyRight   : (c) 8c6794b6
--- License     : BSD3
--- Maintainer  : 8c6794b6@gmail.com
--- Stability   : unstable
--- Portability : non-portable (DeriveDataTypeable, StandaloneDeriving)
---
--- Additional instance declarations for datat types found in Sound.SC3.
---
--- Currently OSC and UGen are instantiated from Data.Typeable, Data.Data.
---
+{-|
+Module      : $Header$
+CopyRight   : (c) 8c6794b6
+License     : BSD3
+Maintainer  : 8c6794b6@gmail.com
+Stability   : unstable
+Portability : non-portable (CPP)
+
+Additional instance declarations for datat types found in Sound.SC3.
+
+Currently below types are instantiated from Data.Typeable and Data.Data.
+
+* 'Datum'
+
+* 'OSC'
+
+* 'Time'
+
+* 'Rate'
+
+* 'Special'
+
+* 'UGen'
+
+* 'AddAction'
+
+-}
 module Sound.SC3.Lepton.Instance () where
 
 import Data.Data
@@ -39,6 +53,9 @@ deriving instance Typeable Special
 
 deriving instance Data UGen
 deriving instance Typeable UGen
+
+deriving instance Data AddAction
+deriving instance Typeable AddAction
 #else
 instance Typeable Datum where
   typeOf _  = mkTyConApp tc_Datum []
@@ -226,6 +243,55 @@ con_DR = mkConstr ty_Rate "DR" [] Prefix
 ty_Rate :: DataType
 ty_Rate = mkDataType "Sound.SC3.UGen.Rate"
           [con_IR,con_KR,con_AR,con_DR]
+
+instance Typeable AddAction where
+  typeOf _ = mkTyConApp tc_AddAction []
+
+tc_AddAction :: TyCon
+tc_AddAction = mkTyCon "Sound.SC3.Server.Command.AddAction"
+
+instance Data AddAction where
+  gfoldl _ z AddToHead = z AddToHead
+  gfoldl _ z AddToTail = z AddToTail
+  gfoldl _ z AddBefore = z AddBefore
+  gfoldl _ z AddAfter = z AddAfter
+  gfoldl _ z AddReplace = z AddReplace
+
+  gunfold _ z c = case constrIndex c of
+    1 -> z AddToHead
+    2 -> z AddToTail
+    3 -> z AddBefore
+    4 -> z AddAfter
+    5 -> z AddReplace
+    _ -> undefined
+
+  toConstr AddToHead = con_AddToHead
+  toConstr AddToTail = con_AddToTail
+  toConstr AddBefore = con_AddBefore
+  toConstr AddAfter = con_AddAfter
+  toConstr AddReplace = con_AddReplace
+
+  dataTypeOf _ = ty_AddAction
+
+
+con_AddToHead :: Constr
+con_AddToHead = mkConstr ty_AddAction "AddToHead" [] Prefix
+
+con_AddToTail :: Constr
+con_AddToTail = mkConstr ty_AddAction "AddToTail" [] Prefix
+
+con_AddAfter :: Constr
+con_AddAfter = mkConstr ty_AddAction "AddAfter" [] Prefix
+
+con_AddBefore :: Constr
+con_AddBefore = mkConstr ty_AddAction "AddBefore" [] Prefix
+
+con_AddReplace :: Constr
+con_AddReplace = mkConstr ty_AddAction "AddReplace" [] Prefix
+
+ty_AddAction :: DataType
+ty_AddAction = mkDataType "Sound.SC3.Server.Command.AddAction"
+  [con_AddToHead,con_AddToTail,con_AddAfter,con_AddBefore,con_AddReplace]
 
 instance Typeable UGen where
   typeOf _ = mkTyConApp tc_UGen []

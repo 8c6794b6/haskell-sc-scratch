@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE Rank2Types #-}
 {-|
@@ -14,8 +15,12 @@ Types for OSC messages.
 -}
 module Sound.SC3.Lepton.Pattern.ToOSC where
 
+import Control.Applicative
+import Data.Data
 import Data.Maybe (fromMaybe)
+import Data.Word (Word8)
 
+import Data.Serialize
 import Sound.OpenSoundControl
 import Sound.SC3
 
@@ -29,28 +34,57 @@ data ToOSC a = ToOSC
     oscType :: MsgType
     -- | Arguments for OSC message.
   , oscMap  :: M.Map String a
-  } deriving (Eq, Show, Read)
+  } deriving (Eq, Show, Read, Data, Typeable)
+
+instance Functor ToOSC where
+  fmap f (ToOSC t m) = ToOSC t (fmap f m)
+
+instance Serialize a => Serialize (ToOSC a) where
+  put (ToOSC t m) = put t >> put m
+  get = ToOSC <$> get <*> get
+
+-- | Type of OSC message.
+data MsgType
+  = Snew String (Maybe NodeId) AddAction NodeId
+  | Nset NodeId
+  deriving (Eq, Show, Read, Data, Typeable)
+
+instance Serialize MsgType where
+  put m = case m of
+    Snew d n a t -> put (0::Word8) *> put d *> put n *> put a *> put t
+    Nset t       -> put (1::Word8) *> put t
+  get = getWord8 >>= \i -> case i of
+    0 -> Snew <$> get <*> get <*> get <*> get
+    1 -> Nset <$> get
+    n -> error $ "Unexpected MsgType in deserialization: " ++ show n
 
 instance Read AddAction where
   readsPrec _ s = readAddAction s
 
 readAddAction :: ReadS AddAction
 readAddAction s = case lex s of
-  [("AddToHead",s')] -> [(AddToHead,s')]
-  [("AddToTail",s')] -> [(AddToTail,s')]
-  [("AddBefore",s')] -> [(AddBefore,s')]
-  [("AddAfter",s')] -> [(AddAfter,s')]
+  [("AddToHead",s')]  -> [(AddToHead,s')]
+  [("AddToTail",s')]  -> [(AddToTail,s')]
+  [("AddBefore",s')]  -> [(AddBefore,s')]
+  [("AddAfter",s')]   -> [(AddAfter,s')]
   [("AddReplace",s')] -> [(AddReplace,s')]
+  _                   -> []
 {-# INLINE readAddAction #-}
 
-instance Functor ToOSC where
-  fmap f (ToOSC t m) = ToOSC t (fmap f m)
-
--- | Type of OSC message.
-data MsgType
-  = Snew String (Maybe NodeId) AddAction NodeId
-  | Nset NodeId
-  deriving (Eq, Show, Read)
+instance Serialize AddAction where
+  put m = case m of
+    AddToHead  -> put (0::Word8)
+    AddToTail  -> put (1::Word8)
+    AddBefore  -> put (2::Word8)
+    AddAfter   -> put (3::Word8)
+    AddReplace -> put (4::Word8)
+  get = getWord8 >>= \i -> case i of
+    0 -> return AddToHead
+    1 -> return AddToTail
+    2 -> return AddBefore
+    3 -> return AddAfter
+    4 -> return AddReplace
+    n -> error $ "Unexpected AddAction in deserialization: " ++ show n
 
 -- | Converts to OSC messages.
 toOSC :: ToOSC Double -> OSC

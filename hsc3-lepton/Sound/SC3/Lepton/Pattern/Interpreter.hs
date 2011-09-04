@@ -20,6 +20,9 @@ module Sound.SC3.Lepton.Pattern.Interpreter
     -- * Showing patterns
     S(..), showP,
 
+    -- * Syntax representation of patterns
+    Expr(..), fromExpr, toExpr
+
     -- -- Viewing patterns
     -- V(..), viewP,
   ) where
@@ -28,3 +31,4 @@ module Sound.SC3.Lepton.Pattern.Interpreter
 -- import Sound.SC3.Lepton.Pattern.Interpreter.Fusion
 import Sound.SC3.Lepton.Pattern.Interpreter.R
 import Sound.SC3.Lepton.Pattern.Interpreter.S
+import Sound.SC3.Lepton.Pattern.Interpreter.Syntax
