@@ -61,12 +61,6 @@ import qualified Data.Map as M
 import qualified Happstack.Server as H
 import qualified Text.Blaze.Html5.Attributes as A
 
-{-
-TODO:
-* Add grouping condition with 'OR' and 'AND'.
-* Profile
--}
-
 ------------------------------------------------------------------------------
 -- Database
 

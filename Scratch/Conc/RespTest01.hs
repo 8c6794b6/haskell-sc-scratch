@@ -14,25 +14,53 @@ import Control.Exception
 import Control.Monad
 import System.Random
 
+import Data.Unique
 import Sound.OpenSoundControl
 import Sound.SC3
 import Sound.SC3.ID
 import Sound.SC3.Lepton
 
-import Respond hiding (setup)
-import qualified Respond
+main :: IO ()
+main = bracket
+  (mapM (forkIO . w) [loop01,loop02])
+  (mapM_ killThread)
+  (const $ w loop03)
 
 -- main :: IO ()
--- main = do
---   t1 <- forkIO $ w loop01
---   t2 <- forkIO $ w loop02
---   w loop03
-main :: IO ()
-main = w loop04
+-- main = w loop04
+
+offsetDelay :: Double
+offsetDelay = 0.1
+
+-- | Wait until specified message has been returned from server.
+waitUntil ::
+  Transport t
+  => t
+  -> String
+  -- ^ String to match in returned OSC message.
+  -> Int
+  -- ^ Int to match in first element of returned OSC message.
+  -> IO ()
+waitUntil fd str n = recv fd >>= \m -> case m of
+  Message str' (Int n':_) | str == str' && n == n' -> return ()
+  _                        -> waitUntil fd str n
+{-# SPECIALISE waitUntil :: UDP -> String -> Int -> IO () #-}
+{-# SPECIALISE waitUntil :: TCP -> String -> Int -> IO () #-}
+
+-- | Wraps sending @notify True@ and @notify False@ messages before and
+-- after 'withSC3'.
+w :: (UDP -> IO a) -> IO a
+w k = withSC3 $ \fd -> bracket
+  (async fd (notify True) >> return fd)
+  (\fd' -> send fd' $ notify False)
+  k
+
+newNid :: IO Int
+newNid = (+ 10000) . hashUnique <$> newUnique
 
 setup :: Transport t => t -> IO OSC
 setup fd = do
-  Respond.setup fd
+  -- Respond.setup fd
   send fd $ bundle immediately
     [d_recv $ synthdef "rspdef1" rspdef1
     ,d_recv $ synthdef "rspdef2" rspdef2
@@ -137,10 +165,3 @@ loop04 fd = do
         [s_new "rspdef1" nid AddToTail 1
           [("freq",freq),("pan",pan),("atk",atk),("dcy",dcy),("amp",amp)]]
       go (t0+dur) (succ idx `mod` 2048)
-
-  -- ,("freq", pforever $ exp <$> prange (log <$> 80) (log <$> 12000))
-  -- ,("atk",  let xs = take 1024 $ iterate (*1.006) 0.002
-  --           in  pcycle $ fmap pval (xs ++ reverse xs))
-  -- ,("dcy",  pforever $ prange 1e-4 2e-1)
-  -- ,("amp",  pforever $ prange 1e-1 3e-1)
-  -- ,("pan",  pforever $ prange (-1) 1)]

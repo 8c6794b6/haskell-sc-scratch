@@ -9,7 +9,7 @@ Portability : portable
 module Sound.Study.ForNoisesAndFilters.B002.Node where
 
 import Sound.SC3
-import Sound.SC3.Lepton hiding (s)
+import Sound.SC3.Lepton
 import Sound.Study.ForNoisesAndFilters.B002.Synthdef
 
 go :: IO ()

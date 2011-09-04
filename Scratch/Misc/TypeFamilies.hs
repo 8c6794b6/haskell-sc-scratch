@@ -86,12 +86,12 @@ gmLookup k = maybe "Couldn't find key!" id $ lookup k myGMap
 -- >   toListC :: ce -> [e]
 -- >
 -- > instance Eq e => Collects e [e] where
--- >   empty = []
--- >   insert e l = (e:l)
--- >   member e []     = False
--- >   member e (x:xs) | e == x = True
--- >                   | otherwise = member e xs
--- >   toList l = l
+-- >   emptyC = []
+-- >   insertC e l = (e:l)
+-- >   memberC e []     = False
+-- >   memberC e (x:xs) | e == x = True
+-- >                    | otherwise = member e xs
+-- >   toListC l = l
 -- >
 -- > sumCollects :: (Collects e c1, Collects e c2) => c1 -> c2 -> c2
 -- > sumCollects c1 c2 = foldr insert c2 (toListC c1)
