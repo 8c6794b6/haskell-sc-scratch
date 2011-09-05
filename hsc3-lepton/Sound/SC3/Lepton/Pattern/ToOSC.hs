@@ -45,10 +45,13 @@ instance Functor ToOSC where
 instance Serialize a => Serialize (ToOSC a) where
   {-# INLINE put #-}
   put (ToOSC t m) = S.put t >> S.put m
+  {-# INLINE get #-}
   get = ToOSC <$> S.get <*> S.get
 
 instance Binary a => Binary (ToOSC a) where
+  {-# INLINE put #-}
   put (ToOSC t m) = B.put t >> B.put m
+  {-# INLINE get #-}
   get = ToOSC <$> B.get <*> B.get
 
 -- | Type of OSC message.
@@ -58,22 +61,26 @@ data MsgType
   deriving (Eq, Show, Read, Data, Typeable)
 
 instance Serialize MsgType where
+  {-# INLINE put #-}
   put m = case m of
     Snew d n a t -> S.put (0::Word8) *> S.put d *> S.put n *> S.put a *> S.put t
     Nset t       -> S.put (1::Word8) *> S.put t
+  {-# INLINE get #-}
   get = S.getWord8 >>= \i -> case i of
     0 -> Snew <$> S.get <*> S.get <*> S.get <*> S.get
     1 -> Nset <$> S.get
-    n -> error $ "Unexpected MsgType in deserialization: " ++ show n
+    n -> error $ "Unexpected index in get: " ++ show n
 
 instance Binary MsgType where
+  {-# INLINE put #-}
   put m = case m of
     Snew d n a t -> B.put (0::Word8) *> B.put d *> B.put n *> B.put a *> B.put t
     Nset t       -> B.put (1::Word8) *> B.put t
+  {-# INLINE get #-}
   get = B.getWord8 >>= \i -> case i of
     0 -> Snew <$> B.get <*> B.get <*> B.get <*> B.get
     1 -> Nset <$> B.get
-    n -> error $ "Unexpected MsgType in deserialization: " ++ show n
+    n -> error $ "Unexpected index in get: " ++ show n
 
 instance Read AddAction where
   readsPrec _ s = readAddAction s
@@ -89,35 +96,38 @@ readAddAction s = case lex s of
 {-# INLINE readAddAction #-}
 
 instance Serialize AddAction where
+  {-# INLINE put #-}
   put m = case m of
     AddToHead  -> S.put (0::Word8)
     AddToTail  -> S.put (1::Word8)
     AddBefore  -> S.put (2::Word8)
     AddAfter   -> S.put (3::Word8)
     AddReplace -> S.put (4::Word8)
+  {-# INLINE get #-}
   get = S.getWord8 >>= \i -> case i of
     0 -> return AddToHead
     1 -> return AddToTail
     2 -> return AddBefore
     3 -> return AddAfter
     4 -> return AddReplace
-    n -> error $ "Unexpected AddAction in deserialization: " ++ show n
+    n -> error $ "Unexpected index in get: " ++ show n
 
 instance Binary AddAction where
+  {-# INLINE put #-}
   put m = case m of
     AddToHead  -> B.put (0::Word8)
     AddToTail  -> B.put (1::Word8)
     AddBefore  -> B.put (2::Word8)
     AddAfter   -> B.put (3::Word8)
     AddReplace -> B.put (4::Word8)
+  {-# INLINE get #-}
   get = B.getWord8 >>= \i -> case i of
     0 -> return AddToHead
     1 -> return AddToTail
     2 -> return AddBefore
     3 -> return AddAfter
     4 -> return AddReplace
-    n -> error $ "Unexpected AddAction in deserialization: " ++ show n
-
+    n -> error $ "Unexpected index in get: " ++ show n
 
 -- | Converts to OSC messages.
 toOSC :: ToOSC Double -> OSC

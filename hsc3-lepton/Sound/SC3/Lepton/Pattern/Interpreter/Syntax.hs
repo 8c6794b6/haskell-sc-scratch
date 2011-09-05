@@ -19,6 +19,7 @@ import Data.Data
 import Data.Either
 import Data.Word
 import System.Random
+import Text.PrettyPrint
 
 import Sound.SC3
 
@@ -55,7 +56,7 @@ instance Srl.Serialize s => Srl.Serialize (Expr s) where
     1 -> Node <$> Srl.get <*> Srl.get
     2 -> NodeI <$> Srl.get <*> Srl.get <*> Srl.get
     3 -> NodeO <$> Srl.get <*> Srl.get
-    n -> error $ "Unexpected Expr in deserialization: " ++ show n
+    n -> error $ "Unexpected index in get: " ++ show n
 
 instance Bin.Binary s => Bin.Binary (Expr s) where
   {-# INLINE put #-}
@@ -70,7 +71,7 @@ instance Bin.Binary s => Bin.Binary (Expr s) where
     1 -> Node <$> Bin.get <*> Bin.get
     2 -> NodeI <$> Bin.get <*> Bin.get <*> Bin.get
     3 -> NodeO <$> Bin.get <*> Bin.get
-    n -> error $ "Unexpected Expr in deserialization: " ++ show n
+    n -> error $ "Unexpected index in get: " ++ show n
 
 unLeaf :: Expr s -> Either String s
 unLeaf n = case n of
@@ -81,6 +82,27 @@ unLeaf n = case n of
 toExpr :: Expr s -> Expr s
 toExpr = id
 {-# INLINE toExpr #-}
+
+-- | Pretty printer for expression.
+prettyP :: Show s => Expr s -> Doc
+prettyP e = case e of
+  Leaf x          -> text $ show x
+  Node "pval" [l] -> text "pval" <+> prettyP l
+  Node "pempty" _ -> text "pempty"
+  Node x es ->
+    text x $$ nest depth
+    (parens $ sep (punctuate comma (map prettyP es)))
+  NodeI x ei es ->
+    text x $$ nest depth
+    (parens (prettyP ei)) $$
+    (parens $ sep (punctuate comma (map prettyP es)))
+  NodeO m ps ->
+    (text $ show m) $$ nest depth
+    (parens $ sep $ punctuate comma $ map f ps)
+  where
+    f (k,p) = parens (doubleQuotes (text k) <> comma $$ prettyP p)
+    depth = 2
+{-# INLINE prettyP #-}
 
 eor :: a -> Either x a -> a
 l `eor` r = either (const l) id r

@@ -21,7 +21,7 @@ module Sound.SC3.Lepton.Pattern.Interpreter
     S(..), showP,
 
     -- * Syntax representation of patterns
-    Expr(..), fromExpr, toExpr
+    Expr(..), fromExpr, toExpr, prettyP
 
     -- -- Viewing patterns
     -- V(..), viewP,
