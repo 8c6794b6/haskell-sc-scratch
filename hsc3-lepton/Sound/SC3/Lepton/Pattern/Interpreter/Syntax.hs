@@ -20,13 +20,14 @@ import Data.Either
 import Data.Word
 import System.Random
 
-import Data.Serialize
 import Sound.SC3
 
 import Sound.SC3.Lepton.Pattern.Expression
 import Sound.SC3.Lepton.Pattern.ToOSC
 
 import qualified Data.ByteString as B
+import qualified Data.Binary as Bin
+import qualified Data.Serialize as Srl
 
 {-
 
@@ -41,29 +42,49 @@ data Expr s
   | NodeO MsgType [(String,Expr Double)]
   deriving (Eq,Read,Show,Data,Typeable)
 
-instance Serialize s => Serialize (Expr s) where
+instance Srl.Serialize s => Srl.Serialize (Expr s) where
+  {-# INLINE put #-}
   put e = case e of
-    Leaf n       -> put (0::Word8) *> put n
-    Node s es    -> put (1::Word8) *> put s *> put es
-    NodeI s i es -> put (2::Word8) *> put s *> put i *> put es
-    NodeO s ps   -> put (3::Word8) *> put s *> put ps
-  get = getWord8 >>= \i -> case i of
-    0 -> Leaf <$> get
-    1 -> Node <$> get <*> get
-    2 -> NodeI <$> get <*> get <*> get
-    3 -> NodeO <$> get <*> get
+    Leaf n       -> Srl.put (0::Word8) *> Srl.put n
+    Node s es    -> Srl.put (1::Word8) *> Srl.put s *> Srl.put es
+    NodeI s i es -> Srl.put (2::Word8) *> Srl.put s *> Srl.put i *> Srl.put es
+    NodeO s ps   -> Srl.put (3::Word8) *> Srl.put s *> Srl.put ps
+  {-# INLINE get #-}
+  get = Srl.getWord8 >>= \i -> case i of
+    0 -> Leaf <$> Srl.get
+    1 -> Node <$> Srl.get <*> Srl.get
+    2 -> NodeI <$> Srl.get <*> Srl.get <*> Srl.get
+    3 -> NodeO <$> Srl.get <*> Srl.get
+    n -> error $ "Unexpected Expr in deserialization: " ++ show n
+
+instance Bin.Binary s => Bin.Binary (Expr s) where
+  {-# INLINE put #-}
+  put e = case e of
+    Leaf n       -> Bin.put (0::Word8) *> Bin.put n
+    Node s es    -> Bin.put (1::Word8) *> Bin.put s *> Bin.put es
+    NodeI s i es -> Bin.put (2::Word8) *> Bin.put s *> Bin.put i *> Bin.put es
+    NodeO s ps   -> Bin.put (3::Word8) *> Bin.put s *> Bin.put ps
+  {-# INLINE get #-}
+  get = Bin.getWord8 >>= \i -> case i of
+    0 -> Leaf <$> Bin.get
+    1 -> Node <$> Bin.get <*> Bin.get
+    2 -> NodeI <$> Bin.get <*> Bin.get <*> Bin.get
+    3 -> NodeO <$> Bin.get <*> Bin.get
     n -> error $ "Unexpected Expr in deserialization: " ++ show n
 
 unLeaf :: Expr s -> Either String s
 unLeaf n = case n of
   Leaf x -> Right x
   _      -> Left "not a leaf"
+{-# INLINE unLeaf #-}
 
 toExpr :: Expr s -> Expr s
 toExpr = id
+{-# INLINE toExpr #-}
 
 eor :: a -> Either x a -> a
 l `eor` r = either (const l) id r
+{-# INLINE eor #-}
 
 {-
 
@@ -192,7 +213,7 @@ fromExpr' = fix2 fromExprI (fix $ fix2 fromExprI)
 fromExpr = fix2 fromExprO fromExpr'
 
 -- Reads expression from file containing bytestring encoded data of Expr.
-fromFile path = (\x -> decode x >>= fromExpr) <$> B.readFile path
+fromFile path = (\x -> Srl.decode x >>= fromExpr) <$> B.readFile path
 
 -- ---------------------------------------------------------------------------
 -- XXX: Dummy instances.

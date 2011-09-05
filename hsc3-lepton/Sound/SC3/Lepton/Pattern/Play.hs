@@ -49,10 +49,7 @@ instance Audible (R (ToOSC Double)) where
 -- ---------------------------------------------------------------------------
 -- Guts
 
--- | Run message.
---
--- When 'NaN' is found in 'freq' key of Map, replace the message
--- with sending 's_new silence'.
+-- | Run message immediately
 --
 runMsg :: Transport t
    => R (ToOSC Double)
@@ -62,7 +59,26 @@ runMsg :: Transport t
    -> t
    -- ^ Destination
    -> IO ()
-runMsg msg trid fd = bracket_ newTrigger freeTrigger work where
+runMsg msg trid fd =  utcr >>= \now -> runMsgFrom (UTCr now) msg trid fd
+{-# SPECIALISE runMsg :: R (ToOSC Double) -> Int -> UDP -> IO () #-}
+{-# SPECIALISE runMsg :: R (ToOSC Double) -> Int -> TCP -> IO () #-}
+
+-- | Run message from given time.
+--
+-- When 'NaN' is found in 'freq' key of Map, replace the message
+-- with sending 's_new silence'.
+--
+runMsgFrom :: Transport t
+   => Time
+   -- ^ Time used in first bundled message.
+   -> R (ToOSC Double)
+   -- ^ Pattern to play
+   -> Int
+   -- ^ Node id used for trigger synth
+   -> t
+   -- ^ Destination
+   -> IO ()
+runMsgFrom time msg trid fd = bracket_ newTrigger freeTrigger work where
   --
   -- When delta time is small amount, latency (> 1ms) occurs in
   -- server side. Sending messages in chunk, accumulate until enough
@@ -76,7 +92,7 @@ runMsg msg trid fd = bracket_ newTrigger freeTrigger work where
     send fd $ s_new "tr" trid AddToHead 1 []
   freeTrigger = send fd $ n_free [trid]
   work = do
-    now <- utcr
+    let now = as_utcr time
     foldPIO_ go (now,now,[]) msg
   go (t0,t1,acc) o
     | getDur o == 0 || null acc = return (t0,t1,o:acc)
@@ -89,9 +105,8 @@ runMsg msg trid fd = bracket_ newTrigger freeTrigger work where
       when enoughTime $ waitUntil fd "/tr" trid
       return (t0+dt,t1',[o])
   tick = n_set trid [("t_trig",1)]
-
-{-# SPECIALISE runMsg :: Msg Double -> Int -> UDP -> IO () #-}
-{-# SPECIALISE runMsg :: Msg Double -> Int -> TCP -> IO () #-}
+{-# SPECIALISE runMsgFrom :: Time -> R (ToOSC Double) -> Int -> UDP -> IO () #-}
+{-# SPECIALISE runMsgFrom :: Time -> R (ToOSC Double) -> Int -> TCP -> IO () #-}
 
 mkOSCs :: [ToOSC Double] -> Int -> IO [OSC]
 mkOSCs os tid = foldM f [] os where

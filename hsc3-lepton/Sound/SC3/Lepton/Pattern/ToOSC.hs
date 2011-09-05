@@ -20,13 +20,16 @@ import Data.Data
 import Data.Maybe (fromMaybe)
 import Data.Word (Word8)
 
-import Data.Serialize
+import Data.Binary (Binary)
+import Data.Serialize (Serialize)
 import Sound.OpenSoundControl
-import Sound.SC3
+import Sound.SC3 hiding (Binary)
 
 import Sound.SC3.Lepton.Tree.Tree
 
+import qualified Data.Binary as B
 import qualified Data.Map as M
+import qualified Data.Serialize as S
 
 -- | OSC convertable data
 data ToOSC a = ToOSC
@@ -40,8 +43,13 @@ instance Functor ToOSC where
   fmap f (ToOSC t m) = ToOSC t (fmap f m)
 
 instance Serialize a => Serialize (ToOSC a) where
-  put (ToOSC t m) = put t >> put m
-  get = ToOSC <$> get <*> get
+  {-# INLINE put #-}
+  put (ToOSC t m) = S.put t >> S.put m
+  get = ToOSC <$> S.get <*> S.get
+
+instance Binary a => Binary (ToOSC a) where
+  put (ToOSC t m) = B.put t >> B.put m
+  get = ToOSC <$> B.get <*> B.get
 
 -- | Type of OSC message.
 data MsgType
@@ -51,11 +59,20 @@ data MsgType
 
 instance Serialize MsgType where
   put m = case m of
-    Snew d n a t -> put (0::Word8) *> put d *> put n *> put a *> put t
-    Nset t       -> put (1::Word8) *> put t
-  get = getWord8 >>= \i -> case i of
-    0 -> Snew <$> get <*> get <*> get <*> get
-    1 -> Nset <$> get
+    Snew d n a t -> S.put (0::Word8) *> S.put d *> S.put n *> S.put a *> S.put t
+    Nset t       -> S.put (1::Word8) *> S.put t
+  get = S.getWord8 >>= \i -> case i of
+    0 -> Snew <$> S.get <*> S.get <*> S.get <*> S.get
+    1 -> Nset <$> S.get
+    n -> error $ "Unexpected MsgType in deserialization: " ++ show n
+
+instance Binary MsgType where
+  put m = case m of
+    Snew d n a t -> B.put (0::Word8) *> B.put d *> B.put n *> B.put a *> B.put t
+    Nset t       -> B.put (1::Word8) *> B.put t
+  get = B.getWord8 >>= \i -> case i of
+    0 -> Snew <$> B.get <*> B.get <*> B.get <*> B.get
+    1 -> Nset <$> B.get
     n -> error $ "Unexpected MsgType in deserialization: " ++ show n
 
 instance Read AddAction where
@@ -73,18 +90,34 @@ readAddAction s = case lex s of
 
 instance Serialize AddAction where
   put m = case m of
-    AddToHead  -> put (0::Word8)
-    AddToTail  -> put (1::Word8)
-    AddBefore  -> put (2::Word8)
-    AddAfter   -> put (3::Word8)
-    AddReplace -> put (4::Word8)
-  get = getWord8 >>= \i -> case i of
+    AddToHead  -> S.put (0::Word8)
+    AddToTail  -> S.put (1::Word8)
+    AddBefore  -> S.put (2::Word8)
+    AddAfter   -> S.put (3::Word8)
+    AddReplace -> S.put (4::Word8)
+  get = S.getWord8 >>= \i -> case i of
     0 -> return AddToHead
     1 -> return AddToTail
     2 -> return AddBefore
     3 -> return AddAfter
     4 -> return AddReplace
     n -> error $ "Unexpected AddAction in deserialization: " ++ show n
+
+instance Binary AddAction where
+  put m = case m of
+    AddToHead  -> B.put (0::Word8)
+    AddToTail  -> B.put (1::Word8)
+    AddBefore  -> B.put (2::Word8)
+    AddAfter   -> B.put (3::Word8)
+    AddReplace -> B.put (4::Word8)
+  get = B.getWord8 >>= \i -> case i of
+    0 -> return AddToHead
+    1 -> return AddToTail
+    2 -> return AddBefore
+    3 -> return AddAfter
+    4 -> return AddReplace
+    n -> error $ "Unexpected AddAction in deserialization: " ++ show n
+
 
 -- | Converts to OSC messages.
 toOSC :: ToOSC Double -> OSC

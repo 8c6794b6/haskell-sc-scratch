@@ -73,6 +73,7 @@ library
     QuickCheck >= 2.0,
     attoparsec,
     base == 4.*,
+    binary,
     bytestring,
     cereal,
     containers,
