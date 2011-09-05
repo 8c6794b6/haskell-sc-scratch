@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-|
 Module      : $Header$
 CopyRight   : (c) 8c6794b6
@@ -19,33 +21,57 @@ import Control.Exception (bracket)
 import Control.Monad
 import Control.Monad.State
 import Control.Monad.Trans
+import Data.Data
 
-import Data.Serialize (encode, decode)
+import Data.Binary (decode)
 import Sound.OpenSoundControl
 import Sound.SC3
 import Sound.SC3.Lepton
+import System.Console.CmdArgs (cmdArgs)
 
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.Foldable as F
 import qualified Data.Map as M
 
--- For sample data
-import S6 (pspe, psw, loop01, loop02, loop03)
-
 main :: IO ()
-main = server 58110
+main = bracket acquire release server where
+  acquire = do
+    opt <- cmdArgs defaultArg
+    env <- mkInitEnv opt
+    send (envSC env) (notify True)
+    return env
+  release env = close (envSC env)
 
-withLept :: (UDP -> IO a) -> IO a
-withLept = withTransport (openUDP "127.0.0.1" 58110)
+defaultArg = Lepton 58110 ("127.0.0.1",57110,Udp)
 
-server :: Int -> IO ()
-server port =
-  bracket (udpServer "127.0.0.1" port) close $ loop . initialEnv . PUDP
+serveTest :: IO ()
+serveTest = bracket acquire release server where
+  acquire = do
+    env <- mkInitEnv defaultArg
+    send (envSC env) (notify True)
+    return env
+  release = close . envSC
+
+data Lepton = Lepton
+  { port :: Int
+  , sc :: (String,Int,Protocol)
+  } deriving (Eq,Show,Data,Typeable)
+
+data Protocol = Tcp | Udp deriving (Eq,Show,Data,Typeable)
+
+mkInitEnv :: Lepton -> IO Env
+mkInitEnv lep = do
+  scCon <- case sc lep of
+        (host,port,Udp) -> PUDP <$> openUDP host port
+        (host,port,Tcp) -> PTCP <$> openTCP host port
+  return $ Env M.empty scCon undefined (port lep)
 
 data Env = Env
   { envThreads :: M.Map String ThreadId
-  , envSC :: IO Connection
-  , envLept :: IO Connection }
+  , envSC :: Connection
+  , envLept :: Connection
+  , envPort :: Int }
 
 data Connection = PUDP UDP | PTCP TCP
 
@@ -57,40 +83,67 @@ instance Transport Connection where
   close (PUDP c) = close c
   close (PTCP c) = close c
 
-initialEnv :: Connection -> Env
-initialEnv lep = Env M.empty (PUDP `fmap` openUDP "127.0.0.1" 57110) (return lep)
+server :: Env -> IO ()
+server env =
+  bracket (udpServer "127.0.0.1" (envPort env)) close $ \fd -> do
+    runServerLoop (env {envLept = PUDP fd})
 
-loop :: Env -> IO ()
-loop env = envSC env >>= \sc -> envLept env >>= \lep -> go sc lep where
-  go sc fd = do
-    m <- recv fd
-    case m of
-      Message "/l_new" [String key,Blob pat] -> do
-        let Right pat' = decode $ B.concat $ BL.toChunks pat
-            Right pat'' = fromExpr pat'
-        tid <- forkIO $ play sc (pat'' :: R (ToOSC Double))
-        let threads = M.insert key tid (envThreads env)
-        putStrLn $ "New pattern: " ++ key
-        loop (env {envThreads = threads})
-      Message "/l_free" [String key] -> do
-        case M.lookup key (envThreads env) of
-          Just tid -> killThread tid >> putStrLn ("Freed: " ++ key)
-          Nothing  -> putStrLn $ "Thread " ++ key ++ " not found"
-        loop (env {envThreads = M.delete key (envThreads env)})
-      Message "/l_dump" _ -> do
-        putStrLn $ M.showTree $ envThreads env
-        loop env
-      _ -> loop env
+type ServerLoop a = StateT Env IO a
 
--- ---------------------------------------------------------------------------
--- OSC Messages building functions
+runServerLoop :: Env -> IO a
+runServerLoop env = evalStateT (forever work) env
 
-l_new :: String -> Expr (ToOSC Double) -> OSC
-l_new key pat = Message "/l_new" [String key,Blob pat'] where
-  pat' = BL.fromChunks $ [encode pat]
+{-|
 
-l_free :: String -> OSC
-l_free key = Message "/l_free" [String key]
+Guts of server.
 
-l_dump :: OSC
-l_dump = Message "/l_dump" []
+TODO:
+
+* Send bundled osc messages.
+
+* Handle timestamp to yield new threads.
+
+* Handle timestamp to kill forked threads.
+
+* Add pause, resume command.
+
+-}
+work :: StateT Env IO ()
+work = do
+  st <- get
+  let lep = envLept st
+  msg <- liftIO $ recv lep
+  case msg of
+    Bundle _ []     -> return ()
+    Bundle time ms  -> mapM_ sendMessage ms
+    m@(Message _ _) -> sendMessage m
+
+sendMessage :: OSC -> StateT Env IO ()
+sendMessage m = case m of
+  Message "/l_new" [String key, Blob pat] -> do
+    liftIO $ print pat
+    case fromExpr (decode pat) of
+      Right (pat'::R (ToOSC Double)) -> do
+        st <- get
+        let sc = envSC st
+        trid <- liftIO newNid
+        tid <- liftIO $ (forkIO $ runMsg pat' trid sc)
+        modify (\st -> st {envThreads = M.insert key tid (envThreads st)})
+      Left err -> do
+        liftIO $ putStrLn err
+  Message "/l_free" [String key] -> do
+    st <- get
+    let tm = envThreads st
+    tm' <- case M.lookup key tm of
+      Just tid -> do
+        liftIO $ killThread tid
+        return $ M.delete key tm
+      Nothing -> return tm
+    modify (\st -> st {envThreads = tm'})
+  Message "/l_freeAll" [] ->
+    liftIO . F.mapM_ killThread . envThreads =<< get
+  Message "/l_dump" [] -> do
+    st <- get
+    liftIO $ print $ envThreads st
+  _ -> get >>= \st -> liftIO $ send (envSC st) m
+  -- _ -> return ()
