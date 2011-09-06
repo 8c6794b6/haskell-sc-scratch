@@ -12,7 +12,7 @@
 -- Pattern interpreter with state monad.
 --
 
-module Sound.SC3.Lepton.Scratch.PState where
+module Scratch.PState where
 
 import Data.Map (Map)
 import qualified Data.Map as M

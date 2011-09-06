@@ -9,7 +9,7 @@ Portability : non-portable (OverloadedStrings)
 
 Parsing patterns encoded in ByteString.
 -}
-module Sound.SC3.Lepton.Scratch.ParseP where
+module Scratch.ParseP where
 
 {-
 
@@ -33,7 +33,7 @@ import Data.Attoparsec.Combinator
 import Sound.SC3 hiding ((<*), osc)
 
 import Sound.SC3.Lepton (R(..), S(..), ToOSC(..), MsgType(..))
-import Sound.SC3.Lepton.Scratch.RespTest (pspe,gospe'p, msg01, loop03)
+import Scratch.RespTest (pspe,gospe'p, msg01, loop03)
 
 import qualified Data.ByteString.Char8 as C8
 import qualified Data.Map as M

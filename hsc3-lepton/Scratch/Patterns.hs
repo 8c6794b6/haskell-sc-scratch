@@ -12,7 +12,7 @@
 -- Scratch!!!
 --
 
-module Sound.SC3.Lepton.Scratch where
+module Scratch where
 
 import Control.Arrow (second)
 import Control.Concurrent (forkIO, threadDelay)

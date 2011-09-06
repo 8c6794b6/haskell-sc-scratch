@@ -15,7 +15,7 @@ Writing server with using hosc package. Communication between client would
 be done with sending and receiving OSC command, instead of raw ByteString.
 
 -}
-module Sound.SC3.Lepton.Scratch.Server where
+module Scratch.Server where
 
 import Control.Applicative
 import Control.Concurrent

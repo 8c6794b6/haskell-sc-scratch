@@ -10,7 +10,7 @@ Portability : non-portable
 Scratch, take 2.
 
 -}
-module Sound.SC3.Lepton.Scratch.RespTest where
+module Scratch.RespTest where
 
 import Control.Applicative
 import Control.Concurrent
