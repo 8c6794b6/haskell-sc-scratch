@@ -19,7 +19,7 @@ module Polyvariadic where
 
 import Data.Monoid
 
-import Sound.SC3.Lepton hiding (add)
+import Sound.SC3.Lepton
 
 intro1 = id id id id id True
 
@@ -115,6 +115,8 @@ instance G r => G (SCNode -> r) where
 grp :: (G g) => Int -> SCNode -> g
 grp = grp' []
 
+syn i n = Synth i n
+
 n1 :: SCNode
 n1 =
   grp 1
@@ -123,7 +125,7 @@ n1 =
     (syn 2000 "bar" [])
 
 --
--- Need to put type signature when passing after a SCNode?
+-- Need to put type signature when last node is group.
 --
 
 n2 :: SCNode
@@ -145,8 +147,6 @@ n2 =
 --        (syn 1010 "bar" []) (syn 1011 "bar" [])))
 
 -- grp n x = Group n (build x)
-
-syn i n = Synth i n
 
 class Builder2 c a b r | r -> a where
   build2 :: (a -> b -> c a b -> c a b) -> c a b -> a -> b -> r
