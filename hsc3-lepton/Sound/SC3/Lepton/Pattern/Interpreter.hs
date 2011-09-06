@@ -15,16 +15,14 @@
 --
 module Sound.SC3.Lepton.Pattern.Interpreter
   ( -- * Running patterns
-    R(..), runP, runPIO, foldPIO, foldPIO_, mapPIO_, nan,
+    R(..), toR, runP, runPIO, foldPIO, foldPIO_, mapPIO_, nan,
 
     -- * Showing patterns
     S(..), showP,
 
     -- * Syntax representation of patterns
-    Expr(..), fromExpr, toExpr, prettyP
+    Expr(..), toExpr, fromExpr, prettyP
 
-    -- -- Viewing patterns
-    -- V(..), viewP,
   ) where
 
 -- import Sound.SC3.Lepton.Pattern.Expression

@@ -33,7 +33,7 @@ import System.Console.CmdArgs (cmdArgs)
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Foldable as F
-import qualified Data.Map as M
+import qualified Data.HashMap.Strict as H
 
 -- ---------------------------------------------------------------------------
 -- Command line wrapper
@@ -64,7 +64,7 @@ serveTest = bracket acquire release server where
 mkInitEnv :: Lepton -> IO Env
 mkInitEnv lep = do
   let (h,p,ptc) = sc lep
-  return $ Env M.empty (ConInfo h p ptc) undefined (port lep)
+  return $ Env H.empty (ConInfo h p ptc) undefined (port lep)
 
 {-
 TODO:
@@ -72,6 +72,8 @@ TODO:
 * Add pause, resume command.
 
 * Kill threads when server has been killed, in ghci.
+
+* Remove itself from Map when finite threads has ended.
 -}
 
 -- ---------------------------------------------------------------------------
@@ -96,7 +98,7 @@ instance Transport Connection where
   close (PTCP c) = close c
 
 data Env = Env
-  { envThreads :: M.Map String ThreadId
+  { envThreads :: H.HashMap String ThreadId
   , envSC :: ConInfo
   , envLept :: Connection
   , envPort :: Int }
@@ -149,35 +151,36 @@ sendMessage time m = case m of
 runLNew :: Maybe Time -> String -> BL.ByteString -> ServerLoop ()
 runLNew time key pat = do
   st <- get
-  when (not $ M.member key (envThreads st)) $ do
-    case fromExpr (decode pat) of
-      Right (pat'::R (ToOSC Double)) -> do
-        st <- get
-        let sc = envSC st
-        tid <- liftIO $ forkIO $ withTransport (fromConInfo sc) $ \fd ->
-          bracket
-            (do send fd (notify True)
-                time' <- maybe (UTCr <$> utcr) return time
-                trid <- newNid
-                return (time',trid,fd))
-            (\(_,trid,fd') ->
-              send fd' (bundle immediately [notify False, n_free [trid]]))
-            (\(time',trid,fd') ->
-              runMsgFrom time' pat' trid fd')
-        modify (\st -> st {envThreads = M.insert key tid (envThreads st)})
-      Left err -> do
-        liftIO $ putStrLn err
+  case H.lookup key (envThreads st) of
+    Nothing -> do
+      case fromExpr (decode pat) of
+        Right (pat'::R (ToOSC Double)) -> do
+          st <- get
+          let sc = envSC st
+          tid <- liftIO $ forkIO $ withTransport (fromConInfo sc) $ \fd ->
+            bracket
+              (do send fd (notify True)
+                  time' <- maybe (UTCr <$> utcr) return time
+                  trid <- newNid
+                  return (time',trid,fd))
+              (\(_,trid,fd') ->
+                send fd' (bundle immediately [notify False, n_free [trid]]))
+              (\(time',trid,fd') ->
+                runMsgFrom time' pat' trid fd')
+          modify (\st -> st {envThreads = H.insert key tid (envThreads st)})
+        Left err -> liftIO $ putStrLn err
+    Just _ -> liftIO $ putStrLn $ "thread exists: " ++ key
 
 runLFree :: Maybe Time -> String -> ServerLoop ()
 runLFree time key = do
   st <- get
   let tm = envThreads st
-  tm' <- case M.lookup key tm of
+  tm' <- case H.lookup key tm of
     Just tid -> do
       liftIO $ forkIO $ do
         maybePause time
         killThread tid
-      return $ M.delete key tm
+      return $ H.delete key tm
     Nothing -> return tm
   modify (\st -> st {envThreads = tm'})
 
@@ -187,20 +190,18 @@ runLFreeAll time = do
   liftIO $ forkIO $ do
     maybePause time
     F.mapM_ killThread $ envThreads st
-  modify (\st -> st {envThreads = M.empty})
+  modify (\st -> st {envThreads = H.empty})
 
 runLDump :: Maybe Time -> ServerLoop ()
 runLDump time = do
   st <- get
   liftIO $ forkIO $ do
     maybePause time
-    putStrLn $ M.showTree $ envThreads st
+    mapM_ print $ H.toList $ envThreads st
   return ()
 
 -- | Pause until given 'Time', or return immediately on 'Nothing'.
 maybePause :: Maybe Time -> IO ()
-maybePause = F.mapM_ g where
-  g time = do
-    now <- utcr
-    let dt = as_utcr time - now
-    if dt > 0 then threadDelay (ceiling $ dt*10^6) else return ()
+maybePause = F.mapM_ $ \time -> do
+  dt <- (as_utcr time -) <$> utcr
+  when (dt > 0) $ threadDelay (ceiling $ dt*10^6)

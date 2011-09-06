@@ -1,4 +1,3 @@
-{-# LANGUAGE PackageImports #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 ------------------------------------------------------------------------------
@@ -55,9 +54,9 @@ import Control.Concurrent
 import Control.Monad
 import qualified Data.Map as M
 
-import "mtl" Control.Monad.Trans
-import "mtl" Control.Monad.Reader
-import "mtl" Control.Monad.State
+import Control.Monad.Trans
+import Control.Monad.Reader
+import Control.Monad.State
 import Sound.OpenSoundControl
 
 -- | Environment for managing threads.

@@ -91,4 +91,5 @@ library
     stream-fusion >= 0.1.2.2,
     syb,
     uniplate >= 1.6,
+    unordered-containers,
     vector

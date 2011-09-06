@@ -12,6 +12,7 @@ Portability : non-portable (FlexibleInstances)
 -}
 module Sound.SC3.Lepton.Pattern.Interpreter.R
   ( R(..)
+  , toR
   , runP
   , runPIO
   , mapPIO_
@@ -56,6 +57,10 @@ import qualified Data.Traversable as T
 -- > runPIO $ prand 1 $ map pval [0.1,0.2..1.0]
 --
 newtype R a = R {unR :: PureMT -> [a]}
+
+-- | Alias function of 'id' for fixing type.
+toR :: R a -> R a
+toR = id
 
 -- | Run pattern with given seed.
 runP :: R a -> PureMT -> [a]
