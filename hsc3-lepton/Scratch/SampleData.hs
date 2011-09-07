@@ -94,3 +94,10 @@ goP01s = withLept $ \fd -> forM_ [1..10] $ \i -> do
   send fd =<< bundle' 8 (0.001*2**fromIntegral i)
     [l_new ("p01_" ++ show i) (p01' (pval pan))]
 
+-- ---------------------------------------------------------------------------
+-- Testing behaviour of finite patterns
+
+p03 = psnew "rspdef1" Nothing AddToTail 1
+  [("dur", pforever 1)
+  ,("freq", plist [880,660,440,330,220])
+  ,("amp", plist [0.5,0.4,0.5,0.4,0.3])]
