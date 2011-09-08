@@ -18,7 +18,11 @@ import Sound.OpenSoundControl
 import Sound.SC3
 import Sound.SC3.Lepton
 
--- ---------------------------------------------------------------------------
+import qualified Data.ByteString.Lazy.Char8 as LC8
+
+import Scratch.Bz (lazyByteStringP)
+
+------------------------------------------------------------------------------
 -- Client side message sending utility
 
 -- | Connect to default lepton server, like 'withSC3'.
@@ -43,12 +47,17 @@ bundle' unit dt oscs
         t = (fromIntegral (succ q) * unit) + dt
     return $ bundle (UTCr t) oscs
 
--- ---------------------------------------------------------------------------
+------------------------------------------------------------------------------
 -- OSC Messages building functions
 
 -- | Add new pattern and run it.
 l_new :: String -> Expr (ToOSC Double) -> OSC
-l_new key pat = Message "/l_new" [String key,Blob (encode pat)]
+-- l_new key pat = Message "/l_new" [String key,Blob (encode pat)]
+l_new key pat = Message "/l_new" [String key, Blob pat'] where
+  pat' = case fromExpr pat of
+    -- Right p  -> LC8.pack $ showP $ p
+    Right p  -> lazyByteStringP p
+    Left err -> error $ "l_new: " ++ err
 
 -- | Free pattern. When pattern with given key does not exist, do nothing.
 l_free :: String -> OSC

@@ -47,8 +47,9 @@ import Sound.SC3.ID
 import Sound.SC3.Lepton
 
 import Scratch.Client
+import Scratch.ParseP (parsePattern)
 
--- ---------------------------------------------------------------------------
+------------------------------------------------------------------------------
 -- Synth defs
 
 otfperc = out ("out"@@0) sig where
@@ -71,7 +72,7 @@ otfrev2 = out ("out"@@0) sig where
   ins = in' 2 AR ("in"@@0)
   f a b = allpassC b 0.8 (rand a 1e-3 8e-2) (rand a 4e-2 4)
 
--- ---------------------------------------------------------------------------
+------------------------------------------------------------------------------
 -- Patterns
 
 kikP = psnew "otfperc" Nothing AddToHead 1
@@ -102,8 +103,8 @@ sin1P = psnew "otfsine" Nothing AddToHead 1
   ,("out", prepeat 2)
   ,("freq",
     pforever $ midiCPS (21 + (prand 1 [0,12,24,36] + prand 1 [0,2,4,7,9])))
-  ,("amp", pforever 0.4)
-  ,("pan", pforever 0.2)]
+  ,("amp", pforever 0.5)
+  ,("pan", pforever 0.1)]
 
 sin2P = psnew "otfsine" Nothing AddToHead 1
   [("dur", pforever (t * prand 1 [0.5,0.25]))
@@ -119,7 +120,7 @@ sin1N = 0xbaca
 
 sin2N = 0xcaba
 
--- ---------------------------------------------------------------------------
+------------------------------------------------------------------------------
 -- Sends synthdefs, allocate buffers, add new synth nodes.
 
 setup'otf = withSC3 $ \fd -> do
@@ -140,11 +141,11 @@ otfNodes =
     [g 1 []
     ,g 2
       [s 1000 "otfrev1" []
-      ,s 1001 "otfrev2" ["in":=2,"mix":=0.4]]]
+      ,s 1001 "otfrev2" ["in":=2,"mix":=0.5]]]
   where
     g = Group; s = Synth
 
--- ---------------------------------------------------------------------------
+------------------------------------------------------------------------------
 -- Actions for patterns
 
 addKik = addPat 0 "kik" kikP
@@ -157,7 +158,14 @@ addSin2 = addPat 0 "sin-hi" sin2P
 dumpPat = withLept . flip send $ l_dump
 
 addAll = sequence_ [addKik, addSnr, addHat, addHato, addSin1, addSin2]
+
+addAllButSnare' = bundle immediately
+  [ l_new "kik" kikP, l_new "hat" hatP, l_new "hat-open" hatoP
+  , l_new "sin-lo" sin1P, l_new "sin-hi" sin2P ]
+
 resetAll = withLept (flip send l_freeAll)
 
 addPat d n e = withLept . flip send =<< bundle' (t*2) d [l_new n e]
-delPat d n = withLept . flip send =<< bundle' (t*2) d [l_free n]
+delPat n = withLept . flip send =<< bundle' (t*2) 0 [l_free n]
+
+l = withLept . flip send

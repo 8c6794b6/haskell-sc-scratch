@@ -8,7 +8,7 @@ Stability   : unstable
 Portability : portable
 
 Scratch for /huh/ composition.
-Rewrite nusing pattern instead of demand ugens.
+Rewrite using pattern instead of demand ugens.
 
 -}
 module Sound.SC3.Lepton.Scratch.Huh where
@@ -24,6 +24,8 @@ import Sound.SC3.Lepton.Pattern.Play
 import Sound.SC3.Lepton.Pattern.ToOSC
 import qualified Sound.SC3.Lepton.Pattern.Play as Play
 
+import Scratch.Client
+
 main :: IO ()
 main = withSC3 goHuh
 
@@ -31,8 +33,23 @@ goHuh :: Transport t => t -> IO ()
 goHuh fd =
   bracket_
     (setupHuh fd >> patchNode n0 fd)
-    (return ())
-    (play fd (allP :: R (ToOSC Double)))
+    (reset fd)
+    (play fd $ toR allP)
+
+{-
+
+Sequencing patterns in lepton server.
+
+UDP protocol cannot send message larger than 65535 bytes in single
+connection. Sending multiple bundle with 'mapM_' with same timestamps.
+
+-}
+huhps fd = do
+  t0 <- (+0.1) `fmap` utcr
+  mapM_ (\(n,p) -> send fd $ bundle (UTCr t0) [l_new n p])
+    [ ("huh1",huh1P), ("huh2",huh2P), ("huh3",huh3P)
+    , ("kik", kikP), ("snr", snrP), ("hat", hatP)
+    , ("pu", puP), ("bell", bellP) ]
 
 setupHuh :: Transport t => t -> IO OSC
 setupHuh fd = do
@@ -62,9 +79,9 @@ n0 =
      [g 10
       [s 1000 "lfsin" []
       ,s 1001 "cf2drn"
-      ["out":=19,"gate":=1]
+      ["out":=19,"gate":=1, "amp":=0]
       ,s 1002 "cf2drn"
-      ["out":=20,"gate":=1]]
+      ["out":=20,"gate":=1, "amp":=0]]
      ]
     ,g 2
      [s 2000 "cf2rev" -- huh1
@@ -115,6 +132,8 @@ allP = ppar
   [ huh1P, huh2P, huh3P
   , kikP, snrP, hatP
   , puP, drn1P, drn2P, bellP ]
+
+l = withLept . flip send
 
 huh1P =
   psnew "cf2huh" Nothing AddToTail 10
@@ -221,6 +240,7 @@ puP =
 drn1P =
   pnset 1001
   [("dur", pforever (60/bpm))
+  ,("amp", prepeat 0.3)
   ,("freq", fmap (\x -> if x == 0 then nan else midiCPS x) $
     pconcat
     [pseq 32 [0]
@@ -238,6 +258,7 @@ drn1P =
 drn2P =
   pnset 1002
   [("dur", pforever (60/bpm))
+  ,("amp", prepeat 0.3)
   ,("freq", fmap (\x -> if x == 0 then nan else midiCPS x) $
    pconcat
     [pseq 32 [0]
@@ -257,12 +278,12 @@ bellP =
   [("dur", pforever (60/bpm))
   ,("out", pforever 18)
   ,("t_trig", pforever 1)
-  ,("freq", fmap (\x -> if x == 0 then nan else midiCPS x) $
+  ,("freq",
     pconcat
     [pseq 16 [0,0,0,0]
     ,pseq 6 [0,0,0,0]
     ,pcycle
-     [prand 16 (map pval $ replicate 16 0 ++ [79,84,89,91,96])
+     [midiCPS $ prand 16 (map pval $ replicate 16 0 ++ [79,84,89,91,96])
      ,pseq 12 [0,0,0,0]]])
   ]
 
@@ -352,8 +373,7 @@ cf2hat' tick = out ("out"@@0) (sig * amp) where
   d = line KR 1 1 1 RemoveSynth
 
 cf2drn :: UGen
-cf2drn = cf2drn' ("amp"@@0.3) ("gate"@@1)
-         ((("freq"@@440) `lag` 0.6 `lag` 0.6))
+cf2drn = cf2drn' ("amp"@@0) ("gate"@@1) ((("freq"@@440) `lag` 0.6 `lag` 0.6))
 cf2drn' amp gt freq = out ("out"@@0) sig where
   sig = foldr (\a b -> allpassN b 0.05 a 4) sig' $
         map (\i -> mce2 (rand i 0 0.05) (rand (succ i) 0 0.05)) "qrst"

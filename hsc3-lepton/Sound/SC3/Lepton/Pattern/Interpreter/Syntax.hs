@@ -43,6 +43,12 @@ data Expr s
   | NodeO MsgType [(String,Expr Double)]
   deriving (Eq,Read,Show,Data,Typeable)
 
+instance Functor Expr where
+  fmap f (Leaf s) = Leaf (f s)
+  fmap f (Node x ns) = Node x (map (fmap f) ns)
+  fmap f (NodeI x n ns) = NodeI x n (map (fmap f) ns)
+  fmap f (NodeO _ _) = error "NodeO does not support Functor"
+
 instance Srl.Serialize s => Srl.Serialize (Expr s) where
   {-# INLINE put #-}
   put e = case e of

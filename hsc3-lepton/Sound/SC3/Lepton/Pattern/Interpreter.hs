@@ -18,7 +18,7 @@ module Sound.SC3.Lepton.Pattern.Interpreter
     R(..), toR, runP, runPIO, foldPIO, foldPIO_, mapPIO_, nan,
 
     -- * Showing patterns
-    S(..), showP,
+    S(..), toS, showP,
 
     -- * Syntax representation of patterns
     Expr(..), toExpr, fromExpr, prettyP

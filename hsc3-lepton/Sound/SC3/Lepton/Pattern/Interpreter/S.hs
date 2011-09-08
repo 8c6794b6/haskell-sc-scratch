@@ -29,6 +29,10 @@ import Sound.SC3.Lepton.Pattern.ToOSC
 --
 newtype S s = S {unS :: forall a. Show s => a -> String}
 
+-- | Alias of 'id' for fixing type.
+toS :: S a -> S a
+toS = id
+
 -- | Show string representation of pattern.
 showP :: Show a => S a -> String
 showP p = unS p ()
@@ -44,23 +48,25 @@ instance Typeable1 S where
 
 -- | Plain numbers would be shown as pval.
 instance (Num a) => Num (S a) where
-  a + b = S $ \_ -> showP a ++ " + " ++ showP b
-  a * b = S $ \_ -> showP a ++ " * " ++ showP b
+  a + b = S $ \_ -> "(" ++ showP a ++ ") + (" ++ showP b ++ ")"
+  a * b = S $ \_ -> "(" ++ showP a ++ ") * (" ++ showP b ++ ")"
+  a - b = S $ \_ -> "(" ++ showP a ++ ") - (" ++ showP b ++ ")"
   abs n = S $ \_ -> "abs (" ++ showP n ++ ")"
   negate n = S $ \_ -> "negate (" ++ showP n ++ ")"
   signum n = S $ \_ -> "signum (" ++ showP n ++ ")"
   fromInteger n = S $ \_ -> "pval " ++ show (fromInteger n :: Int)
 
 instance (Fractional a) => Fractional (S a) where
-  a / b = S $ \_ -> showP a ++ " / " ++ showP b
+  a / b = S $ \_ -> "(" ++ showP a ++ ") / (" ++ showP b ++ ")"
   fromRational n = S $ \_ -> "pval " ++ show (fromRational n :: Double)
 
 instance (Show a, Enum a) => Enum (S a) where
   pred n = S $ \_ -> "pred (" ++ showP n ++ ")"
   succ n = S $ \_ -> "succ (" ++ showP n ++ ")"
+  -- XXX: how to tell the type?
   fromEnum n = case words $ showP n of
     [x]         -> read x
-    ["pval", x] -> fromEnum (read x :: Double) -- XXX: how to tell the type?
+    ["pval", x] -> fromEnum (read x :: Double)
     e           -> error $ "fromEnum: " ++ show e
   toEnum n = S $ \_ -> "pval " ++ show n
 
@@ -79,13 +85,15 @@ instance Floating a => Floating (S a) where
   exp = showFloating "exp"
   log = showFloating "log"
   sqrt = showFloating "sqrt"
-  a ** b = S (const $ show a ++ " ** " ++ show b)
+  a ** b = S (const $ "(" ++ show a ++ ") ** (" ++ show b ++ ")")
   sin = showFloating "sin"
+  tan = showFloating "tan"
   cos = showFloating "cos"
   asin = showFloating "asin"
   atan = showFloating "atan"
   acos = showFloating "acos"
   sinh = showFloating "sinh"
+  tanh = showFloating "tanh"
   cosh = showFloating "cosh"
   asinh = showFloating "asinh"
   atanh = showFloating "atanh"
@@ -181,12 +189,10 @@ instance Show a => Mergable (S a) where
 
 instance Psnew S where
   psnew def nid aa tid ms =
-    -- S (\_ -> show $ ToOSC (Snew def nid aa tid) (M.fromList ms))
     S (\_ -> show (Snew def nid aa tid) ++ " " ++ show ms)
 
 instance Pnset S where
   pnset i ms =
-    -- S (\_ -> show $ ToOSC (Nset i) (M.fromList ms))
     S (\_ -> show (Nset i) ++ " " ++ show ms)
 
 -- instance Plam S where
