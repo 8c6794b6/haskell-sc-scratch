@@ -16,9 +16,10 @@ import Data.Fixed
 import Data.Binary (decode, encode)
 import Sound.OpenSoundControl
 import Sound.SC3
-import Sound.SC3.Lepton
+import Sound.SC3.Lepton.Pattern.Interpreter.Bz
 
 import qualified Data.ByteString.Lazy.Char8 as LC8
+
 
 -- import Scratch.Bz (lazyByteStringP)
 
@@ -51,9 +52,9 @@ bundle' unit dt oscs
 -- OSC Messages building functions
 
 -- | Add new pattern and run it.
-l_new :: String -> Expr (ToOSC Double) -> OSC
-l_new key pat = Message "/l_new" [String key,Blob (encode pat)]
-
+-- l_new :: String -> Expr (ToOSC Double) -> OSC
+-- l_new key pat = Message "/l_new" [String key,Blob (encode pat)]
+l_new key pat = Message "/l_new" [String key, Blob (lazyByteStringP pat)]
 -- l_new key pat = Message "/l_new" [String key, Blob pat'] where
 --   pat' = case fromExpr pat of
 --     -- Right p  -> LC8.pack $ showP $ p
@@ -87,5 +88,6 @@ l_run :: String -> OSC
 l_run key = Message "/l_run" [String key]
 
 -- | Add new pattern, but not start it.
-l_add :: String -> Expr (ToOSC Double) -> OSC
-l_add key pat = Message "/l_add" [String key, Blob (encode pat)]
+-- l_add :: String -> Expr (ToOSC Double) -> OSC
+-- l_add key pat = Message "/l_add" [String key, Blob (encode pat)]
+l_add key pat = Message "/l_add" [String key, Blob (lazyByteStringP pat)]

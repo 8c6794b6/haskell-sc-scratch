@@ -45,9 +45,7 @@ import Sound.OpenSoundControl
 import Sound.SC3
 import Sound.SC3.ID
 import Sound.SC3.Lepton
-
-import Scratch.Client
-import Scratch.ParseP (parsePattern)
+import Sound.SC3.Lepton.Pattern.Client
 
 ------------------------------------------------------------------------------
 -- Synth defs

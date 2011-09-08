@@ -40,6 +40,10 @@ import Sound.SC3.Lepton.Pattern.ToOSC
 --
 newtype Bz s = Bz {unBz :: Show s => forall s. Builder}
 
+instance Typeable1 Bz where
+  typeOf1 _ =
+    mkTyConApp (mkTyCon "Sound.SC3.Lepton.Pattern.Interpreter.Bz.Bz") []
+
 -- | Alias of 'id' to fix type signature.
 toBz :: Bz s -> Bz s
 toBz = id
@@ -57,7 +61,8 @@ lazyByteStringP = toLazyByteString . unBz
 
 (<>) :: Monoid a => a -> a -> a
 a <> b = a `mappend` b
-{-# INLINE <> #-}
+infixl 4 <>
+{-# INLINE (<>) #-}
 
 mkOp :: Builder -> Builder -> Builder -> Bz s
 mkOp op a b =
@@ -137,11 +142,11 @@ instance Num a => Num (Bz a) where
   negate (Bz a) = mkUnary (fromString "negate") a
   abs (Bz a) = mkUnary (fromString "abs") a
   signum (Bz a) = mkUnary (fromString "signum") a
-  fromInteger a = mkPval a
+  fromInteger a = Bz $ fromString "pval " <> fromString (show a)
 
 instance Fractional a => Fractional (Bz a) where
   Bz a / Bz b = mkOp (fromChar '/') a b
-  fromRational a = mkPval a
+  fromRational a = Bz $ fromString "pval " <> fromString (show $ fromRational a)
 
 instance Floating a => Floating (Bz a) where
   pi = Bz $ fromString "pi"

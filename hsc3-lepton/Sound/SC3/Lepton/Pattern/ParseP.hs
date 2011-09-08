@@ -10,9 +10,7 @@ Portability : non-portable (OverloadedStrings)
 Parsing patterns encoded in ByteString with Bz.
 
 -}
-module Sound.SC3.Lepton.Pattern.ParseP
-  ( parsePattern
-  ) where
+module Sound.SC3.Lepton.Pattern.ParseP ( parseP ) where
 
 import Control.Applicative
 import Data.ByteString (ByteString)
@@ -37,15 +35,14 @@ import Sound.SC3.Lepton.Pattern.ToOSC
 
 import qualified Sound.SC3.Lepton.Pattern.Expression as P
 
--- runPattern :: ByteString -> IO ()
-runPattern bs = case parsePattern bs of
+runPattern bs = case parseP bs of
   Right r  -> audition $ toR r
   Left err -> putStrLn err
 
 runPatternFile :: FilePath -> IO ()
 runPatternFile path = runPattern =<< LC8.readFile path
 
-parsePattern = eitherResult . parse rPatterns
+parseP = eitherResult . parse rPatterns
 
 rPatterns = choice
   [ -- OSC message classes
@@ -88,42 +85,38 @@ nPatterns' f = choice
   , squaredP f
   ]
 
-{-
-return . fmap toExpr . parsePattern =<< LC8.readFile "./Scratch/pat01.txt"
--}
-
 ------------------------------------------------------------------------------
 -- Primitives
 
-pempty = string "pempty" *> return P.pempty
-pval p = mkP "pval" P.pval p
-plist p = mkP "plist" P.plist (listOf p)
+pempty    = string "pempty" *> return P.pempty
+pval p    = mkP "pval" P.pval p
+plist p   = mkP "plist" P.plist (listOf p)
 prepeat p = mkP "prepeat" P.prepeat p
 
 ------------------------------------------------------------------------------
 -- Looping patterns
 
-pconcat p = mkP "pconcat" P.pconcat (listOf p)
-pappend p = mkP2 "pappend" P.pappend (braced p) (braced p)
-pseq p1 p2  = mkP2 "pseq" P.pseq p1 (listOf p2)
+pconcat p        = mkP "pconcat" P.pconcat (listOf p)
+pappend p        = mkP2 "pappend" P.pappend (braced p) (braced p)
+pseq p1 p2       = mkP2 "pseq" P.pseq p1 (listOf p2)
 preplicate p1 p2 = mkP2 "preplicate" P.preplicate p1 (braced p2)
-pcycle p = mkP "pcycle" P.pcycle (listOf p)
-pforever p = mkP "pforever" P.pforever (braced p)
+pcycle p         = mkP "pcycle" P.pcycle (listOf p)
+pforever p       = mkP "pforever" P.pforever (braced p)
 
 ------------------------------------------------------------------------------
 -- Random patterns
 
-prandom = string "prandom" *> return P.prandom
-prange p = mkP2 "prange" P.prange (braced p) (braced p)
+prandom       = string "prandom" *> return P.prandom
+prange p      = mkP2 "prange" P.prange (braced p) (braced p)
 pchoose p1 p2 = mkP2 "pchoose" P.pchoose p1 (listOf p2)
-prand p1 p2 = mkP2 "prand" P.prand p1 (listOf p2)
-pshuffle p = mkP "pshuffle" P.pshuffle (listOf p)
+prand p1 p2   = mkP2 "prand" P.prand p1 (listOf p2)
+pshuffle p    = mkP "pshuffle" P.pshuffle (listOf p)
 
 ------------------------------------------------------------------------------
 -- Parallel patterns
 
 pmerge = mkP2 "pmerge" P.pmerge (braced rPatterns) (braced rPatterns)
-ppar = mkP "ppar" P.ppar (listOf rPatterns)
+ppar   = mkP "ppar" P.ppar (listOf rPatterns)
 
 ------------------------------------------------------------------------------
 -- OSC message patterns
@@ -164,12 +157,12 @@ addAction =
 ------------------------------------------------------------------------------
 -- Num
 
-addP p = binOpP (+) (char '+') (braced p)
-mulP p = binOpP (*) (char '*') (braced p)
-minusP p = binOpP (-) (char '-') (braced p)
+addP p    = binOpP (+) (char '+') (braced p)
+mulP p    = binOpP (*) (char '*') (braced p)
+minusP p  = binOpP (-) (char '-') (braced p)
 negateP p = mkP "negate" negate (braced p)
 signumP p = mkP "signum" signum (braced p)
-absP p = mkP "abs" abs (braced p)
+absP p    = mkP "abs" abs (braced p)
 
 ------------------------------------------------------------------------------
 -- Fractional
@@ -179,20 +172,20 @@ divP p = binOpP (/) (char '/') (braced p)
 -----------------------------------------------------------------------------
 -- Floating
 
-piP = string "pi" *> pure pi
-expP p = mkP "exp" exp (braced p)
-logP p = mkP "log" log (braced p)
-sqrtP p = mkP "sqrt" sqrt (braced p)
+piP      = string "pi" *> pure pi
+expP p   = mkP "exp" exp (braced p)
+logP p   = mkP "log" log (braced p)
+sqrtP p  = mkP "sqrt" sqrt (braced p)
 powerP p = binOpP (**) (string "**") (braced p)
-sinP p = mkP "sin" sin (braced p)
-tanP p = mkP "tan" tan (braced p)
-cosP p = mkP "cos" cos (braced p)
-asinP p = mkP "asin" asin (braced p)
-atanP p = mkP "atan" atan (braced p)
-acosP p = mkP "acos" acos (braced p)
-sinhP p = mkP "sinh" sinh (braced p)
-tanhP p = mkP "tanh" tanh (braced p)
-coshP p = mkP "cosh" cosh (braced p)
+sinP p   = mkP "sin" sin (braced p)
+tanP p   = mkP "tan" tan (braced p)
+cosP p   = mkP "cos" cos (braced p)
+asinP p  = mkP "asin" asin (braced p)
+atanP p  = mkP "atan" atan (braced p)
+acosP p  = mkP "acos" acos (braced p)
+sinhP p  = mkP "sinh" sinh (braced p)
+tanhP p  = mkP "tanh" tanh (braced p)
+coshP p  = mkP "cosh" cosh (braced p)
 asinhP p = mkP "asinh" asinh (braced p)
 atanhP p = mkP "atanh" atanh (braced p)
 acoshP p = mkP "acosh" acosh (braced p)
@@ -200,28 +193,28 @@ acoshP p = mkP "acosh" acosh (braced p)
 ------------------------------------------------------------------------------
 -- Unary
 
-ampDbP p = mkP "ampDb" ampDb (braced p)
-asFloatP p = mkP "asFloat" asFloat (braced p)
-asIntP p = mkP "asInt" asInt (braced p)
-bitNotP p = mkP "bitNot" bitNot (braced p)
-cpsMIDIP p = mkP "cpsMIDI" cpsMIDI (braced p)
-cpsOctP p = mkP "cpsOct" cpsOct (braced p)
-cubedP p = mkP "cubed" cubed (braced p)
-dbAmpP p = mkP "dbAmp" dbAmp (braced p)
-distortP p = mkP "distort" distort (braced p)
-fracP p = mkP "frac" frac (braced p)
-isNilP p = mkP "isNil" isNil (braced p)
-log10P p = mkP "log10" log10 (braced p)
-log2P p = mkP "log2" log2 (braced p)
-midiCPSP p = mkP "midiCPS" midiCPS (braced p)
+ampDbP p     = mkP "ampDb" ampDb (braced p)
+asFloatP p   = mkP "asFloat" asFloat (braced p)
+asIntP p     = mkP "asInt" asInt (braced p)
+bitNotP p    = mkP "bitNot" bitNot (braced p)
+cpsMIDIP p   = mkP "cpsMIDI" cpsMIDI (braced p)
+cpsOctP p    = mkP "cpsOct" cpsOct (braced p)
+cubedP p     = mkP "cubed" cubed (braced p)
+dbAmpP p     = mkP "dbAmp" dbAmp (braced p)
+distortP p   = mkP "distort" distort (braced p)
+fracP p      = mkP "frac" frac (braced p)
+isNilP p     = mkP "isNil" isNil (braced p)
+log10P p     = mkP "log10" log10 (braced p)
+log2P p      = mkP "log2" log2 (braced p)
+midiCPSP p   = mkP "midiCPS" midiCPS (braced p)
 midiRatioP p = mkP "midiRatio" midiRatio (braced p)
-notEP p = mkP "notE" notE (braced p)
-notNilP p = mkP "notNil" notNil (braced p)
-octCPSP p = mkP "octCPS" octCPS (braced p)
-ramp_P p = mkP "ramp_" ramp_ (braced p)
+notEP p      = mkP "notE" notE (braced p)
+notNilP p    = mkP "notNil" notNil (braced p)
+octCPSP p    = mkP "octCPS" octCPS (braced p)
+ramp_P p     = mkP "ramp_" ramp_ (braced p)
 ratioMIDIP p = mkP "ratioMIDIP" ratioMIDI (braced p)
-softClipP p = mkP "softClip" softClip (braced p)
-squaredP p = mkP "squared" squared (braced p)
+softClipP p  = mkP "softClip" softClip (braced p)
+squaredP p   = mkP "squared" squared (braced p)
 
 ------------------------------------------------------------------------------
 -- Utils
@@ -301,12 +294,3 @@ instance Floating Number where
   acosh (I a) = D (acosh $ fromIntegral a)
 
 instance UnaryOp Number
-
-------------------------------------------------------------------------------
--- Can Parser be instance of pattern classes?
-
-instance P.Pval Parser where
-  pval a = string "pval " *> pure a
-
-instance P.Pconcat Parser where
-  pconcat ps = string "pconcat " *> choice ps

@@ -44,7 +44,8 @@ instance Show a => Show (S a) where
   show = showP
 
 instance Typeable1 S where
-  typeOf1 _ = mkTyConApp (mkTyCon "Sound.SC3.Lepton.Pattern.S") []
+  typeOf1 _ =
+    mkTyConApp (mkTyCon "Sound.SC3.Lepton.Pattern.Interpreter.S.S") []
 
 -- | Plain numbers would be shown as pval.
 instance (Num a) => Num (S a) where

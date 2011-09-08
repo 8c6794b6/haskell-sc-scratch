@@ -33,6 +33,13 @@ test-suite main-tests
   main-is:
     tests.hs
 
+executable leptseq
+  ghc-options:
+    -O2 -threaded -rtsopts
+    -Wall -fno-warn-unused-do-bind -fno-warn-orphans
+  main-is:
+     leptseq.hs
+
 library
   ghc-options:
     -Wall

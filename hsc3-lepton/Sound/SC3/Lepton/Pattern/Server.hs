@@ -30,52 +30,39 @@ import Sound.OpenSoundControl
 import Sound.SC3 hiding (Binary)
 import System.Console.CmdArgs (cmdArgs)
 
-import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.Map as M
 
 import Sound.SC3.Lepton.Pattern
--- import Scratch.ParseP (parsePattern)
+import Sound.SC3.Lepton.Pattern.ParseP
 
 ------------------------------------------------------------------------------
--- Command line wrapper
+-- Command line wrapper utils
 
-main :: IO ()
-main = bracket acquire release runServer where
-  acquire = do
-    opt <- cmdArgs defaultArg
-    mkInitEnv opt
-  release mvar =
-    F.mapM_ (F.mapM_ killThread . getThreadId) . envThreads =<< readMVar mvar
+shutdownServer :: MVar Env -> IO ()
+shutdownServer mvar =
+  F.mapM_ (F.mapM_ killThread . getThreadId) . envThreads =<< readMVar mvar
 
-data Lepton = Lepton
+data LeptSeq = LeptSeq
   { port :: Int
   , sc :: (String,Int,Protocol)
   } deriving (Eq,Show,Data,Typeable)
 
-defaultArg :: Lepton
-defaultArg = Lepton 58110 ("127.0.0.1",57110,Udp)
+defaultArg :: LeptSeq
+defaultArg = LeptSeq 58110 ("127.0.0.1",57110,Udp)
 
 serveTest :: IO ()
 serveTest = bracket acquire release runServer where
   acquire = mkInitEnv defaultArg
-  release mvar =
-    F.mapM_ (F.mapM_ killThread . getThreadId) . envThreads =<< readMVar mvar
+  release = shutdownServer
 
 -- | Make initial env from command line argument.
-mkInitEnv :: Lepton -> IO (MVar Env)
+mkInitEnv :: LeptSeq -> IO (MVar Env)
 mkInitEnv lep = do
   let (h,p,ptc) = sc lep
   newMVar $ Env M.empty (ConInfo h p ptc) undefined (port lep)
-
-{-
-TODO:
-
-* Add pause, resume command.
-
--}
 
 ------------------------------------------------------------------------------
 -- Types
@@ -189,8 +176,8 @@ runLNew time key pat = withEnv $ \env ->
   case M.lookup key (envThreads env) of
     Just _  -> liftIO $ putStrLn $ "thread exists: " ++ key
     Nothing -> do
-      case toR <$> fromExpr (decode pat) of
-      -- case toR <$> parsePattern pat of
+      -- case toR <$> fromExpr (decode pat) of
+      case toR <$> parseP pat of
         Right pat' -> forkNewThread time key pat'
         Left err   -> liftIO $ putStrLn err
 
