@@ -12,7 +12,12 @@ Portability : non-portable
 Syntax of patterns for serialization and deserialization.
 
 -}
-module Sound.SC3.Lepton.Pattern.Interpreter.Syntax where
+module Sound.SC3.Lepton.Pattern.Interpreter.Syntax
+  ( Expr(..)
+  , toExpr
+  , fromExpr
+  , prettyP
+  ) where
 
 import Control.Applicative
 import Data.Data
@@ -247,7 +252,7 @@ fromFile path = (\x -> Srl.decode x >>= fromExpr) <$> B.readFile path
 -- XXX: Dummy instances.
 --
 -- Functions are unused but type signatures are used.
--- When recursion for value patterns, int patterns, and ToOSC patterns could be
+-- When recursion for value patterns, Int patterns, and ToOSC patterns could be
 -- isolated, these dummy instance definitions could be removed.
 --
 

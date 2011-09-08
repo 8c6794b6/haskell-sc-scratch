@@ -15,7 +15,7 @@ Writing server with using hosc package. Communication between client would
 be done with sending and receiving OSC command, instead of raw ByteString.
 
 -}
-module Scratch.Server where
+module Sound.SC3.Lepton.Pattern.Server where
 
 import Control.Applicative
 import Control.Concurrent
@@ -36,9 +36,8 @@ import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.Map as M
 
--- import Sound.SC3.Lepton hiding (ThreadStatus(..))
 import Sound.SC3.Lepton.Pattern
-import Scratch.ParseP (parsePattern)
+-- import Scratch.ParseP (parsePattern)
 
 ------------------------------------------------------------------------------
 -- Command line wrapper
@@ -164,14 +163,13 @@ work = do
 
 -- | Send message with or without bundled time, and update Env.
 --
--- When the server received @/l_new@ message, a new ThreadId will be
--- added. On receiving @/l_free@ and @/l_freeAll@, ThreadId of given
+-- When the server received `/l_new` message, a new ThreadId will be
+-- added. On receiving `/l_free` and `/l_freeAll`, ThreadId of given
 -- key will be deleted.
 --
 -- Timestamp in nested bundle will be ignored, outermost bundle time will
 -- be used in whole message.
 --
--- XXX: Handle 'immediately' timestamped bundle.
 sendMessage :: Maybe Time -> OSC -> ServerLoop ()
 sendMessage time m = case m of
   Bundle _ ms -> mapM_ (sendMessage time) ms
@@ -191,8 +189,8 @@ runLNew time key pat = withEnv $ \env ->
   case M.lookup key (envThreads env) of
     Just _  -> liftIO $ putStrLn $ "thread exists: " ++ key
     Nothing -> do
-      -- case toR <$> fromExpr (decode pat) of
-      case toR <$> parsePattern pat of
+      case toR <$> fromExpr (decode pat) of
+      -- case toR <$> parsePattern pat of
         Right pat' -> forkNewThread time key pat'
         Left err   -> liftIO $ putStrLn err
 

@@ -51,12 +51,16 @@ library
     Sound.SC3.Lepton.Parser.Datum
     Sound.SC3.Lepton.Parser.SynthDef
     Sound.SC3.Lepton.Pattern
+    Sound.SC3.Lepton.Pattern.Client
     Sound.SC3.Lepton.Pattern.Expression
     Sound.SC3.Lepton.Pattern.Interpreter
+    Sound.SC3.Lepton.Pattern.Interpreter.Bz
     Sound.SC3.Lepton.Pattern.Interpreter.R
     Sound.SC3.Lepton.Pattern.Interpreter.S
     Sound.SC3.Lepton.Pattern.Interpreter.Syntax
+    Sound.SC3.Lepton.Pattern.ParseP
     Sound.SC3.Lepton.Pattern.Play
+    Sound.SC3.Lepton.Pattern.Server
     Sound.SC3.Lepton.Pattern.ToOSC
     Sound.SC3.Lepton.QuickCheck
     Sound.SC3.Lepton.Tree
@@ -75,7 +79,9 @@ library
     base == 4.*,
     binary,
     bytestring,
+    blaze-builder,
     cereal,
+    cmdargs,
     containers,
     filepath,
     gdiff >= 1.0,

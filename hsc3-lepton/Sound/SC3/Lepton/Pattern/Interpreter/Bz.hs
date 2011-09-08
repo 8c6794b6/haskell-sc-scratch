@@ -11,8 +11,8 @@ Portability : non-portable
 'Bz' for ByteString encoded patterns using Blaze builder.
 
 -}
-module Scratch.Bz 
-  ( Bz(..)     
+module Sound.SC3.Lepton.Pattern.Interpreter.Bz
+  ( Bz(..)
   , toBz
   , byteStringP
   , lazyByteStringP
@@ -57,40 +57,50 @@ lazyByteStringP = toLazyByteString . unBz
 
 (<>) :: Monoid a => a -> a -> a
 a <> b = a `mappend` b
+{-# INLINE <> #-}
 
 mkOp :: Builder -> Builder -> Builder -> Bz s
 mkOp op a b =
   Bz $ fromChar '(' <> a <> fromString ") " <>
   op <>
   fromString " (" <> b <> fromChar ')'
+{-# INLINE mkOp #-}
 
 mkUnary :: Builder -> Builder -> Bz s
 mkUnary op a = Bz $ op <> fromString " (" <> a <> fromChar ')'
+{-# INLINE mkUnary #-}
 
 mkPval :: Show a => a -> Bz s
 mkPval a = Bz $ fromString "pval " <> fromString (show a)
+{-# INLINE mkPval #-}
 
 mkList :: forall a. Show a => (a -> Builder) -> [a] -> Builder
 mkList _ []     = fromString "[]"
 mkList f (x:xs) = fromChar '[' <> f x <> go xs where
   go []     = fromChar ']'
   go (y:ys) = fromChar ',' <> f y <> go ys
+{-# INLINE mkList #-}
 
 braced :: Builder -> Builder
 braced a = fromChar '(' <> a <> fromChar ')'
+{-# INLINE braced #-}
 
 space :: Builder
 space = fromChar ' '
+{-# INLINE space #-}
 
 showFloating :: (Show a, Show b) => String -> Bz a -> Bz b
 showFloating f x = Bz (fromString f <> space <> braced (unBz x))
+{-# INLINE showFloating #-}
 
 mkParams :: Show t => [(String, Bz t)] -> Builder
 mkParams = mkList f where
   f (k,Bz v) = braced (doubleQuote (fromString k) <> fromChar ',' <> v)
+{-# INLINE mkParams #-}
 
 doubleQuote :: Builder -> Builder
 doubleQuote a = fromChar '"' <> a <> fromChar '"'
+{-# INLINE doubleQuote #-}
 
 ------------------------------------------------------------------------------
 -- Base classes
@@ -151,8 +161,6 @@ instance Floating a => Floating (Bz a) where
   asinh = showFloating "asinh"
   atanh = showFloating "atanh"
   acosh = showFloating "acosh"
-
--- showFloating :: Show a => String -> a -> Bz s
 
 instance UnaryOp a => UnaryOp (Bz a) where
   ampDb = showFloating "ampDb"

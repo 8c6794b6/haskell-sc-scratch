@@ -7,15 +7,16 @@ License     : BSD3
 Stability   : unstable
 Portability : non-portable (OverloadedStrings)
 
-Parsing patterns encoded in ByteString with S.
+Parsing patterns encoded in ByteString with Bz.
 
 -}
-module Scratch.ParseP
+module Sound.SC3.Lepton.Pattern.ParseP
   ( parsePattern
   ) where
 
 import Control.Applicative
 import Data.ByteString (ByteString)
+import Data.Function (fix)
 import Prelude hiding (takeWhile)
 import System.Random
 
@@ -253,9 +254,9 @@ n2double n = case n of
 -- Instance definitions for Number
 
 instance Random Number where
-  random g = let (n,g') = random g in (D n, g')
-  randomR ((I lo),(I hi)) g = let (n,g') = randomR (lo, hi) g in (I n,g')
-  randomR ((D lo),(D hi)) g = let (n,g') = randomR (lo, hi) g in (D n,g')
+  random g = case random g of (n, g') -> (D n,g')
+  randomR (I lo, I hi) g = case randomR (lo, hi) g of (n,g') -> (I n, g')
+  randomR (D lo, D hi) g = case randomR (lo, hi) g of (n,g') -> (D n, g')
   randomR _ _ = error "Number with mismatched constructor in randomR"
 
 instance Floating Number where

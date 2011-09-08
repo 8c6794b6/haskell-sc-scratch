@@ -9,9 +9,10 @@ Portability : non-portable
 
 Sample patterns.
 -}
-module Sound.SC3.Lepton.Scratch.SampleData where
+module Scratch.SampleData where
 
 import Control.Monad
+import Data.Function (fix)
 import System.Random
 import System.FilePath
 
