@@ -38,11 +38,13 @@ import Sound.SC3.Lepton.Pattern.ToOSC
 --
 -- Text representation could be converted to ByteString.
 --
-newtype Bz s = Bz {unBz :: Show s => forall s. Builder}
+newtype Bz s = Bz {unBz :: Show s => Builder}
 
 instance Typeable1 Bz where
   typeOf1 _ =
     mkTyConApp (mkTyCon "Sound.SC3.Lepton.Pattern.Interpreter.Bz.Bz") []
+instance Typeable a => Typeable (Bz a) where
+  typeOf = typeOfDefault
 
 -- | Alias of 'id' to fix type signature.
 toBz :: Bz s -> Bz s
@@ -120,10 +122,10 @@ instance Show a => Ord (Bz a) where
   compare _ _ = EQ
 
 instance Functor Bz where
-  fmap _ _ = error "Functor not supported for Bz"
+  fmap _ (Bz z) = Bz (fromString "<Functor>")
 
 instance Applicative Bz where
-  pure    = prepeat
+  pure a  = Bz $ fromString "prepeat " <> fromString (show a)
   _ <*> _ = error "<*> not supported for Bz"
 
 instance (Show a, Enum a) => Enum (Bz a) where

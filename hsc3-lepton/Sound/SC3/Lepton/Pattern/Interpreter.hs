@@ -20,6 +20,9 @@ module Sound.SC3.Lepton.Pattern.Interpreter
     -- * Showing patterns
     S(..), toS, showP,
 
+    -- * ByteString builder and parser
+    Bz(..), toBz, byteStringP, lazyByteStringP, parseP,
+
     -- * Syntax representation of patterns
     Expr(..), toExpr, fromExpr, prettyP
 
@@ -27,6 +30,8 @@ module Sound.SC3.Lepton.Pattern.Interpreter
 
 -- import Sound.SC3.Lepton.Pattern.Expression
 -- import Sound.SC3.Lepton.Pattern.Interpreter.Fusion
+import Sound.SC3.Lepton.Pattern.ParseP
+import Sound.SC3.Lepton.Pattern.Interpreter.Bz
 import Sound.SC3.Lepton.Pattern.Interpreter.R
 import Sound.SC3.Lepton.Pattern.Interpreter.S
 import Sound.SC3.Lepton.Pattern.Interpreter.Syntax

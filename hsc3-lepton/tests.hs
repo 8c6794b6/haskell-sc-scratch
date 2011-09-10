@@ -21,9 +21,11 @@ import qualified Test.Sound.SC3.Lepton.Tree.Diff as TD
 import qualified Test.Sound.SC3.Lepton.Tree.Tree as TT
 import qualified Test.Sound.SC3.Lepton.Tree.Zipper as TZ
 import qualified Test.Sound.SC3.Lepton.UGen.Demand as UD
+import qualified Test.Sound.SC3.Lepton.Pattern as PT
 
 main :: IO ()
 main = do
-  results <- mapM (quickCheckWithResult stdArgs {maxSize=25})
-    $ P.tests ++ TT.tests ++ I.tests ++ TZ.tests ++ TD.tests ++ UD.tests
+  results <- mapM (quickCheckWithResult stdArgs {maxSize=25}) $ concat
+    [ P.tests, TT.tests, I.tests, TZ.tests , TD.tests
+    , UD.tests, PT.tests]
   if any (not . isSuccess) results then exitFailure else exitSuccess

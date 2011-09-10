@@ -33,6 +33,7 @@ module Sound.SC3.Lepton.Pattern
   ) where
 
 import Sound.SC3.Lepton.Pattern.Expression as All
+import Sound.SC3.Lepton.Pattern.Client as All
 import Sound.SC3.Lepton.Pattern.Interpreter as All
 import Sound.SC3.Lepton.Pattern.Play as All
 import Sound.SC3.Lepton.Pattern.ToOSC as All

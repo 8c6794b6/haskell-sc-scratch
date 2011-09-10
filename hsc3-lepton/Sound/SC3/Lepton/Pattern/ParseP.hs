@@ -9,6 +9,10 @@ Portability : non-portable (OverloadedStrings)
 
 Parsing patterns encoded in ByteString with Bz.
 
+'parseP' function parses lazy bytestring made with 'lazyByteStringP'
+from 'Bz'.  Parsed result could be used as any concrete type which
+implements all shown classes.
+
 -}
 module Sound.SC3.Lepton.Pattern.ParseP ( parseP ) where
 
@@ -27,20 +31,7 @@ import qualified Data.ByteString.Char8 as C8
 import qualified Data.ByteString.Lazy.Char8 as LC8
 import qualified Data.Map as M
 
-import Sound.SC3.Lepton.Pattern.Play
-import Sound.SC3.Lepton.Pattern.Interpreter.Syntax
-import Sound.SC3.Lepton.Pattern.Interpreter.R
-import Sound.SC3.Lepton.Pattern.Interpreter.S
-import Sound.SC3.Lepton.Pattern.ToOSC
-
 import qualified Sound.SC3.Lepton.Pattern.Expression as P
-
-runPattern bs = case parseP bs of
-  Right r  -> audition $ toR r
-  Left err -> putStrLn err
-
-runPatternFile :: FilePath -> IO ()
-runPatternFile path = runPattern =<< LC8.readFile path
 
 parseP = eitherResult . parse rPatterns
 
@@ -71,8 +62,7 @@ nPatterns' f = choice
   , prange f, pchoose intP f
   , prand intP f, pshuffle f
     -- Num
-  , addP f, mulP f, minusP f
-  , negateP f, absP f, signumP f
+  , addP f, mulP f, minusP f, negateP f, absP f, signumP f
     -- Fractional
   , divP f
     -- Floating
@@ -132,6 +122,8 @@ psnew = do
 
 pnset = mkP2 "Nset" P.pnset targetId paramList
 
+-- XXX:
+-- This function is making the result type to be an instance of Functor.
 paramList = listOf (braced pair) where
   pair = (,) <$> name <*> (char ',' *> (fmap n2double <$> nPatterns))
 

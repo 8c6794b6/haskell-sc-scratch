@@ -51,14 +51,14 @@ class Pempty p where
 
 -- | Lifts given value to pattern.
 class Pval p where
-  pval :: a -> p a
+  pval :: Show a => a -> p a
 
 class Prepeat p where
-  prepeat :: a -> p a
+  prepeat :: Show a => a -> p a
 
 -- | Make pattern from list.
 class Plist p where
-  plist :: [a] -> p a
+  plist :: Show a => [a] -> p a
 
 -- | Make pattern from list of patterns.
 class Pconcat p where
