@@ -24,7 +24,6 @@ import Data.Monoid
 
 import Blaze.ByteString.Builder
 import Blaze.ByteString.Builder.Char8
-import Data.List.Stream (foldl')
 import Sound.SC3
 
 import qualified Data.ByteString as B
@@ -33,6 +32,8 @@ import qualified Data.ByteString.Lazy as BL
 
 import Sound.SC3.Lepton.Pattern.Expression
 import Sound.SC3.Lepton.Pattern.ToOSC
+
+default (Integer,Double)
 
 -- | Blaze builder wrapper for patterns.
 --
@@ -122,7 +123,7 @@ instance Show a => Ord (Bz a) where
   compare _ _ = EQ
 
 instance Functor Bz where
-  fmap _ (Bz z) = Bz (fromString "<Functor>")
+  fmap _ (Bz _) = Bz (fromString "<Functor>")
 
 instance Applicative Bz where
   pure a  = Bz $ fromString "prepeat " <> fromString (show a)
@@ -131,7 +132,7 @@ instance Applicative Bz where
 instance (Show a, Enum a) => Enum (Bz a) where
   pred (Bz a) = mkUnary (fromString "pred") a
   succ (Bz a) = mkUnary (fromString "succ") a
-  fromEnum n = error "Bz does not support fromEnum"
+  fromEnum _ = error "Bz does not support fromEnum"
   toEnum n = mkPval n
 
 ------------------------------------------------------------------------------
@@ -148,7 +149,8 @@ instance Num a => Num (Bz a) where
 
 instance Fractional a => Fractional (Bz a) where
   Bz a / Bz b = mkOp (fromChar '/') a b
-  fromRational a = Bz $ fromString "pval " <> fromString (show $ fromRational a)
+  fromRational a =
+    Bz $ fromString "pval " <> fromString (show (fromRational a :: Double))
 
 instance Floating a => Floating (Bz a) where
   pi = Bz $ fromString "pi"

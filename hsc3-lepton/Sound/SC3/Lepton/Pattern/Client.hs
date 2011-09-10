@@ -13,17 +13,11 @@ module Sound.SC3.Lepton.Pattern.Client where
 
 import Data.Fixed
 
-import Data.Binary (decode, encode)
+import Data.Binary (encode)
 import Sound.OpenSoundControl
-import Sound.SC3
+
 import Sound.SC3.Lepton.Pattern.ToOSC
-import Sound.SC3.Lepton.Pattern.Interpreter.Bz
 import Sound.SC3.Lepton.Pattern.Interpreter.Expr
-
-import qualified Data.ByteString.Lazy.Char8 as LC8
-
-
--- import Scratch.Bz (lazyByteStringP)
 
 ------------------------------------------------------------------------------
 -- Client side message sending utility
@@ -46,7 +40,7 @@ bundle' unit dt oscs
   | unit <= 0 = (\t -> bundle (UTCr $ t+dt) oscs) `fmap` utcr
   | otherwise = do
     now <- utcr
-    let q = now `div'` unit
+    let q = now `div'` unit :: Int
         t = (fromIntegral (succ q) * unit) + dt
     return $ bundle (UTCr t) oscs
 
@@ -56,6 +50,7 @@ bundle' unit dt oscs
 -- | Add new pattern and run it.
 l_new :: String -> Expr (ToOSC Double) -> OSC
 l_new key pat = Message "/l_new" [String key,Blob (encode pat)]
+
 -- l_new key pat = Message "/l_new" [String key, Blob (lazyByteStringP pat)]
 -- l_new key pat = Message "/l_new" [String key, Blob pat'] where
 --   pat' = case fromExpr pat of
@@ -90,6 +85,9 @@ l_run :: String -> OSC
 l_run key = Message "/l_run" [String key]
 
 -- | Add new pattern, but not start it.
+l_add :: String -> Expr (ToOSC Double) -> OSC
+l_add key pat = Message "/l_add" [String key, Blob (encode pat)]
+
 -- l_add :: String -> Expr (ToOSC Double) -> OSC
 -- l_add key pat = Message "/l_add" [String key, Blob (encode pat)]
-l_add key pat = Message "/l_add" [String key, Blob (lazyByteStringP pat)]
+

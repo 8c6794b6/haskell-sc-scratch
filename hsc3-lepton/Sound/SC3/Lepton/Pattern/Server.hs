@@ -27,8 +27,7 @@ import Data.Ord (comparing)
 
 import Data.Binary (Binary, decode)
 import Sound.OpenSoundControl
-import Sound.SC3 hiding (Binary)
-import System.Console.CmdArgs (cmdArgs)
+import Sound.SC3 hiding (Binary, env)
 
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Foldable as F
@@ -36,7 +35,8 @@ import qualified Data.List as L
 import qualified Data.Map as M
 
 import Sound.SC3.Lepton.Pattern
-import Sound.SC3.Lepton.Pattern.ParseP
+
+default (Integer, Double)
 
 ------------------------------------------------------------------------------
 -- Command line wrapper utils
@@ -132,7 +132,7 @@ runServer :: MVar Env -> IO ()
 runServer env = do
   env' <- readMVar env
   withTransport (udpServer "127.0.0.1" (envPort env')) $ \fd -> do
-    modifyMVar_ env $ \env' -> return $ env' {envLept=UDPCon fd}
+    modifyMVar_ env $ \env'' -> return $ env'' {envLept=UDPCon fd}
     runReaderT (unServerLoop $ forever work) env
 
 -- | Guts of server.
@@ -166,7 +166,7 @@ sendMessage time m = case m of
   Message "/l_dump" []                    -> runLDump time
   Message "/l_add" [String key, Blob pat] -> runLAdd time key pat
   Message "/l_run" [String key]           -> runLRun time key
-  Message "/l_pause"  [String key]        -> return ()
+  Message "/l_pause"  [String _]          -> return ()
   _ -> do
     st <- liftIO . readMVar =<< ask
     liftIO $ withTransport (fromConInfo (envSC st)) (flip send m)
@@ -183,10 +183,10 @@ runLNew time key pat = withEnv $ \env ->
 
 decode' :: Binary a => BL.ByteString -> IO (Either String a)
 decode' a = handle h (return $ decode a) where
-  h = \(e :: SomeException) -> return $ Left "error in decode"
+  h = \(_ :: SomeException) -> return $ Left "error in decode"
 
 runLAdd :: Maybe Time -> String -> BL.ByteString -> ServerLoop ()
-runLAdd time key pat = case fromExpr (decode pat) of
+runLAdd _ key pat = case fromExpr (decode pat) of
   Right pat' -> modifyEnv $ \env -> do
     let t = Thread New pat'
     return $ env {envThreads=M.insert key t (envThreads env)}
@@ -197,11 +197,12 @@ runLRun time key = withEnv $ \env ->
   case M.lookup key (envThreads env) of
     Just (Thread New pat)        -> forkNewThread time key pat
     Just (Thread Finished pat)   -> forkNewThread time key pat
-    Just (Thread (Paused tid) _) -> return ()
+    Just (Thread (Paused _) _)   -> return ()
     _                            -> return ()
 
+-- | XXX: /Not implemented yet/.
 runLPause :: Maybe Time -> String -> ServerLoop ()
-runLPause time key = undefined
+runLPause _ _ = undefined
 
 forkNewThread :: Maybe Time -> String -> R (ToOSC Double) -> ServerLoop ()
 forkNewThread time key pat = do
@@ -216,9 +217,9 @@ forkNewThread time key pat = do
             trid <- newNid
             return (time',trid,fd))
         (\(_,trid,fd') -> do
-            let f (Thread _ pat) = Thread Finished pat
-            modifyMVar_ mvar $ \env -> do
-              return $ env {envThreads=M.adjust f key (envThreads env)}
+            let f (Thread _ p) = Thread Finished p
+            modifyMVar_ mvar $ \env' -> do
+              return $ env' {envThreads=M.adjust f key (envThreads env')}
             send fd' $ bundle immediately [notify False, n_free [trid]])
         (\(time',trid,fd') -> runMsgFrom time' pat trid fd')
     let t = Thread (Running tid) pat
@@ -268,7 +269,8 @@ withEnv_ k = withEnv (\e -> k e >> return ())
 maybePause :: Maybe Time -> IO ()
 maybePause = F.mapM_ $ \time -> do
   dt <- (as_utcr time -) <$> utcr
-  when (dt > 0) $ threadDelay (ceiling $ dt*10^6)
+  let (q,_) = properFraction (dt * 1e6)
+  when (dt > 0) $ threadDelay q
 
 -- | Show thread, used in dumped message.
 showThread :: Thread -> String

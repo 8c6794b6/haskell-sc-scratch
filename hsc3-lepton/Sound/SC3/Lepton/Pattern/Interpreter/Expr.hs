@@ -3,6 +3,8 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE TupleSections #-}
 {-# OPTIONS_GHC -fno-warn-missing-methods #-}
+{-# OPTIONS_GHC -fno-warn-missing-signatures #-}
+
 {-|
 Module      : $Header$
 CopyRight   : (c) 8c6794b6
@@ -24,7 +26,6 @@ module Sound.SC3.Lepton.Pattern.Interpreter.Expr
 import Control.Applicative
 import Data.Data
 import Data.Function (fix)
-import Data.Either
 import Data.Word
 import System.Random
 import Text.PrettyPrint
@@ -34,9 +35,7 @@ import Sound.SC3
 import Sound.SC3.Lepton.Pattern.Expression
 import Sound.SC3.Lepton.Pattern.ToOSC
 
-import qualified Data.ByteString as B
 import qualified Data.Binary as Bin
-import qualified Data.Map as M
 import qualified Data.Serialize as Srl
 
 -- | Pattern syntax tree.
@@ -51,7 +50,7 @@ instance Functor Expr where
   fmap f (Leaf s) = Leaf (f s)
   fmap f (Node x ns) = Node x (map (fmap f) ns)
   fmap f (NodeI x n ns) = NodeI x n (map (fmap f) ns)
-  fmap f (NodeO m ps) = NodeO m ps
+  fmap _ (NodeO m ps) = NodeO m ps
 
 instance Srl.Serialize s => Srl.Serialize (Expr s) where
   {-# INLINE put #-}
@@ -117,16 +116,20 @@ prettyP e = case e of
 -- | For tying two arguments function.
 fix2 :: (a -> b -> a) -> b -> a
 fix2 f g = f (fix2 f g) g
+{-# INLINE fix2 #-}
 
 -- | For tying three arguments function.
 fix3 :: (a -> b -> c -> a) -> b -> c -> a
 fix3 f g h = f (fix3 f g h) g h
+{-# INLINE fix3 #-}
 
 -- Using fix2 here, to isolate the recursion of Int from the other.
 fromExpr' = fix2 fromExprI (fix (fix2 fromExprI))
+{-# INLINE fromExpr' #-}
 
 -- Using fix2 and fix3, to isolate recursion of ('ToOSC' 'Double').
 fromExpr = fix3 fromExprO fromExpr' fromExpr'
+{-# INLINE fromExpr #-}
 
 {-
 
@@ -142,6 +145,7 @@ fromExprO f fi fo e = case e of
   _                       -> fromExprI f fi e
   where
     fo' = sequence . map (\(k,p) -> (k,) <$> fo p)
+{-# INLINE fromExprO #-}
 
 {-
 
@@ -163,6 +167,7 @@ fromExprI f f' e = case e of
   NodeI "preplicate" n [p] -> preplicate <$> (f' n) <*> f p
   NodeI "pchoose" n ps     -> prand <$> (f' n) <*> (sequence $ map f ps)
   _                        -> fromExprE f e
+{-# INLINE fromExprI #-}
 
 {-
 
@@ -196,6 +201,7 @@ fromExprE f e = case e of
   Node "prandom" []       -> pure prandom
   Node "pshuffle" ps      -> pshuffle <$> (sequence $ map f ps)
   _                       -> fromExprNum f e
+{-# INLINE fromExprE #-}
 
 fromExprNum f e = case e of
   Node "+" [a,b]    -> (+) <$> f a <*> f b
@@ -205,11 +211,13 @@ fromExprNum f e = case e of
   Node "abs" [a]    -> abs <$> f a
   Node "signum" [a] -> signum <$> f a
   _                 -> fromExprFractional f e
+{-# INLINE fromExprNum #-}
 
 fromExprFractional f e = case e of
   Node "/" [a,b]   -> (/) <$> f a <*> f b
   Node "recip" [a] -> recip <$> f a
   _                -> fromExprFloating f e
+{-# INLINE fromExprFractional #-}
 
 fromExprFloating f e = case e of
   Node "pi" []         -> pure (pi)
@@ -224,10 +232,12 @@ fromExprFloating f e = case e of
       [("exp",exp),("sqrt",sqrt),("log",log),("sin",sin),("tan",tan)
       ,("cos",cos),("asin",asin),("acos",acos),("sinh",sinh),("tanh",tanh)
       ,("cosh",cosh),("asinh",asinh),("atanh",atanh),("acosh",acosh)]
+{-# INLINE fromExprFloating #-}
 
 fromExprUnary self e = case e of
   Node func [a] -> case lookup func funcs of
     Just func'  -> func' <$> self a
+    Nothing     -> Left ("Unknown expression" :: String)
   _             -> Left ("Unknown expression" :: String)
   where
     funcs =
@@ -239,6 +249,7 @@ fromExprUnary self e = case e of
       ,("notE",notE),("notNil",notNil),("octCPS",octCPS)
       ,("ramp_",ramp_),("ratioMIDI",ratioMIDI),("softClip",softClip)
       ,("squared",squared)]
+{-# INLINE fromExprUnary #-}
 
 ------------------------------------------------------------------------------
 -- Numeric classes

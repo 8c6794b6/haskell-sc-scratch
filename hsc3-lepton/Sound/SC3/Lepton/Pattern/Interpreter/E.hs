@@ -1,6 +1,7 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE TupleSections #-}
+{-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 {-|
 Module      : $Header$
 CopyRight   : (c) 8c6794b6
@@ -16,7 +17,7 @@ module Sound.SC3.Lepton.Pattern.Interpreter.E where
 
 import Control.Applicative
 import Data.Data
-import Data.Either
+import Data.Function (fix)
 import System.Random
 
 import Sound.SC3
@@ -36,7 +37,7 @@ instance Bin.Binary (E a) where
   put e = case e of
     Leaf x       -> Bin.putWord8 0 >> Bin.put x
     Node n es    -> Bin.putWord8 1 >> Bin.put n >> Bin.put es
-    NodeI n e es -> Bin.putWord8 2 >> Bin.put n >> Bin.put e >> Bin.put es
+    NodeI n p ps -> Bin.putWord8 2 >> Bin.put n >> Bin.put p >> Bin.put ps
     NodeO m ps   -> Bin.putWord8 3 >> Bin.put m >> Bin.put ps
   get = do
     idx <- Bin.getWord8
@@ -59,9 +60,13 @@ safeRead x = case reads x of
   [(y,[])] -> Right y
   _        -> Left $ "safeRead: failed reading '" ++ x ++ "'"
 
-fix f = f (fix f)
+fix2 :: (a -> b -> a) -> b -> a
 fix2 f g = f (fix2 f g) g
+
+fix3 :: (a -> b -> c -> a) -> b -> c -> a
 fix3 f g h = f (fix3 f g h) g h
+
+fix3' :: (a -> b -> c -> a) -> (c -> b) -> c -> a
 fix3' f g h = f (fix3' f g h) (g h) h
 
 -- f' = fix3 fromE' (fix (fix2 (fix3 fromE'))) id
@@ -70,6 +75,7 @@ fix3' f g h = f (fix3' f g h) (g h) h
 -- fromEb = fix (fix3' fromE' (fix (fix3' fromE')))
 
 fI = fix2 fromNodeI (fix (fix2 fromNodeI))
+
 fII = fix2 fromNodeI (fix fromNodePattern)
 
 fromE = fix3 fromNodeO fI fI
@@ -191,10 +197,12 @@ instance Psnew E where psnew def nid aa tid ps = NodeO (Snew def nid aa tid) ps
 instance Pnset E where pnset tid ps = NodeO (Nset tid) ps
 
 instance Functor E where
-  fmap f (Leaf x) = Leaf x
+  fmap _ (Leaf x) = Leaf x
   fmap f (Node n es) = Node n (map (fmap f) es)
   fmap f (NodeI n e es) = NodeI n e (map (fmap f) es)
-  fmap f (NodeO m es) = NodeO m es
+  fmap _ (NodeO m es) = NodeO m es
+
+default (Integer, Double)
 
 instance Num (E a) where
   a + b = Node "+" [a,b]
@@ -203,12 +211,12 @@ instance Num (E a) where
   negate a = Node "negate" [a]
   abs a = Node "abs" [a]
   signum a = Node "signum" [a]
-  fromInteger a = Node "pval" [Leaf $ show (fromInteger a)]
+  fromInteger a = Node "pval" [Leaf $ show (fromInteger a :: Double)]
 
 instance Fractional (E a) where
   a / b = Node "/" [a,b]
   recip a = Node "recip" [a]
-  fromRational a = Node "pval" [Leaf $ show (fromRational a)]
+  fromRational a = Node "pval" [Leaf $ show (fromRational a :: Double)]
 
 instance Floating (E a) where
   pi = Node "pi" []

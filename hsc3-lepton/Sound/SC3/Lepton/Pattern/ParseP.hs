@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 {-|
 Module      : $Header$
 License     : BSD3
@@ -17,19 +18,15 @@ implements all shown classes.
 module Sound.SC3.Lepton.Pattern.ParseP ( parseP ) where
 
 import Control.Applicative
-import Data.ByteString (ByteString)
 import Data.Function (fix)
 import Prelude hiding (takeWhile)
 import System.Random
 
 import Data.Attoparsec.Lazy hiding (takeWhile)
 import Data.Attoparsec.Char8 hiding (Result(..), eitherResult, parse)
-import Data.Attoparsec.Combinator
 import Sound.SC3 hiding ((<*), osc)
 
 import qualified Data.ByteString.Char8 as C8
-import qualified Data.ByteString.Lazy.Char8 as LC8
-import qualified Data.Map as M
 
 import qualified Sound.SC3.Lepton.Pattern.Expression as P
 
@@ -70,9 +67,9 @@ nPatterns' f = choice
   , atanP f, acosP f, sinhP f, tanhP f, coshP f, asinhP f, atanhP f, acoshP f
     -- UnaryOp
   , ampDbP f, asFloatP f, asIntP f, bitNotP f, cpsMIDIP f, cpsOctP f, cubedP f
-  , dbAmpP f, distortP f, fracP f, log10P f, log2P f, midiCPSP f, midiRatioP f
-  , notEP f, notNilP f, octCPSP f, ramp_P f, ratioMIDIP f, softClipP f
-  , squaredP f
+  , dbAmpP f, distortP f, fracP f, isNilP f, log10P f, log2P f, midiCPSP f
+  , midiRatioP f, notEP f, notNilP f, octCPSP f, ramp_P f, ratioMIDIP f
+  , softClipP f, squaredP f
   ]
 
 ------------------------------------------------------------------------------
