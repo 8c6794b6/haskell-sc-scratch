@@ -1,5 +1,6 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE TupleSections #-}
 {-|
 Module      : $Header$
 CopyRight   : (c) 8c6794b6
@@ -15,13 +16,12 @@ module Sound.SC3.Lepton.Pattern.Interpreter.E where
 
 import Control.Applicative
 import Data.Data
+import Data.Either
 import System.Random
 
 import Sound.SC3
 import Sound.SC3.Lepton.Pattern.Expression
 import Sound.SC3.Lepton.Pattern.ToOSC
-import Sound.SC3.Lepton.Pattern.Interpreter.Bz
-import Sound.SC3.Lepton.Pattern.ParseP
 
 import qualified Data.Binary as Bin
 
@@ -50,8 +50,14 @@ instance Bin.Binary (E a) where
 toE :: E a -> E a
 toE = id
 
-unLeaf (Leaf s) = s
-unLeaf _        = error "Not a leaf"
+unLeaf :: E a -> Either String String
+unLeaf (Leaf s) = Right s
+unLeaf _        = Left "Not a leaf"
+
+safeRead :: Read a => String -> Either String a
+safeRead x = case reads x of
+  [(y,[])] -> Right y
+  _        -> Left $ "safeRead: failed reading '" ++ x ++ "'"
 
 fix f = f (fix f)
 fix2 f g = f (fix2 f g) g
@@ -66,102 +72,98 @@ fix3' f g h = f (fix3' f g h) (g h) h
 fI = fix2 fromNodeI (fix (fix2 fromNodeI))
 fII = fix2 fromNodeI (fix fromNodePattern)
 
-fromE = fix3 fromNodeO fI fI 
-
-{-
-XXX: Wrap with Either, use safeRead.
--}
+fromE = fix3 fromNodeO fI fI
 
 fromNodeO f1 f2 f3 e = case e of
-  NodeO (Snew def nid aa tid) ps -> psnew def nid aa tid (f2' ps)
-  NodeO (Nset tid) ps            -> pnset tid (f2' ps)
-  Node "pmerge" [p1,p2]          -> pmerge (f1 p1) (f1 p2)
-  Node "ppar" ps                 -> ppar (map f1 ps)
+  NodeO (Snew def nid aa tid) ps -> psnew def nid aa tid <$> (f2' ps)
+  NodeO (Nset tid) ps            -> pnset tid <$> (f2' ps)
+  Node "pmerge" [p1,p2]          -> pmerge <$> f1 p1 <*> f1 p2
+  Node "ppar" ps                 -> ppar <$> (sequence $ map f1 ps)
   _ -> fromNodeI f1 f3 e
   where
-    f2' = map (\(k,p) -> (k, f2 p))
+    f2' = sequence . map (\(k,p) -> (k,) <$> f2 p)
 
 fromNodeI fg fi e = case e of
-  NodeI "preplicate" n [p] -> preplicate (fi n) (fg p)
-  NodeI "pseq" n ps        -> pseq (fi n) (map fg ps)
-  NodeI "prand" n ps       -> prand (fi n) (map fg ps)
-  NodeI "pchoose" n ps     -> pchoose (fi n) (map fg ps)
+  NodeI "preplicate" n [p] -> preplicate <$> fi n <*> fg p
+  NodeI "pseq" n ps        -> pseq <$> fi n <*> (sequence $ map fg ps)
+  NodeI "prand" n ps       -> prand <$> fi n <*> (sequence $ map fg ps)
+  NodeI "pchoose" n ps     -> pchoose <$> fi n <*> (sequence $ map fg ps)
   _ -> fromNodePattern fg e
-  -- _ -> fg e
 
 fromNodePattern f e = case e of
-  Node "pval" [Leaf x]     -> pval (read x)
-  Node "plist" ps          -> plist (map (read . unLeaf) ps)
-  Node "prepeat" [Leaf x]  -> prepeat (read x)
-  Node "pempty" []         -> pempty
-  Node "pappend" [p1,p2]   -> pappend (f p1) (f p2)
-  Node "pconcat" ps        -> pconcat (map f ps)
-  Node "pcycle" ps         -> pcycle (map f ps)
-  Node "pforever" [p]      -> pforever (f p)
-  Node "prange" [p1,p2]    -> prange (f p1) (f p2)
-  Node "prandom" []        -> prandom
-  Node "pshuffle" ps       -> pshuffle (map f ps)
-  _                        -> fromNum f e
+  Node "pval" [Leaf x]    -> pval <$> (safeRead x)
+  Node "plist" ps         ->
+    fmap plist $ sequence (map ((safeRead =<<) . unLeaf) ps)
+  Node "prepeat" [Leaf x] -> prepeat <$> (safeRead x)
+  Node "pempty" []        -> pure pempty
+  Node "pappend" [p1,p2]  -> pappend <$> f p1 <*> f p2
+  Node "pconcat" ps       -> pconcat <$> sequence (map f ps)
+  Node "pcycle" ps        -> pcycle <$> sequence (map f ps)
+  Node "pforever" [p]     -> fmap pforever (f p)
+  Node "prange" [p1,p2]   -> prange <$> (f p1) <*> (f p2)
+  Node "prandom" []       -> pure prandom
+  Node "pshuffle" ps      -> pshuffle <$> sequence (map f ps)
+  _                       -> fromNum f e
 
 fromNum f e = case e of
-  Node "+" [a,b]    -> f a + f b
-  Node "*" [a,b]    -> f a * f b
-  Node "-" [a,b]    -> f a - f b
-  Node "negate" [a] -> negate (f a)
-  Node "abs" [a]    -> abs (f a)
-  Node "signum" [a] -> signum (f a)
+  Node "+" [a,b]    -> (+) <$> f a <*> f b
+  Node "*" [a,b]    -> (*) <$> f a <*> f b
+  Node "-" [a,b]    -> (-) <$> f a <*> f b
+  Node "negate" [a] -> fmap negate (f a)
+  Node "abs" [a]    -> fmap abs (f a)
+  Node "signum" [a] -> fmap signum (f a)
   _                 -> fromFractional f e
 
 fromFractional f e = case e of
-  Node "/" [a,b]   -> f a + f b
-  Node "recip" [a] -> recip (f a)
+  Node "/" [a,b]   -> (/) <$> f a <*> f b
+  Node "recip" [a] -> fmap recip (f a)
   _                -> fromFloating f e
 
 fromFloating f e = case e of
-  Node "pi" []         -> pi
-  Node "exp" [a]       -> exp (f a)
-  Node "sqrt" [a]      -> sqrt (f a)
-  Node "log" [a]       -> log (f a)
-  Node "**" [a,b]      -> f a ** f b
-  Node "logBase" [a,b] -> logBase (f a) (f b)
-  Node "sin" [a]       -> sin (f a)
-  Node "tan" [a]       -> tan (f a)
-  Node "cos" [a]       -> cos (f a)
-  Node "asin" [a]      -> asin (f a)
-  Node "atan" [a]      -> atan (f a)
-  Node "acos" [a]      -> acos (f a)
-  Node "sinh" [a]      -> sinh (f a)
-  Node "tanh" [a]      -> tanh (f a)
-  Node "cosh" [a]      -> cosh (f a)
-  Node "asinh" [a]     -> asinh (f a)
-  Node "atanh" [a]     -> atanh (f a)
-  Node "acosh" [a]     -> acosh (f a)
+  Node "pi" []         -> pure pi
+  Node "exp" [a]       -> fmap exp (f a)
+  Node "sqrt" [a]      -> fmap sqrt (f a)
+  Node "log" [a]       -> fmap log (f a)
+  Node "**" [a,b]      -> (**) <$> f a <*> f b
+  Node "logBase" [a,b] -> logBase <$> (f a) <*> (f b)
+  Node "sin" [a]       -> fmap sin (f a)
+  Node "tan" [a]       -> fmap tan (f a)
+  Node "cos" [a]       -> fmap cos (f a)
+  Node "asin" [a]      -> fmap asin (f a)
+  Node "atan" [a]      -> fmap atan (f a)
+  Node "acos" [a]      -> fmap acos (f a)
+  Node "sinh" [a]      -> fmap sinh (f a)
+  Node "tanh" [a]      -> fmap tanh (f a)
+  Node "cosh" [a]      -> fmap cosh (f a)
+  Node "asinh" [a]     -> fmap asinh (f a)
+  Node "atanh" [a]     -> fmap atanh (f a)
+  Node "acosh" [a]     -> fmap acosh (f a)
   _                    -> fromUnary f e
 
 fromUnary f e = case e of
-  Node "ampDb" [a]     -> ampDb (f a)
-  Node "asFloat" [a]   -> asFloat (f a)
-  Node "asInt" [a]     -> asInt (f a)
-  Node "bitNot" [a]    -> bitNot (f a)
-  Node "cpsMIDI" [a]   -> cpsMIDI (f a)
-  Node "cpsOct" [a]    -> cpsOct (f a)
-  Node "cubed" [a]     -> cubed (f a)
-  Node "dbAmp" [a]     -> dbAmp (f a)
-  Node "distort" [a]   -> distort (f a)
-  Node "frac" [a]      -> frac (f a)
-  Node "isNil" [a]     -> isNil (f a)
-  Node "log10" [a]     -> log10 (f a)
-  Node "log2" [a]      -> log2 (f a)
-  Node "midiCPS" [a]   -> midiCPS (f a)
-  Node "midiRatio" [a] -> midiRatio (f a)
-  Node "notE" [a]      -> notE (f a)
-  Node "notNil" [a]    -> notNil (f a)
-  Node "octCPS" [a]    -> octCPS (f a)
-  Node "ramp_" [a]     -> ramp_ (f a)
-  Node "ratioMIDI" [a] -> ratioMIDI (f a)
-  Node "softClip" [a]  -> softClip (f a)
-  Node "squared" [a]   -> squared (f a)
-  _                    -> error $ "Unknown: " ++ show e
+  Node "ampDb" [a]     -> fmap ampDb (f a)
+  Node "asFloat" [a]   -> fmap asFloat (f a)
+  Node "asInt" [a]     -> fmap asInt (f a)
+  Node "bitNot" [a]    -> fmap bitNot (f a)
+  Node "cpsMIDI" [a]   -> fmap cpsMIDI (f a)
+  Node "cpsOct" [a]    -> fmap cpsOct (f a)
+  Node "cubed" [a]     -> fmap cubed (f a)
+  Node "dbAmp" [a]     -> fmap dbAmp (f a)
+  Node "distort" [a]   -> fmap distort (f a)
+  Node "frac" [a]      -> fmap frac (f a)
+  Node "isNil" [a]     -> fmap isNil (f a)
+  Node "log10" [a]     -> fmap log10 (f a)
+  Node "log2" [a]      -> fmap log2 (f a)
+  Node "midiCPS" [a]   -> fmap midiCPS (f a)
+  Node "midiRatio" [a] -> fmap midiRatio (f a)
+  Node "notE" [a]      -> fmap notE (f a)
+  Node "notNil" [a]    -> fmap notNil (f a)
+  Node "octCPS" [a]    -> fmap octCPS (f a)
+  Node "ramp_" [a]     -> fmap ramp_ (f a)
+  Node "ratioMIDI" [a] -> fmap ratioMIDI (f a)
+  Node "softClip" [a]  -> fmap softClip (f a)
+  Node "squared" [a]   -> fmap squared (f a)
+  _                    -> Left $ "Unknown: " ++ show e
 
 instance Pval E where pval a = Node "pval" [Leaf $ show a]
 instance Plist E where plist as = Node "plist" (map (Leaf . show) as)

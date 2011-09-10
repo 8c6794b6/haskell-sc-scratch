@@ -42,6 +42,52 @@ data ToOSC a = ToOSC
 instance Functor ToOSC where
   fmap f (ToOSC t m) = ToOSC t (fmap f m)
 
+-- | Message type is left associative, (+), (*), (-) will union given maps.
+instance Num a => Num (ToOSC a) where
+  ToOSC o m1 + ToOSC _ m2 = ToOSC o (M.unionWith (+) m1 m2)
+  ToOSC o m1 * ToOSC _ m2 = ToOSC o (M.unionWith (*) m1 m2)
+  ToOSC o m1 - ToOSC _ m2 = ToOSC o (M.unionWith (-) m1 m2)
+  negate = fmap negate
+  abs = fmap abs
+  signum = fmap signum
+  fromInteger d = ToOSC o m where
+    o = Snew "silence" Nothing AddToTail 1
+    m = M.singleton "dur" (fromInteger d)
+
+instance Fractional a => Fractional (ToOSC a) where
+  ToOSC o m1 / ToOSC _ m2 = ToOSC o (M.unionWith (/) m1 m2)
+  recip = fmap recip
+  fromRational a = ToOSC o m where
+    o = Snew "silence" Nothing AddToTail 1
+    m = M.singleton "dur" (fromRational a)
+
+instance Ord a => Ord (ToOSC a) where
+  compare (ToOSC _ m1) (ToOSC _ m2) = compare m1 m2
+
+instance Floating a => Floating (ToOSC a) where
+  pi = ToOSC o m where
+    o = Snew "silence" Nothing AddToTail 1
+    m = M.singleton "dur" pi
+  exp = fmap exp
+  sqrt = fmap sqrt
+  log = fmap log
+  (ToOSC o m1) ** (ToOSC _ m2) = ToOSC o (M.unionWith (**) m1 m2)
+  logBase (ToOSC o m1) (ToOSC _ m2) = ToOSC o (M.unionWith logBase m1 m2)
+  sin  = fmap sin
+  tan  = fmap tan
+  cos  = fmap cos
+  asin  = fmap asin
+  atan  = fmap atan
+  acos  = fmap acos
+  sinh  = fmap sinh
+  tanh  = fmap tanh
+  cosh  = fmap cosh
+  asinh = fmap asinh
+  atanh = fmap atanh
+  acosh = fmap acosh
+
+instance UnaryOp a => UnaryOp (ToOSC a)
+
 instance Serialize a => Serialize (ToOSC a) where
   {-# INLINE put #-}
   put (ToOSC t m) = S.put t >> S.put m

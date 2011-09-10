@@ -1,6 +1,8 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE TupleSections #-}
+{-# OPTIONS_GHC -fno-warn-missing-methods #-}
 {-|
 Module      : $Header$
 CopyRight   : (c) 8c6794b6
@@ -12,7 +14,7 @@ Portability : non-portable
 Syntax of patterns for serialization and deserialization.
 
 -}
-module Sound.SC3.Lepton.Pattern.Interpreter.Syntax
+module Sound.SC3.Lepton.Pattern.Interpreter.Expr
   ( Expr(..)
   , toExpr
   , fromExpr
@@ -21,6 +23,7 @@ module Sound.SC3.Lepton.Pattern.Interpreter.Syntax
 
 import Control.Applicative
 import Data.Data
+import Data.Function (fix)
 import Data.Either
 import Data.Word
 import System.Random
@@ -33,13 +36,9 @@ import Sound.SC3.Lepton.Pattern.ToOSC
 
 import qualified Data.ByteString as B
 import qualified Data.Binary as Bin
+import qualified Data.Map as M
 import qualified Data.Serialize as Srl
 
-{-
-
-XXX: Write tests.
-
--}
 -- | Pattern syntax tree.
 data Expr s
   = Leaf s
@@ -52,7 +51,7 @@ instance Functor Expr where
   fmap f (Leaf s) = Leaf (f s)
   fmap f (Node x ns) = Node x (map (fmap f) ns)
   fmap f (NodeI x n ns) = NodeI x n (map (fmap f) ns)
-  fmap f (NodeO _ _) = error "NodeO does not support Functor"
+  fmap f (NodeO m ps) = NodeO m ps
 
 instance Srl.Serialize s => Srl.Serialize (Expr s) where
   {-# INLINE put #-}
@@ -82,7 +81,7 @@ instance Bin.Binary s => Bin.Binary (Expr s) where
     1 -> Node <$> Bin.get <*> Bin.get
     2 -> NodeI <$> Bin.get <*> Bin.get <*> Bin.get
     3 -> NodeO <$> Bin.get <*> Bin.get
-    n -> error $ "Unexpected index in get: " ++ show n
+    _ -> error $ "Unexpected index in get: " ++ show i
 
 unLeaf :: Expr s -> Either String s
 unLeaf n = case n of
@@ -115,9 +114,55 @@ prettyP e = case e of
     depth = 2
 {-# INLINE prettyP #-}
 
-eor :: a -> Either x a -> a
-l `eor` r = either (const l) id r
-{-# INLINE eor #-}
+-- | For tying two arguments function.
+fix2 :: (a -> b -> a) -> b -> a
+fix2 f g = f (fix2 f g) g
+
+-- | For tying three arguments function.
+fix3 :: (a -> b -> c -> a) -> b -> c -> a
+fix3 f g h = f (fix3 f g h) g h
+
+-- Using fix2 here, to isolate the recursion of Int from the other.
+fromExpr' = fix2 fromExprI (fix (fix2 fromExprI))
+
+-- Using fix2 and fix3, to isolate recursion of ('ToOSC' 'Double').
+fromExpr = fix3 fromExprO fromExpr' fromExpr'
+
+{-
+
+This function takes 3 functions, one for ToOSC Double in parameter
+pairs, other two for passing it to fromExprI.
+
+-}
+fromExprO f fi fo e = case e of
+  NodeO (Nset n) ps       -> pnset n <$> fo' ps
+  NodeO (Snew d n a t) ps -> psnew d n a t <$> fo' ps
+  Node "pmerge" [p1,p2]   -> pmerge <$> f p1 <*> f p2
+  Node "ppar" ps          -> ppar <$> (sequence $ map f ps)
+  _                       -> fromExprI f fi e
+  where
+    fo' = sequence . map (\(k,p) -> (k,) <$> fo p)
+
+{-
+
+This function takes 2 functions for recursing, one for Int patterns and
+the other for arbitrary types.
+
+When reading from string, apply show to Int patterns as shown below.
+Note that Functor instance of Node will be required.
+
+> fromExprI self self' e = case e of
+>   NodeI "pseq" n ps ->
+>     pseq <$> (self' $ fmap show n) <*> pure (rights $ map self ps)
+>   ...
+
+-}
+fromExprI f f' e = case e of
+  NodeI "pseq" n ps        -> pseq <$> (f' n) <*> (sequence $ map f ps)
+  NodeI "prand" n ps       -> prand <$> (f' n) <*> (sequence $ map f ps)
+  NodeI "preplicate" n [p] -> preplicate <$> (f' n) <*> f p
+  NodeI "pchoose" n ps     -> prand <$> (f' n) <*> (sequence $ map f ps)
+  _                        -> fromExprE f e
 
 {-
 
@@ -142,38 +187,36 @@ fromExprE f e = case e of
   Node "pempty" []        -> pure pempty
   Node "pval" [Leaf n]    -> pure $ pval n
   Node "prepeat" [Leaf n] -> pure $ prepeat n
-  Node "plist" ps         -> pure $ plist $ rights $ map unLeaf ps
-  Node "pconcat" ps       -> pure $ pconcat (rights $ map f ps)
+  Node "plist" ps         -> plist <$> (sequence $ map unLeaf ps)
+  Node "pconcat" ps       -> pconcat <$> (sequence $ map f ps)
   Node "pappend" [p1,p2]  -> pappend <$> f p1 <*> f p2
-  Node "pcycle" ps        -> pure $ pcycle (rights $ map f ps)
+  Node "pcycle" ps        -> pcycle <$> (sequence $ map f ps)
   Node "pforever" [p]     -> pforever <$> (f p)
   Node "prange" [p1,p2]   -> prange <$> f p1 <*> f p2
   Node "prandom" []       -> pure prandom
-  Node "pshuffle" ps      -> pure $ pshuffle (rights $ map f ps)
-  Node "pmerge" [p1,p2]   -> pmerge <$> f p1 <*> f p2
-  Node "ppar" ps          -> pure $ ppar $ rights $ map f ps
+  Node "pshuffle" ps      -> pshuffle <$> (sequence $ map f ps)
   _                       -> fromExprNum f e
 
 fromExprNum f e = case e of
-  Node "+" [a,b]    -> pure $ (0 `eor` f a) + (0 `eor` f b)
-  Node "*" [a,b]    -> pure $ (1 `eor` f a) * (1 `eor` f b)
-  Node "-" [a,b]    -> pure $ (0 `eor` f a) - (0 `eor` f b)
-  Node "negate" [a] -> pure $ negate (0 `eor` f a)
-  Node "abs" [a]    -> pure $ abs (0 `eor` f a)
-  Node "signum" [a] -> pure $ signum (0 `eor` f a)
+  Node "+" [a,b]    -> (+) <$> f a <*> f b
+  Node "*" [a,b]    -> (*) <$> f a <*> f b
+  Node "-" [a,b]    -> (-) <$> f a <*> f b
+  Node "negate" [a] -> negate <$> f a
+  Node "abs" [a]    -> abs <$> f a
+  Node "signum" [a] -> signum <$> f a
   _                 -> fromExprFractional f e
 
 fromExprFractional f e = case e of
-  Node "/" [a,b]   -> pure $ (0 `eor` f a) / (1 `eor` f b)
-  Node "recip" [a] -> pure $ recip (1 `eor` f a)
+  Node "/" [a,b]   -> (/) <$> f a <*> f b
+  Node "recip" [a] -> recip <$> f a
   _                -> fromExprFloating f e
 
 fromExprFloating f e = case e of
   Node "pi" []         -> pure (pi)
-  Node "**" [a,b]      -> pure $ (1 `eor` f a) ** (0 `eor` f b)
-  Node "logBase" [a,b] -> pure $ logBase (1 `eor` f a) (1 `eor` f b)
+  Node "**" [a,b]      -> (**) <$> f a <*> f b
+  Node "logBase" [a,b] -> logBase <$> f a <*> f b
   Node func [a]        -> case lookup func funcs of
-    Just func' -> pure $ func' (1 `eor` f a)
+    Just func' -> func' <$> (f a)
     Nothing    -> fromExprUnary f e
   _                    -> fromExprUnary f e
   where
@@ -184,7 +227,7 @@ fromExprFloating f e = case e of
 
 fromExprUnary self e = case e of
   Node func [a] -> case lookup func funcs of
-    Just func' -> pure $ func' (0 `eor` self a)
+    Just func'  -> func' <$> self a
   _             -> Left ("Unknown expression" :: String)
   where
     funcs =
@@ -197,184 +240,7 @@ fromExprUnary self e = case e of
       ,("ramp_",ramp_),("ratioMIDI",ratioMIDI),("softClip",softClip)
       ,("squared",squared)]
 
-{-
-
-This function takes 2 functions for recursing, one for Int patterns and
-the other for arbitrary types.
-
-When reading from string, apply show to Int patterns as shown below.
-Note that Functor instance of Node will be required.
-
-> fromExprI self self' e = case e of
->   NodeI "pseq" n ps ->
->     pseq <$> (self' $ fmap show n) <*> pure (rights $ map self ps)
->   ...
-
--}
-fromExprI f f' e = case e of
-  NodeI "pseq" n ps        -> pseq <$> (f' n) <*> pure (rights $ map f ps)
-  NodeI "prand" n ps       -> prand <$> (f' n) <*> pure (rights $ map f ps)
-  NodeI "preplicate" n [p] -> preplicate <$> (f' n) <*> f p
-  NodeI "pchoose" n ps     -> prand <$> (f' n) <*> pure (rights $ map f ps)
-  _                        -> fromExprE f e
-
-{-
-
-This function also takes 2 functions, one for ToOSC Double in parameter
-pairs, and another for passing to unmatched case.
-
--}
-fromExprO f f' e = case e of
-  NodeO (Nset n) ps       -> pnset n <$> pure (concatMap g ps)
-  NodeO (Snew d n a t) ps -> psnew d n a t <$> pure (concatMap g ps)
-  _                       -> fromExprE f e
-  where
-    g (k,s) = either (const []) (\a -> [(k,a)]) (f' s)
-
--- | Same as Data.Function.fix.
-fix :: (t -> t) -> t
-fix f = f (fix f)
-
--- | Fix combinator with two arguments.
-fix2 :: (a -> b -> a) -> b -> a
-fix2 f g = f (fix2 f g) g
-
--- Using fix2 here, to isolate the recursion of Int from the other.
-fromExpr' = fix2 fromExprI (fix $ fix2 fromExprI)
-
--- Using fix2, to isolate recursion of ('ToOSC' 'Double').
-fromExpr = fix2 fromExprO fromExpr'
-
--- Reads expression from file containing bytestring encoded data of Expr.
-fromFile path = (\x -> Srl.decode x >>= fromExpr) <$> B.readFile path
-
--- ---------------------------------------------------------------------------
--- XXX: Dummy instances.
---
--- Functions are unused but type signatures are used.
--- When recursion for value patterns, Int patterns, and ToOSC patterns could be
--- isolated, these dummy instance definitions could be removed.
---
-
-instance Random String where
-  random  = undefined
-  randomR = undefined
-
-instance Random a => Random (ToOSC a) where
-  random = undefined
-  randomR = undefined
-
-instance Num a => Num (ToOSC a) where
-  (+) = undefined
-  (*) = undefined
-  (-) = undefined
-  negate = undefined
-  abs = undefined
-  signum = undefined
-  fromInteger = undefined
-
-instance Fractional a => Fractional (ToOSC a) where
-  (/) = undefined
-  recip = undefined
-  fromRational = undefined
-
-instance Ord a => Ord (ToOSC a) where
-  compare = undefined
-
-instance Floating a => Floating (ToOSC a) where
-  pi = undefined
-  exp = undefined
-  sqrt = undefined
-  log = undefined
-  (**)= undefined
-  logBase = undefined
-  sin = undefined
-  tan = undefined
-  cos = undefined
-  asin = undefined
-  atan = undefined
-  acos = undefined
-  sinh = undefined
-  tanh = undefined
-  cosh = undefined
-  asinh = undefined
-  atanh = undefined
-  acosh = undefined
-
-instance UnaryOp a => UnaryOp (ToOSC a) where
-  ampDb = undefined
-  asFloat = undefined
-  asInt = undefined
-  bitNot = undefined
-  cpsMIDI = undefined
-  cpsOct = undefined
-  cubed = undefined
-  dbAmp = undefined
-  distort = undefined
-  frac = undefined
-  isNil = undefined
-  log10 = undefined
-  log2 = undefined
-  midiCPS = undefined
-  midiRatio = undefined
-  notE = undefined
-  notNil = undefined
-  octCPS = undefined
-  ramp_ = undefined
-  ratioMIDI = undefined
-  softClip = undefined
-  squared = undefined
-
-instance Fractional Int where
-  (/) = undefined
-  recip = undefined
-  fromRational = undefined
-
-instance Floating Int where
-  pi = undefined
-  exp = undefined
-  sqrt = undefined
-  log = undefined
-  (**) = undefined
-  logBase = undefined
-  sin = undefined
-  tan = undefined
-  cos = undefined
-  asin = undefined
-  atan = undefined
-  acos = undefined
-  sinh = undefined
-  tanh = undefined
-  cosh = undefined
-  asinh = undefined
-  atanh = undefined
-  acosh = undefined
-
-instance UnaryOp Int where
-  ampDb = undefined
-  asFloat = undefined
-  asInt = undefined
-  bitNot = undefined
-  cpsMIDI = undefined
-  cpsOct = undefined
-  cubed = undefined
-  dbAmp = undefined
-  distort = undefined
-  frac = undefined
-  isNil = undefined
-  log10 = undefined
-  log2 = undefined
-  midiCPS = undefined
-  midiRatio = undefined
-  notE = undefined
-  notNil = undefined
-  octCPS = undefined
-  ramp_ = undefined
-  ratioMIDI = undefined
-  softClip = undefined
-  squared = undefined
-
--- ---------------------------------------------------------------------------
+------------------------------------------------------------------------------
 -- Numeric classes
 
 instance Num a => Num (Expr a) where
@@ -438,7 +304,7 @@ instance UnaryOp a => UnaryOp (Expr a) where
   softClip a = Node "softClip" [a]
   squared a = Node "squared" [a]
 
--- ---------------------------------------------------------------------------
+------------------------------------------------------------------------------
 -- Pattern classes
 
 instance Pempty Expr where
@@ -500,3 +366,20 @@ instance Psnew Expr where
 
 instance Pnset Expr where
   pnset tid ms = NodeO (Nset tid) ms
+
+------------------------------------------------------------------------------
+-- XXX: Dummy instances.
+--
+-- Functions are unused but type signatures are used.
+-- When recursion for value patterns, Int patterns, and ToOSC patterns could be
+-- isolated, these dummy instance definitions could be removed.
+--
+-- Warnings for missing methods are ignored with
+-- '-fno-warn-missing-methods' pragma.
+
+instance Random String
+instance Random a => Random (ToOSC a)
+
+instance Floating Int
+instance Fractional Int
+instance UnaryOp Int

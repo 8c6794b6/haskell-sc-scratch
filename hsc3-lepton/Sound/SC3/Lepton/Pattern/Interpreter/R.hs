@@ -198,9 +198,6 @@ instance Pappend R where
 
 -- | Repeats the list of pattern with given number.
 instance Pseq R where
-  -- pseq n ps = R $ \g ->
-  --   let ps' = concatMap (\n' -> concat $ replicate n' ps) (unR n g)
-  --   in  concat $ zipWith unR ps' (gens g)
   pseq n = preplicate n . foldr1 pappend
 
 -- | Replicate given pattern for given time.
@@ -232,7 +229,7 @@ instance Pchoose R where
   pchoose = prand
 
 instance Pcycle R where
-  -- pcycle ps = R $ \g -> concat $ zipWith unR (cycle ps) (gens g)
+  pcycle [] = R $ const []
   pcycle ps = pforever (pseq 1 ps)
 
 instance Prepeat R where

@@ -28,10 +28,9 @@ module Sound.SC3.Lepton.Pattern.Interpreter
 
   ) where
 
--- import Sound.SC3.Lepton.Pattern.Expression
--- import Sound.SC3.Lepton.Pattern.Interpreter.Fusion
 import Sound.SC3.Lepton.Pattern.ParseP
+-- import Sound.SC3.Lepton.Pattern.Interpreter.Fusion
 import Sound.SC3.Lepton.Pattern.Interpreter.Bz
 import Sound.SC3.Lepton.Pattern.Interpreter.R
 import Sound.SC3.Lepton.Pattern.Interpreter.S
-import Sound.SC3.Lepton.Pattern.Interpreter.Syntax
+import Sound.SC3.Lepton.Pattern.Interpreter.Expr

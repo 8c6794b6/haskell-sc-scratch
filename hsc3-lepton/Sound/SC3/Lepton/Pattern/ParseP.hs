@@ -111,14 +111,10 @@ ppar   = mkP "ppar" P.ppar (listOf rPatterns)
 ------------------------------------------------------------------------------
 -- OSC message patterns
 
-psnew = do
-  string "Snew"
-  name' <- skipSpace *> name
-  nodeId' <- skipSpace *> nodeId
-  addAction' <- skipSpace *> addAction
-  targetId' <- skipSpace *> targetId
-  paramList'  <- skipSpace *> paramList
-  return $ P.psnew name' nodeId' addAction' targetId' paramList'
+psnew =
+  P.psnew <$> (string "Snew" *> skipSpace *> name) <*>
+  (skipSpace *> nodeId) <*> (skipSpace *> addAction) <*>
+  (skipSpace *> targetId) <*> (skipSpace *> paramList)
 
 pnset = mkP2 "Nset" P.pnset targetId paramList
 
@@ -240,9 +236,14 @@ n2double n = case n of
 
 instance Random Number where
   random g = case random g of (n, g') -> (D n,g')
-  randomR (I lo, I hi) g = case randomR (lo, hi) g of (n,g') -> (I n, g')
-  randomR (D lo, D hi) g = case randomR (lo, hi) g of (n,g') -> (D n, g')
-  randomR _ _ = error "Number with mismatched constructor in randomR"
+  randomR (I lo, I hi) g =
+    case randomR (lo, hi) g of (n,g') -> (I n, g')
+  randomR (D lo, D hi) g =
+    case randomR (lo, hi) g of (n,g') -> (D n, g')
+  randomR (I lo, D hi) g =
+    case randomR (fromInteger lo, hi) g of (n,g') -> (D n, g')
+  randomR (D lo, I hi) g =
+    case randomR (lo, fromInteger hi) g of (n,g') -> (D n, g')
 
 instance Floating Number where
   pi = D pi
