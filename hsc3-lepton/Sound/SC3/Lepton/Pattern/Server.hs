@@ -29,6 +29,7 @@ import Data.Binary (Binary, decode)
 import Sound.OpenSoundControl
 import Sound.SC3 hiding (Binary, env)
 
+import qualified Codec.Compression.Zlib as Z
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Foldable as F
 import qualified Data.List as L
@@ -176,17 +177,17 @@ runLNew time key pat = withEnv $ \env ->
   case M.lookup key (envThreads env) of
     Just _  -> liftIO $ putStrLn $ "thread exists: " ++ key
     Nothing -> do
-      case toR <$> fromExpr (decode pat) of
-      -- case toR <$> parseP pat of
-        Right pat' -> forkNewThread time key pat'
-        Left err   -> liftIO $ putStrLn err
+      case toR <$> fromExpr (decode $ Z.decompress pat) of
+      -- case toR <$> parseP (Z.decompress pat) of
+        Right r  -> forkNewThread time key r
+        Left err -> liftIO $ putStrLn err
 
 decode' :: Binary a => BL.ByteString -> IO (Either String a)
 decode' a = handle h (return $ decode a) where
   h = \(_ :: SomeException) -> return $ Left "error in decode"
 
 runLAdd :: Maybe Time -> String -> BL.ByteString -> ServerLoop ()
-runLAdd _ key pat = case fromExpr (decode pat) of
+runLAdd _ key pat = case fromExpr (decode $ Z.decompress pat) of
   Right pat' -> modifyEnv $ \env -> do
     let t = Thread New pat'
     return $ env {envThreads=M.insert key t (envThreads env)}

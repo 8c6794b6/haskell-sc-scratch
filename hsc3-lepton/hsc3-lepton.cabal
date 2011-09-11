@@ -106,4 +106,5 @@ library
     syb,
     uniplate >= 1.6,
     unordered-containers,
-    vector
+    vector,
+    zlib

@@ -20,7 +20,7 @@ import Data.Binary (encode, decode)
 import Sound.OpenSoundControl
 import Sound.SC3
 import Sound.SC3.ID
-import Sound.SC3.Lepton -- hiding (Expr(..))
+import Sound.SC3.Lepton
 
 import Sound.SC3.Lepton.Pattern.Interpreter.Bz
 import Sound.SC3.Lepton.Pattern.Interpreter.E

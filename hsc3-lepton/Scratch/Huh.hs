@@ -24,6 +24,7 @@ import Sound.SC3.ID
 import Sound.SC3.Lepton
 import Sound.SC3.Lepton.Pattern.Play
 import Sound.SC3.Lepton.Pattern.ToOSC
+import Sound.SC3.Lepton.Pattern.Interpreter.E
 
 import qualified Data.ByteString.Lazy.Char8 as LC8
 import qualified Sound.SC3.Lepton.Pattern.Play as Play
@@ -38,6 +39,19 @@ goHuh fd =
     (reset fd)
     (play fd $ toR allP)
 
+goHuh' :: IO ()
+goHuh' = do
+  withSC3 $ \fd -> do
+    reset fd
+    patchNode n0 fd
+  withLept $ \fd -> do
+    send fd $ bundle immediately
+      [ l_new "huh1" huh1P, l_new "huh2" huh2P, l_new "huh3" huh3P
+      , l_new "kik" kikP, l_new "snr" snrP, l_new "hat" hatP
+      , l_new "pu" puP, l_new "bell" bellP
+      , l_new "drn1" drn1P, l_new "drn2" drn2P
+      ]
+
 {-
 
 Sequencing patterns in lepton server.
@@ -51,7 +65,8 @@ huhps fd = do
   mapM_ (\(n,p) -> send fd $ bundle (UTCr t0) [l_new n p])
     [ ("huh1",huh1P), ("huh2",huh2P), ("huh3",huh3P)
     , ("kik", kikP), ("snr", snrP), ("hat", hatP)
-    , ("pu", puP), ("bell", bellP) ]
+    , ("pu", puP), ("bell", bellP), ("drn1P",drn1P), ("drn2P",drn2P)
+    ]
 
 setupHuh :: Transport t => t -> IO OSC
 setupHuh fd = do

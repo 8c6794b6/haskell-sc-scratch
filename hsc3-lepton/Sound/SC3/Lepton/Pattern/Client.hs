@@ -19,6 +19,8 @@ import Sound.OpenSoundControl
 import Sound.SC3.Lepton.Pattern.ToOSC
 import Sound.SC3.Lepton.Pattern.Interpreter.Expr
 
+import qualified Codec.Compression.Zlib as Z
+
 ------------------------------------------------------------------------------
 -- Client side message sending utility
 
@@ -49,7 +51,7 @@ bundle' unit dt oscs
 
 -- | Add new pattern and run it.
 l_new :: String -> Expr (ToOSC Double) -> OSC
-l_new key pat = Message "/l_new" [String key,Blob (encode pat)]
+l_new key pat = Message "/l_new" [String key, encodePattern pat]
 
 -- l_new key pat = Message "/l_new" [String key, Blob (lazyByteStringP pat)]
 -- l_new key pat = Message "/l_new" [String key, Blob pat'] where
@@ -86,8 +88,8 @@ l_run key = Message "/l_run" [String key]
 
 -- | Add new pattern, but not start it.
 l_add :: String -> Expr (ToOSC Double) -> OSC
-l_add key pat = Message "/l_add" [String key, Blob (encode pat)]
+l_add key pat = Message "/l_add" [String key, encodePattern pat]
 
--- l_add :: String -> Expr (ToOSC Double) -> OSC
--- l_add key pat = Message "/l_add" [String key, Blob (encode pat)]
-
+-- | Encode pattern to compressed Blob message.
+encodePattern :: Expr (ToOSC Double) -> Datum
+encodePattern = Blob . Z.compress . encode
