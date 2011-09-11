@@ -29,7 +29,7 @@ module Sound.SC3.Lepton.Pattern
     -- * Low level tweaks
     -- $example_low_level
 
-    -- * Send and sequencing with server
+    -- * Sequencing with server
     -- $example_server
 
     module All
@@ -197,7 +197,7 @@ For S:
 
 {-$example_server
 
-This package contains an executable `leptset`, to fork and play patterns. To
+This package contains an executable `leptseq`, to fork and play patterns. To
 run the server, invoke below from shell:
 
 > $ leptseq
@@ -207,5 +207,136 @@ and server will run with default port. To see help:
 > $ leptseq --help
 
 Will show breif usage.
+
+Below is a sample module inspired from  /on-the-fly synchronization (concurrent)/
+example in chuck, by Perry and Ge, from:
+<http://chuck.cs.princeton.edu/doc/examples/> .
+
+> import System.FilePath
+>
+> import Sound.OpenSoundControl
+> import Sound.SC3
+> import Sound.SC3.ID
+> import Sound.SC3.Lepton
+> import Sound.SC3.Lepton.Pattern.Client
+>
+> ------------------------------------------------------------------------------
+> -- Synth defs
+>
+> otfperc = out ("out"@@0) sig where
+>   sig = pan2 (pb * ("amp"@@0.3)) ("pan"@@0) 1
+>   pb = playBuf 1 ("bnum"@@0) 1 1 0 NoLoop RemoveSynth
+>
+> otfsine = out ("out"@@0) sig where
+>   sig = pan2 (sinOsc AR ("freq"@@0) 0 * e) ("pan"@@0) 1
+>   e = envGen KR 1 ("amp"@@0) 0 ("dur"@@1) RemoveSynth $
+>       env [0,1,1,0] [1e-3,998e-3,1e-3] [EnvLin] 0 0
+>
+> otfrev1 = replaceOut ("out"@@0) sig where
+>   sig = freeVerb2 inl inr 0.5 0.5 0.5
+>   inl = (in' 1 AR ("inl"@@0))
+>   inr = (in' 1 AR ("inr"@@1))
+>
+> otfrev2 = out ("out"@@0) sig where
+>   sig = ins * m + foldr f ins [1..8::Int] * (1-m)
+>   m = "mix"@@0.6
+>   ins = in' 2 AR ("in"@@0)
+>   f a b = allpassC b 0.8 (rand a 1e-3 8e-2) (rand a 4e-2 4)
+>
+> ------------------------------------------------------------------------------
+> -- Patterns
+>
+> kikP = psnew "otfperc" Nothing AddToHead 1
+>   [("dur", pforever t)
+>   ,("bnum", prepeat 0)
+>   ,("pan", prepeat (-0.1))
+>   ,("amp", pforever (prange 0.5 0.7))]
+>
+> snrP = psnew "otfperc" Nothing AddToHead 1
+>   [("dur", pforever (prepeat t * prand 1 [2, plist [0.75,1.25]]))
+>   ,("bnum", prepeat 1)
+>   ,("pan", prepeat 0.3)]
+>
+> hatP = psnew "otfperc" Nothing AddToHead 1
+>   [("dur", pforever (prepeat t * prand 1 [0.5, plist [0.25,0.25]]))
+>   ,("bnum", prepeat 2)
+>   ,("pan", prepeat (-0.3))
+>   ,("amp", pforever (prange 0.3 0.4))]
+>
+> hatoP = psnew "otfperc" Nothing AddToHead 1
+>   [("dur", pforever t)
+>   ,("bnum", prepeat 3)
+>   ,("pan", prepeat (-0.3))
+>   ,("amp", pforever (prange 0.2 0.4))]
+>
+> sin1P = psnew "otfsine" Nothing AddToHead 1
+>   [("dur", pforever (t * 0.25))
+>   ,("out", prepeat 2)
+>   ,("freq",
+>     pforever $ midiCPS (21 + (prand 1 [0,12,24,36] + prand 1 [0,2,4,7,9])))
+>   ,("amp", pforever 0.5)
+>   ,("pan", pforever 0.1)]
+>
+> sin2P = psnew "otfsine" Nothing AddToHead 1
+>   [("dur", pforever (t * prand 1 [0.5,0.25]))
+>   ,("out", prepeat 2)
+>   ,("freq",
+>     pforever $ midiCPS (69 + (prand 1 [0,12,24,36] + prand 1 [0,2,4,7,9])))
+>   ,("amp", pforever 0.2)
+>   ,("pan", pforever (-0.2))]
+>
+> t = 0.5
+>
+> sin1N = 0xbaca
+>
+> sin2N = 0xcaba
+>
+> ------------------------------------------------------------------------------
+> -- Sends synthdefs, allocate buffers, add new synth nodes.
+>
+> setup'otf = withSC3 $ \fd -> do
+>   reset fd
+>   async fd $ bundle immediately $
+>     (map (d_recv . uncurry synthdef))
+>      [("otfperc",otfperc),("otfsine", otfsine)
+>      ,("otfrev1", otfrev1),("otfrev2",otfrev2)] ++
+>     (zipWith (\i file -> b_allocRead i (soundsDir </> file) 0 0)
+>      [0..]
+>      ["kick.wav", "snare-hop.wav", "hihat.wav", "hihat-open.wav"])
+>   patchNode otfNodes fd
+>
+> soundsDir = "souncs/examples/data" -- modify this appripriately
+>
+> otfNodes =
+>   g 0
+>     [g 1 []
+>     ,g 2
+>       [s 1000 "otfrev1" []
+>       ,s 1001 "otfrev2" ["in":=2,"mix":=0.5]]]
+>   where
+>     g = Group; s = Synth
+>
+> ------------------------------------------------------------------------------
+> -- Actions for patterns
+>
+> addKik = addPat 0 "kik" kikP
+> addHat = addPat 0 "hat" hatP
+> addHato = addPat 0 "hat-open" hatoP
+> addSnr = addPat t "snr" snrP
+> addSin1 = addPat 0 "sin-lo" sin1P
+> addSin2 = addPat 0 "sin-hi" sin2P
+
+After loading above module in ghci, try:
+
+> > setup'otf
+> > addKik
+> > addHat >> addHato
+> > addSin1
+> > addSnr
+> > addSin2
+
+To stop:
+
+> > resetAll
 
 -}
