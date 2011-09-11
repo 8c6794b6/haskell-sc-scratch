@@ -11,20 +11,22 @@ Scratch for /huh/ composition.
 Rewrite using pattern instead of demand ugens.
 
 -}
-module Sound.SC3.Lepton.Scratch.Huh where
+module Scratch.Huh where
 
 import Control.Concurrent
 import Control.Exception
 
+import Data.Binary (decode, encode)
+import Codec.Compression.Zlib(compress, decompress)
 import Sound.OpenSoundControl
 import Sound.SC3
 import Sound.SC3.ID
 import Sound.SC3.Lepton
 import Sound.SC3.Lepton.Pattern.Play
 import Sound.SC3.Lepton.Pattern.ToOSC
-import qualified Sound.SC3.Lepton.Pattern.Play as Play
 
-import Scratch.Client
+import qualified Data.ByteString.Lazy.Char8 as LC8
+import qualified Sound.SC3.Lepton.Pattern.Play as Play
 
 main :: IO ()
 main = withSC3 goHuh
@@ -132,6 +134,11 @@ allP = ppar
   [ huh1P, huh2P, huh3P
   , kikP, snrP, hatP
   , puP, drn1P, drn2P, bellP ]
+
+allP' = ppar
+  [ huh1P, huh2P, huh3P
+  , kikP, snrP, hatP
+  , puP, bellP ]
 
 l = withLept . flip send
 

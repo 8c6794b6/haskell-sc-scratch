@@ -4,7 +4,6 @@
 {-# LANGUAGE TupleSections #-}
 {-# OPTIONS_GHC -fno-warn-missing-methods #-}
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
-
 {-|
 Module      : $Header$
 CopyRight   : (c) 8c6794b6
@@ -13,7 +12,7 @@ Maintainer  : 8c6794b6@gmail.com
 Stability   : unstable
 Portability : non-portable
 
-Syntax of patterns for serialization and deserialization.
+Syntax representation of patterns, for serialization and deserialization.
 
 -}
 module Sound.SC3.Lepton.Pattern.Interpreter.Expr
@@ -229,9 +228,11 @@ fromExprFloating f e = case e of
   _                    -> fromExprUnary f e
   where
     funcs =
-      [("exp",exp),("sqrt",sqrt),("log",log),("sin",sin),("tan",tan)
-      ,("cos",cos),("asin",asin),("acos",acos),("sinh",sinh),("tanh",tanh)
-      ,("cosh",cosh),("asinh",asinh),("atanh",atanh),("acosh",acosh)]
+      [("exp",exp),("sqrt",sqrt),("log",log)
+      ,("sin",sin),("tan",tan),("cos",cos)
+      ,("asin",asin),("atan",atan),("acos",acos)
+      ,("sinh",sinh),("tanh",tanh),("cosh",cosh)
+      ,("asinh",asinh),("atanh",atanh),("acosh",acosh)]
 {-# INLINE fromExprFloating #-}
 
 fromExprUnary self e = case e of
@@ -318,59 +319,26 @@ instance UnaryOp a => UnaryOp (Expr a) where
 ------------------------------------------------------------------------------
 -- Pattern classes
 
-instance Pempty Expr where
-  pempty = Node "pempty" []
+instance Pempty Expr where pempty = Node "pempty" []
+instance Pval Expr where pval a = Node "pval" [Leaf a]
+instance Prepeat Expr where prepeat a = Node "prepeat" [Leaf a]
+instance Plist Expr where plist as = Node "plist" (map Leaf as)
+instance Pconcat Expr where pconcat ps = Node "pconcat" ps
+instance Pappend Expr where pappend p1 p2 = Node "pappend" [p1,p2]
+instance Pcycle Expr where pcycle ps = Node "pcycle" ps
+instance Pforever Expr where pforever p = Node "pforever" [p]
+instance Prandom Expr where prandom = Node "prandom" []
+instance Prange Expr where prange p1 p2 = Node "prange" [p1,p2]
+instance Pshuffle Expr where pshuffle ps = Node "pshuffle" ps
 
-instance Pval Expr where
-  pval a = Node "pval" [Leaf a]
+instance Mergable (Expr a) where merge a b = Node "merge" [a,b]
+instance Pmerge Expr where pmerge p1 p2 = Node "pmerge" [p1,p2]
+instance Ppar Expr where ppar ps = Node "ppar" ps
 
-instance Prepeat Expr where
-  prepeat a = Node "prepeat" [Leaf a]
-
-instance Plist Expr where
-  plist as = Node "plist" (map Leaf as)
-
-instance Pconcat Expr where
-  pconcat ps = Node "pconcat" ps
-
-instance Pappend Expr where
-  pappend p1 p2 = Node "pappend" [p1,p2]
-
-instance Pseq Expr where
-  pseq p1 p2 = NodeI "pseq" p1 p2
-
-instance Preplicate Expr where
-  preplicate p1 p2 = NodeI "preplicate" p1 [p2]
-
-instance Pcycle Expr where
-  pcycle ps = Node "pcycle" ps
-
-instance Pforever Expr where
-  pforever p = Node "pforever" [p]
-
-instance Prandom Expr where
-  prandom = Node "prandom" []
-
-instance Prange Expr where
-  prange p1 p2 = Node "prange" [p1,p2]
-
-instance Pchoose Expr where
-  pchoose n ps = NodeI "pchoose" n ps
-
-instance Prand Expr where
-  prand pn ps = NodeI "prand" pn ps
-
-instance Pshuffle Expr where
-  pshuffle ps = Node "pshuffle" ps
-
-instance Mergable (Expr a) where
-  merge a b = Node "merge" [a,b]
-
-instance Pmerge Expr where
-  pmerge p1 p2 = Node "pmerge" [p1,p2]
-
-instance Ppar Expr where
-  ppar ps = Node "ppar" ps
+instance Pseq Expr where pseq p1 p2 = NodeI "pseq" p1 p2
+instance Preplicate Expr where preplicate p1 p2 = NodeI "preplicate" p1 [p2]
+instance Pchoose Expr where pchoose n ps = NodeI "pchoose" n ps
+instance Prand Expr where prand pn ps = NodeI "prand" pn ps
 
 instance Psnew Expr where
   psnew def nid aa tid ms = NodeO (Snew def nid aa tid) ms

@@ -81,13 +81,13 @@ fII = fix2 fromNodeI (fix fromNodePattern)
 fromE = fix3 fromNodeO fI fI
 
 fromNodeO f1 f2 f3 e = case e of
-  NodeO (Snew def nid aa tid) ps -> psnew def nid aa tid <$> (f2' ps)
-  NodeO (Nset tid) ps            -> pnset tid <$> (f2' ps)
+  NodeO (Snew def nid aa tid) ps -> psnew def nid aa tid <$> (f3' ps)
+  NodeO (Nset tid) ps            -> pnset tid <$> (f3' ps)
   Node "pmerge" [p1,p2]          -> pmerge <$> f1 p1 <*> f1 p2
   Node "ppar" ps                 -> ppar <$> (sequence $ map f1 ps)
-  _ -> fromNodeI f1 f3 e
+  _ -> fromNodeI f1 f2 e
   where
-    f2' = sequence . map (\(k,p) -> (k,) <$> f2 p)
+    f3' = sequence . map (\(k,p) -> (k,) <$> f3 p)
 
 fromNodeI fg fi e = case e of
   NodeI "preplicate" n [p] -> preplicate <$> fi n <*> fg p
@@ -171,6 +171,7 @@ fromUnary f e = case e of
   Node "squared" [a]   -> fmap squared (f a)
   _                    -> Left $ "Unknown: " ++ show e
 
+
 instance Pval E where pval a = Node "pval" [Leaf $ show a]
 instance Plist E where plist as = Node "plist" (map (Leaf . show) as)
 instance Prepeat E where prepeat a = Node "prepeat" [Leaf $ show a]
@@ -211,7 +212,7 @@ instance Num (E a) where
   negate a = Node "negate" [a]
   abs a = Node "abs" [a]
   signum a = Node "signum" [a]
-  fromInteger a = Node "pval" [Leaf $ show (fromInteger a :: Double)]
+  fromInteger a = Node "pval" [Leaf $ show (fromInteger a :: Integer)]
 
 instance Fractional (E a) where
   a / b = Node "/" [a,b]
