@@ -20,7 +20,7 @@ Lecture: <http://okmij.org/ftp/tagless-final/course/TypeCheck.hs>
 module TypeCheck where
 
 import Control.Monad
-import Control.Monad.Error
+import Control.Monad.Error hiding (fix)
 
 import Typ
 import TTFdB
@@ -111,6 +111,66 @@ typecheck n gamma = case n of
                                  view_t t1, "and", view_t t2]
   _ -> fail $ "Invalid Tree: " ++ show n
 
+
+{-
+Desired type for typecheck' is
+
+> typecheck' ::
+>  (Tree -> gamma -> Either String (Dyterm repr h))
+>   Tree -> gamma -> Either String (Dynterm repr h)
+
+So that we can write
+
+> typecheck = fix typecheck'
+
+-}
+
+-- typecheck' = undefined
+
+type G gamma repr h = (Tree,gamma) -> Either String (DynTerm repr h)
+-- fix' :: ((Tree, gamma) -> Either String (DynTerm repr h)
+--         -> (Tree, gamma) -> Either String (DynTerm repr h))
+--         -> (Tree, gamma) -> Either String (DynTerm repr h)
+-- fix' :: (t -> t) -> t
+fix' :: (forall g r h. G g r h -> G g r h) -> G g r h
+fix' f = f (fix' f)
+
+-- fix' :: (a -> a) -> a
+-- fix' f = f (fix' f)
+
+typecheck' ::
+  (Symantics repr)
+  => (forall gamma' h'. Var gamma' h' => (Tree,gamma') -> Either String (DynTerm repr h'))
+  -> (forall gamma h. Var gamma h => (Tree,gamma) -> Either String (DynTerm repr h))
+typecheck' self (n,gamma) = case n of
+  Node "Int" [Leaf str] -> case reads str of
+    [(i,[])] -> return $ DynTerm tint (int i)
+    _        -> fail $ "Bad Int literal: " ++ str
+  Node "Add" [e1,e2] -> do
+    DynTerm (TQ t1) d1 <- self (e1,gamma)
+    DynTerm (TQ t2) d2 <- self (e2,gamma)
+    case (as_int t1 d1, as_int t2 d2) of
+      (Just t1',Just t2') -> return . DynTerm tint $ add t1' t2'
+      (Nothing,_)         -> fail $ "Bad type of a summand: " ++ view_t t1
+      (_,Nothing)         -> fail $ "Bad type of a summand: " ++ view_t t2
+  Node "Var" [Leaf name] -> findvar name gamma
+  Node "Lam" [Leaf name, etyp,ebody] -> do
+    Typ ta <- read_t etyp
+    DynTerm tbody body <- self (ebody,(VarDesc ta name, gamma))
+    return $ DynTerm (tarr ta tbody) (lam body)
+  Node "App" [e1,e2] -> do
+    DynTerm (TQ t1) d1 <- self (e1,gamma)
+    DynTerm (TQ t2) d2 <- self (e2,gamma)
+    AsArrow _ arr_cast <- return $ as_arrow t1
+    let errarr = fail $ "operator type is not an arrow: " ++ view_t t1
+    (ta,tb,equ_t1ab) <- maybe errarr return arr_cast
+    let df = equ_cast equ_t1ab d1
+    case safe_gcast (TQ t2) d2 ta of
+      Just da -> return . DynTerm tb $ app df da
+      _       -> fail $ unwords ["Bad type of the application: ",
+                                 view_t t1, "and", view_t t2]
+  _ -> fail $ "Invalid Tree: " ++ show n
+
 ------------------------------------------------------------------------------
 -- Simple terms
 
@@ -145,7 +205,7 @@ tx_view t = case t of
 -- To covert monomorphic binding to polymorphic in tc_evalview.
 --
 
-newtype CL h a = 
+newtype CL h a =
   CL {unCL :: forall (repr :: * -> * -> *).
               (MulSYM repr, Symantics repr) => repr h a}
 
