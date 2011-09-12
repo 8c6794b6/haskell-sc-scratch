@@ -22,7 +22,8 @@ module Sound.SC3.Lepton.Pattern.Interpreter.R
   ) where
 
 import Control.Applicative (Applicative(..), (<$>))
-import Data.Data (Typeable1(..), mkTyCon, mkTyConApp)
+import Data.Data
+  (Typeable(..), Typeable1(..), mkTyCon, mkTyConApp, typeOfDefault)
 import Prelude hiding
   ((++), (!!), length, concat, concatMap, reverse, head, take, tail
   ,replicate,zipWith, zipWith3, cycle, repeat, iterate, sum
@@ -108,6 +109,9 @@ instance Applicative R where
 instance Typeable1 R where
   typeOf1 _ = mkTyConApp (mkTyCon "Sound.SC3.Lepton.Pattern.Interpreter.R") []
 
+instance Typeable a => Typeable (R a) where
+  typeOf = typeOfDefault
+
 instance (Num a) => Num (R a) where
   a + b = (+) <$> a <*> b
   a * b = (*) <$> a <*> b
@@ -118,10 +122,11 @@ instance (Num a) => Num (R a) where
 
 instance (Fractional a) => Fractional (R a) where
   a / b = (/) <$> a <*> b
+  recip = fmap recip
   fromRational = return . fromRational
 
 instance Floating a => Floating (R a) where
-  pi = pure pi
+  pi = return pi
   exp = fmap exp
   sqrt = fmap sqrt
   log = fmap log
