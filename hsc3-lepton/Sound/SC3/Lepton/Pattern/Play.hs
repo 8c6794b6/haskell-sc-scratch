@@ -1,6 +1,5 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TypeFamilies #-}
 {-|
 Module      : $Header$
 License     : BSD3
@@ -207,25 +206,23 @@ mkOpts nid a val acc = case break (== '/') a of
     ("c_set", '/':p) -> c_set [(read p, val)]:acc
     _                -> acc
 
-
--- | Root node with a group with node id 1.
-defaultGroup :: SCNode
-defaultGroup = Group 0 [Group 1 []]
-
 ------------------------------------------------------------------------------
 -- Non-realtime
-
+    
 -- | Write OSC from pattern, for non-realtime use with scsynth.
 writeScore ::
-  SCNode
+  [OSC] 
+  -- ^ Initial OSC message.
+  -> SCNode
   -- ^ Initial node graph.
   -> R (ToOSC Double)
   -- ^ Pattern containing OSC message.
   -> FilePath
   -- ^ Path to save OSC data.
   -> IO ()
-writeScore ini pat path = withFile path WriteMode $ \hdl -> do
-  BSL.hPut hdl (oscWithSize (bundle (NTPr 0) (treeToNew 0 ini)))
+writeScore ini n0 pat path = withFile path WriteMode $ \hdl -> do
+  let n0' = diffMessage (Group 0 []) n0
+  BSL.hPut hdl (oscWithSize (bundle (NTPr 0) (n0' ++ ini)))
   foldPIO_ (k hdl) 0 pat
   where
     k hdl t o = do
@@ -236,6 +233,10 @@ writeScore ini pat path = withFile path WriteMode $ \hdl -> do
     oscWithSize o = BSL.append l b where
       b = encodeOSC o
       l = encode_i32 (fromIntegral (BSL.length b))
+      
+-- | Root node with a group with node id 1.
+defaultGroup :: SCNode
+defaultGroup = Group 0 [Group 1 []]
 
 -- ----------------------------------------------------------------------------
 -- Debugging
