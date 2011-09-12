@@ -72,22 +72,25 @@ setupHuh :: Transport t => t -> IO OSC
 setupHuh fd = do
   Play.setup fd
   async fd $ bundle immediately $
-    map (d_recv . uncurry synthdef)
-      [("cf2huh", cf2huh)
-      ,("cf2nzf", cf2nzf)
-      ,("cf2kik", cf2kik)
-      ,("cf2snr", cf2snr)
-      ,("cf2hat", cf2hat)
-      ,("cf2drn", cf2drn)
-      ,("cf2pu", cf2pu)
-      ,("cf2bell", cf2bell)
-      ,("cf2shw", cf2shw)
-      ,("cf2rev", cf2rev)
-      ,("cf2dly", cf2dly)
-      ,("cf2mix", cf2mix)
-      ,("cf2mixm", cf2mixm)
-      ,("cf2mst", cf2mst)
-      ]
+    map (d_recv . uncurry synthdef) huhdefs
+
+huhdefs =
+  [("cf2huh", cf2huh)
+  ,("cf2nzf", cf2nzf)
+  ,("cf2kik", cf2kik)
+  ,("cf2snr", cf2snr)
+  ,("cf2hat", cf2hat)
+  ,("cf2drn", cf2drn)
+  ,("cf2pu", cf2pu)
+  ,("cf2bell", cf2bell)
+  ,("cf2shw", cf2shw)
+  ,("cf2rev", cf2rev)
+  ,("cf2dly", cf2dly)
+  ,("cf2mix", cf2mix)
+  ,("cf2mixm", cf2mixm)
+  ,("cf2mst", cf2mst)
+  ]
+
 
 n0 :: SCNode
 n0 =

@@ -14,15 +14,19 @@ module Sound.SC3.Lepton.Pattern.Play where
 import Control.Applicative
 import Control.Exception (bracket, bracket_)
 import Control.Monad
+import System.IO (IOMode(..), withFile)
 
 import Data.Unique
 import Sound.OpenSoundControl
+import Sound.OpenSoundControl.Coding.Byte
 import Sound.SC3
 
 import Sound.SC3.Lepton.Pattern.Interpreter
 import Sound.SC3.Lepton.Pattern.ToOSC
+import Sound.SC3.Lepton.Tree
 import Sound.SC3.Lepton.UGen.Factory
 
+import qualified Data.ByteString.Lazy as BSL
 import qualified Data.Map as M
 
 -- ----------------------------------------------------------------------------
@@ -88,8 +92,7 @@ runMsgFrom time msg trid fd = bracket_ newTrigger freeTrigger work where
   -- Try pattern converter and sender running in different thread, with
   -- passing around chunks via MVar. This may save couple computation time.
   --
-  newTrigger = do
-    send fd $ s_new "tr" trid AddToHead 1 []
+  newTrigger = send fd $ s_new "tr" trid AddToHead 1 []
   freeTrigger = send fd $ n_free [trid]
   work = do
     let now = as_utcr time
@@ -203,6 +206,36 @@ mkOpts nid a val acc = case break (== '/') a of
     ("n_mapa",'/':p) -> n_mapa nid [(p,ceiling val)]:acc
     ("c_set", '/':p) -> c_set [(read p, val)]:acc
     _                -> acc
+
+
+-- | Root node with a group with node id 1.
+defaultGroup :: SCNode
+defaultGroup = Group 0 [Group 1 []]
+
+------------------------------------------------------------------------------
+-- Non-realtime
+
+-- | Write OSC from pattern, for non-realtime use with scsynth.
+writeScore ::
+  SCNode
+  -- ^ Initial node graph.
+  -> R (ToOSC Double)
+  -- ^ Pattern containing OSC message.
+  -> FilePath
+  -- ^ Path to save OSC data.
+  -> IO ()
+writeScore ini pat path = withFile path WriteMode $ \hdl -> do
+  BSL.hPut hdl (oscWithSize (bundle (NTPr 0) (treeToNew 0 ini)))
+  foldPIO_ (k hdl) 0 pat
+  where
+    k hdl t o = do
+      let t' = t + getDur o
+          o' = bundle (NTPr t') [toOSC o]
+      BSL.hPut hdl (oscWithSize o')
+      return t'
+    oscWithSize o = BSL.append l b where
+      b = encodeOSC o
+      l = encode_i32 (fromIntegral (BSL.length b))
 
 -- ----------------------------------------------------------------------------
 -- Debugging
