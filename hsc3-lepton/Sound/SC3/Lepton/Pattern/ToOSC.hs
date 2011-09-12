@@ -18,7 +18,6 @@ module Sound.SC3.Lepton.Pattern.ToOSC where
 import Control.Applicative
 import Data.Data
 import Data.Maybe (fromMaybe)
-import Data.Word (Word8)
 
 import Control.DeepSeq
 import Data.Binary (Binary)

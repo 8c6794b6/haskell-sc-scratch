@@ -33,9 +33,9 @@ tests =
 
 -- | SCZipper test data gets too large for prop_goTop
 -- modify maxSize from default 100.
-runTests :: IO [Result]
-runTests =
-  mapM (quickCheckWithResult (stdArgs {maxSize=25})) tests
+-- runTests :: IO [Result]
+-- runTests =
+--   mapM (quickCheckWithResult (stdArgs {maxSize=25})) tests
  
 prop_updateNode :: (SCNode -> SCNode) -> SCZipper -> Property
 prop_updateNode f z =

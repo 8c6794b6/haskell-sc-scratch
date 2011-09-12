@@ -37,7 +37,6 @@ tests =
   ,label "sibrown" prop_sibrown
   ,label "sinf" prop_sinf
   ,label "siwhite" prop_siwhite
-  --,label "snil" prop_snil
   ,label "srand" prop_srand
   ,label "sseq" prop_sseq
   ,label "sser" prop_sser
@@ -92,9 +91,6 @@ prop_siwhite :: Property
 prop_siwhite =
   forAll arbitrary $ \(a,b,c) ->
   siwhite a b c `hasUGenNamed` "Diwhite"
-
-prop_snil :: Property
-prop_snil = undefined
 
 prop_srand :: Property
 prop_srand =

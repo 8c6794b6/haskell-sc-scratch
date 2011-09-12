@@ -23,9 +23,7 @@ module Sound.SC3.Lepton.Pattern.Interpreter.Expr
   ) where
 
 import Control.Applicative
-import Control.Monad (foldM)
 import Data.Data
-import Data.Foldable (foldlM)
 import Data.Function (fix)
 import System.Random
 import Text.PrettyPrint
@@ -36,7 +34,7 @@ import Sound.SC3
 import Sound.SC3.Lepton.Pattern.Expression
 import Sound.SC3.Lepton.Pattern.ToOSC
 
-import Sound.SC3.Lepton.Pattern.Interpreter.R
+import qualified Data.Map as M
 
 import qualified Data.Binary as Bin
 import qualified Data.Serialize as Srl
@@ -142,15 +140,10 @@ fix3 f g h = f (fix3 f g h) g h
 -- Using fix2 here, to isolate the recursion of Int from the other.
 fromExpr' = fix2 fromExprI (fix (fix2 fromExprI))
 {-# INLINE fromExpr' #-}
-{-# SPECIALISE fromExpr' :: Expr Double -> Either String (R Double) #-}
 
 -- Using fix2 and fix3, to isolate recursion of ('ToOSC' 'Double').
 fromExpr = fix3 fromExprO fromExpr' fromExpr'
 {-# INLINE fromExpr #-}
-{-#
-  SPECIALISE fromExpr ::
-    Expr (ToOSC Double) -> Either String (R (ToOSC Double))
- #-}
 
 {-
 
@@ -167,13 +160,6 @@ fromExprO f fi fo e = case e of
   where
     fo' = mapM (\(k,p) -> (k,) <$> fo p)
 {-# INLINE fromExprO #-}
-{-# SPECIALIZE fromExprO ::
-     (Expr (ToOSC Double) -> Either String (R (ToOSC Double)))
-     -> (Expr Int -> Either String (R Int))
-     -> (Expr Double -> Either String (R Double))
-     -> Expr (ToOSC Double)
-     -> Either String (R (ToOSC Double))
- #-}
 
 {-
 
@@ -193,7 +179,7 @@ fromExprI f f' e = case e of
   NodeI "pseq" n ps        -> pseq <$> (f' n) <*> (mapM f ps)
   NodeI "prand" n ps       -> prand <$> (f' n) <*> (mapM f ps)
   NodeI "preplicate" n [p] -> preplicate <$> (f' n) <*> f p
-  NodeI "pchoose" n ps     -> prand <$> (f' n) <*> (mapM f ps)
+  NodeI "pchoose" n ps     -> pchoose <$> (f' n) <*> (mapM f ps)
   _                        -> fromExprE f e
 {-# INLINE fromExprI #-}
 
@@ -230,11 +216,6 @@ fromExprE f e = case e of
   Node "pshuffle" ps      -> pshuffle <$> (mapM f ps)
   _                       -> fromExprNum f e
 {-# INLINE fromExprE #-}
-{-#
- SPECIALISE fromExprE ::
-    (Expr Double -> Either String (R Double))
-    -> Expr Double -> Either String (R Double)
- #-}
 
 fromExprNum f e = case e of
   Node "+" [a,b]    -> (+) <$> f a <*> f b
@@ -256,12 +237,12 @@ fromExprFloating f e = case e of
   Node "pi" []         -> pure (pi)
   Node "**" [a,b]      -> (**) <$> f a <*> f b
   Node "logBase" [a,b] -> logBase <$> f a <*> f b
-  Node func [a]        -> case lookup func funcs of
+  Node func [a]        -> case M.lookup func funcs of
     Just func' -> func' <$> (f a)
     Nothing    -> fromExprUnary f e
   _                    -> fromExprUnary f e
   where
-    funcs =
+    funcs = M.fromList
       [("exp",exp),("sqrt",sqrt),("log",log)
       ,("sin",sin),("tan",tan),("cos",cos)
       ,("asin",asin),("atan",atan),("acos",acos)
@@ -270,12 +251,12 @@ fromExprFloating f e = case e of
 {-# INLINE fromExprFloating #-}
 
 fromExprUnary self e = case e of
-  Node func [a] -> case lookup func funcs of
+  Node func [a] -> case M.lookup func funcs of
     Just func'  -> func' <$> self a
     Nothing     -> Left ("Unknown expression" :: String)
   _             -> Left ("Unknown expression" :: String)
   where
-    funcs =
+    funcs = M.fromList
       [("ampDb",ampDb),("asFloat",asFloat),("asInt",asInt)
       ,("bitNot",bitNot),("cpsMIDI",cpsMIDI),("cpsOct",cpsOct)
       ,("cubed",cubed),("dbAmp",dbAmp),("distort",distort)

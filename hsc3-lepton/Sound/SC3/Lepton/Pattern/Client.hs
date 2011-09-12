@@ -28,6 +28,10 @@ import qualified Codec.Compression.Zlib as Z
 withLept :: (UDP -> IO a) -> IO a
 withLept = withTransport (openUDP "127.0.0.1" 58110)
 
+-- | Send given OSC message to default `leptseq` server.
+leptseq :: OSC -> IO ()
+leptseq o = withLept (\fd -> send fd o)
+
 -- | Make bundled OSC message starting from next multiple of given
 -- unit plus initial shift.
 bundle' ::
@@ -52,13 +56,6 @@ bundle' unit dt oscs
 -- | Add new pattern and run it.
 l_new :: String -> Expr (ToOSC Double) -> OSC
 l_new key pat = Message "/l_new" [String key, encodePattern pat]
-
--- l_new key pat = Message "/l_new" [String key, Blob (lazyByteStringP pat)]
--- l_new key pat = Message "/l_new" [String key, Blob pat'] where
---   pat' = case fromExpr pat of
---     -- Right p  -> LC8.pack $ showP $ p
---     Right p  -> lazyByteStringP p
---     Left err -> error $ "l_new: " ++ err
 
 -- | Free pattern. When pattern with given key does not exist, do nothing.
 l_free :: String -> OSC
@@ -93,3 +90,9 @@ l_add key pat = Message "/l_add" [String key, encodePattern pat]
 -- | Encode pattern to compressed Blob message.
 encodePattern :: Expr (ToOSC Double) -> Datum
 encodePattern = Blob . Z.compress . encode
+
+-- Alternative. Faster but Bz does not support Functor.
+--
+-- encodePattern :: Bz (ToOSC Double) -> Datum
+-- encodePattern = Blob . Z.compress . lazyByteStringP
+--

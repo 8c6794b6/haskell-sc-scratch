@@ -79,10 +79,6 @@ mkUnary :: Builder -> Builder -> Bz s
 mkUnary op a = Bz $ op <> fromString " (" <> a <> fromChar ')'
 {-# INLINE mkUnary #-}
 
-mkPval :: Show a => a -> Bz s
-mkPval a = Bz $ fromString "pval " <> fromString (show a)
-{-# INLINE mkPval #-}
-
 mkList :: forall a. Show a => (a -> Builder) -> [a] -> Builder
 mkList _ []     = fromString "[]"
 mkList f (x:xs) = fromChar '[' <> f x <> go xs where
@@ -134,7 +130,7 @@ instance (Show a, Enum a) => Enum (Bz a) where
   pred (Bz a) = mkUnary (fromString "pred") a
   succ (Bz a) = mkUnary (fromString "succ") a
   fromEnum _ = error "Bz does not support fromEnum"
-  toEnum n = mkPval n
+  toEnum n = Bz $ fromString "pval " <> fromString (show (toEnum n :: Double))
 
 ------------------------------------------------------------------------------
 -- Numeric

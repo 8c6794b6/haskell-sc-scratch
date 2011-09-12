@@ -91,6 +91,7 @@ library
     cereal,
     cmdargs,
     containers,
+    deepseq,
     filepath,
     gdiff >= 1.0,
     hosc >= 0.10,
