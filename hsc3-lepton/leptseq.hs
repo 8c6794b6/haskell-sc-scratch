@@ -17,12 +17,12 @@ import Sound.SC3.Lepton.Pattern.Server
 main :: IO ()
 main = bracket setup release runServer where
   setup = do
-    args <- cmdArgs defaultArgs
-    putStrLn $ "Starting server with port: " ++ show (port args)
-    let (h,p,ptc) = sc args
+    as <- cmdArgs defaultArgs
+    putStrLn $ "Starting server with port: " ++ show (port as)
+    let (h,p,ptc) = sc as
     putStrLn $ concat
       ["Connecting to scsynth: ", h, ":", show p, " (", show ptc, ")"]
-    mkInitEnv args
+    mkInitEnv as
   release = shutdownServer
 
 defaultArgs :: LeptSeq

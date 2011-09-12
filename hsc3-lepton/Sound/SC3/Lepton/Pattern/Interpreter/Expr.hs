@@ -23,16 +23,20 @@ module Sound.SC3.Lepton.Pattern.Interpreter.Expr
   ) where
 
 import Control.Applicative
+import Control.Monad (foldM)
 import Data.Data
+import Data.Foldable (foldlM)
 import Data.Function (fix)
-import Data.Word
 import System.Random
 import Text.PrettyPrint
 
+import Control.DeepSeq
 import Sound.SC3
 
 import Sound.SC3.Lepton.Pattern.Expression
 import Sound.SC3.Lepton.Pattern.ToOSC
+
+import Sound.SC3.Lepton.Pattern.Interpreter.R
 
 import qualified Data.Binary as Bin
 import qualified Data.Serialize as Srl
@@ -43,7 +47,20 @@ data Expr s
   | Node String [Expr s]
   | NodeI String (Expr Int) [Expr s]
   | NodeO MsgType [(String,Expr Double)]
-  deriving (Eq,Read,Show,Data,Typeable)
+  deriving (Eq,Read,Show,Data)
+
+instance NFData a => NFData (Expr a) where
+  rnf (Leaf s) = s `seq` ()
+  rnf (Node n es) = rnf n `seq` rnf es `seq` ()
+  rnf (NodeI n e es) = rnf n `seq` rnf e `seq` rnf es `seq` ()
+  rnf (NodeO m ps) = rnf m `seq` rnf ps `seq` ()
+
+instance Typeable1 Expr where
+  typeOf1 _ =
+    mkTyConApp (mkTyCon "Sound.SC3.Lepton.Pattern.Interpreter.Expr.Expr") []
+
+instance Typeable a => Typeable (Expr a) where
+  typeOf = typeOfDefault
 
 instance Functor Expr where
   fmap f (Leaf s) = Leaf (f s)
@@ -54,10 +71,10 @@ instance Functor Expr where
 instance Srl.Serialize s => Srl.Serialize (Expr s) where
   {-# INLINE put #-}
   put e = case e of
-    Leaf n       -> Srl.put (0::Word8) *> Srl.put n
-    Node s es    -> Srl.put (1::Word8) *> Srl.put s *> Srl.put es
-    NodeI s i es -> Srl.put (2::Word8) *> Srl.put s *> Srl.put i *> Srl.put es
-    NodeO s ps   -> Srl.put (3::Word8) *> Srl.put s *> Srl.put ps
+    Leaf n       -> Srl.putWord8 0 *> Srl.put n
+    Node s es    -> Srl.putWord8 1 *> Srl.put s *> Srl.put es
+    NodeI s i es -> Srl.putWord8 2 *> Srl.put s *> Srl.put i *> Srl.put es
+    NodeO s ps   -> Srl.putWord8 3 *> Srl.put s *> Srl.put ps
   {-# INLINE get #-}
   get = Srl.getWord8 >>= \i -> case i of
     0 -> Leaf <$> Srl.get
@@ -69,10 +86,10 @@ instance Srl.Serialize s => Srl.Serialize (Expr s) where
 instance Bin.Binary s => Bin.Binary (Expr s) where
   {-# INLINE put #-}
   put e = case e of
-    Leaf n       -> Bin.put (0::Word8) *> Bin.put n
-    Node s es    -> Bin.put (1::Word8) *> Bin.put s *> Bin.put es
-    NodeI s i es -> Bin.put (2::Word8) *> Bin.put s *> Bin.put i *> Bin.put es
-    NodeO s ps   -> Bin.put (3::Word8) *> Bin.put s *> Bin.put ps
+    Leaf n       -> Bin.putWord8 0 *> Bin.put n
+    Node s es    -> Bin.putWord8 1 *> Bin.put s *> Bin.put es
+    NodeI s i es -> Bin.putWord8 2 *> Bin.put s *> Bin.put i *> Bin.put es
+    NodeO s ps   -> Bin.putWord8 3 *> Bin.put s *> Bin.put ps
   {-# INLINE get #-}
   get = Bin.getWord8 >>= \i -> case i of
     0 -> Leaf <$> Bin.get
@@ -125,10 +142,15 @@ fix3 f g h = f (fix3 f g h) g h
 -- Using fix2 here, to isolate the recursion of Int from the other.
 fromExpr' = fix2 fromExprI (fix (fix2 fromExprI))
 {-# INLINE fromExpr' #-}
+{-# SPECIALISE fromExpr' :: Expr Double -> Either String (R Double) #-}
 
 -- Using fix2 and fix3, to isolate recursion of ('ToOSC' 'Double').
 fromExpr = fix3 fromExprO fromExpr' fromExpr'
 {-# INLINE fromExpr #-}
+{-#
+  SPECIALISE fromExpr ::
+    Expr (ToOSC Double) -> Either String (R (ToOSC Double))
+ #-}
 
 {-
 
@@ -140,11 +162,18 @@ fromExprO f fi fo e = case e of
   NodeO (Nset n) ps       -> pnset n <$> fo' ps
   NodeO (Snew d n a t) ps -> psnew d n a t <$> fo' ps
   Node "pmerge" [p1,p2]   -> pmerge <$> f p1 <*> f p2
-  Node "ppar" ps          -> ppar <$> (sequence $ map f ps)
+  Node "ppar" ps          -> ppar <$> (mapM f ps)
   _                       -> fromExprI f fi e
   where
-    fo' = sequence . map (\(k,p) -> (k,) <$> fo p)
+    fo' = mapM (\(k,p) -> (k,) <$> fo p)
 {-# INLINE fromExprO #-}
+{-# SPECIALIZE fromExprO ::
+     (Expr (ToOSC Double) -> Either String (R (ToOSC Double)))
+     -> (Expr Int -> Either String (R Int))
+     -> (Expr Double -> Either String (R Double))
+     -> Expr (ToOSC Double)
+     -> Either String (R (ToOSC Double))
+ #-}
 
 {-
 
@@ -161,10 +190,10 @@ Note that Functor instance of Node will be required.
 
 -}
 fromExprI f f' e = case e of
-  NodeI "pseq" n ps        -> pseq <$> (f' n) <*> (sequence $ map f ps)
-  NodeI "prand" n ps       -> prand <$> (f' n) <*> (sequence $ map f ps)
+  NodeI "pseq" n ps        -> pseq <$> (f' n) <*> (mapM f ps)
+  NodeI "prand" n ps       -> prand <$> (f' n) <*> (mapM f ps)
   NodeI "preplicate" n [p] -> preplicate <$> (f' n) <*> f p
-  NodeI "pchoose" n ps     -> prand <$> (f' n) <*> (sequence $ map f ps)
+  NodeI "pchoose" n ps     -> prand <$> (f' n) <*> (mapM f ps)
   _                        -> fromExprE f e
 {-# INLINE fromExprI #-}
 
@@ -191,16 +220,21 @@ fromExprE f e = case e of
   Node "pempty" []        -> pure pempty
   Node "pval" [Leaf n]    -> pure $ pval n
   Node "prepeat" [Leaf n] -> pure $ prepeat n
-  Node "plist" ps         -> plist <$> (sequence $ map unLeaf ps)
-  Node "pconcat" ps       -> pconcat <$> (sequence $ map f ps)
+  Node "plist" ps         -> plist <$> (mapM unLeaf ps)
+  Node "pconcat" ps       -> pconcat <$> (mapM f ps)
   Node "pappend" [p1,p2]  -> pappend <$> f p1 <*> f p2
-  Node "pcycle" ps        -> pcycle <$> (sequence $ map f ps)
+  Node "pcycle" ps        -> pcycle <$> (mapM f ps)
   Node "pforever" [p]     -> pforever <$> (f p)
   Node "prange" [p1,p2]   -> prange <$> f p1 <*> f p2
   Node "prandom" []       -> pure prandom
-  Node "pshuffle" ps      -> pshuffle <$> (sequence $ map f ps)
+  Node "pshuffle" ps      -> pshuffle <$> (mapM f ps)
   _                       -> fromExprNum f e
 {-# INLINE fromExprE #-}
+{-#
+ SPECIALISE fromExprE ::
+    (Expr Double -> Either String (R Double))
+    -> Expr Double -> Either String (R Double)
+ #-}
 
 fromExprNum f e = case e of
   Node "+" [a,b]    -> (+) <$> f a <*> f b

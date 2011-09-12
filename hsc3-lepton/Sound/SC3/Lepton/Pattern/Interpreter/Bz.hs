@@ -44,6 +44,7 @@ newtype Bz s = Bz {unBz :: Show s => Builder}
 instance Typeable1 Bz where
   typeOf1 _ =
     mkTyConApp (mkTyCon "Sound.SC3.Lepton.Pattern.Interpreter.Bz.Bz") []
+
 instance Typeable a => Typeable (Bz a) where
   typeOf = typeOfDefault
 

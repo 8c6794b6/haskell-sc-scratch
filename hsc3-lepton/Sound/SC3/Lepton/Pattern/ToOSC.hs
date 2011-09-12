@@ -20,6 +20,7 @@ import Data.Data
 import Data.Maybe (fromMaybe)
 import Data.Word (Word8)
 
+import Control.DeepSeq
 import Data.Binary (Binary)
 import Data.Serialize (Serialize)
 import Sound.OpenSoundControl
@@ -100,17 +101,26 @@ instance Binary a => Binary (ToOSC a) where
   {-# INLINE get #-}
   get = ToOSC <$> B.get <*> B.get
 
+instance NFData a => NFData (ToOSC a) where
+  rnf (ToOSC m ps) = rnf m `seq` rnf ps `seq` ()
+
 -- | Type of OSC message.
 data MsgType
   = Snew String (Maybe NodeId) AddAction NodeId
   | Nset NodeId
   deriving (Eq, Show, Read, Data, Typeable)
 
+instance NFData MsgType where
+  rnf (Snew d n a t) = rnf d `seq` rnf n `seq` rnf a `seq` rnf t `seq` ()
+  rnf (Nset t) = rnf t `seq` ()
+
+instance NFData AddAction
+
 instance Serialize MsgType where
   {-# INLINE put #-}
   put m = case m of
-    Snew d n a t -> S.put (0::Word8) *> S.put d *> S.put n *> S.put a *> S.put t
-    Nset t       -> S.put (1::Word8) *> S.put t
+    Snew d n a t -> S.putWord8 0 *> S.put d *> S.put n *> S.put a *> S.put t
+    Nset t       -> S.putWord8 1 *> S.put t
   {-# INLINE get #-}
   get = S.getWord8 >>= \i -> case i of
     0 -> Snew <$> S.get <*> S.get <*> S.get <*> S.get
@@ -120,8 +130,8 @@ instance Serialize MsgType where
 instance Binary MsgType where
   {-# INLINE put #-}
   put m = case m of
-    Snew d n a t -> B.put (0::Word8) *> B.put d *> B.put n *> B.put a *> B.put t
-    Nset t       -> B.put (1::Word8) *> B.put t
+    Snew d n a t -> B.putWord8 0 *> B.put d *> B.put n *> B.put a *> B.put t
+    Nset t       -> B.putWord8 1 *> B.put t
   {-# INLINE get #-}
   get = B.getWord8 >>= \i -> case i of
     0 -> Snew <$> B.get <*> B.get <*> B.get <*> B.get
@@ -144,11 +154,11 @@ readAddAction s = case lex s of
 instance Serialize AddAction where
   {-# INLINE put #-}
   put m = case m of
-    AddToHead  -> S.put (0::Word8)
-    AddToTail  -> S.put (1::Word8)
-    AddBefore  -> S.put (2::Word8)
-    AddAfter   -> S.put (3::Word8)
-    AddReplace -> S.put (4::Word8)
+    AddToHead  -> S.putWord8 0
+    AddToTail  -> S.putWord8 1
+    AddBefore  -> S.putWord8 2
+    AddAfter   -> S.putWord8 3
+    AddReplace -> S.putWord8 4
   {-# INLINE get #-}
   get = S.getWord8 >>= \i -> case i of
     0 -> return AddToHead
@@ -161,11 +171,11 @@ instance Serialize AddAction where
 instance Binary AddAction where
   {-# INLINE put #-}
   put m = case m of
-    AddToHead  -> B.put (0::Word8)
-    AddToTail  -> B.put (1::Word8)
-    AddBefore  -> B.put (2::Word8)
-    AddAfter   -> B.put (3::Word8)
-    AddReplace -> B.put (4::Word8)
+    AddToHead  -> B.putWord8 0
+    AddToTail  -> B.putWord8 1
+    AddBefore  -> B.putWord8 2
+    AddAfter   -> B.putWord8 3
+    AddReplace -> B.putWord8 4
   {-# INLINE get #-}
   get = B.getWord8 >>= \i -> case i of
     0 -> return AddToHead
