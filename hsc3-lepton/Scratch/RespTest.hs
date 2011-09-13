@@ -157,8 +157,9 @@ setup fd = do
 
 rspdef1 :: UGen
 rspdef1 =
+  let phase = rand 'k' 0 pi in
   out 0 $ pan2
-  (fSinOsc AR ("freq"@@440 * ("fmul"@@1 `lag2` 3.5)) 0 * 0.3 *
+  (fSinOsc AR ("freq"@@440 * ("fmul"@@1 `lag2` 3.5)) phase * 0.3 *
    envGen KR ("t_trig"@@1) 1 0 1 RemoveSynth
    (env [0,1,0] [("atk"@@1e-4),("dcy"@@999e-4)] [EnvCub] (-1) 0))
   ("pan"@@0) ("amp"@@1)
