@@ -59,6 +59,7 @@ instance (Num a) => Num (S a) where
 
 instance (Fractional a) => Fractional (S a) where
   a / b = S $ \_ -> "(" ++ showP a ++ ") / (" ++ showP b ++ ")"
+  recip a = S $ \_ -> "recip (" ++ showP a ++ ")"
   fromRational n = S $ \_ -> "pval " ++ show (fromRational n :: Double)
 
 instance (Show a, Enum a) => Enum (S a) where
@@ -187,6 +188,15 @@ instance Ppar S where
 
 instance Show a => Mergable (S a) where
   merge a b = S (\_ -> unwords ["merge", show a, show b])
+
+instance PtakeT S where
+  ptakeT t p = S $ \_ -> "ptakeT " ++ show t ++ " (" ++ showP p ++ ")"
+
+instance PdropT S where
+  pdropT t p = S $ \_ -> "pdropT " ++ show t ++ " (" ++ showP p ++ ")"
+
+instance Pfsm S where
+  pfsm is cs = S $ \_ -> "pfsm " ++ showList is "" ++ showList cs ""
 
 instance Psnew S where
   psnew def nid aa tid ms =

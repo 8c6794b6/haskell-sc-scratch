@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 {-|
 Module      : $Header$
 CopyRight   : (c) 8c6794b6
@@ -27,7 +28,7 @@ import Data.Data
 import Prelude hiding
   ((++), (!!), length, concat, concatMap, reverse, head, take, tail
   ,replicate,zipWith, zipWith3, cycle, repeat, iterate, sum
-  ,foldr1, Monad(..), (=<<), mapM_)
+  ,foldr1, Monad(..), (=<<), map, mapM_, zip)
 import System.Random (Random(..), RandomGen(..))
 
 import Control.Monad.Stream
@@ -42,6 +43,7 @@ import Sound.SC3.Lepton.Pattern.ToOSC
 import qualified Prelude
 import qualified Control.Parallel as CP
 import qualified Data.Map as M
+import qualified Data.IntMap as I
 import qualified Data.Traversable as T
 
 -- | \"R\" for running patterns.
@@ -178,9 +180,8 @@ instance (Enum a) => Enum (R a) where
   fromEnum (R r)  = fromEnum $ head (r (undefined :: PureMT))
   toEnum = return . toEnum
 
---
--- Instance for expressions
---
+------------------------------------------------------------------------------
+-- Instance for pattern expressions
 
 -- | Singleton list.
 instance Pval R where
@@ -284,6 +285,37 @@ mergeL t (ta,tb) (a:as) (b:bs)
     ua = ta + getDur a
     ub = tb + getDur b
 
+instance PtakeT R where
+  ptakeT t p = R $ \g ->
+    let ps = runP p g
+        f cur [] = []
+        f cur (q:qs)
+          | cur < t   = q : f (cur+getDur q) qs
+          | otherwise = []
+    in  f 0 ps
+
+instance PdropT R where
+  pdropT t p = R $ \g ->
+    let ps = runP p g
+        f cur [] = []
+        f cur rs@(q:qs)
+          | cur > t   = rs
+          | otherwise = f (cur+getDur q) qs
+    in  f 0 ps
+
+-- | First argument is choice for initial index, and second is
+-- a list of paif of pattern and list of index for next choice.
+instance Pfsm R where
+  pfsm is cs = R $ \g0 -> go (head $ shuffle' is (length is) g0) g0 where
+    cm = I.fromList (zip [0..] cs)
+    go idx g = case I.lookup idx cm of
+      Nothing     -> []
+      Just (p,[]) -> runP p g
+      Just (p,is) ->
+        let g'   = snd (next g)
+            idx' = head $ shuffle' is (length is) g
+        in  runP p g ++ go idx' g'
+
 instance Psnew R where
   psnew = mkSnew
 
@@ -358,10 +390,7 @@ rlam f = R $ \g -> rec (repeat func) (gens g)
 --      func g' x = unR (f (R $ const x)) g'
 
 ------------------------------------------------------------------------------
---
 -- Util
---
-------------------------------------------------------------------------------
 
 -- | Generates infinite list of RandomGen.
 -- gens :: (RandomGen g) => g -> [g]

@@ -23,7 +23,6 @@ import Sound.SC3.ID
 import Sound.SC3.Lepton
 
 import Sound.SC3.Lepton.Pattern.Interpreter.Bz
-import Sound.SC3.Lepton.Pattern.Interpreter.E
 import Sound.SC3.Lepton.Pattern.Interpreter.Expr
 import Sound.SC3.Lepton.Pattern.Play
 
@@ -96,7 +95,7 @@ p02 pan = psnew "rspdef1" Nothing AddToTail 1
   ,("amp", pcycle [0.5,0.75,1,1.25,1,0.75])
   ,("pan", pforever pan)]
 
--- ---------------------------------------------------------------------------
+------------------------------------------------------------------------------
 -- Communicating with pattern server
 
 goP01s :: IO ()
@@ -105,10 +104,58 @@ goP01s = withLept $ \fd -> forM_ [1..10] $ \i -> do
   send fd =<< bundle' 8 (0.001*2**fromIntegral i)
     [l_new ("p01_" ++ show i) (p01' (pval pan))]
 
--- ---------------------------------------------------------------------------
+------------------------------------------------------------------------------
 -- Testing behaviour of finite patterns
 
 p03 = psnew "rspdef1" Nothing AddToTail 1
   [("dur", pforever 1)
   ,("freq", plist [880,660,440,330,220])
   ,("amp", plist [0.5,0.4,0.5,0.4,0.3])]
+
+------------------------------------------------------------------------------
+-- Finite state pattern
+
+pfsm001 = pfsm [0]
+  [ (pm1, [0,1,2])
+  , (pm2, [0])
+  , (pm3, [0,1,2,3])
+  , (pm4, []) ]
+
+pm1 = psnew "rspdef1" Nothing AddToTail 1
+  [("dur", pforever 0.125)
+  ,("freq", plist [880,660,440,330,220])
+  ,("amp", plist [0.5,0.4,0.5,0.4,0.3])
+  ]
+
+pm2 = psnew "rspdef1" Nothing AddToTail 1
+  [("dur",
+    pforever (prand 1 [plist [0.125,0.125], 0.25, plist [0.375,0.125]]))
+  ,("freq", prand 12 [400,330,1320,990,660,880])
+  ,("amp", pforever (prange 0.2 0.5))
+  ]
+
+pm3 = psnew "rspdef1" Nothing AddToTail 1
+  [("dur", pforever (prand 1 [plist [0.125,0.125], 0.25]))
+  ,("freq",
+    pseq 6 [880, prand 1 [2200,3300,4400,5500,6600,7700,8800]])
+  ,("amp", pforever (prange 0.4 0.6))
+  ]
+
+pm4 = pempty
+
+pfsm002 = pfsm [0]
+  [(mkfsm02 [0,4,7,11], [0,1,2,3,4])
+  ,(mkfsm02 [2,5,9,12], [1,3])
+  ,(mkfsm02 [0,4,5,9],  [2,0,1,3,4])
+  ,(mkfsm02 [2,5,7,-1], [3,4,0])
+  ,(mkfsm02 [0,4,7,9],  [4,1,2,3,4])
+  ]
+
+mkfsm02 fs = let fs' = concatMap (\x -> map pval [x+60,x+72,x+84]) fs in
+  psnew "rspdef1" Nothing AddToTail 1
+    [("dur",  pforever (prand 1 [plist [0.125,0.125],0.25]))
+    ,("freq", midiCPS $ pforever (prand 1 fs'))
+    ,("atk",  pforever $ prange 1e-3 0.5)
+    ,("dcy",  pforever $ prange 1e-2 1)
+    ,("pan",  pforever $ prand 1 [-1,-0.5,0,0.5,1])
+    ,("amp",  preplicate 16 (prange 0.4 0.6))]

@@ -177,8 +177,8 @@ runLNew time key pat = withEnv $ \env ->
   case M.lookup key (envThreads env) of
     Just _  -> liftIO $ putStrLn $ "thread exists: " ++ key
     Nothing -> do
-      case toR <$> fromExpr (decode $ Z.decompress pat) of
-      -- case toR <$> parseP (Z.decompress pat) of
+      -- case toR <$> fromExpr (decode $ Z.decompress pat) of
+      case toR <$> parseP (Z.decompress pat) of
         Right r  -> forkNewThread time key r
         Left err -> liftIO $ putStrLn err
 

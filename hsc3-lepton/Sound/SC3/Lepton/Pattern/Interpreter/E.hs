@@ -1,6 +1,8 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# OPTIONS_GHC -fno-warn-missing-methods #-}
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 {-|
 Module      : $Header$
@@ -12,46 +14,51 @@ Portability : non-portable
 
 Syntax of patterns for serialization and deserialization, take 2.
 
+Data type 'E' does not takes no parameter. Value used for Leaf is
+fixed to String type. Using wrapped 'read' function to get the value,
+thus those primitive values are restricted to types which having Read
+instance.
+
 -}
-module Sound.SC3.Lepton.Pattern.Interpreter.E where
+module Sound.SC3.Lepton.Pattern.Interpreter.E
+  ( E(..)
+  -- , fromE
+  , toE
+  ) where
 
 import Control.Applicative
 import Data.Data
 import Data.Function (fix)
 import System.Random
 
-import Sound.SC3
-import Sound.SC3.Lepton.Pattern.Expression
-import Sound.SC3.Lepton.Pattern.ToOSC
-
 import qualified Data.Binary as Bin
 
-data E a
+import Sound.SC3
+import Sound.SC3.Lepton.Pattern.ToOSC
+import Sound.SC3.Lepton.Pattern.Interpreter.Bz
+
+import qualified Sound.SC3.Lepton.Pattern.Expression as P
+
+data E
   = Leaf String
-  | Node String [E a]
-  | NodeI String (E Int) [E a]
-  | NodeO MsgType [(String,E Double)]
+  | Node String [E]
   deriving (Eq, Show, Data, Typeable)
 
-instance Bin.Binary (E a) where
+instance Bin.Binary E where
   put e = case e of
     Leaf x       -> Bin.putWord8 0 >> Bin.put x
     Node n es    -> Bin.putWord8 1 >> Bin.put n >> Bin.put es
-    NodeI n p ps -> Bin.putWord8 2 >> Bin.put n >> Bin.put p >> Bin.put ps
-    NodeO m ps   -> Bin.putWord8 3 >> Bin.put m >> Bin.put ps
   get = do
     idx <- Bin.getWord8
     case idx of
       0 -> Leaf <$> Bin.get
       1 -> Node <$> Bin.get <*> Bin.get
-      2 -> NodeI <$> Bin.get <*> Bin.get <*> Bin.get
-      3 -> NodeO <$> Bin.get <*> Bin.get
       _ -> error $ "Unknown index in E get: " ++ show idx
 
-toE :: E a -> E a
+toE :: E -> E
 toE = id
 
-unLeaf :: E a -> Either String String
+unLeaf :: E -> Either String String
 unLeaf (Leaf s) = Right s
 unLeaf _        = Left "Not a leaf"
 
@@ -74,41 +81,61 @@ fix3' f g h = f (fix3' f g h) (g h) h
 -- fromEa = fix (fix2 (fix3 fromE'))
 -- fromEb = fix (fix3' fromE' (fix (fix3' fromE')))
 
-fI = fix2 fromNodeI (fix (fix2 fromNodeI))
+-- fI = fix2 fromNodeI (fix (fix2 fromNodeI))
 
-fII = fix2 fromNodeI (fix fromNodePattern)
+-- fII = fix2 fromNodeI (fix fromNodePattern)
 
-fromE = fix3 fromNodeO fI fI
+-- fromE = fix3 fromNodeO fI fI
 
-fromNodeO f1 f2 f3 e = case e of
-  NodeO (Snew def nid aa tid) ps -> psnew def nid aa tid <$> (f3' ps)
-  NodeO (Nset tid) ps            -> pnset tid <$> (f3' ps)
-  Node "pmerge" [p1,p2]          -> pmerge <$> f1 p1 <*> f1 p2
-  Node "ppar" ps                 -> ppar <$> (sequence $ map f1 ps)
-  _ -> fromNodeI f1 f2 e
-  where
-    f3' = sequence . map (\(k,p) -> (k,) <$> f3 p)
+-- fromNodeO f1 f2 f3 e = case e of
+--   Node "psnew" [Leaf def,Leaf nid,Leaf aa,Leaf tid,ps] ->
+--     psnew def <$> safeRead nid <*> safeRead aa <*> safeRead tid <*> undefined
+--   Node "pmerge" [p1,p2]          -> pmerge <$> f1 p1 <*> f1 p2
+--   Node "ppar" ps                 -> ppar <$> (mapM f1 ps)
+--   _ -> fromNodeI f1 f2 e
+--   where
+--     f3' = mapM (\(k,p) -> (k,) <$> f3 p)
 
-fromNodeI fg fi e = case e of
-  NodeI "preplicate" n [p] -> preplicate <$> fi n <*> fg p
-  NodeI "pseq" n ps        -> pseq <$> fi n <*> (sequence $ map fg ps)
-  NodeI "prand" n ps       -> prand <$> fi n <*> (sequence $ map fg ps)
-  NodeI "pchoose" n ps     -> pchoose <$> fi n <*> (sequence $ map fg ps)
-  _ -> fromNodePattern fg e
+-- fromNodeI fg fi e = case e of
+--   -- NodeI "preplicate" n [p] -> preplicate <$> fi n <*> fg p
+--   -- NodeI "pseq" n ps        -> pseq <$> fi n <*> (mapM fg ps)
+--   -- NodeI "prand" n ps       -> prand <$> fi n <*> (mapM fg ps)
+--   -- NodeI "pchoose" n ps     -> pchoose <$> fi n <*> (mapM fg ps)
+--   _ -> fromNodePattern fg e
+
+-- fi        :: Patterns p => E -> Either String (p Int)
+-- f         :: Patterns p => E -> Either String (p a)
+-- fromNodeI :: Patterns p =>
+--              (E -> Either String (p Int)) -> (E -> Either String (p a)) ->
+--               E -> Either String (p a)
+
+fromNodeO g h fo e = case e of
+  Node "psnew" (Leaf d:Leaf n:Leaf a:Leaf t:ps) ->
+    let ps' = undefined
+    in  P.psnew d <$> safeRead n <*> safeRead a <*> safeRead t <*> ps'
+  Node "pnset" (Leaf t:ps) ->
+    let ps' = undefined
+    in  P.pnset <$> safeRead t <*> ps'
+  _                        -> fromNodeI g h e
+
+fromNodeI f fi e = case e of
+  Node "preplicate" [pn,p] -> P.preplicate <$> fi pn <*> f p
+  Node "pseq" (pn:ps)      -> P.pseq <$> fi pn <*> mapM f ps
+  Node "prand" (pn:ps)     -> P.prand <$> fi pn <*> mapM f ps
+  _                        -> fromNodePattern f e
 
 fromNodePattern f e = case e of
-  Node "pval" [Leaf x]    -> pval <$> (safeRead x)
-  Node "plist" ps         ->
-    fmap plist $ sequence (map ((safeRead =<<) . unLeaf) ps)
-  Node "prepeat" [Leaf x] -> prepeat <$> (safeRead x)
-  Node "pempty" []        -> pure pempty
-  Node "pappend" [p1,p2]  -> pappend <$> f p1 <*> f p2
-  Node "pconcat" ps       -> pconcat <$> sequence (map f ps)
-  Node "pcycle" ps        -> pcycle <$> sequence (map f ps)
-  Node "pforever" [p]     -> fmap pforever (f p)
-  Node "prange" [p1,p2]   -> prange <$> (f p1) <*> (f p2)
-  Node "prandom" []       -> pure prandom
-  Node "pshuffle" ps      -> pshuffle <$> sequence (map f ps)
+  Node "pval" [Leaf x]    -> P.pval <$> (safeRead x)
+  Node "plist" ps         -> P.plist <$> mapM ((safeRead =<<) . unLeaf) ps
+  Node "prepeat" [Leaf x] -> P.prepeat <$> (safeRead x)
+  Node "pempty" []        -> pure P.pempty
+  Node "pappend" [p1,p2]  -> P.pappend <$> f p1 <*> f p2
+  Node "pconcat" ps       -> P.pconcat <$> (mapM f ps)
+  Node "pcycle" ps        -> P.pcycle <$> (mapM f ps)
+  Node "pforever" [p]     -> fmap P.pforever (f p)
+  Node "prange" [p1,p2]   -> P.prange <$> (f p1) <*> (f p2)
+  Node "prandom" []       -> pure P.prandom
+  Node "pshuffle" ps      -> P.pshuffle <$> (mapM f ps)
   _                       -> fromNum f e
 
 fromNum f e = case e of
@@ -171,41 +198,89 @@ fromUnary f e = case e of
   Node "squared" [a]   -> fmap squared (f a)
   _                    -> Left $ "Unknown: " ++ show e
 
+-- instance Pval E where pval a = Node "pval" [Leaf $ show a]
+-- instance Plist E where plist as = Node "plist" (map (Leaf . show) as)
+-- instance Prepeat E where prepeat a = Node "prepeat" [Leaf $ show a]
 
-instance Pval E where pval a = Node "pval" [Leaf $ show a]
-instance Plist E where plist as = Node "plist" (map (Leaf . show) as)
-instance Prepeat E where prepeat a = Node "prepeat" [Leaf $ show a]
+-- instance Pempty E where pempty = Node "pempty" []
+-- instance Pappend E where pappend p1 p2 = Node "pappend" [p1,p2]
+-- instance Pconcat E where pconcat ps = Node "pconcat" ps
+-- instance Pcycle E where pcycle ps = Node "pcycle" ps
+-- instance Prange E where prange p1 p2 = Node "prange" [p1,p2]
+-- instance Pforever E where pforever p = Node "pforever" [p]
+-- instance Prandom E where prandom = Node "prandom" []
+-- instance Pshuffle E where pshuffle ps = Node "pshuffle" ps
 
-instance Pempty E where pempty = Node "pempty" []
-instance Pappend E where pappend p1 p2 = Node "pappend" [p1,p2]
-instance Pconcat E where pconcat ps = Node "pconcat" ps
-instance Pcycle E where pcycle ps = Node "pcycle" ps
-instance Prange E where prange p1 p2 = Node "prange" [p1,p2]
-instance Pforever E where pforever p = Node "pforever" [p]
-instance Prandom E where prandom = Node "prandom" []
-instance Pshuffle E where pshuffle ps = Node "pshuffle" ps
+-- instance Mergable (E a) where merge a b = Node "merge" [a,b]
+-- instance Pmerge E where pmerge a b = Node "pmerge" [a,b]
+-- instance Ppar E where ppar ps = Node "ppar" ps
 
-instance Mergable (E a) where merge a b = Node "merge" [a,b]
-instance Pmerge E where pmerge a b = Node "pmerge" [a,b]
-instance Ppar E where ppar ps = Node "ppar" ps
+-- instance Pseq E where pseq pn ps = Node "pseq" [pn,ps]
+-- instance Prand E where prand pn ps = Node "prand" [pn,ps]
+-- instance Pchoose E where pchoose pn ps = Node "pchoose" [pn,ps]
+-- instance Preplicate E where
+--   preplicate pn p = Node "preplicate" [pn,p]
 
-instance Pseq E where pseq pn ps = NodeI "pseq" pn ps
-instance Prand E where prand pn ps = NodeI "prand" pn ps
-instance Pchoose E where pchoose pn ps = NodeI "pchoose" pn ps
-instance Preplicate E where preplicate pn p = NodeI "preplicate" pn [p]
+-- instance Psnew E where
+--   psnew d n a t ps =
+--     Node "psnew" ([Leaf d, Leaf (show n), Leaf (show a), Leaf (show t)] ++ f ps)
+--     where
+--       f []         = []
+--       f ((k,v):ps) = Leaf k : v : f ps
 
-instance Psnew E where psnew def nid aa tid ps = NodeO (Snew def nid aa tid) ps
-instance Pnset E where pnset tid ps = NodeO (Nset tid) ps
+-- instance Pnset E where
+--   pnset tid ps = Node (Nset tid) ps
 
-instance Functor E where
-  fmap _ (Leaf x) = Leaf x
-  fmap f (Node n es) = Node n (map (fmap f) es)
-  fmap f (NodeI n e es) = NodeI n e (map (fmap f) es)
-  fmap _ (NodeO m es) = NodeO m es
+-- instance Pseq E where pseq pn ps = NodeI "pseq" pn ps
+-- instance Prand E where prand pn ps = NodeI "prand" pn ps
+-- instance Pchoose E where pchoose pn ps = NodeI "pchoose" pn ps
+-- instance Preplicate E where preplicate pn p = NodeI "preplicate" pn [p]
+
+-- instance Psnew E where psnew def nid aa tid ps = NodeO (Snew def nid aa tid) ps
+-- instance Pnset E where pnset tid ps = NodeO (Nset tid) ps
+
+-- instance Functor E where
+--   fmap _ (Leaf x) = Leaf x
+--   fmap f (Node n es) = Node n (map (fmap f) es)
+
+pval a = Node "pval" [Leaf (show a)]
+plist as = Node "plist" (map (Leaf . show) as)
+pempty = Node "pempty" []
+prandom = Node "prandom" []
+prepeat a = Node "prepeat" [Leaf (show a)]
+
+pappend p1 p2 = Node "pappend" [p1,p2]
+pconcat ps = Node "pconcat" ps
+pcycle ps = Node "pcycle" ps
+pforever p = Node "pforever" [p]
+prange p1 p2 = Node "prange" [p1,p2]
+pshuffle ps = Node "pshuffle" ps
+
+pmerge p1 p2 = Node "pmerge" [p1,p2]
+ppar ps = Node "ppar" ps
+
+preplicate pn p = Node "preplicate" [pn,p]
+pseq pn ps = Node "pseq" (pn:ps)
+pchoose pn ps = Node "pchoose" (pn:ps)
+prand pn ps = Node "prand" (pn:ps)
+
+psnew :: String -> Maybe Int -> AddAction -> Int -> [(String,E)] -> E
+psnew d n a t ps =
+  Node "psnew" ([Leaf d,Leaf (show n),Leaf (show a),Leaf (show t)] ++ f ps)
+  where
+    f []         = []
+    f ((k,v):qs) = Leaf k : v : f qs
+
+pnset :: Int -> [(String,E)] -> E
+pnset t ps =
+  Node "pnset" (Leaf (show t) : f ps)
+  where
+    f []         = []
+    f ((k,v):qs) = Leaf k : v : f qs
 
 default (Integer, Double)
 
-instance Num (E a) where
+instance Num E where
   a + b = Node "+" [a,b]
   a * b = Node "*" [a,b]
   a - b = Node "-" [a,b]
@@ -214,12 +289,12 @@ instance Num (E a) where
   signum a = Node "signum" [a]
   fromInteger a = Node "pval" [Leaf $ show (fromInteger a :: Integer)]
 
-instance Fractional (E a) where
+instance Fractional E where
   a / b = Node "/" [a,b]
   recip a = Node "recip" [a]
   fromRational a = Node "pval" [Leaf $ show (fromRational a :: Double)]
 
-instance Floating (E a) where
+instance Floating E where
   pi = Node "pi" []
   exp a = Node "exp" [a]
   sqrt a = Node "sqrt" [a]
@@ -239,10 +314,10 @@ instance Floating (E a) where
   atanh a = Node "atanh" [a]
   acosh a = Node "acosh" [a]
 
-instance Ord (E a) where
+instance Ord E where
   compare _ _ = EQ
 
-instance UnaryOp (E a) where
+instance UnaryOp E where
   ampDb a = Node "ampDb" [a]
   asFloat a = Node "asFloat" [a]
   asInt a = Node "asInt" [a]
@@ -266,9 +341,33 @@ instance UnaryOp (E a) where
   softClip a = Node "softClip" [a]
   squared a = Node "squared" [a]
 
-------------------------------------------------------------------------------
--- dummy
+---------------------------------------------------------------------------------
+-- -- dummy
 
 instance Random a => Random (ToOSC a) where
   random  = error "random not defined for (ToOSC a)"
   randomR = error "randomR not defined for (ToOSC a)"
+
+instance Random String where
+  random  = error "random not defined for String"
+  randomR = error "randomR not defined for String"
+
+instance Fractional Int
+instance Floating Int
+instance UnaryOp Int
+
+------------------------------------------------------------------------------
+-- sample
+
+pspe = psnew "speSynth" Nothing AddToTail 1
+  [("dur", prepeat 0.13)
+  ,("freq", midiCPS pspeFreq)]
+
+pspeFreq =
+  pcycle
+    [prand 1
+       [pempty, plist [24,31,36,43,48,55]]
+    ,pseq (prange 2 5)
+       [60, prand 1 [63, 65], 67, prand 1 [70,72,74]]
+    ,prand (prange 3 9)
+       [74,75,77,79,81]]

@@ -6,7 +6,7 @@
 Module      : $Header$
 License     : BSD3
 Stability   : unstable
-Portability : non-portable (OverloadedStrings)
+Portability : non-portable
 
 Parsing patterns encoded in ByteString with Bz.
 
@@ -30,34 +30,44 @@ import qualified Data.ByteString.Char8 as C8
 
 import qualified Sound.SC3.Lepton.Pattern.Expression as P
 
-parseP = eitherResult . parse rPatterns
+parseP = eitherResult . parse oPatterns
 
-rPatterns = choice
+oPatterns = fix (oPatterns' intP)
+
+oPatterns' p f = choice
   [ -- OSC message classes
     psnew, pnset
     -- Primitive
   , pempty
     -- Lists and repeating pattern classes
-  , pconcat rPatterns, pappend rPatterns, pseq intP rPatterns
-  , preplicate intP rPatterns, pcycle rPatterns, pforever rPatterns
+  , pconcat f, pappend f, pseq p f
+  , preplicate p f, pcycle f, pforever f
     -- Random pattern classes
-  , pchoose intP rPatterns
-  , prand intP rPatterns, pshuffle rPatterns
+  , pchoose p f
+  , prand p f, pshuffle f
+    -- Durational pattern classes
+  , ptakeT f, pdropT f
+    -- Finite state
+  , pfsm f
     -- Parallel pattern classes
   , pmerge, ppar
   ]
 
-nPatterns = fix nPatterns'
+intP = fmap n2int <$> braced (nPatterns)
 
-nPatterns' f = choice
+nPatterns = fix (nPatterns' number intP)
+
+nPatterns' p i f = choice
   [ -- Primitive pattern classes
-    pval number, plist number, prepeat number, pempty, prandom
+    pval p, plist p, prepeat p, pempty, prandom
     -- Lists and repeating pattern classes
-  , pconcat f, pappend f, pseq intP f
-  , preplicate intP f, pcycle f, pforever f
+  , pconcat f, pappend f, pseq i f
+  , preplicate i f, pcycle f, pforever f
     -- Random pattern classes
-  , prange f, pchoose intP f
-  , prand intP f, pshuffle f
+  , prange f, pchoose i f
+  , prand i f, pshuffle f
+    -- Finite state
+  , pfsm f
     -- Num
   , addP f, mulP f, minusP f, negateP f, absP f, signumP f
     -- Fractional
@@ -100,10 +110,22 @@ prand p1 p2   = mkP2 "prand" P.prand p1 (listOf p2)
 pshuffle p    = mkP "pshuffle" P.pshuffle (listOf p)
 
 ------------------------------------------------------------------------------
+-- Durational patterns
+
+ptakeT p = mkP2 "ptakeT" P.ptakeT double (braced p)
+pdropT p = mkP2 "pdropT" P.ptakeT double (braced p)
+
+------------------------------------------------------------------------------
 -- Parallel patterns
 
-pmerge = mkP2 "pmerge" P.pmerge (braced rPatterns) (braced rPatterns)
-ppar   = mkP "ppar" P.ppar (listOf rPatterns)
+pmerge = mkP2 "pmerge" P.pmerge (braced oPatterns) (braced oPatterns)
+ppar   = mkP "ppar" P.ppar (listOf oPatterns)
+
+------------------------------------------------------------------------------
+-- Finite state
+
+pfsm p = mkP2 "pfsm" P.pfsm (listOf decimal)
+  (listOf (braced ((,) <$> p <*> (char ',' *> listOf decimal))))
 
 ------------------------------------------------------------------------------
 -- OSC message patterns
@@ -123,10 +145,11 @@ paramList = listOf (braced pair) where
 nodeId :: Parser (Maybe Int)
 nodeId =
   (string "Nothing" *> pure Nothing) <|>
-  (braced (string "Just " *> (Just . n2int <$> (number <|> braced number))))
+  (braced (string "Just " *> (Just <$> (decimal <|> braced (signed decimal)))))
+  -- (braced (string "Just " *> (Just . n2int <$> (number <|> braced number))))
 
 targetId :: Parser Int
-targetId = n2int <$> number
+targetId = decimal -- n2int <$> number
 
 name :: Parser String
 name = char '"' *> (C8.unpack <$> takeWhile (/= '"')) <* char '"'
@@ -210,7 +233,6 @@ mkP2 n f p1 p2 = f <$ string n <*> (skipSpace *> p1) <*> (skipSpace *> p2)
 
 binOpP op sym p = op <$> p <*> (skipSpace *> sym *> skipSpace *> p)
 
-intP = fmap n2int <$> braced (nPatterns)
 
 braced :: Parser a -> Parser a
 braced a = char '(' *> skipSpace *> a <* skipSpace <* char ')'

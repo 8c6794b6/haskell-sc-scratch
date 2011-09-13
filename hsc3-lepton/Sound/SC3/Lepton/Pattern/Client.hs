@@ -16,8 +16,8 @@ import Data.Fixed
 import Data.Binary (encode)
 import Sound.OpenSoundControl
 
+import Sound.SC3.Lepton.Pattern.Interpreter.Bz
 import Sound.SC3.Lepton.Pattern.ToOSC
-import Sound.SC3.Lepton.Pattern.Interpreter.Expr
 
 import qualified Codec.Compression.Zlib as Z
 
@@ -54,7 +54,7 @@ bundle' unit dt oscs
 -- OSC Messages building functions
 
 -- | Add new pattern and run it.
-l_new :: String -> Expr (ToOSC Double) -> OSC
+l_new :: String -> Bz (ToOSC Double) -> OSC
 l_new key pat = Message "/l_new" [String key, encodePattern pat]
 
 -- | Free pattern. When pattern with given key does not exist, do nothing.
@@ -84,15 +84,14 @@ l_run :: String -> OSC
 l_run key = Message "/l_run" [String key]
 
 -- | Add new pattern, but not start it.
-l_add :: String -> Expr (ToOSC Double) -> OSC
+l_add :: String -> Bz (ToOSC Double) -> OSC
 l_add key pat = Message "/l_add" [String key, encodePattern pat]
 
 -- | Encode pattern to compressed Blob message.
-encodePattern :: Expr (ToOSC Double) -> Datum
-encodePattern = Blob . Z.compress . encode
+encodePattern :: Bz (ToOSC Double) -> Datum
+encodePattern = Blob . Z.compress . lazyByteStringP
 
--- Alternative. Faster but Bz does not support Functor.
+-- Alternative.
 --
--- encodePattern :: Bz (ToOSC Double) -> Datum
--- encodePattern = Blob . Z.compress . lazyByteStringP
---
+-- encodePattern :: Expr (ToOSC Double) -> Datum
+-- encodePattern = Blob . Z.compress . encode

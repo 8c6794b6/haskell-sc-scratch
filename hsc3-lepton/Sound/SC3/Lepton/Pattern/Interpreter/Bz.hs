@@ -146,6 +146,7 @@ instance Num a => Num (Bz a) where
 
 instance Fractional a => Fractional (Bz a) where
   Bz a / Bz b = mkOp (fromChar '/') a b
+  recip (Bz a) = mkUnary (fromString "recip") a
   fromRational a =
     Bz $ fromString "pval " <> fromString (show (fromRational a :: Double))
 
@@ -246,8 +247,7 @@ instance Prandom Bz where
   prandom = Bz $ fromString "prandom"
 
 instance Pshuffle Bz where
-  pshuffle ps =
-    Bz $ fromString "pshuffle " <> mkList unBz ps
+  pshuffle ps = Bz $ fromString "pshuffle " <> mkList unBz ps
 
 instance Pchoose Bz where
   pchoose (Bz n) ps =
@@ -264,6 +264,26 @@ instance Pmerge Bz where
 
 instance Ppar Bz where
   ppar ps = Bz $ fromString "ppar " <> mkList unBz ps
+
+------------------------------------------------------------------------------
+-- Durational patterns
+
+instance PtakeT Bz where
+  ptakeT t (Bz a) =
+    Bz $ fromString "ptakeT " <> fromString (show t) <> space <> braced a
+
+instance PdropT Bz where
+  pdropT t (Bz a) =
+    Bz $ fromString "pdropT " <> fromString (show t) <> space <> braced a
+
+------------------------------------------------------------------------------
+-- Finite state pattern
+
+instance Pfsm Bz where
+  pfsm is cs = Bz $ fromString "pfsm " <> mkList f is <> space <> mkList g cs
+    where
+      f = fromString . show
+      g (p,js) = braced (unBz p <> fromChar ',' <> mkList f js)
 
 ------------------------------------------------------------------------------
 -- OSC message patterns

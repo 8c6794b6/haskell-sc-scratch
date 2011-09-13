@@ -28,7 +28,7 @@ import Sound.SC3.Lepton.UGen.Factory
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.Map as M
 
--- ----------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 -- Types
 
 -- | Composable, audible event pattern.
@@ -49,7 +49,7 @@ instance Audible (R (ToOSC Double)) where
       send fd' (bundle immediately [notify False, n_free [trid]]))
     (\(fd',trid) -> runMsg r trid fd')
 
--- ---------------------------------------------------------------------------
+------------------------------------------------------------------------------
 -- Guts
 
 -- | Run message immediately
@@ -230,48 +230,15 @@ writeScore ini n0 pat path = withFile path WriteMode $ \hdl -> do
           o' = bundle (NTPr t') [toOSC o]
       BSL.hPut hdl (oscWithSize o')
       return t'
-
--- | Write OSC from pattern, for non-realtime use with scsynth.
---
--- This function takes duration as its first argument, may useful to write
--- infinite pattern to file.
---
-writeScoreFor ::
-  Double
-  -- ^ Duration to write
-  -> [OSC]
-  -- ^ Initial OSC message.
-  -> SCNode
-  -- ^ Initial node graph.
-  -> R (ToOSC Double)
-  -- ^ Pattern containing OSC message.
-  -> FilePath
-  -- ^ Path to save OSC data.
-  -> IO ()
-writeScoreFor dur ini n0 pat path = withFile path WriteMode $ \hdl -> do
-  let n0' = diffMessage (Group 0 []) n0
-  BSL.hPut hdl (oscWithSize (bundle (NTPr 0) (n0' ++ ini)))
-  foldM_ (k hdl) 0 . g (dur,0) =<< runPIO pat
-  where
-    k hdl t o = do
-      let t' = t + getDur o
-          o' = bundle (NTPr t') [toOSC o]
-      BSL.hPut hdl (oscWithSize o')
-      return t'
-    g (dur,cur) (p:ps)
-      | cur < dur = p : g (dur, cur + getDur p) ps
-      | otherwise = []
+    oscWithSize o = BSL.append l b where
+      b = encodeOSC o
+      l = encode_i32 (fromIntegral (BSL.length b))
 
 -- | Root node with a group with node id 1.
 defaultGroup :: SCNode
 defaultGroup = Group 0 [Group 1 []]
 
--- Helper brought from hsc3 source.
-oscWithSize o = BSL.append l b where
-  b = encodeOSC o
-  l = encode_i32 (fromIntegral (BSL.length b))
-
--- ----------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 -- Debugging
 
 -- dumpMsg :: Num a => Msg a -> IO ()

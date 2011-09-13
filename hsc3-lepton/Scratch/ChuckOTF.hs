@@ -157,7 +157,7 @@ dumpPat = withLept . flip send $ l_dump
 
 addAll = sequence_ [addKik, addSnr, addHat, addHato, addSin1, addSin2]
 
-addAllButSnare' = bundle immediately
+addAllButSnare' = bundle' (t*2) 0
   [ l_new "kik" kikP, l_new "hat" hatP, l_new "hat-open" hatoP
   , l_new "sin-lo" sin1P, l_new "sin-hi" sin2P ]
 

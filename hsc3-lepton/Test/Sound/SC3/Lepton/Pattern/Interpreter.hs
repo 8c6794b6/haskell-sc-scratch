@@ -88,6 +88,7 @@ check_bz_s bz s =
   show (toBz bz) == show (toS s) &&
   bz == bz && lazyByteStringP bz == BSL.fromChunks [byteStringP bz] &&
   typeOf bz == typeOf (undefined :: Bz (ToOSC Double)) &&
+  -- let Right bz' = parseP (lazyByteStringP bz) in bz' == bz &&
   s == s
 
 ------------------------------------------------------------------------------

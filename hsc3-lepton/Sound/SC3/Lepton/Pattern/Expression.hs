@@ -28,6 +28,12 @@ module Sound.SC3.Lepton.Pattern.Expression
     -- * Parallel
     Pmerge(..), Ppar(..), Mergable(..),
 
+    -- * Durational
+    PtakeT(..), PdropT(..),
+
+    -- * Finite state machine
+    Pfsm(..),
+
     -- * OSC message
     Psnew(..), Pnset(..)
 
@@ -109,6 +115,15 @@ class Ppar p where
 -- | Class for merging patterns in parallel.
 class Mergable m where
   merge :: m -> m -> m
+
+class PtakeT p where
+  ptakeT :: Double -> p (ToOSC Double) -> p (ToOSC Double)
+
+class PdropT p where
+  pdropT :: Double -> p (ToOSC Double) -> p (ToOSC Double)
+
+class Pfsm p where
+  pfsm :: [Int] -> [(p a, [Int])] -> p a
 
 -- | Pattern for 's_new' messages.
 class Psnew s where
