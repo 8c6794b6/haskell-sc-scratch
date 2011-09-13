@@ -34,8 +34,62 @@ instance TSYM ShowT where
 view_t :: ShowT a -> String
 view_t (ShowT t) = t
 
+------------------------------------------------------------------------------
+-- Adding Bool type
+--
+-- New classe is TBool, new concreate data type is AsBool.
+-- New instance definitions are instances of TBool for existing type,
+-- ShowT, TQ, ShowAs, SafeCast, AsInt, AsArrow. And TSYM and AsBool
+-- instance for TBool instance.
+--
+-- Also, type class constraint for TQ need to be modified from:
+--
+-- TSYM trepr => ...
+--
+-- to:
+--
+-- (TSYM trepr, TBool trepr) => ....
+--
+-- Will this happen whenever we add primitive type?
+--
+
+class TBool trepr where
+  tbool :: trepr Bool
+
+instance TBool ShowT where
+  tbool = ShowT "Bool"
+
+instance TBool TQ where
+  tbool = TQ tbool
+
+instance TBool ShowAs where
+  tbool = ShowAs tbool show
+
+instance TBool AsInt where
+  tbool = AsInt Nothing
+
+instance TBool AsArrow where
+  tbool = AsArrow tbool Nothing
+
+instance TBool SafeCast where
+  tbool = SafeCast $ \tb ->
+    case unTQ tb of AsBool eq -> fmap symm eq
+
+newtype AsBool a = AsBool (Maybe (EQU a Bool))
+
+instance TBool AsBool where
+  tbool = AsBool $ Just refl
+
+instance TSYM AsBool where
+  tint = AsBool Nothing
+  tarr _ _ = AsBool Nothing
+
+tb1 = (tint `tarr` tbool)
+tb1_view = view_t tb1 -- (Int -> Bool)
+
 -- | Quantifying over TSYM interpreter.
-newtype TQ t = TQ {unTQ :: forall (trepr :: * -> *). TSYM trepr => trepr t}
+newtype TQ t =
+  TQ {unTQ :: forall (trepr :: * -> *). (TSYM trepr,TBool trepr) => trepr t}
 
 instance TSYM TQ where
   tint = TQ tint
@@ -101,7 +155,7 @@ eq_arr a1a2 b1b2 =
 ------------------------------------------------------------------------------
 -- Constructive deconstructors
 
-data AsInt a = AsInt (Maybe (EQU a Int))
+newtype AsInt a = AsInt (Maybe (EQU a Int))
 
 instance TSYM AsInt where
   tint     = AsInt $ Just refl
@@ -143,6 +197,9 @@ safe_gcast (TQ ta) ca tb = cast ta where
 
 data Dynamic = forall t. Dynamic (TQ t) t
 
+instance Show Dynamic where
+  show (Dynamic tr a) = show_as tr a
+
 tdn_show (Dynamic tr a) = show_as tr a
 
 tdn1 = Dynamic tint 5
@@ -169,3 +226,28 @@ tdn1_eval = tdn_eval1 tdn1 (+4)
 tdn2_eval = tdn_eval1 tdn2 (+4)
 tdn2_eval' = tdn_eval2 tdn2 3 14
 tdn3_eval = tdn_eval2 tdn3 3 14
+
+tdn_b_eval1 (Dynamic tr d) x = do
+  Id f <- safe_gcast tr (Id d) tb1
+  return . show $ f x
+
+tdn_b_eval2 (Dynamic tr d) x = do
+  Id f <- safe_gcast tr (Id d) (tbool `tarr` tbool)
+  return . show $ f x
+
+-- With TBool
+
+tdn_b1 = Dynamic tbool True
+tdn_b2 = Dynamic tbool False
+tdn_b3 = Dynamic tb1 (< 3)
+tdn_b4 = Dynamic (tbool `tarr` tbool) not
+
+tdn_b1_show = tdn_show tdn_b1
+tdn_b2_show = tdn_show tdn_b2
+tdn_b3_show = tdn_show tdn_b3
+tdn_b4_show = tdn_show tdn_b4
+
+tdn_b3_eval  = tdn_b_eval1 tdn_b3 2
+tdn_b3_eval' = tdn_b_eval1 tdn_b3 4
+tdn_b4_eval  = tdn_b_eval2 tdn_b4 True
+tdn_b4_eval' = tdn_b_eval2 tdn_b4 False

@@ -56,6 +56,20 @@ read_t (Node "TArr" [e1,e2]) = do
   return . Typ $ tarr t1 t2
 read_t tree = fail $ "Bad type expression: " ++ show tree
 
+read_t2 = fix' read_t2'
+
+read_t2' :: (Tree -> Either String Typ) -> Tree -> Either String Typ
+read_t2' f e = case e of
+  Node "TInt" [] -> return $ Typ tint
+  Node "TArr" [e1,e2] -> do
+    Typ t1 <- read_t2' f e1
+    Typ t2 <- read_t2' f e2
+    return . Typ $ tarr t1 t2
+  _ -> fail $ "Bad type expression: " ++ show e
+
+
+-- read_t3' f e = case e of
+--   Node "TBool" [] -> return $ Typ tbool
 
 ------------------------------------------------------------------------------
 -- Type checking environment
@@ -132,7 +146,7 @@ type G gamma repr h = (Tree,gamma) -> Either String (DynTerm repr h)
 --         -> (Tree, gamma) -> Either String (DynTerm repr h))
 --         -> (Tree, gamma) -> Either String (DynTerm repr h)
 -- fix' :: (t -> t) -> t
-fix' :: (forall g r h. G g r h -> G g r h) -> G g r h
+-- fix' :: (forall g r h. G g r h -> G g r h) -> G g r h
 fix' f = f (fix' f)
 
 -- fix' :: (a -> a) -> a
