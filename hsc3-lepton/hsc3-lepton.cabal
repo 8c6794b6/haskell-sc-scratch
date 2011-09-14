@@ -63,7 +63,6 @@ library
     Sound.SC3.Lepton.Pattern.Expression
     Sound.SC3.Lepton.Pattern.Interpreter
     Sound.SC3.Lepton.Pattern.Interpreter.Bz
-    -- Sound.SC3.Lepton.Pattern.Interpreter.E
     Sound.SC3.Lepton.Pattern.Interpreter.Expr
     Sound.SC3.Lepton.Pattern.Interpreter.R
     Sound.SC3.Lepton.Pattern.Interpreter.S

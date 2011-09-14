@@ -128,9 +128,6 @@ mkOSCs os tid = foldM f [] os where
         let t = ToOSC (Nset tid) (M.singleton "t_trig" 1 :: M.Map String Double)
             o' = toOSC o
         o' `seq` t `seq` return (o':toOSC t:acc)
-  isSilence m =
-    ((\x -> isNaN x || isInfinite x || x == 0) <$>
-     M.lookup "freq" (oscMap m)) == Just True
 
 -- | Synthdef used for responding to 'n_set' messages.
 --

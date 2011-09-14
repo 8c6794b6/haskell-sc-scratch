@@ -15,17 +15,37 @@ Writing server with using hosc package. Communication between client would
 be done with sending and receiving OSC command, instead of raw ByteString.
 
 -}
-module Sound.SC3.Lepton.Pattern.Server where
+module Sound.SC3.Lepton.Pattern.Server
+  (
+    -- * Types
+    ConInfo(..)
+  , Connection(..)
+  , LeptSeq(..)
+  , Protocol(..)
+  , ServerEnv(..)
+  , ServerLoop(..)
+  , Thread(..)
+  , ThreadState(..)
+
+    -- * Server related actions
+  , shutdownServer
+  , defaultLeptSeq
+  , mkInitEnv
+  , runServer
+
+  ) where
 
 import Control.Applicative
 import Control.Concurrent
-import Control.Exception (SomeException, bracket, handle)
+import Control.Exception (bracket)
 import Control.Monad
 import Control.Monad.Reader
 import Data.Data
 import Data.Ord (comparing)
 
+{-
 import Data.Binary (Binary, decode)
+-}
 import Sound.OpenSoundControl
 import Sound.SC3 hiding (Binary, env)
 
@@ -42,28 +62,26 @@ default (Integer, Double)
 ------------------------------------------------------------------------------
 -- Command line wrapper utils
 
-shutdownServer :: MVar Env -> IO ()
+-- | Kill running threads in ServerEnv.
+shutdownServer :: MVar ServerEnv -> IO ()
 shutdownServer mvar =
   F.mapM_ (F.mapM_ killThread . getThreadId) . envThreads =<< readMVar mvar
 
+-- | Wrapper to hold command line argument.
 data LeptSeq = LeptSeq
   { port :: Int
   , sc :: (String,Int,Protocol)
   } deriving (Eq,Show,Data,Typeable)
 
-defaultArg :: LeptSeq
-defaultArg = LeptSeq 58110 ("127.0.0.1",57110,Udp)
-
-serveTest :: IO ()
-serveTest = bracket acquire release runServer where
-  acquire = mkInitEnv defaultArg
-  release = shutdownServer
+-- | Default setting for command line argument.
+defaultLeptSeq :: LeptSeq
+defaultLeptSeq = LeptSeq 58110 ("127.0.0.1",57110,Udp)
 
 -- | Make initial env from command line argument.
-mkInitEnv :: LeptSeq -> IO (MVar Env)
+mkInitEnv :: LeptSeq -> IO (MVar ServerEnv)
 mkInitEnv lep = do
   let (h,p,ptc) = sc lep
-  newMVar $ Env M.empty (ConInfo h p ptc) undefined (port lep)
+  newMVar $ ServerEnv M.empty (ConInfo h p ptc) undefined (port lep)
 
 ------------------------------------------------------------------------------
 -- Types
@@ -90,7 +108,7 @@ instance Transport Connection where
   close (TCPCon c) = close c
 
 -- | Environment of server.
-data Env = Env
+data ServerEnv = ServerEnv
   { envThreads :: M.Map String Thread
   , envSC :: ConInfo
   , envLept :: Connection
@@ -119,8 +137,8 @@ data ThreadState
 -- | Loop for server.
 --
 -- Wrapped ReaderT IO with environment in MVar.
-newtype ServerLoop a = ServerLoop {unServerLoop :: ReaderT (MVar Env) IO a}
-  deriving (Applicative,Functor,Monad,MonadReader (MVar Env),MonadIO)
+newtype ServerLoop a = ServerLoop {unServerLoop :: ReaderT (MVar ServerEnv) IO a}
+  deriving (Applicative,Functor,Monad,MonadReader (MVar ServerEnv),MonadIO)
 
 -- | Get Connection from Coninfo.
 fromConInfo :: ConInfo -> IO Connection
@@ -129,7 +147,7 @@ fromConInfo (ConInfo h p ptc) = case ptc of
   Tcp -> TCPCon <$> openTCP h p
 
 -- | Run server with given env.
-runServer :: MVar Env -> IO ()
+runServer :: MVar ServerEnv -> IO ()
 runServer env = do
   env' <- readMVar env
   withTransport (udpServer "127.0.0.1" (envPort env')) $ \fd -> do
@@ -149,7 +167,7 @@ work = do
     Bundle time ms  -> mapM_ (sendMessage (Just time)) ms
     m@(Message _ _) -> sendMessage Nothing m
 
--- | Send message with or without bundled time, and update Env.
+-- | Send message with or without bundled time, and update ServerEnv.
 --
 -- When the server received `/l_new` message, a new ThreadId will be
 -- added. On receiving `/l_free` and `/l_freeAll`, ThreadId of given
@@ -167,7 +185,7 @@ sendMessage time m = case m of
   Message "/l_dump" []                    -> runLDump time
   Message "/l_add" [String key, Blob pat] -> runLAdd time key pat
   Message "/l_run" [String key]           -> runLRun time key
-  Message "/l_pause"  [String _]          -> return ()
+  Message "/l_pause"  [String key]        -> runLPause time key
   _ -> do
     st <- liftIO . readMVar =<< ask
     liftIO $ withTransport (fromConInfo (envSC st)) (flip send m)
@@ -177,17 +195,12 @@ runLNew time key pat = withEnv $ \env ->
   case M.lookup key (envThreads env) of
     Just _  -> liftIO $ putStrLn $ "thread exists: " ++ key
     Nothing -> do
-      -- case toR <$> fromExpr (decode $ Z.decompress pat) of
-      case toR <$> parseP (Z.decompress pat) of
+      case decodePattern pat of
         Right r  -> forkNewThread time key r
         Left err -> liftIO $ putStrLn err
 
-decode' :: Binary a => BL.ByteString -> IO (Either String a)
-decode' a = handle h (return $ decode a) where
-  h = \(_ :: SomeException) -> return $ Left "error in decode"
-
 runLAdd :: Maybe Time -> String -> BL.ByteString -> ServerLoop ()
-runLAdd _ key pat = case fromExpr (decode $ Z.decompress pat) of
+runLAdd _ key pat = case decodePattern pat of
   Right pat' -> modifyEnv $ \env -> do
     let t = Thread New pat'
     return $ env {envThreads=M.insert key t (envThreads env)}
@@ -256,15 +269,15 @@ runLDump time = withEnv $ \env -> do
 -- Utils
 
 -- | Modify env with given action.
-modifyEnv :: (Env -> IO Env) -> ServerLoop ()
+modifyEnv :: (ServerEnv -> IO ServerEnv) -> ServerLoop ()
 modifyEnv k = ask >>= \mvar -> liftIO $ modifyMVar_ mvar k
 
 -- | Execute given action with current env.
-withEnv :: (Env -> ServerLoop a) -> ServerLoop a
+withEnv :: (ServerEnv -> ServerLoop a) -> ServerLoop a
 withEnv k = ask >>= liftIO . readMVar >>= k
 
-withEnv_ :: (Env -> ServerLoop a) -> ServerLoop ()
-withEnv_ k = withEnv (\e -> k e >> return ())
+-- withEnv_ :: (Env -> ServerLoop a) -> ServerLoop ()
+-- withEnv_ k = withEnv (\e -> k e >> return ())
 
 -- | Pause until given 'Time', or return immediately on 'Nothing'.
 maybePause :: Maybe Time -> IO ()
@@ -283,3 +296,10 @@ getThreadId (Thread st _) = case st of
   Running tid -> Just tid
   Paused tid  -> Just tid
   _           -> Nothing
+
+decodePattern :: BL.ByteString -> Either String (R (ToOSC Double))
+decodePattern = fmap toR . parseP . Z.decompress
+
+{-
+decodePattern pat = toR <$> fromExpr (decode $ Z.decompress pat)
+-}

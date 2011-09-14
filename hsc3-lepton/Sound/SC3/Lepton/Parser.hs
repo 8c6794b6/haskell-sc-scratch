@@ -10,9 +10,8 @@
 -- Module to re-export parsers.
 --
 module Sound.SC3.Lepton.Parser
- ( module Sound.SC3.Lepton.Parser.Datum
- , module Sound.SC3.Lepton.Parser.SynthDef
+ ( module All
  ) where
 
-import Sound.SC3.Lepton.Parser.Datum
-import Sound.SC3.Lepton.Parser.SynthDef
+import Sound.SC3.Lepton.Parser.Datum as All
+import Sound.SC3.Lepton.Parser.SynthDef as All

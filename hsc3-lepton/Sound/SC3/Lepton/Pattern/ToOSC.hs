@@ -207,6 +207,24 @@ getDur :: Num a => ToOSC a -> a
 getDur o = fromMaybe 1 $ M.lookup "dur" (oscMap o)
 {-# SPECIALIZE getDur :: ToOSC Double -> Double #-}
 
+-- | Detect whether message is silence or not.
+--
+-- In current design, message will be treated as silence whenever any
+-- of below hold:
+--
+-- * \"freq\" in Map is 0.
+-- * \"t_trig\" in Map is 0.
+--
+isSilence :: RealFloat a => ToOSC a -> Bool
+isSilence m =
+  let freq0 = case M.lookup "freq" (oscMap m) of
+        Just t  -> isNaN t || isInfinite t || t == 0
+        Nothing -> False
+      trig0 = case M.lookup "t_trig" (oscMap m) of
+        Just t  -> isNaN t || isInfinite t || t == 0
+        Nothing -> False
+  in freq0 || trig0
+
 -- | Modify contents of specified key with given function
 tadjust :: String -> (a -> a) -> ToOSC a -> ToOSC a
 tadjust k f (ToOSC ot om) = ToOSC ot (M.adjust f k om)
@@ -229,51 +247,51 @@ madjust k f r = fmap (tadjust k f) r
 --   eOSC = toOSC
 --   eDur = getDur
 
-class Show a => Cue a where
-  cueDur   :: a -> Double
-  asOSC    :: a -> OSC
-  setCueId :: Int -> a -> a
-  getCueId :: a -> Int
-  isRest   :: a -> Bool
+-- class Show a => Cue a where
+--   cueDur   :: a -> Double
+--   asOSC    :: a -> OSC
+--   setCueId :: Int -> a -> a
+--   getCueId :: a -> Int
+--   isRest   :: a -> Bool
 
-data Sn = Sn String (Maybe Int) AddAction Int (M.Map String Double)
-        deriving (Eq,Show)
-data Ns = Ns Int (M.Map String Double)
-        deriving (Eq,Show)
+-- data Sn = Sn String (Maybe Int) AddAction Int (M.Map String Double)
+--         deriving (Eq,Show)
+-- data Ns = Ns Int (M.Map String Double)
+--         deriving (Eq,Show)
 
-instance Cue Sn where
-  cueDur (Sn _ _ _ _ m) = M.findWithDefault 1 "dur" m
-  asOSC (Sn def nid aa tid m) = s_new def (fromMaybe (-1) nid) aa tid (M.assocs m)
-  setCueId nid (Sn def _ aa tid m) = Sn def (Just nid) aa tid m
-  getCueId (Sn _ nid _ _ _) = fromMaybe (-1) nid
-  isRest (Sn _ _ _ _ m) = maybe False zeroOrNaN $ M.lookup "freq" m
+-- instance Cue Sn where
+--   cueDur (Sn _ _ _ _ m) = M.findWithDefault 1 "dur" m
+--   asOSC (Sn def nid aa tid m) = s_new def (fromMaybe (-1) nid) aa tid (M.assocs m)
+--   setCueId nid (Sn def _ aa tid m) = Sn def (Just nid) aa tid m
+--   getCueId (Sn _ nid _ _ _) = fromMaybe (-1) nid
+--   isRest (Sn _ _ _ _ m) = maybe False zeroOrNaN $ M.lookup "freq" m
 
-instance Cue Ns where
-  cueDur (Ns _ m) = M.findWithDefault 1 "dur" m
-  asOSC  (Ns i m) = n_set i (M.assocs m)
-  setCueId i (Ns _ m) = Ns i m
-  getCueId (Ns i _) = i
-  isRest (Ns _ m) = maybe False zeroOrNaN $ M.lookup "freq" m
+-- instance Cue Ns where
+--   cueDur (Ns _ m) = M.findWithDefault 1 "dur" m
+--   asOSC  (Ns i m) = n_set i (M.assocs m)
+--   setCueId i (Ns _ m) = Ns i m
+--   getCueId (Ns i _) = i
+--   isRest (Ns _ m) = maybe False zeroOrNaN $ M.lookup "freq" m
 
-instance Cue (ToOSC Double) where
-  cueDur = getDur
-  asOSC o = toOSC o
-  setCueId = setNid
-  getCueId = undefined
-  isRest (ToOSC _ m) = maybe False zeroOrNaN $ M.lookup "freq" m
+-- instance Cue (ToOSC Double) where
+--   cueDur = getDur
+--   asOSC o = toOSC o
+--   setCueId = setNid
+--   getCueId = undefined
+--   isRest (ToOSC _ m) = maybe False zeroOrNaN $ M.lookup "freq" m
 
-zeroOrNaN :: Double -> Bool
-zeroOrNaN x = isNaN x || x == 0
+-- zeroOrNaN :: Double -> Bool
+-- zeroOrNaN x = isNaN x || x == 0
 
-data Event where
-  Event :: forall e. Cue e => e -> Event
+-- data Event where
+--   Event :: forall e. Cue e => e -> Event
 
-instance Cue Event where
-  asOSC (Event n) = asOSC n
-  isRest (Event n) = isRest n
-  cueDur (Event n) = cueDur n
-  getCueId (Event n) = getCueId n
-  setCueId i (Event n) = Event (setCueId i n)
+-- instance Cue Event where
+--   asOSC (Event n) = asOSC n
+--   isRest (Event n) = isRest n
+--   cueDur (Event n) = cueDur n
+--   getCueId (Event n) = getCueId n
+--   setCueId i (Event n) = Event (setCueId i n)
 
-instance Show Event where
-  show (Event n) = shows ("Event: " ++ show n) ""
+-- instance Show Event where
+--   show (Event n) = shows ("Event: " ++ show n) ""

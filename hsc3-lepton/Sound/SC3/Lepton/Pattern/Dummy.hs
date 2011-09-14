@@ -19,7 +19,7 @@ Warnings for missing methods are ignored with
 '-fno-warn-missing-methods' pragma.
 
 -}
-module Sound.SC3.Lepton.Pattern.Dummy where
+module Sound.SC3.Lepton.Pattern.Dummy () where
 
 import System.Random
 

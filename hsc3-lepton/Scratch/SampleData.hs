@@ -22,13 +22,6 @@ import Sound.SC3
 import Sound.SC3.ID
 import Sound.SC3.Lepton
 
-import Sound.SC3.Lepton.Pattern.Interpreter.Bz
-import Sound.SC3.Lepton.Pattern.Interpreter.Expr
-import Sound.SC3.Lepton.Pattern.Play
-
-import Sound.SC3.Lepton.Pattern.Client
-import Sound.SC3.Lepton.Pattern.ParseP (parseP)
-
 import qualified Data.Binary as Bin
 import qualified Data.ByteString.Lazy.Char8 as LC8
 

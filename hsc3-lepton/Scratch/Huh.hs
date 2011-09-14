@@ -40,17 +40,16 @@ goHuh fd =
     (play fd $ toR allP)
 
 goHuh' :: IO ()
-goHuh' = do
-  withSC3 $ \fd -> do
-    reset fd
-    patchNode n0 fd
+goHuh'= do
+  withSC3 $ \fd -> reset fd >> patchNode n0 fd
   withLept $ \fd -> do
-    send fd $ bundle immediately
+    msg <- bundle' 1 0
       [ l_new "huh1" huh1P, l_new "huh2" huh2P, l_new "huh3" huh3P
       , l_new "kik" kikP, l_new "snr" snrP, l_new "hat" hatP
       , l_new "pu" puP, l_new "bell" bellP
       , l_new "drn1" drn1P, l_new "drn2" drn2P
       ]
+    send fd msg
 
 {-
 
@@ -71,6 +70,7 @@ huhps fd = do
 setupHuh :: Transport t => t -> IO OSC
 setupHuh fd = do
   Play.setup fd
+  mapM_ (uncurry writeSynthdef) huhdefs
   async fd $ bundle immediately $
     map (d_recv . uncurry synthdef) huhdefs
 
@@ -141,7 +141,7 @@ n0 =
     g = Group
     s = Synth
 
---
+------------------------------------------------------------------------------
 -- Patterns
 --
 
@@ -151,11 +151,6 @@ allP = ppar
   [ huh1P, huh2P, huh3P
   , kikP, snrP, hatP
   , puP, drn1P, drn2P, bellP ]
-
-allP' = ppar
-  [ huh1P, huh2P, huh3P
-  , kikP, snrP, hatP
-  , puP, bellP ]
 
 l = withLept . flip send
 
@@ -169,7 +164,7 @@ huh1P =
     ,pcycle
      [pseq 12 [0,1,0,0, 1,0,0,1, 0,0,1,0, 1,0,1,0]
      ,pseq 4  [0,1,0,1, 1,1,0,0, 0,0,0,1, 1,0,0,1]]])
-  ]
+   ]
 
 huh2P =
   psnew "cf2huh" Nothing AddToTail 10
@@ -193,7 +188,7 @@ huh3P =
     ,pcycle
      [pseq 12 [0,1,0,1, 0,0,0,1, 0,1,0,1, 0,0,0,1]
      ,pseq 14 [0,0,0,0], pseq 4 [1,0]]])
-   ]
+  ]
 
 kikP =
   psnew "cf2kik" Nothing AddToTail 10
@@ -262,39 +257,41 @@ puP =
   ]
 
 drn1P =
+  let f = midiCPS in
   pnset 1001
   [("dur", pforever (60/bpm))
   ,("amp", prepeat 0.3)
-  ,("freq", fmap (\x -> if x == 0 then nan else midiCPS x) $
+  ,("freq",
     pconcat
     [pseq 32 [0]
     ,pcycle
      [pseq 3
-      [72, 0, 0, 0,  0, 0, 0, 0,  0,67, 0, 0, 65, 0, 0, 0
-      ,67, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0, 65, 0, 0, 0
-      ,60, 0, 0, 0,  0, 0, 0, 0,  0,55, 0, 0, 65, 0, 0, 0
-      ,67, pseq 15 [0]]
+      [f 72, 0, 0, 0,  0, 0, 0, 0,  0,f 67, 0, 0,f 65, 0, 0, 0
+      ,f 67, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0, f 65, 0, 0, 0
+      ,f 60, 0, 0, 0,  0, 0, 0, 0,  0,f 55, 0, 0, f 65, 0, 0, 0
+      ,f 67, pseq 15 [0]]
      ,pconcat
-      [72, pseq 31 [0]
-      ,60, pseq 31 [0]]]])
+      [f 72, pseq 31 [0]
+      ,f 60, pseq 31 [0]]]])
   ]
 
 drn2P =
+  let f = midiCPS in
   pnset 1002
   [("dur", pforever (60/bpm))
   ,("amp", prepeat 0.3)
-  ,("freq", fmap (\x -> if x == 0 then nan else midiCPS x) $
+  ,("freq",
    pconcat
     [pseq 32 [0]
     ,pcycle
      [pseq 3
-      [ 0, 0, 55,0,  0, 0,60, 0,  0, 0, 0, 0,  0, 0, 0, 0
-      , 0, 0, 0, 0, 67, 0, 0, 0,  0, 0, 0, 0, 60, 0, 0, 0
-      , 0, 0, 0, 0,  0, 0,67, 0,  0, 0, 0, 0,  0, 0, 0, 0
-      , 0, 0, 0, 0, 60, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0]
+      [ 0, 0, f 55,0, 0, 0, f 60, 0,  0, 0, 0, 0,  0,    0, 0, 0
+      , 0, 0, 0, 0,   f 67, 0, 0, 0,  0, 0, 0, 0,  f 60, 0, 0, 0
+      , 0, 0, 0, 0,   0, 0, f 67, 0,  0, 0, 0, 0,  0,    0, 0, 0
+      , 0, 0, 0, 0,   f 60, 0, 0, 0,  0, 0, 0, 0,  0,    0, 0, 0]
      ,pconcat
-      [ 0, 0, 55,0, pseq 28 [0]
-      , 0, 0,  0,0, 0, 0, 67, 0, pseq 24 [0]]]])
+      [ 0, 0, f 55,0, pseq 28 [0]
+      , 0, 0,    0,0, 0, 0, f 67, 0, pseq 24 [0]]]])
    ]
 
 bellP =
@@ -314,7 +311,7 @@ bellP =
 shwP =
   undefined
 
---
+------------------------------------------------------------------------------
 -- Control synths
 --
 
@@ -322,12 +319,10 @@ lfsin :: UGen
 lfsin =
   out ("out"@@100) $ sinOsc KR ("freq"@@1) 0 * ("mul"@@1) + ("add"@@0)
 
---
+------------------------------------------------------------------------------
 -- Source synths
 --
--- Many synths are using dummy line ugen, to free the node after
--- certain seconds. When synths can free itself with envGen, this dummy
--- line ugen could be removed.
+-- Many synths are using detectSilence ugen, to free itself.
 --
 -- Using more memory than demand ugen version, need to increase
 -- scsynth server memory with '-m' option.
@@ -336,18 +331,17 @@ lfsin =
 -- | Synthdef for 'huh' human vowel like noise.
 cf2huh :: UGen
 cf2huh = cf2huh' (whiteNoise 'a' AR) ("t_trig"@@0)
-cf2huh' srcn tick =
-  mrg [out ("out"@@0) (mix $ resonz srcn freq bndw * ampe), d] where
-    freq = mce [tRand 'a' 600 800 tick
-               ,tRand 'b' 1000 1400 tick
-               ,tRand 'c' 2400 2800 tick] `lag` 0.1
-    bndw = mce [130/700, 70/1220, 160/2600]
-    ampe = envGen KR tick {- ampv -} 1 0 1 RemoveSynth $
-           envSine ed ev
-    ampv = latch tick tick
-    ed = tRand 'd' 0.1 0.4 tick
-    ev = tRand 'e' 0.1 0.6 tick
-    d = line KR 0 0 1 RemoveSynth
+cf2huh' srcn tick = mrg [out ("out"@@0) sig, d] where
+  sig = mix $ resonz srcn freq bndw * ampe
+  freq = mce [tRand 'a' 600 800 tick
+             ,tRand 'b' 1000 1400 tick
+             ,tRand 'c' 2400 2800 tick] `lag` 0.1
+  bndw = mce [130/700, 70/1220, 160/2600]
+  ampe = envGen KR tick 1 0 1 RemoveSynth $ envSine ed ev
+  ampv = latch tick tick
+  ed = tRand 'd' 0.1 0.4 tick
+  ev = tRand 'e' 0.1 0.6 tick
+  d = detectSilence' ampe 0.01 0.1 RemoveSynth
 
 cf2nzf :: UGen
 cf2nzf = cf2nzf' ("t_amp"@@0) ("freq"@@0)
@@ -364,16 +358,14 @@ cf2nzf' amp freq = out ("out"@@0) sig where
 
 cf2kik :: UGen
 cf2kik = cf2kik' ("t_trig"@@0)
-cf2kik' tick =
-  out ("out"@@0) ((lfCub AR freq 0.05 + impl) * ampe) where
-    freq = (mix $ mce [200.32, 230.32, 360.79, 110.13]) * fenv
-    fenv = envGen KR tick 1 0 1 DoNothing $
-           env [0.2, 0.2, 0.1, 0.1] [10e-3, 10e-3, 10e-3] [EnvSqr] 0 (-1)
-    impl = impulse AR 28 0.3 * decay2 tick 1e-4 2e-3
-    ampe = envGen KR tick lvls 0 1 RemoveSynth $
-           env [0,1,1,0] [1e-3,25e-3,228e-3] [EnvNum (-13)] (-1) 0
-    lvls = latch tick tick * d
-    d = line KR 1 1 1 RemoveSynth
+cf2kik' tick = out ("out"@@0) ((lfCub AR freq 0.05 + impl) * ampe) where
+  freq = (mix $ mce [200.32, 230.32, 360.79, 110.13]) * fenv
+  fenv = envGen KR tick 1 0 1 DoNothing $
+         env [0.2, 0.2, 0.1, 0.1] [10e-3, 10e-3, 10e-3] [EnvSqr] 0 (-1)
+  impl = impulse AR 28 0.3 * decay2 tick 1e-4 2e-3
+  ampe = envGen KR tick lvls 0 1 RemoveSynth $
+         env [0,1,1,0] [1e-3,25e-3,228e-3] [EnvNum (-13)] (-1) 0
+  lvls = latch tick tick
 
 cf2snr :: UGen
 cf2snr = cf2snr' ("t_trig"@@0)
@@ -383,8 +375,7 @@ cf2snr' tick = out ("out"@@0) (sig * ampe * 0.3) where
   qs = mce [0.1,0.05,0.025]
   ampe = envGen KR tick amp' 0 1 RemoveSynth $
          env [0,1,1,0] [1e-3,15e-3,189e-3] [EnvNum (-8)] (-1) 0
-  amp' = latch tick tick * d
-  d = line KR 1 1 1 RemoveSynth
+  amp' = latch tick tick
 
 cf2hat :: UGen
 cf2hat = cf2hat' ("t_trig"@@0)
@@ -393,8 +384,7 @@ cf2hat' tick = out ("out"@@0) (sig * amp) where
         (mce [5908.32,8803,6723]) (mce [0.1,0.1,0.1])
   amp = envGen KR tick tamp 0 1 RemoveSynth $
         env [0,1,0] [3e-4, 80e-3] [EnvNum (-3)] (-1) (-1)
-  tamp = latch tick tick * d
-  d = line KR 1 1 1 RemoveSynth
+  tamp = latch tick tick
 
 cf2drn :: UGen
 cf2drn = cf2drn' ("amp"@@0) ("gate"@@1) ((("freq"@@440) `lag` 0.6 `lag` 0.6))
@@ -411,24 +401,24 @@ cf2drn' amp gt freq = out ("out"@@0) sig where
 
 cf2pu :: UGen
 cf2pu = cf2pu' ("t_trig"@@0)
-cf2pu' tick =
-  out ("out"@@0) $ foldr f v (zipWith mce2 rs1 rs2) where
-    v = rlpf (pulse AR (mce2 freq (freq*1.01)) bw * 0.2 * ampe * amp)
-        (lfdNoise3 'n' KR 2.323 * 2000 + 2200)
-        (lfdNoise3 'q' KR 1.110 * 0.498 + 0.5)
-    f a b = allpassN b 0.05 a 4
-    rs1 = map mkR "abcd"
-    rs2 = map mkR "efgh"
-    mkR x = rand x 0.001 0.05
-    freq = "freq"@@0 `lag` 0.6
-    ampe = decay2 tick 5e-4 950e-3
-    amp = "amp"@@0.3 * d
-    bw = lfdNoise3 'b' KR 0.1123 * 0.48 + 0.5
-    d = line KR 1 1 2 RemoveSynth
+cf2pu' tick = mrg [out ("out"@@0) sig, d] where
+  sig = foldr f v (zipWith mce2 rs1 rs2)
+  v = rlpf (pulse AR (mce2 freq (freq*1.01)) bw * 0.2 * ampe * amp)
+      (lfdNoise3 'n' KR 2.323 * 2000 + 2200)
+      (lfdNoise3 'q' KR 1.110 * 0.498 + 0.5)
+  f a b = allpassN b 0.05 a 4
+  rs1 = map mkR "abcd"
+  rs2 = map mkR "efgh"
+  mkR x = rand x 0.001 0.05
+  freq = "freq"@@0 `lag` 0.6
+  ampe = decay2 tick 5e-4 950e-3
+  amp = "amp"@@0.3
+  bw = lfdNoise3 'b' KR 0.1123 * 0.48 + 0.5
+  d = detectSilence' ampe 0.01 1 RemoveSynth
 
 cf2bell :: UGen
 cf2bell = cf2bell' ("t_trig"@@0) ("freq"@@0) ("amp"@@0.3)
-cf2bell' tick freq amp = out ("out"@@0) (sig * amp) where
+cf2bell' tick freq amp = mrg [out ("out"@@0) (sig * amp), d] where
   sig = foldr f sig' (zipWith mce2 rs1 rs2)
   sig' = sinOsc AR (mce [freq',freq'*1.01]) 0 * aenv
   freq' = freq''
@@ -438,8 +428,8 @@ cf2bell' tick freq amp = out ("out"@@0) (sig * amp) where
   rs2 = map mkR [(1001::Int)..1008]
   mkR x = expRand x 1e-4 150e-3
   nz = pinkNoise 'p' AR
-  aenv = decay2 tick 50e-3 1 * d
-  d = line KR 1 1 2 RemoveSynth
+  aenv = decay2 tick 50e-3 1
+  d = detectSilence' aenv 0.01 1 RemoveSynth
 
 cf2shw :: UGen
 cf2shw = cf2shw' ("t_trig"@@0)
@@ -451,7 +441,7 @@ cf2shw' tick = out ("out"@@0) (resonz sig freq bw) where
   el = envGen KR ("t_envr"@@0) 1 0 1 RemoveSynth $
        env [2.5e-2,1,2.5e-2] [25e-3,8.4] [EnvCub] (-1) (-1)
 
---
+------------------------------------------------------------------------------
 -- Effect synths
 --
 

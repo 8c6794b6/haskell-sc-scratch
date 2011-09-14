@@ -9,7 +9,20 @@ Portability : portable
 Client side utility for communicating with pattern server.
 
 -}
-module Sound.SC3.Lepton.Pattern.Client where
+module Sound.SC3.Lepton.Pattern.Client
+  ( -- * Client side utility action
+    withLept
+  , leptseq
+  , bundle'
+    -- * Message builder
+  , l_add
+  , l_dump
+  , l_new
+  , l_free
+  , l_freeAll
+  , l_pause
+  , l_run
+  ) where
 
 import Data.Fixed
 
