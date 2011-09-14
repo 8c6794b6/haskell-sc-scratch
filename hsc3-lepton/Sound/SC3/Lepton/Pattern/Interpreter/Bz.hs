@@ -142,13 +142,19 @@ instance Num a => Num (Bz a) where
   negate (Bz a) = mkUnary (fromString "negate") a
   abs (Bz a) = mkUnary (fromString "abs") a
   signum (Bz a) = mkUnary (fromString "signum") a
-  fromInteger a = Bz $ fromString "pval " <> fromString (show a)
+  fromInteger a
+    | a < 0 = Bz $ fromString "pval (" <>
+         fromString (show (fromInteger a :: Integer)) <> fromChar ')'
+    | otherwise = Bz $ fromString "pval " <>
+         fromString (show (fromInteger a :: Integer))
 
 instance Fractional a => Fractional (Bz a) where
   Bz a / Bz b = mkOp (fromChar '/') a b
   recip (Bz a) = mkUnary (fromString "recip") a
-  fromRational a =
-    Bz $ fromString "pval " <> fromString (show (fromRational a :: Double))
+  fromRational a
+    | a < 0 = Bz $ fromString "pval (" <>
+               fromString (show (fromRational a :: Double)) <> fromChar ')'
+    | otherwise = Bz $ fromString "pval " <> fromString (show (fromRational a :: Double))
 
 instance Floating a => Floating (Bz a) where
   pi = Bz $ fromString "pi"

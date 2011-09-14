@@ -15,12 +15,16 @@ from 'Bz'.  Parsed result could be used as any concrete type which
 implements all shown classes.
 
 -}
-module Sound.SC3.Lepton.Pattern.ParseP ( parseP ) where
+module Sound.SC3.Lepton.Pattern.ParseP
+  ( parseP
+  , oPatterns
+  , iPatterns
+  , dPatterns
+  ) where
 
 import Control.Applicative
 import Data.Function (fix)
 import Prelude hiding (takeWhile)
-import System.Random
 
 import Data.Attoparsec.Lazy hiding (takeWhile)
 import Data.Attoparsec.Char8 hiding (Result(..), eitherResult, parse)
@@ -28,11 +32,12 @@ import Sound.SC3 hiding ((<*), osc)
 
 import qualified Data.ByteString.Char8 as C8
 
+import Sound.SC3.Lepton.Pattern.Dummy ()
 import qualified Sound.SC3.Lepton.Pattern.Expression as P
 
 parseP = eitherResult . parse oPatterns
 
-oPatterns = fix (oPatterns' intP)
+oPatterns = fix (oPatterns' iPatterns)
 
 oPatterns' p f = choice
   [ -- OSC message classes
@@ -53,9 +58,10 @@ oPatterns' p f = choice
   , pmerge, ppar
   ]
 
-intP = fmap n2int <$> braced (nPatterns)
+integral = decimal <|> signed decimal <|> braced (signed decimal)
 
-nPatterns = fix (nPatterns' number intP)
+dPatterns = fix (nPatterns' double iPatterns)
+iPatterns = braced (fix (nPatterns' integral iPatterns))
 
 nPatterns' p i f = choice
   [ -- Primitive pattern classes
@@ -71,7 +77,7 @@ nPatterns' p i f = choice
     -- Num
   , addP f, mulP f, minusP f, negateP f, absP f, signumP f
     -- Fractional
-  , divP f
+  , divP f, recipP f
     -- Floating
   , piP, expP f, logP f, sqrtP f, powerP f, sinP f, tanP f, cosP f, asinP f
   , atanP f, acosP f, sinhP f, tanhP f, coshP f, asinhP f, atanhP f, acoshP f
@@ -83,47 +89,27 @@ nPatterns' p i f = choice
   ]
 
 ------------------------------------------------------------------------------
--- Primitives
+-- Pattern classes
 
-pempty    = string "pempty" *> return P.pempty
-pval p    = mkP "pval" P.pval p
-plist p   = mkP "plist" P.plist (listOf p)
+pempty = string "pempty" *> return P.pempty
+pval p = mkP "pval" P.pval p
+plist p = mkP "plist" P.plist (listOf p)
 prepeat p = mkP "prepeat" P.prepeat p
-
-------------------------------------------------------------------------------
--- Looping patterns
-
-pconcat p        = mkP "pconcat" P.pconcat (listOf p)
-pappend p        = mkP2 "pappend" P.pappend (braced p) (braced p)
-pseq p1 p2       = mkP2 "pseq" P.pseq p1 (listOf p2)
+pconcat p = mkP "pconcat" P.pconcat (listOf p)
+pappend p = mkP2 "pappend" P.pappend (braced p) (braced p)
+pseq p1 p2 = mkP2 "pseq" P.pseq p1 (listOf p2)
 preplicate p1 p2 = mkP2 "preplicate" P.preplicate p1 (braced p2)
-pcycle p         = mkP "pcycle" P.pcycle (listOf p)
-pforever p       = mkP "pforever" P.pforever (braced p)
-
-------------------------------------------------------------------------------
--- Random patterns
-
-prandom       = string "prandom" *> return P.prandom
-prange p      = mkP2 "prange" P.prange (braced p) (braced p)
+pcycle p = mkP "pcycle" P.pcycle (listOf p)
+pforever p = mkP "pforever" P.pforever (braced p)
+prandom = string "prandom" *> return P.prandom
+prange p = mkP2 "prange" P.prange (braced p) (braced p)
 pchoose p1 p2 = mkP2 "pchoose" P.pchoose p1 (listOf p2)
-prand p1 p2   = mkP2 "prand" P.prand p1 (listOf p2)
-pshuffle p    = mkP "pshuffle" P.pshuffle (listOf p)
-
-------------------------------------------------------------------------------
--- Durational patterns
-
+prand p1 p2 = mkP2 "prand" P.prand p1 (listOf p2)
+pshuffle p = mkP "pshuffle" P.pshuffle (listOf p)
 ptakeT p = mkP2 "ptakeT" P.ptakeT double (braced p)
 pdropT p = mkP2 "pdropT" P.ptakeT double (braced p)
-
-------------------------------------------------------------------------------
--- Parallel patterns
-
 pmerge = mkP2 "pmerge" P.pmerge (braced oPatterns) (braced oPatterns)
-ppar   = mkP "ppar" P.ppar (listOf oPatterns)
-
-------------------------------------------------------------------------------
--- Finite state
-
+ppar = mkP "ppar" P.ppar (listOf oPatterns)
 pfsm p = mkP2 "pfsm" P.pfsm (listOf decimal)
   (listOf (braced ((,) <$> p <*> (char ',' *> listOf decimal))))
 
@@ -137,19 +123,13 @@ psnew =
 
 pnset = mkP2 "Nset" P.pnset targetId paramList
 
--- XXX:
--- This function is making the result type to be an instance of Functor.
-paramList = listOf (braced pair) where
-  pair = (,) <$> name <*> (char ',' *> (fmap n2double <$> nPatterns))
-
 nodeId :: Parser (Maybe Int)
 nodeId =
   (string "Nothing" *> pure Nothing) <|>
   (braced (string "Just " *> (Just <$> (decimal <|> braced (signed decimal)))))
-  -- (braced (string "Just " *> (Just . n2int <$> (number <|> braced number))))
 
 targetId :: Parser Int
-targetId = decimal -- n2int <$> number
+targetId = decimal
 
 name :: Parser String
 name = char '"' *> (C8.unpack <$> takeWhile (/= '"')) <* char '"'
@@ -162,8 +142,10 @@ addAction =
   (string "AddAfter" *> pure AddAfter) <|>
   (string "AddReplace" *> pure AddReplace)
 
+paramList = listOf (braced ((,) <$> name <*> (char ',' *> dPatterns)))
+
 ------------------------------------------------------------------------------
--- Num
+-- Numeric
 
 addP p    = binOpP (+) (char '+') (braced p)
 mulP p    = binOpP (*) (char '*') (braced p)
@@ -172,13 +154,8 @@ negateP p = mkP "negate" negate (braced p)
 signumP p = mkP "signum" signum (braced p)
 absP p    = mkP "abs" abs (braced p)
 
-------------------------------------------------------------------------------
--- Fractional
-
 divP p = binOpP (/) (char '/') (braced p)
-
------------------------------------------------------------------------------
--- Floating
+recipP p = mkP "recip" recip (braced p)
 
 piP      = string "pi" *> pure pi
 expP p   = mkP "exp" exp (braced p)
@@ -197,9 +174,6 @@ coshP p  = mkP "cosh" cosh (braced p)
 asinhP p = mkP "asinh" asinh (braced p)
 atanhP p = mkP "atanh" atanh (braced p)
 acoshP p = mkP "acosh" acosh (braced p)
-
-------------------------------------------------------------------------------
--- Unary
 
 ampDbP p     = mkP "ampDb" ampDb (braced p)
 asFloatP p   = mkP "asFloat" asFloat (braced p)
@@ -220,7 +194,7 @@ notEP p      = mkP "notE" notE (braced p)
 notNilP p    = mkP "notNil" notNil (braced p)
 octCPSP p    = mkP "octCPS" octCPS (braced p)
 ramp_P p     = mkP "ramp_" ramp_ (braced p)
-ratioMIDIP p = mkP "ratioMIDIP" ratioMIDI (braced p)
+ratioMIDIP p = mkP "ratioMIDI" ratioMIDI (braced p)
 softClipP p  = mkP "softClip" softClip (braced p)
 squaredP p   = mkP "squared" squared (braced p)
 
@@ -233,76 +207,8 @@ mkP2 n f p1 p2 = f <$ string n <*> (skipSpace *> p1) <*> (skipSpace *> p2)
 
 binOpP op sym p = op <$> p <*> (skipSpace *> sym *> skipSpace *> p)
 
-
 braced :: Parser a -> Parser a
 braced a = char '(' *> skipSpace *> a <* skipSpace <* char ')'
 
 listOf :: Parser a -> Parser [a]
 listOf p = char '[' *> p `sepBy` char ',' <*  char ']'
-
-n2int :: Number -> Int
-n2int n = case n of
-  I i  -> fromIntegral i
-  D d  -> truncate d
-
-n2double :: Number -> Double
-n2double n = case n of
-  I i -> fromIntegral i
-  D d -> d
-
-------------------------------------------------------------------------------
--- Instance definitions for Number
-
-instance Random Number where
-  random g = case random g of (n, g') -> (D n,g')
-  randomR (I lo, I hi) g =
-    case randomR (lo, hi) g of (n,g') -> (I n, g')
-  randomR (D lo, D hi) g =
-    case randomR (lo, hi) g of (n,g') -> (D n, g')
-  randomR (I lo, D hi) g =
-    case randomR (fromInteger lo, hi) g of (n,g') -> (D n, g')
-  randomR (D lo, I hi) g =
-    case randomR (lo, fromInteger hi) g of (n,g') -> (D n, g')
-
-instance Floating Number where
-  pi = D pi
-  exp (D a) = D (exp a)
-  exp (I a) = D (exp $ fromIntegral a)
-  sqrt (D a) = D (sqrt a)
-  sqrt (I a) = D (sqrt $ fromIntegral a)
-  log (D a) = D (log a)
-  log (I a) = D (log $ fromIntegral a)
-  (D a) ** (D b) = D (a ** b)
-  (D a) ** (I b) = D (a ** fromIntegral b)
-  (I a) ** (D b) = D (fromIntegral a ** b)
-  (I a) ** (I b) = D (fromIntegral a ** fromIntegral b)
-  logBase (D a) (D b) = D (logBase a b)
-  logBase (D a) (I b) = D (logBase a (fromIntegral b))
-  logBase (I a) (D b) = D (logBase (fromIntegral a) b)
-  logBase (I a) (I b) = D (logBase (fromIntegral a) (fromIntegral b))
-  sin (D a) = D (sin a)
-  sin (I a) = D (sin $ fromIntegral a)
-  tan (D a) = D (tan a)
-  tan (I a) = D (tan $ fromIntegral a)
-  cos (D a) = D (cos a)
-  cos (I a) = D (cos $ fromIntegral a)
-  asin (D a) = D (asin a)
-  asin (I a) = D (asin $ fromIntegral a)
-  atan (D a) = D (atan a)
-  atan (I a) = D (atan $ fromIntegral a)
-  acos (D a) = D (acos a)
-  acos (I a) = D (acos $ fromIntegral a)
-  sinh (D a) = D (sinh a)
-  sinh (I a) = D (sinh $ fromIntegral a)
-  tanh (D a) = D (tanh a)
-  tanh (I a) = D (tanh $ fromIntegral a)
-  cosh (D a) = D (cosh a)
-  cosh (I a) = D (cosh $ fromIntegral a)
-  asinh (D a) = D (asinh a)
-  asinh (I a) = D (asinh $ fromIntegral a)
-  atanh (D a) = D (atanh a)
-  atanh (I a) = D (atanh $ fromIntegral a)
-  acosh (D a) = D (acosh a)
-  acosh (I a) = D (acosh $ fromIntegral a)
-
-instance UnaryOp Number

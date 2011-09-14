@@ -13,7 +13,9 @@ module Sound.SC3.Lepton.Pattern.Client where
 
 import Data.Fixed
 
+{-
 import Data.Binary (encode)
+-}
 import Sound.OpenSoundControl
 
 import Sound.SC3.Lepton.Pattern.Interpreter.Bz

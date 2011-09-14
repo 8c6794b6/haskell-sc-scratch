@@ -25,12 +25,12 @@ module Sound.SC3.Lepton.Pattern.Interpreter.Expr
 import Control.Applicative
 import Data.Data
 import Data.Function (fix)
-import System.Random
 import Text.PrettyPrint
 
 import Control.DeepSeq
 import Sound.SC3
 
+import Sound.SC3.Lepton.Pattern.Dummy ()
 import Sound.SC3.Lepton.Pattern.Expression
 import Sound.SC3.Lepton.Pattern.ToOSC
 
@@ -218,9 +218,10 @@ fromExprE f e = case e of
 {-# INLINE fromExprE #-}
 
 fromExprNum f e = case e of
-  Node "+" [a,b]    -> (+) <$> f a <*> f b
-  Node "*" [a,b]    -> (*) <$> f a <*> f b
-  Node "-" [a,b]    -> (-) <$> f a <*> f b
+  Node op [a,b]
+    | op == "+" -> (+) <$> f a <*> f b
+    | op == "*" -> (*) <$> f a <*> f b
+    | op == "-" -> (-) <$> f a <*> f b
   Node "negate" [a] -> negate <$> f a
   Node "abs" [a]    -> abs <$> f a
   Node "signum" [a] -> signum <$> f a
@@ -360,20 +361,3 @@ instance Psnew Expr where
 
 instance Pnset Expr where
   pnset tid ms = NodeO (Nset tid) ms
-
-------------------------------------------------------------------------------
--- XXX: Dummy instances.
---
--- Functions are unused but type signatures are used.
--- When recursion for value patterns, Int patterns, and ToOSC patterns could be
--- isolated, these dummy instance definitions could be removed.
---
--- Warnings for missing methods are ignored with
--- '-fno-warn-missing-methods' pragma.
-
-instance Random String
-instance Random a => Random (ToOSC a)
-
-instance Floating Int
-instance Fractional Int
-instance UnaryOp Int

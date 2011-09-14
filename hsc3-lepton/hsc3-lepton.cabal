@@ -59,10 +59,11 @@ library
     Sound.SC3.Lepton.Parser.SynthDef
     Sound.SC3.Lepton.Pattern
     Sound.SC3.Lepton.Pattern.Client
+    Sound.SC3.Lepton.Pattern.Dummy
     Sound.SC3.Lepton.Pattern.Expression
     Sound.SC3.Lepton.Pattern.Interpreter
     Sound.SC3.Lepton.Pattern.Interpreter.Bz
-    Sound.SC3.Lepton.Pattern.Interpreter.E
+    -- Sound.SC3.Lepton.Pattern.Interpreter.E
     Sound.SC3.Lepton.Pattern.Interpreter.Expr
     Sound.SC3.Lepton.Pattern.Interpreter.R
     Sound.SC3.Lepton.Pattern.Interpreter.S
@@ -72,9 +73,9 @@ library
     Sound.SC3.Lepton.Pattern.ToOSC
     Sound.SC3.Lepton.QuickCheck
     Sound.SC3.Lepton.Tree
-    Sound.SC3.Lepton.Tree.Tree
     Sound.SC3.Lepton.Tree.Connection
     Sound.SC3.Lepton.Tree.Diff
+    Sound.SC3.Lepton.Tree.Tree
     Sound.SC3.Lepton.Tree.Zipper
     Sound.SC3.Lepton.UGen
     Sound.SC3.Lepton.UGen.Demand

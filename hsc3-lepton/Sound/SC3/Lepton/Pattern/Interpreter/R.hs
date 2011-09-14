@@ -288,19 +288,19 @@ mergeL t (ta,tb) (a:as) (b:bs)
 instance PtakeT R where
   ptakeT t p = R $ \g ->
     let ps = runP p g
-        f cur [] = []
-        f cur (q:qs)
-          | cur < t   = q : f (cur+getDur q) qs
-          | otherwise = []
+        f cur rs = case rs of
+          [] -> []
+          (q:qs) | cur <= t  -> q : f (cur+getDur q) qs
+                 | otherwise -> []
     in  f 0 ps
 
 instance PdropT R where
   pdropT t p = R $ \g ->
     let ps = runP p g
-        f cur [] = []
-        f cur rs@(q:qs)
-          | cur > t   = rs
-          | otherwise = f (cur+getDur q) qs
+        f cur rs = case rs of
+          []                 -> []
+          (q:qs) | cur > t   -> rs
+                 | otherwise -> f (cur+getDur q) qs
     in  f 0 ps
 
 -- | First argument is choice for initial index, and second is
@@ -311,9 +311,9 @@ instance Pfsm R where
     go idx g = case I.lookup idx cm of
       Nothing     -> []
       Just (p,[]) -> runP p g
-      Just (p,is) ->
+      Just (p,js) ->
         let g'   = snd (next g)
-            idx' = head $ shuffle' is (length is) g
+            idx' = head $ shuffle' js (length js) g
         in  runP p g ++ go idx' g'
 
 instance Psnew R where
