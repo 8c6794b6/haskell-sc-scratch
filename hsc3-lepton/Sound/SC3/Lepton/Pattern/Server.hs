@@ -16,8 +16,7 @@ be done with sending and receiving OSC command, instead of raw ByteString.
 
 -}
 module Sound.SC3.Lepton.Pattern.Server
-  (
-    -- * Types
+  ( -- * Types
     ConInfo(..)
   , Connection(..)
   , LeptSeq(..)
@@ -26,13 +25,11 @@ module Sound.SC3.Lepton.Pattern.Server
   , ServerLoop(..)
   , Thread(..)
   , ThreadState(..)
-
-    -- * Server related actions
+    -- * Server actions
   , shutdownServer
   , defaultLeptSeq
   , mkInitEnv
   , runServer
-
   ) where
 
 import Control.Applicative
@@ -120,7 +117,9 @@ data Thread = Thread
     tState :: ThreadState
     -- | Pattern used by this thread.
   , tPat :: R (ToOSC Double)
-  } deriving (Eq, Show)
+    -- | Lock used for pausing thread.
+  , tLock :: MVar Double
+  } deriving (Eq)
 
 -- | Status for threads forked by server.
 data ThreadState
@@ -137,7 +136,8 @@ data ThreadState
 -- | Loop for server.
 --
 -- Wrapped ReaderT IO with environment in MVar.
-newtype ServerLoop a = ServerLoop {unServerLoop :: ReaderT (MVar ServerEnv) IO a}
+newtype ServerLoop a =
+  ServerLoop {unServerLoop :: ReaderT (MVar ServerEnv) IO a}
   deriving (Applicative,Functor,Monad,MonadReader (MVar ServerEnv),MonadIO)
 
 -- | Get Connection from Coninfo.
@@ -202,26 +202,59 @@ runLNew time key pat = withEnv $ \env ->
 runLAdd :: Maybe Time -> String -> BL.ByteString -> ServerLoop ()
 runLAdd _ key pat = case decodePattern pat of
   Right pat' -> modifyEnv $ \env -> do
-    let t = Thread New pat'
+    lck <- liftIO $ newEmptyMVar
+    let t = Thread New pat' lck
     return $ env {envThreads=M.insert key t (envThreads env)}
   Left err   -> liftIO $ putStr err
 
 runLRun :: Maybe Time -> String -> ServerLoop ()
 runLRun time key = withEnv $ \env ->
   case M.lookup key (envThreads env) of
-    Just (Thread New pat)        -> forkNewThread time key pat
-    Just (Thread Finished pat)   -> forkNewThread time key pat
-    Just (Thread (Paused _) _)   -> return ()
-    _                            -> return ()
+    Just (Thread New pat _)        -> forkNewThread time key pat
+    Just (Thread Finished pat _)   -> forkNewThread time key pat
+    Just (Thread (Paused i) pat lck) -> modifyEnv $ \env' -> do
+      time' <- liftIO $ maybe utcr (return . as_utcr) time
+      liftIO $ putMVar lck time'
+      let t = Thread (Running i) pat lck
+      return $ env' {envThreads = M.adjust (const t) key (envThreads env')}
+    _                              -> return ()
 
--- | XXX: /Not implemented yet/.
 runLPause :: Maybe Time -> String -> ServerLoop ()
-runLPause _ _ = undefined
+runLPause time key = modifyEnv $ \env ->
+  case M.lookup key (envThreads env) of
+    Just (Thread (Running i) p lck) ->  do
+      liftIO (maybePause time >> takeMVar lck >> return ())
+      let t = Thread (Paused i) p lck
+      return $ env {envThreads = M.adjust (const t) key (envThreads env)}
+    _ -> return env
+
+-- forkNewThread :: Maybe Time -> String -> R (ToOSC Double) -> ServerLoop ()
+-- forkNewThread time key pat = do
+--   mvar <- ask
+--   modifyEnv $ \env -> do
+--     lck <- liftIO $ newMVar ()
+--     tid <- liftIO $ forkIO $ withTransport (fromConInfo $ envSC env) $ \fd ->
+--       bracket
+--         (do send fd (notify True)
+--             now <- utcr
+--             time' <- maybe (return $ UTCr now)
+--               (\t -> return $ if UTCr now > t then (UTCr now) else t) time
+--             trid <- newNid
+--             return (time',trid,fd))
+--         (\(_,trid,fd') -> do
+--             let f (Thread _ p l) = Thread Finished p l
+--             modifyMVar_ mvar $ \env' -> do
+--               return $ env' {envThreads=M.adjust f key (envThreads env')}
+--             send fd' $ bundle immediately [notify False, n_free [trid]])
+--         (\(time',trid,fd') -> runMsgFrom time' pat trid fd')
+--     let t = Thread (Running tid) pat lck
+--     return $ env {envThreads=M.insert key t (envThreads env)}
 
 forkNewThread :: Maybe Time -> String -> R (ToOSC Double) -> ServerLoop ()
 forkNewThread time key pat = do
   mvar <- ask
   modifyEnv $ \env -> do
+    lck <- liftIO newEmptyMVar
     tid <- liftIO $ forkIO $ withTransport (fromConInfo $ envSC env) $ \fd ->
       bracket
         (do send fd (notify True)
@@ -231,12 +264,14 @@ forkNewThread time key pat = do
             trid <- newNid
             return (time',trid,fd))
         (\(_,trid,fd') -> do
-            let f (Thread _ p) = Thread Finished p
+            let f (Thread _ p l) = Thread Finished p l
             modifyMVar_ mvar $ \env' -> do
               return $ env' {envThreads=M.adjust f key (envThreads env')}
             send fd' $ bundle immediately [notify False, n_free [trid]])
-        (\(time',trid,fd') -> runMsgFrom time' pat trid fd')
-    let t = Thread (Running tid) pat
+        (\(time',trid,fd') -> do
+            putMVar lck (as_utcr time')
+            runPausableMsg lck pat trid fd')
+    let t = Thread (Running tid) pat lck
     return $ env {envThreads=M.insert key t (envThreads env)}
 
 runLFree :: Maybe Time -> String -> ServerLoop ()
@@ -288,11 +323,11 @@ maybePause = F.mapM_ $ \time -> do
 
 -- | Show thread, used in dumped message.
 showThread :: Thread -> String
-showThread (Thread st _) = show st
+showThread (Thread st _ _) = show st
 
 -- | Return ThreadId when given thread is running or pause, otherwise Nothing.
 getThreadId :: Thread -> Maybe ThreadId
-getThreadId (Thread st _) = case st of
+getThreadId (Thread st _ _) = case st of
   Running tid -> Just tid
   Paused tid  -> Just tid
   _           -> Nothing

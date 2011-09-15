@@ -11,6 +11,7 @@ Sends OSC message sequentially with responding to server.
 module Sound.SC3.Lepton.Pattern.Play where
 
 import Control.Applicative
+import Control.Concurrent
 import Control.Exception (bracket, bracket_)
 import Control.Monad
 import System.IO (IOMode(..), withFile)
@@ -109,6 +110,31 @@ runMsgFrom time msg trid fd = bracket_ newTrigger freeTrigger work where
   tick = n_set trid [("t_trig",1)]
 {-# SPECIALISE runMsgFrom :: Time -> R (ToOSC Double) -> Int -> UDP -> IO () #-}
 {-# SPECIALISE runMsgFrom :: Time -> R (ToOSC Double) -> Int -> TCP -> IO () #-}
+
+-- | Run pausable message. MVar contains the time assumed as now.
+--
+-- This action is checking contents of MVar for every response.
+-- For performance significant message sending, use runMsg or runMsgFrom.
+--
+runPausableMsg :: Transport t
+  => MVar Double -> R (ToOSC Double) -> Int -> t -> IO ()
+runPausableMsg mvar msg trid fd = bracket_ newTrig freeTrig work where
+  newTrig = send fd $ s_new "tr" trid AddToHead 1 []
+  freeTrig = send fd $ n_free [trid]
+  work = foldPIO_ go [] msg
+  go acc o
+    | getDur o == 0 || null acc = return (o:acc)
+    | otherwise                 = do
+      -- XXX: When to get and put contents of MVar?
+      let dt = getDur o
+      msgs <- mkOSCs acc trid
+      modifyMVar_ mvar $ \tl -> case tl + dt of
+        tl' -> mapM_ (send fd) [ bundle (UTCr tl') [tick]
+                               , bundle (UTCr $ tl'+offsetDelay) msgs ] >>
+               return tl'
+      waitUntil fd "/tr" trid
+      return [o]
+  tick = n_set trid [("t_trig",1)]
 
 mkOSCs :: [ToOSC Double] -> Int -> IO [OSC]
 mkOSCs os tid = foldM f [] os where
@@ -222,11 +248,18 @@ writeScore ini n0 pat path = withFile path WriteMode $ \hdl -> do
   BSL.hPut hdl (oscWithSize (bundle (NTPr 0) (n0' ++ ini)))
   foldPIO_ (k hdl) 0 pat
   where
-    k hdl t o = do
-      let t' = t + getDur o
-          o' = bundle (NTPr t') [toOSC o]
-      BSL.hPut hdl (oscWithSize o')
-      return t'
+    k hdl t o
+      | isSilence o = return (t+getDur o)
+      | otherwise   = do
+        o' <- case oscType o of
+          Nset _ -> return $ [toOSC o]
+          Snew _ nid _ _ -> do
+            nid' <- maybe newNid return nid
+            let opts = M.foldrWithKey (mkOpts nid') [] (oscMap o)
+            return $ toOSC (setNid nid' o):opts
+        let t' = t + getDur o
+        BSL.hPut hdl (oscWithSize $ bundle (NTPr t') o')
+        return t'
     oscWithSize o = BSL.append l b where
       b = encodeOSC o
       l = encode_i32 (fromIntegral (BSL.length b))

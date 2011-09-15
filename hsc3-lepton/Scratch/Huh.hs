@@ -51,6 +51,8 @@ goHuh'= do
       ]
     send fd msg
 
+writeHuh = writeScore [] n0 (ptakeT 180 allP)
+
 {-
 
 Sequencing patterns in lepton server.
@@ -104,15 +106,15 @@ n0 =
      ]
     ,g 2
      [s 2000 "cf2rev" -- huh1
-      ["out":=10,"a_in":<=10,"dlyt":=0.01,"dmul":=0.008]
+      ["out":=10,"a_in":<=10,"dlyt":=0.2,"dcyt":=4.8,"mix":=0.85]
      ,s 2001 "cf2rev" -- snr
-      ["out":=14,"a_in":<=14,"dlyt":=0.02,"dmul":=0.008]
+      ["out":=14,"a_in":<=14,"dlyt":=0.02,"dcyt":=0.8,"mix":=0.85]
      ,s 2002 "cf2dly" -- bell
       ["out":=18,"a_in":<=18,"maxdt":=0.8]
      ]
     ,g 8
      [s 8000 "cf2mix" -- huh1
-      ["out":=0,"a_in":<=10,"amp":=1.2,"pan":=0]
+      ["out":=0,"a_in":<=10,"amp":=1.6,"pan":=0]
      ,s 8001 "cf2mix" -- huh2
       ["out":=0,"a_in":<=11,"amp":=1.0,"pan":=(-0.8)]
      ,s 8002 "cf2mix" -- huh3
@@ -120,7 +122,7 @@ n0 =
      ,s 8003 "cf2mix" -- kik
       ["out":=0,"a_in":<=13,"amp":=0.8,"pan":=0.03]
      ,s 8004 "cf2mix" -- snr
-      ["out":=0,"a_in":<=14,"amp":=0.35,"pan":=(-0.1)]
+      ["out":=0,"a_in":<=14,"amp":=0.45,"pan":=(-0.1)]
      ,s 8005 "cf2mix" -- hat
       ["out":=0,"a_in":<=15,"amp":=0.1,"pan":=(-0.2)]
      ,s 8006 "cf2mixm" -- pu right
@@ -130,9 +132,9 @@ n0 =
      ,s 8008 "cf2mix"  -- bell
       ["out":=0,"a_in":<=18,"amp":=0.8,"pan":=0.1]
      ,s 8009 "cf2mix" -- drn 1
-      ["out":=0,"a_in":<=19,"amp":=0.5,"pan":=(-0.15)]
+      ["out":=0,"a_in":<=19,"amp":=0.5,"pan":=(-0.45)]
      ,s 8010 "cf2mix" -- drn 2
-      ["out":=0,"a_in":<=20,"amp":=0.8,"pan":=0.15]
+      ["out":=0,"a_in":<=20,"amp":=0.8,"pan":=0.45]
      ]
     ,g 9
      [s 9000 "cf2mst"
@@ -448,11 +450,15 @@ cf2shw' tick = out ("out"@@0) (resonz sig freq bw) where
 cf2rev :: UGen
 cf2rev = cf2rev' ("a_in"@@0)
 cf2rev' input = replaceOut ("out"@@0) sig where
-  sig = mix $ foldr f input (zipWith mce2 r1 r2)
+  sig = (input*m) + ((1-m)*foldr f input is)
   r1 = map mkR [(1::Int) .. 3]
   r2 = map mkR [(101::Int) .. 103]
-  mkR i = rand i 0.001 0.05
-  f a b = b + combC b 0.5 ("dlyt"@@0.123) a * ("dmul"@@0.25)
+  mkR i = rand i 1e-3 8e-2
+  is = [1..16::Int]
+  f a b = allpassC b dlyt (rand a 1e-3 dlyt) (rand a 4e-2 dcyt)
+  m = "mix"@@0.5
+  dlyt = "dlyt"@@0.8
+  dcyt = "dcyt"@@2
 
 cf2dly :: UGen
 cf2dly = cf2dly' ("a_in"@@0)

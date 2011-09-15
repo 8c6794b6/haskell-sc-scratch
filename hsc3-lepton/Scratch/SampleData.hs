@@ -16,13 +16,11 @@ import Data.Function (fix)
 import System.Random
 import System.FilePath
 
-import Data.Binary (encode, decode)
 import Sound.OpenSoundControl
 import Sound.SC3
 import Sound.SC3.ID
 import Sound.SC3.Lepton
 
-import qualified Data.Binary as Bin
 import qualified Data.ByteString.Lazy.Char8 as LC8
 
 l = withLept
@@ -40,7 +38,17 @@ pspeFreq =
     ,prand (prange 3 9)
        [74,75,77,79,81]]
 
+psw'for'180'seconds path =
+  writeScore [] (Group 0 [Group 1 []]) (ptakeT 180 psw) path
+
 psw = pappend set03 (ppar [loop01, loop02, loop03])
+
+psw' =
+  bundle' 1 0
+    [ l_new "set03" set03
+    , l_new "loop01" loop01
+    , l_new "loop02" loop02
+    , l_new "loop03" loop03 ]
 
 loop01 = psnew "rspdef1" Nothing AddToHead 1
   [("dur",  pcycle [preplicate 1024 (1/41)
@@ -137,18 +145,74 @@ pm3 = psnew "rspdef1" Nothing AddToTail 1
 pm4 = pempty
 
 pfsm002 = pfsm [0]
-  [(mkfsm02 [0,4,7,11], [0,1,2,3,4])
-  ,(mkfsm02 [2,5,9,12], [1,3])
-  ,(mkfsm02 [0,4,5,9],  [2,0,1,3,4])
-  ,(mkfsm02 [2,5,7,-1], [3,4,0])
-  ,(mkfsm02 [0,4,7,9],  [4,1,2,3,4])
+  [(mkfsm02 [0,4,7],    [1,2,3,4])
+  ,(mkfsm02 [2,5,9],    [3])
+  ,(mkfsm02 [0,4,9],    [0,1,3,4])
+  ,(mkfsm02 [2,5,7,-1], [0,4])
+  ,(mkfsm02 [0,4,9],    [1,2,3])
   ]
 
-mkfsm02 fs = let fs' = concatMap (\x -> map pval [x+60,x+72,x+84]) fs in
+mkfsm02 fs =
+  let fs' = concatMap (\x -> map pval [{-x+60,-}x+72{-,x+84-}]) fs in
   psnew "rspdef1" Nothing AddToTail 1
     [("dur",  pforever (prand 1 [plist [0.125,0.125],0.25]))
     ,("freq", midiCPS $ pforever (prand 1 fs'))
-    ,("atk",  pforever $ prange 1e-3 0.5)
-    ,("dcy",  pforever $ prange 1e-2 1)
+    ,("atk",  pforever $ prange 1e-4 3e-2)
+    ,("dcy",  pforever $ prange 1e-1 1)
     ,("pan",  pforever $ prand 1 [-1,-0.5,0,0.5,1])
     ,("amp",  preplicate 16 (prange 0.4 0.6))]
+
+p003 = psnew "rspdef1" Nothing AddToTail 1
+  [("dur", pforever 0.5 {- (prand 1 [plist [0.5,0.5], plist [1.5,0.5], 1]) -})
+  ,("freq", midiCPS $ pforever (plist [36,48]))
+  ,("atk", pforever $ prange 2e-2 3e-2)
+  ,("dcy", pforever $ prange 1 2)
+  ,("pan", prepeat 0.1)
+  ,("amp", pforever (prange 0.3 0.5))]
+
+
+------------------------------------------------------------------------------
+-- Pausable patterns
+
+pp00t = 0.1333
+
+pp001 = psnew "rspdef1" Nothing AddToTail 1
+  [("dur",
+    pforever (prand 1 [pp00t*2, plist [pp00t,pp00t], plist [pp00t*3, pp00t]]))
+  ,("freq", midiCPS $ pforever (prand 1 [72,75,77,79,82, 84,87,89,91,94]))
+  ,("amp", pforever (prange 0.3 0.5))
+  ,("atk", pforever (prange 1e-4 1e-2))
+  ,("dcy", pforever (prange 1e-2 1))
+  ,("pan", prepeat (-0.3))]
+
+pp002 = psnew "rspdef1" Nothing AddToTail 1
+  [("dur", prepeat (2*pp00t))
+  ,("freq",
+    midiCPS $ pforever $
+    pconcat [ pseq 3 [48,55,60,55,60,55]
+            , plist [60,67,72,67,72,67] ])
+  ,("amp", pforever (prange 0.3 0.5))
+  ,("atk", pforever (prange (1e-4) (3e-4)))
+  ,("dcy", pforever (prange 1 2))
+  ,("pan", pforever (prand 1 [-0.75,0.75]))]
+
+pp003 = psnew "rspdef1" Nothing AddToTail 1
+  [("dur", pcycle [preplicate 4 (pval pp00t), pval pp00t*2])
+  ,("freq", midiCPS $ pforever $
+            pconcat [ plist [72,82,79,75,77]
+                    , plist [84,87,89,91,94]
+                    , plist [96,99,103,106,101]
+                    , plist [84,94,91,89,87]
+                    ])
+  ,("amp", pforever (prange 0.3 0.5))
+  ,("atk", pforever (prange 1e-4 1e-2))
+  ,("pan", prepeat 0.3)
+  ,("dcy", pforever (prange 1e-2 1))]
+
+add'pp001 = leptseq =<< bundle' (pp00t*2) 0 [l_new "pp001" pp001]
+add'pp002 = leptseq =<< bundle' (pp00t*48) 0 [l_new "pp002" pp002]
+add'pp003 = leptseq =<< bundle' (pp00t*48) 0 [l_new "pp003" pp003]
+
+del'pat name = leptseq =<< bundle' (pp00t*2) 0 [l_free name]
+pause'at i name = leptseq =<< bundle' (pp00t*i) 0 [l_pause name]
+run'at i name = leptseq =<< bundle' (pp00t*i) 0 [l_run name]

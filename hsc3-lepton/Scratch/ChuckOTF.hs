@@ -163,3 +163,6 @@ addAllButSnare' = bundle' (t*2) 0
 resetAll = withLept (flip send l_freeAll)
 addPat d n e = withLept . flip send =<< bundle' (t*2) d [l_new n e]
 delPat n = withLept . flip send =<< bundle' (t*2) 0 [l_free n]
+
+pausePat n = leptseq =<< bundle' (t*2) 0 [l_pause n]
+runPat n = leptseq =<< bundle' (t*2) 0 [l_run n]
