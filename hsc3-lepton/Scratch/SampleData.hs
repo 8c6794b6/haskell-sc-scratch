@@ -20,6 +20,7 @@ import Sound.OpenSoundControl
 import Sound.SC3
 import Sound.SC3.ID
 import Sound.SC3.Lepton
+import System.Random.Mersenne.Pure64
 
 import qualified Data.ByteString.Lazy.Char8 as LC8
 
@@ -27,6 +28,7 @@ l = withLept
 
 pspe = psnew "speSynth" Nothing AddToTail 1
   [("dur", prepeat 0.13)
+  ,("amp", prepeat 0.1)
   ,("freq", midiCPS pspeFreq)]
 
 pspeFreq =
@@ -37,6 +39,75 @@ pspeFreq =
        [60, prand 1 [63, 65], 67, prand 1 [70,72,74]]
     ,prand (prange 3 9)
        [74,75,77,79,81]]
+
+-- Unison, using same random seed.
+pspe2 =
+  ppar
+    [psnew "speSynth" Nothing AddToTail 1
+     [("dur", prepeat 0.13)
+     ,("amp", prepeat 0.1)
+     ,("freq", midiCPS pspeFreq)]
+    ,psnew "speSynth" Nothing AddToTail 1
+     [("dur", prepeat 0.13)
+     ,("amp", prepeat 0.1)
+     ,("freq", midiCPS (prepeat (-5) + pspeFreq))]
+    ]
+
+-- Non-unison, bundled two patterns.
+-- Different random seed will be used in leptseq.
+pspe2' =
+  bundle' 1 0
+    [ l_new "pspe1" $
+      psnew "speSynth" Nothing AddToTail 1
+      [("dur", prepeat 0.13)
+      ,("amp", prepeat 0.1)
+      ,("freq", midiCPS pspeFreq)]
+    , l_new "pspe2" $
+      psnew "speSynth" Nothing AddToTail 1
+      [("dur", prepeat 0.13)
+      ,("amp", prepeat 0.1)
+      ,("freq", midiCPS (prepeat (-7) + pspeFreq))]
+    ]
+
+-- Unison, using papp and plam
+pspe3 =
+   papp
+   (plam (\x ->
+           [ppar
+            [psnew "speSynth" Nothing AddToTail 1
+             [("dur", prepeat 0.13)
+             ,("amp", prepeat 0.1)
+             ,("freq", midiCPS x)]
+            ,psnew "speSynth" Nothing AddToTail 1
+             [("dur", prepeat 0.13)
+             ,("amp", prepeat 0.1)
+             ,("freq", midiCPS x * prepeat 0.498)]
+            ,psnew "speSynth" Nothing AddToTail 1
+             [("dur", prepeat 0.13)
+             ,("amp", prepeat 0.1)
+             ,("freq", midiCPS x * prepeat 2.002)]
+            ]
+           ]))
+    pspeFreq
+
+-- Unison, high pitch pattern repeating same note.
+pspe4 =
+  ppar
+  [psnew "speSynth" Nothing AddToTail 1
+   [("dur", prepeat 0.13)
+   ,("amp", prepeat 0.1)
+   ,("freq", (papp (plam (\x -> replicate 4 (midiCPS x))) pspeFreq))]
+  ,psnew "speSynth" Nothing AddToTail 1
+   [("dur", prepeat 0.52)
+   ,("amp", prepeat 0.1)
+   ,("freq", prepeat 0.25 * midiCPS pspeFreq)]
+  ]
+
+pspe5 =
+  psnew "speSynth" Nothing AddToTail 1
+   [("dur", prepeat 0.13)
+   ,("amp", prepeat 0.1)
+   ,("freq", (papp (plam (\x -> replicate 16 (midiCPS x))) pspeFreq))]
 
 psw'for'180'seconds path =
   writeScore [] (Group 0 [Group 1 []]) (ptakeT 180 psw) path
@@ -216,3 +287,31 @@ add'pp003 = leptseq =<< bundle' (pp00t*48) 0 [l_new "pp003" pp003]
 del'pat name = leptseq =<< bundle' (pp00t*2) 0 [l_free name]
 pause'at i name = leptseq =<< bundle' (pp00t*i) 0 [l_pause name]
 run'at i name = leptseq =<< bundle' (pp00t*i) 0 [l_run name]
+
+es01 = pseq (prange 1 4) [1, plist [2,3,4], prange 5 10]
+
+pshared01 s =
+  let p1 = runP es01 g
+      p2 = runP (es01 + prepeat 10) g
+      g = pureMT s
+  in  zip p1 p2
+
+------------------------------------------------------------------------------
+-- Lambda and app
+pla01 = papp (plam (\x -> [x,x]))
+        (psnew "rspdef1" Nothing AddToTail 1
+         [("dur", pforever (prange 0.125 2))
+         ,("freq",prepeat 440)
+         ,("amp", pforever (prange 1e-1 3e-1))])
+
+pla02 =
+  psnew "rspdef1" Nothing AddToTail 1
+  [("dur", pforever (prand 1 [preplicate 4 0.125,preplicate 2 0.25,0.5]))
+  ,("freq", pforever (papp (plam (\x -> [x,440,x*2,660])) (prand 1 [110,220,330,550,770,880,990])))
+  ,("amp", pforever (prange 3e-1 5e-1))]
+
+pla03 =
+  psnew "rspdef1" Nothing AddToTail 1
+  [("dur", pforever 0.13)
+  ,("freq", pforever (papp (plam (\x -> [x,x*2])) (prange 100 200)))
+  ,("amp", prepeat 0.3)]

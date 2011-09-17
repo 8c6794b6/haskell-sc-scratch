@@ -177,8 +177,8 @@ instance Prepeat S where
 instance Pforever S where
   pforever p = S $ \_ -> "pforever (" ++ show p ++ ")"
 
-instance Papp S where
-  papp _ _ = S $ \_ -> "papp "
+-- instance Papp S where
+--   papp _ _ = S $ \_ -> "papp "
 
 instance Pmerge S where
   pmerge a b = S (\_ -> "pmerge (" ++ showP a ++ ") (" ++ showP b ++ ")")
@@ -211,3 +211,18 @@ instance Pnset S where
 
 -- instance Papp S where
 --   papp a b = S $ \x -> "(" ++ unS a x ++ " " ++ unS b x ++ ")"
+
+instance Plam S where
+  plam e = S $ \_ ->
+    "plam (\\" ++ "x -> " ++ showSs (map showP (e (S (\_ -> "x")))) ++ ")"
+
+showSs :: [String] -> String
+showSs ss = case ss of
+  []     -> "[]"
+  (x:xs) -> '[' : x ++ showSs' xs where
+    showSs' ys = case ys of
+      []     -> "]"
+      (z:zs) -> ',' : z ++ showSs' zs
+
+instance Papp S where
+  papp f e = S $ \h -> "papp (" ++ unS f () ++ " " ++ unS e () ++ ")"

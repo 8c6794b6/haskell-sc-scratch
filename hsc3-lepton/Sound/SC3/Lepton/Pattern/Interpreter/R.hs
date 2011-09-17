@@ -368,6 +368,8 @@ shiftT t ms = case ms of
   _ -> []
 {-# INLINE shiftT #-}
 
+{-
+
 -- | Same as @(\<*\>)@.
 instance Papp R where
   papp = (<*>)
@@ -378,9 +380,19 @@ instance Plam R where
 rlam :: (R a -> R b) -> R (a->b)
 rlam f = R $ \g -> rec (repeat func) (gens g)
    where
-     rec (h:hs) (j:js) = h j : rec hs js
-     rec _ _ = []
+     -- rec (h:hs) (j:js) = h j : rec hs js
+     -- rec _ _ = []
+     rec = zipWith ($)
      func g' x = head $ unR (f (R $ \_ -> [x])) g'
+
+-}
+
+instance Plam R where
+  plam f = R $ \g ->
+    repeat (\x -> concat $ zipWith unR (f (R $ \_ -> [x])) (gens g))
+
+instance Papp R where
+  papp f p = R $ \g -> concat $ zipWith ($) (unR f g) (unR p g)
 
 -- rlam' :: (R a -> R b) -> R (a->b)
 -- rlam' f = R $ \g -> cycle [\x -> head $ unR (f (R $ \_ -> [x])) g]

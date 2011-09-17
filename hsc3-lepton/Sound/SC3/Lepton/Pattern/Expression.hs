@@ -101,10 +101,10 @@ class Pshuffle p where
   pshuffle :: [p a] -> p a
 
 class Plam p where
-  plam :: (p a -> p b) -> p (a->b)
+  plam :: Show b => (p a -> [p b]) -> p (a->[b])
 
 class Papp p where
-  papp :: p (a->b) -> p a -> p b
+  papp :: (Show a, Show b) => p (a->[b]) -> p a -> p b
 
 class Pmerge p where
   pmerge :: Mergable (p m) => p m -> p m -> p m

@@ -22,17 +22,22 @@ module Sound.SC3.Lepton.Pattern.ParseP
   , dPatterns
   ) where
 
-import Control.Applicative
+import Control.Applicative hiding (many)
 import Data.Function (fix)
+import Data.Maybe (catMaybes)
 import Prelude hiding (takeWhile)
 
-import Data.Attoparsec.Lazy hiding (takeWhile)
+import Data.Attoparsec.Lazy hiding (takeWhile, takeWhile1)
 import Data.Attoparsec.Char8 hiding (Result(..), eitherResult, parse)
-import Sound.SC3 hiding ((<*), osc)
+import Sound.SC3 hiding ((<*))
 
 import qualified Data.ByteString.Char8 as C8
+import qualified Data.ByteString.Lazy.Char8 as LC8
+
+import qualified Data.Attoparsec.Char8 as A
 
 import Sound.SC3.Lepton.Pattern.Dummy ()
+import Sound.SC3.Lepton.Pattern.Interpreter.Bz
 import qualified Sound.SC3.Lepton.Pattern.Expression as P
 
 parseP = eitherResult . parse oPatterns
@@ -54,11 +59,11 @@ oPatterns' p f = choice
   , ptakeT f, pdropT f
     -- Finite state
   , pfsm f
+    -- Lambda
+  , papp (plam (oPatterns' p)) f
     -- Parallel pattern classes
   , pmerge, ppar
   ]
-
-integral = decimal <|> signed decimal <|> braced (signed decimal)
 
 dPatterns = fix (nPatterns' double iPatterns)
 iPatterns = braced (fix (nPatterns' integral iPatterns))
@@ -74,6 +79,8 @@ nPatterns' p i f = choice
   , prand i f, pshuffle f
     -- Finite state
   , pfsm f
+    -- Lambda
+  , papp (plam (nPatterns' p i)) f
     -- Num
   , addP f, mulP f, minusP f, negateP f, absP f, signumP f
     -- Fractional
@@ -112,6 +119,85 @@ pmerge = mkP2 "pmerge" P.pmerge (braced oPatterns) (braced oPatterns)
 ppar = mkP "ppar" P.ppar (listOf oPatterns)
 pfsm p = mkP2 "pfsm" P.pfsm (listOf decimal)
   (listOf (braced ((,) <$> p <*> (char ',' *> listOf decimal))))
+
+------------------------------------------------------------------------------
+-- Lambda and app
+
+plam p = do
+  string "plam (\\"
+  v <- takeWhile (/= ' ')
+  skipSpace >> string "->" >> skipSpace
+  let g q bs = case A.parse q bs of
+        A.Done _ r     -> Just r
+        A.Partial k    -> A.maybeResult $ k C8.empty
+        A.Fail bs' c e -> error $ concat $ [C8.unpack bs,unwords c,e]
+  bdy <- lambdaBody
+  ps <- return $ \x ->
+    catMaybes [z|y<-bdy,let z=g (fix $ \f -> (string v >> return x) <|> p f) y]
+  char ')'
+  return $ P.plam ps
+
+lambdaBody :: Parser [C8.ByteString]
+lambdaBody = listOf (A.scan 0 g) where
+  g x c | x == 0 && (c == ',' || c == ']') = Nothing
+        | otherwise = case c of
+          '(' -> Just (x+1)
+          '[' -> Just (x+1)
+          ')' -> Just (x-1)
+          ']' -> Just (x-1)
+          _ -> Just x
+
+plam' p = do
+  string "plam (\\"
+  v <- takeWhile (/= ' ')
+  skipSpace >> string "->" >> skipSpace
+  let g q bs = case A.parse q bs of
+        A.Done _ r     -> Just r
+        A.Partial k    -> A.maybeResult $ k C8.empty
+        A.Fail bs' c e -> error $ concat $ [C8.unpack bs,unwords c,e]
+  ps <- listOf (fix ((\a b -> eitherP (string v) a <|> b) p))
+  char ')'
+  return $ ps
+
+papp bodyP p = do
+  string "papp" >> skipSpace
+  body <- braced bodyP
+  skipSpace
+  val <- braced p
+  return $ P.papp body val
+
+------------------------------------------------------------------------------
+-- Sample input for plam and papp
+
+lam_sample_1 = LC8.pack "\\x0 -> [x0,x0]"
+lam_sample_2 = LC8.pack "plam (\\x0 -> [x0,x0])"
+lam_sample_3 = LC8.pack "plam (\\x0 -> [pval 1,x0,pval 2,x0])"
+lam_sample_4 = LC8.pack "plam (\\x0 -> [x0,(x0) * (pval 2)])"
+
+app_sample_1 = LC8.pack "papp (plam (\\x0 -> [x0,x0])) (pval 999)"
+app_sample_2 = LC8.concat ["papp (", lam_sample_2, ") (pval 888)"]
+app_sample_3 = LC8.concat ["papp (", lam_sample_3, ") (pval 999)"]
+app_sample_4 = LC8.concat ["papp (", lam_sample_4, ") (pval 999)"]
+
+pal_sample_0 =
+  LC8.pack "papp (plam (\\x0 -> [x0,x0])) (pval 2)"
+pal_sample_1 =
+  LC8.pack "papp (plam (\\x0 -> [x0,x0])) (pval 3)"
+
+pal_sample_2 =
+  LC8.pack "papp (plam (\\x0 -> [x0,papp (plam (\\x1 -> [x1,x1])) (pval 3),x0])) (pval 4)"
+
+pal_sample_2' =
+  LC8.pack "papp (plam (\\x0 -> [x0,pval 1,x0,plist [2,3,4],x0])) (pval 999)"
+
+pal_sample_3 =
+  LC8.pack "Snew \"rspdef1\" Nothing AddToTail 1 [(\"dur\",pforever (pval 0.13)),(\"freq\",pforever (papp (plam (\\x0 -> [x0,(x0) * (pval 2)])) (prange (pval 100) (pval 200)))),(\"amp\",prepeat 0.3)]"
+
+{-
+XXX: Nested papp fail to parse.
+-}
+pal_sample_4 =
+  LC8.pack "papp (papp (plam (\\x0 -> [plam (\\x1 -> [x0,x1])])) (pval 1)) (plist [2,3,4])"
 
 ------------------------------------------------------------------------------
 -- OSC message patterns
@@ -211,4 +297,7 @@ braced :: Parser a -> Parser a
 braced a = char '(' *> skipSpace *> a <* skipSpace <* char ')'
 
 listOf :: Parser a -> Parser [a]
-listOf p = char '[' *> p `sepBy` char ',' <*  char ']'
+listOf p = char '[' *> (p `sepBy` char ',') <* char ']'
+
+integral :: Integral a => Parser a
+integral = decimal <|> signed decimal <|> braced (signed decimal)
