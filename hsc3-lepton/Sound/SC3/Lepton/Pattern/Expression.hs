@@ -100,11 +100,19 @@ class Prand p where
 class Pshuffle p where
   pshuffle :: [p a] -> p a
 
+{-
+XXX:
+
+Below seems more slim than above, with having same
+expressiveness. Note that, 'a' in first argument function need to be
+wrapped with p, to view in Bz interpreter.
+
+-}
 class Plam p where
-  plam :: Show b => (p a -> [p b]) -> p (a->[b])
+  plam :: (Show a, Show b) => (p a -> p b) -> p (a -> p b)
 
 class Papp p where
-  papp :: (Show a, Show b) => p (a->[b]) -> p a -> p b
+  papp :: (Show a, Show b) => p (a -> p b) -> p a -> p b
 
 class Pmerge p where
   pmerge :: Mergable (p m) => p m -> p m -> p m

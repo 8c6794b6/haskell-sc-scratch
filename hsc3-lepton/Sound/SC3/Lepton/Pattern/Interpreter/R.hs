@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {-|
 Module      : $Header$
 CopyRight   : (c) 8c6794b6
@@ -387,12 +388,21 @@ rlam f = R $ \g -> rec (repeat func) (gens g)
 
 -}
 
+-- instance Plam R where
+--   plam f = R $ \g ->
+--     repeat (\x -> concat $ zipWith unR (f (R $ \_ -> [x])) (gens g))
+
+-- instance Papp R where
+--   papp f p = R $ \g -> concat $ zipWith ($) (unR f g) (unR p g)
+
 instance Plam R where
-  plam f = R $ \g ->
-    repeat (\x -> concat $ zipWith unR (f (R $ \_ -> [x])) (gens g))
+  plam k = R $ \_ -> repeat (\x -> (k (R $ const [x])))
 
 instance Papp R where
-  papp f p = R $ \g -> concat $ zipWith ($) (unR f g) (unR p g)
+  papp k p = R $ \g -> unR (pconcat $ zipWith ($) (unR k g) (unR p g)) g
+
+rk = R (\_ -> [\x -> plist [x,x,x]])
+ra = R (\_ -> [1,2,3])
 
 -- rlam' :: (R a -> R b) -> R (a->b)
 -- rlam' f = R $ \g -> cycle [\x -> head $ unR (f (R $ \_ -> [x])) g]

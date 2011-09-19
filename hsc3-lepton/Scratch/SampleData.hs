@@ -21,6 +21,7 @@ import Sound.SC3
 import Sound.SC3.ID
 import Sound.SC3.Lepton
 import System.Random.Mersenne.Pure64
+import Sound.SC3.Lepton.Pattern.Parse2
 
 import qualified Data.ByteString.Lazy.Char8 as LC8
 
@@ -71,24 +72,23 @@ pspe2' =
 
 -- Unison, using papp and plam
 pspe3 =
-   papp
-   (plam (\x ->
-           [ppar
-            [psnew "speSynth" Nothing AddToTail 1
-             [("dur", prepeat 0.13)
-             ,("amp", prepeat 0.1)
-             ,("freq", midiCPS x)]
-            ,psnew "speSynth" Nothing AddToTail 1
-             [("dur", prepeat 0.13)
-             ,("amp", prepeat 0.1)
-             ,("freq", midiCPS x * prepeat 0.498)]
-            ,psnew "speSynth" Nothing AddToTail 1
-             [("dur", prepeat 0.13)
-             ,("amp", prepeat 0.1)
-             ,("freq", midiCPS x * prepeat 2.002)]
-            ]
-           ]))
-    pspeFreq
+   (plam
+    (\x ->
+      ppar
+      [psnew "speSynth" Nothing AddToTail 1
+       [("dur", prepeat 0.13)
+       ,("amp", prepeat 0.1)
+       ,("freq", midiCPS x)]
+      ,psnew "speSynth" Nothing AddToTail 1
+       [("dur", prepeat 0.13)
+       ,("amp", prepeat 0.1)
+       ,("freq", midiCPS x * prepeat 0.498)]
+      ,psnew "speSynth" Nothing AddToTail 1
+       [("dur", prepeat 0.13)
+       ,("amp", prepeat 0.1)
+       ,("freq", midiCPS x * prepeat 2.002)]
+      ]
+    )) `papp` pspeFreq
 
 -- Unison, high pitch pattern repeating same note.
 pspe4 =
@@ -96,9 +96,9 @@ pspe4 =
   [psnew "speSynth" Nothing AddToTail 1
    [("dur", prepeat 0.13)
    ,("amp", prepeat 0.1)
-   ,("freq", (papp (plam (\x -> replicate 4 (midiCPS x))) pspeFreq))]
+   ,("freq", (papp (plam (\x -> preplicate 3 (midiCPS x))) pspeFreq))]
   ,psnew "speSynth" Nothing AddToTail 1
-   [("dur", prepeat 0.52)
+   [("dur", prepeat 0.39)
    ,("amp", prepeat 0.1)
    ,("freq", prepeat 0.25 * midiCPS pspeFreq)]
   ]
@@ -107,7 +107,14 @@ pspe5 =
   psnew "speSynth" Nothing AddToTail 1
    [("dur", prepeat 0.13)
    ,("amp", prepeat 0.1)
-   ,("freq", (papp (plam (\x -> replicate 16 (midiCPS x))) pspeFreq))]
+   ,("freq",
+     (papp (plam (\x -> midiCPS $ pconcat [x-12,x,x+12,x])) pspeFreq))]
+
+pspe6 =
+  psnew "speSynth" Nothing AddToTail 1
+   [("dur", prepeat 0.13)
+   ,("amp", prepeat 0.1)
+   ,("freq", (papp (plam (\x -> preplicate 8 (midiCPS x))) pspeFreq))]
 
 psw'for'180'seconds path =
   writeScore [] (Group 0 [Group 1 []]) (ptakeT 180 psw) path
@@ -298,7 +305,7 @@ pshared01 s =
 
 ------------------------------------------------------------------------------
 -- Lambda and app
-pla01 = papp (plam (\x -> [x,x]))
+pla01 = papp (plam (\x -> pconcat [x,x]))
         (psnew "rspdef1" Nothing AddToTail 1
          [("dur", pforever (prange 0.125 2))
          ,("freq",prepeat 440)
@@ -307,11 +314,12 @@ pla01 = papp (plam (\x -> [x,x]))
 pla02 =
   psnew "rspdef1" Nothing AddToTail 1
   [("dur", pforever (prand 1 [preplicate 4 0.125,preplicate 2 0.25,0.5]))
-  ,("freq", pforever (papp (plam (\x -> [x,440,x*2,660])) (prand 1 [110,220,330,550,770,880,990])))
+  ,("freq", pforever (papp (plam (\x -> pconcat [x,440,x*2,660]))
+                      (prand 1 [110,220,330,550,770,880,990])))
   ,("amp", pforever (prange 3e-1 5e-1))]
 
 pla03 =
   psnew "rspdef1" Nothing AddToTail 1
   [("dur", pforever 0.13)
-  ,("freq", pforever (papp (plam (\x -> [x,x*2])) (prange 100 200)))
+  ,("freq", pforever (papp (plam (\x -> pconcat [x,x*2])) (prange 100 200)))
   ,("amp", prepeat 0.3)]

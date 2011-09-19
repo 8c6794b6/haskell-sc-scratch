@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE KindSignatures #-}
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 {-|
 Module      : $Header$
@@ -50,11 +51,9 @@ oPatterns' p f = choice
     -- Primitive
   , pempty
     -- Lists and repeating pattern classes
-  , pconcat f, pappend f, pseq p f
-  , preplicate p f, pcycle f, pforever f
+  , pconcat f, pappend f, pseq p f, preplicate p f, pcycle f, pforever f
     -- Random pattern classes
-  , pchoose p f
-  , prand p f, pshuffle f
+  , pchoose p f, prand p f, pshuffle f
     -- Durational pattern classes
   , ptakeT f, pdropT f
     -- Finite state
@@ -123,6 +122,7 @@ pfsm p = mkP2 "pfsm" P.pfsm (listOf decimal)
 ------------------------------------------------------------------------------
 -- Lambda and app
 
+{-
 plam p = do
   string "plam (\\"
   v <- takeWhile (/= ' ')
@@ -145,19 +145,7 @@ lambdaBody = listOf (A.scan 0 g) where
           '[' -> Just (x+1)
           ')' -> Just (x-1)
           ']' -> Just (x-1)
-          _ -> Just x
-
-plam' p = do
-  string "plam (\\"
-  v <- takeWhile (/= ' ')
-  skipSpace >> string "->" >> skipSpace
-  let g q bs = case A.parse q bs of
-        A.Done _ r     -> Just r
-        A.Partial k    -> A.maybeResult $ k C8.empty
-        A.Fail bs' c e -> error $ concat $ [C8.unpack bs,unwords c,e]
-  ps <- listOf (fix ((\a b -> eitherP (string v) a <|> b) p))
-  char ')'
-  return $ ps
+          _   -> Just x
 
 papp bodyP p = do
   string "papp" >> skipSpace
@@ -165,39 +153,139 @@ papp bodyP p = do
   skipSpace
   val <- braced p
   return $ P.papp body val
+-}
+
+{-
+Here, only runnable patterns are target to parse.
+Parsed result should not be partially evaluated, not a function type.
+
+Return type of plam2 may nested or not. We need a specific type to
+represent this.
+
+Below plam and papp are working only for non-nested plam and papps.
+-}
+papp bodyP p = do
+  string "papp" >> skipSpace
+  body <- braced bodyP
+  skipSpace
+  val <- braced p
+  return $ P.papp body val
+
+plam p = do
+  string "plam (\\"
+  v <- takeWhile (/= ' ')
+  skipSpace >> string "->" >> skipSpace
+  let g q bs = go (A.parse q bs) where
+        go res = case res of
+          A.Done _ r     -> r
+          A.Partial k    -> go (k C8.empty)
+          A.Fail bs' c e -> error $ concat $ [C8.unpack bs,unwords c,e]
+  bdy <- lambdaBody
+  ps <- return $ \x ->
+    g (fix $ \f -> (string v >> return x) <|> p f) bdy
+  char ')'
+  return $ P.plam ps
+
+papp2 p = do
+  string "papp" >> skipSpace
+  bdy <- p
+  skipSpace
+  val <- p
+  return $ unApp bdy val
+
+papp2' bdyP valP = do
+  undefined
+
+lPatterns p f = choice
+  [ V <$> pval p,  pappend f
+  -- , plam' (lPatterns p)
+  ]
+
+unApp = undefined
+
+data VF p a = V (p a) | F (p (a -> p a))
+
+unVF :: (Show a, P.Plam p) => VF p a -> p (a -> p a)
+unVF vf = case vf of V a -> P.plam (const a); F f -> f
+
+-- plam' :: (Parser (VF p a) -> Parser (VF p a)) -> Parser (VF p a)
+plam' p = do
+  string "plam (\\"
+  v <- takeWhile (/= ' ')
+  skipSpace >> string "->" >> skipSpace
+  let g q bs = go (A.parse q bs) where
+        go res = case res of
+          A.Done _ r     -> r
+          A.Partial k    -> go (k C8.empty)
+          A.Fail bs' c e -> error $ concat $ [C8.unpack bs,unwords c,e]
+  bdy <- lambdaBody
+  ps <- return $ \x ->
+    g (fix $ \f -> (string v >> return x) <|> (p f)) bdy
+  char ')'
+  return $ (F $ P.plam ps)
+
+lambdaBody :: Parser C8.ByteString
+lambdaBody = A.scan 0 g where
+  g x c | x <= 0 && (c `elem` ")]") = Nothing
+        | otherwise = case c of
+          '(' -> Just (x+1)
+          '[' -> Just (x+1)
+          ')' -> Just (x-1)
+          ']' -> Just (x-1)
+          _   -> Just x
+
+lc p = lam p <|> app p
+
+app p = do
+  string "papp" >> skipSpace
+  body <- braced (atom p)
+  skipSpace
+  val <- braced (atom p)
+  return $ App body val
+
+atom p =
+  (Var <$> var) <|>
+  (fix (\f -> (p f) <|> (Var <$> var))) <|>
+  lc p
+
+var = do
+  char 'x'
+  i <- takeWhile isDigit
+  return (C8.cons 'x' i)
+
+lam p = do
+  string "plam (\\"
+  v <- var
+  skipSpace >> string "->" >> skipSpace
+  bdy <- atom p <|> lc p
+  char ')'
+  return $ Lam v bdy
+
+data LC p a
+   = Var C8.ByteString
+   | Cst (p a)
+   | Lam C8.ByteString (LC p a)
+   | App (LC p a) (LC p a) deriving Show
 
 ------------------------------------------------------------------------------
 -- Sample input for plam and papp
 
-lam_sample_1 = LC8.pack "\\x0 -> [x0,x0]"
-lam_sample_2 = LC8.pack "plam (\\x0 -> [x0,x0])"
-lam_sample_3 = LC8.pack "plam (\\x0 -> [pval 1,x0,pval 2,x0])"
-lam_sample_4 = LC8.pack "plam (\\x0 -> [x0,(x0) * (pval 2)])"
+-- type B a = Result (LC (Bz a))
 
-app_sample_1 = LC8.pack "papp (plam (\\x0 -> [x0,x0])) (pval 999)"
-app_sample_2 = LC8.concat ["papp (", lam_sample_2, ") (pval 888)"]
-app_sample_3 = LC8.concat ["papp (", lam_sample_3, ") (pval 999)"]
-app_sample_4 = LC8.concat ["papp (", lam_sample_4, ") (pval 999)"]
+lam2_sample_0 = LC8.pack "plam (\\x0 -> x0)"
+lam2_sample_1 = LC8.pack "plam (\\x0 -> pval 1)"
+lam2_sample_2 = LC8.pack "plam (\\x0 -> pconcat [pval 1,x0])"
+lam2_sample_3 = LC8.pack "plam (\\x0 -> plam (\\x1 -> pconcat [x0,x1]))"
+lam2_sample_4 = LC8.pack "plam (\\x0 -> plam (\\x1 -> x1))"
+lam2_sample_5 = LC8.pack "plam (\\x0 -> papp (plam (\\x1 -> x1)) (pval 3))"
 
-pal_sample_0 =
-  LC8.pack "papp (plam (\\x0 -> [x0,x0])) (pval 2)"
-pal_sample_1 =
-  LC8.pack "papp (plam (\\x0 -> [x0,x0])) (pval 3)"
-
-pal_sample_2 =
-  LC8.pack "papp (plam (\\x0 -> [x0,papp (plam (\\x1 -> [x1,x1])) (pval 3),x0])) (pval 4)"
-
-pal_sample_2' =
-  LC8.pack "papp (plam (\\x0 -> [x0,pval 1,x0,plist [2,3,4],x0])) (pval 999)"
-
-pal_sample_3 =
-  LC8.pack "Snew \"rspdef1\" Nothing AddToTail 1 [(\"dur\",pforever (pval 0.13)),(\"freq\",pforever (papp (plam (\\x0 -> [x0,(x0) * (pval 2)])) (prange (pval 100) (pval 200)))),(\"amp\",prepeat 0.3)]"
+app2_sample_0 = LC8.concat ["papp (", lam2_sample_0, ") (pval 999)"]
+app2_sample_1 = LC8.concat ["papp (", lam2_sample_1, ") (pval 999)"]
+app2_sample_2 = LC8.concat ["papp (papp (", lam2_sample_4, ") (pval 999)) (pval 888)"]
 
 {-
 XXX: Nested papp fail to parse.
 -}
-pal_sample_4 =
-  LC8.pack "papp (papp (plam (\\x0 -> [plam (\\x1 -> [x0,x1])])) (pval 1)) (plist [2,3,4])"
 
 ------------------------------------------------------------------------------
 -- OSC message patterns

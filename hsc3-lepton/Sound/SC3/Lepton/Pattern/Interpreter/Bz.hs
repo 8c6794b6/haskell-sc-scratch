@@ -29,9 +29,11 @@ import Blaze.ByteString.Builder.Char8
 import Sound.SC3
 
 import qualified Blaze.ByteString.Builder.Char8 as BzC8
+import qualified Data.Binary as Bin
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as C8
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.Serialize as Ser
 import qualified Data.String as DS
 
 import Sound.SC3.Lepton.Pattern.Expression
@@ -56,6 +58,8 @@ instance Typeable1 Bz where
 
 instance Typeable a => Typeable (Bz a) where
   typeOf = typeOfDefault
+
+let_ x y = (plam y) `papp` x
 
 -- | Alias of 'id' to fix type signature.
 toBz :: Bz s -> Bz s
@@ -117,8 +121,8 @@ doubleQuote :: Builder -> Builder
 doubleQuote a = fromChar '"' <> a <> fromChar '"'
 {-# INLINE doubleQuote #-}
 
--- ------------------------------------------------------------------------------
--- -- Base classes
+---------------------------------------------------------------------------------
+-- Base classes
 
 instance Show a => Show (Bz a) where
   show = C8.unpack . byteStringP
@@ -306,11 +310,21 @@ instance Pfsm Bz where
 ------------------------------------------------------------------------------
 -- Lambda
 
+-- instance Plam Bz where
+--   plam f = Bz $ \h ->
+--     case "x" <> fromString (show h) of
+--       x -> case mkList (flip unBz (succ h)) (f (Bz $ const x)) of
+--         body -> "plam (\\" <> x <> " -> " <> body <> ")"
+
+-- instance Papp Bz where
+--   papp f e = Bz $ \h ->
+--     "papp" <> space <> braced (unBz f h) <> space <> braced (unBz e h)
+
 instance Plam Bz where
   plam f = Bz $ \h ->
     case "x" <> fromString (show h) of
-      x -> case mkList (flip unBz (succ h)) (f (Bz $ const x)) of
-        body -> "plam (\\" <> x <> " -> " <> body <> ")"
+      x -> case unBz (f (Bz $ const x)) (succ h) of
+        body -> "plam (\\" <> x <> " -> " <>  body <> ")"
 
 instance Papp Bz where
   papp f e = Bz $ \h ->

@@ -214,7 +214,7 @@ instance Pnset S where
 
 instance Plam S where
   plam e = S $ \_ ->
-    "plam (\\" ++ "x -> " ++ showSs (map showP (e (S (\_ -> "x")))) ++ ")"
+    "plam (\\" ++ "x -> " ++ showP (e (S (\_ -> "x"))) ++ ")"
 
 showSs :: [String] -> String
 showSs ss = case ss of
