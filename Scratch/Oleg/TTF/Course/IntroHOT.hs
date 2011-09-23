@@ -34,3 +34,13 @@ eval env (A e1 e2) = case eval env e1 of UA f -> f (eval env e2)
                                          
 ti1 = A (L (V VZ)) (B True)                                         
 ti1_eval = eval [] ti1
+
+-- Partial pattern match in A clause.
+-- Permitting invalid syntax.
+ti2a = A (B True) (B False)
+ti2a_eval = eval [] ti2a
+                   
+-- Open term.
+-- We can get stucked when we evaluate an open term.
+ti2o = A (L (V (VS VZ))) (B True)
+ti2o_eval = eval [] ti2o

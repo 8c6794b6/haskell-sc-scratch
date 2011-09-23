@@ -5,6 +5,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE KindSignatures #-}
 {-|
 Module      : $Header$
@@ -68,9 +69,14 @@ read_t2' f e = case e of
   _ -> fail $ "Bad type expression: " ++ show e
 
 
--- read_t3' f e = case e of
---   Node "TBool" [] -> return $ Typ tbool
+read_t3 = fix' read_t3' 
 
+read_t3' :: (Tree -> Either String Typ) -> Tree -> Either String Typ
+read_t3' f e = case e of
+  Node "TBool" [] -> return $ Typ tbool
+  _               -> read_t2' f e
+    
+  
 ------------------------------------------------------------------------------
 -- Type checking environment
 
@@ -149,13 +155,30 @@ type G gamma repr h = (Tree,gamma) -> Either String (DynTerm repr h)
 -- fix' :: (forall g r h. G g r h -> G g r h) -> G g r h
 fix' f = f (fix' f)
 
+pfix :: (forall g r h. G g r h -> G g r h) -> G g r h
+pfix f = res where
+  res :: G g r h
+  res = case f res of
+    -- XXX: case match on VarDesc? Modify G type synonym.
+    _ -> undefined
+    
+qfix :: (forall gamma h. Var gamma h => (Tree,gamma) -> Either String (DynTerm repr h))    
+        -> (Tree,gamma) -> Either String (DynTerm repr h)
+qfix f = res where
+  res = undefined
+  
 -- fix' :: (a -> a) -> a
 -- fix' f = f (fix' f)
+    
+-- blah = pfix typecheck'
 
-typecheck' ::
-  (Symantics repr)
-  => (forall gamma' h'. Var gamma' h' => (Tree,gamma') -> Either String (DynTerm repr h'))
-  -> (forall gamma h. Var gamma h => (Tree,gamma) -> Either String (DynTerm repr h))
+-- typecheck' ::
+--   (Symantics repr)
+--   => (forall gamma' h'. Var gamma' h' => (Tree,gamma') -> Either String (DynTerm repr h'))
+--   -> (forall gamma h. Var gamma h => (Tree,gamma) -> Either String (DynTerm repr h))
+typecheck' :: (Symantics repr, Var g h)  
+  => (forall g h. Var g h => (Tree,g) -> Either String (DynTerm repr h))
+  -> (Tree,g) -> Either String (DynTerm repr h)
 typecheck' self (n,gamma) = case n of
   Node "Int" [Leaf str] -> case reads str of
     [(i,[])] -> return $ DynTerm tint (int i)
