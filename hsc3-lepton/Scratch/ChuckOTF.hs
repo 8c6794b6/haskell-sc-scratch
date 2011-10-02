@@ -76,7 +76,7 @@ kikP = psnew "otfperc" Nothing AddToHead 1
   [("dur", pforever t)
   ,("bnum", prepeat 0)
   ,("pan", prepeat (-0.1))
-  ,("amp", pforever (prange 0.5 0.7))]
+  ,("amp", pforever (prange 0.7 0.9))]
 
 snrP = psnew "otfperc" Nothing AddToHead 1
   [("dur", pforever (prepeat t * prand 1 [2, plist [0.75,1.25]]))
@@ -100,7 +100,7 @@ sin1P = psnew "otfsine" Nothing AddToHead 1
   ,("out", prepeat 2)
   ,("freq",
     pforever $ midiCPS (21 + (prand 1 [0,12,24,36] + prand 1 [0,2,4,7,9])))
-  ,("amp", pforever 0.5)
+  ,("amp", pforever 0.65)
   ,("pan", pforever 0.1)]
 
 sin2P = psnew "otfsine" Nothing AddToHead 1

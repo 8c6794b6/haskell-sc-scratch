@@ -25,6 +25,8 @@ import Sound.SC3.Lepton.Pattern.Parse2
 
 import qualified Data.ByteString.Lazy.Char8 as LC8
 
+import Scratch.L
+
 l = withLept
 
 pspe = psnew "speSynth" Nothing AddToTail 1
@@ -32,14 +34,25 @@ pspe = psnew "speSynth" Nothing AddToTail 1
   ,("amp", prepeat 0.1)
   ,("freq", midiCPS pspeFreq)]
 
+-- pspeFreq =
+--   pcycle
+--     [prand 1
+--        [pempty, plist [24,31,36,43,48,55]]
+--     ,pseq (prange 2 5)
+--        [60, prand 1 [63, 65], 67, prand 1 [70,72,74]]
+--     ,prand (prange 3 9)
+--        [74,75,77,79,81]]
+
 pspeFreq =
   pcycle
-    [prand 1
+    [prand (pval 1)
        [pempty, plist [24,31,36,43,48,55]]
-    ,pseq (prange 2 5)
-       [60, prand 1 [63, 65], 67, prand 1 [70,72,74]]
-    ,prand (prange 3 9)
-       [74,75,77,79,81]]
+    ,pseq (prange (pval 2) (pval 5))
+       [ pval 60, prand (pval 1) [pval 63, pval 65]
+       , pval 67, prand (pval 1) [pval 70,pval 72,pval 74]]
+    ,prand (prange (pval 3) (pval 9))
+       [pval 74,pval 75,pval 77,pval 79,pval 81]]
+
 
 -- Unison, using same random seed.
 pspe2 =
@@ -111,10 +124,16 @@ pspe5 =
      (papp (plam (\x -> midiCPS $ pconcat [x-12,x,x+12,x])) pspeFreq))]
 
 pspe6 =
-  psnew "speSynth" Nothing AddToTail 1
+  ppar
+  [psnew "speSynth" Nothing AddToTail 1
    [("dur", prepeat 0.13)
    ,("amp", prepeat 0.1)
-   ,("freq", (papp (plam (\x -> preplicate 8 (midiCPS x))) pspeFreq))]
+   ,("freq", (papp (plam (\x -> preplicate 16 (midiCPS (x-24)))) pspeFreq))]
+  ,psnew "speSynth" Nothing AddToTail 1
+   [("dur", prepeat 0.13)
+   ,("amp", prepeat 0.1)
+   ,("freq", (papp (plam (\x -> preplicate 16 (midiCPS (x-17)))) pspeFreq))]
+  ]
 
 psw'for'180'seconds path =
   writeScore [] (Group 0 [Group 1 []]) (ptakeT 180 psw) path
@@ -305,6 +324,7 @@ pshared01 s =
 
 ------------------------------------------------------------------------------
 -- Lambda and app
+
 pla01 = papp (plam (\x -> pconcat [x,x]))
         (psnew "rspdef1" Nothing AddToTail 1
          [("dur", pforever (prange 0.125 2))
@@ -323,3 +343,70 @@ pla03 =
   [("dur", pforever 0.13)
   ,("freq", pforever (papp (plam (\x -> pconcat [x,x*2])) (prange 100 200)))
   ,("amp", prepeat 0.3)]
+
+pmap = papp . plam
+
+nla04 =
+  Group 0
+    [ Group 1 [Synth 2001 "otfrev2" []]]
+
+pla04 =
+  psnew "smpld01" Nothing AddToHead 1
+  [("dur", pforever 0.13)
+  ,("dcy", pforever (log $ prange (exp 1e-1) (exp 0.5)))
+  ,("freq",
+    pforever (pmap (\x ->
+               midiCPS $ prand 1 [pconcat [x,x+4,x+7,x+12,x+7,x+4]
+                                 ,pconcat [x-5,x,x+4,x+7,x+4,x]
+                                 ,pconcat [x-8,x-5,x,x+4,x,x-5]])
+                      (prand 1 [60,61..72])))
+  ,("amp", pforever (prange 0.2 0.5))]
+
+pla05 =
+  plam (\x ->
+         let dt = 0.217 in
+         psnew "smpld01" Nothing AddToHead 1
+         [-- ("dur", prand 1 [preplicate 4 dt,preplicate 2 (dt*2)])
+          ("dur", dt)
+         ,("dcy", (1024/(x*x)))
+         ,("atk", (exp $ prange (log 1e-3) (log 1)))
+         -- ,("freq", midiCPS (prand 1 [{-x-24,-}x{-,x+12-}]))
+         ,("freq", midiCPS (prand 1 [x-24,x,x+12]))
+         ,("pan", prange (-1) 1)
+         ,("amp", (prange 0.05 0.5))])
+  `papp`
+  let scale = [60,65,67,70,66,63,72] in
+  pforever (pseq (pval 8) [pseq 1 scale, prand 1 scale])
+  -- (pforever (prand 1 [60,63,65,66,67,70,72]))
+
+smpld01 = out ("out"@@0) (pan2 sig ("pan"@@0) 1) where
+  sig =
+    sum [fSinOsc AR frq 0 * e 1 rs
+        ,fSinOsc AR (frq*1.98) (0.32*pi) * 0.2 * e 0.8 dn
+        ,fSinOsc AR (frq*3.02) (0.93*pi) * 0.18 * e 0.7 dn
+        ,fSinOsc AR (frq*3.998) (0.171*pi) * 0.12 * e 0.6 dn
+        ,fSinOsc AR (frq*4.9987) (0.162*pi) * 0.4 * e 0.3 dn
+        ,fSinOsc AR (frq*6.0017) (0.591*pi) * 0.3 * e 0.42 dn
+        ]
+  dn = DoNothing; rs = RemoveSynth
+  frq = ("freq"@@440)
+  e d a =
+    envGen KR 1 ("amp"@@0.3) 0 d a $
+    env [0,1,0] ["atk"@@1e-4,"dcy"@@1e-4] [EnvSin] (-1) 0
+
+------------------------------------------------------------------------------
+-- L
+
+pspeL =
+  let dt = 0.39 in
+  lam (
+    ppar
+    [psnew "speSynth" Nothing AddToTail 1
+      [("dur", prepeat (dt/3))
+      ,("amp", prepeat 0.1)
+      ,("freq", preplicate 3 (midiCPS pz))]
+    ,psnew "speSynth" Nothing AddToTail 1
+      [("dur", prepeat dt)
+      ,("amp", prepeat 0.1)
+      ,("freq", midiCPS (pz-12))]
+    ]) `app` pspeFreq
