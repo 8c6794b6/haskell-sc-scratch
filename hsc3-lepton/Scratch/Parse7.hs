@@ -1,13 +1,16 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE IncoherentInstances #-}
+{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
 {-|
 Module      : $Header$
 CopyRight   : (c) 8c6794b6
@@ -20,7 +23,7 @@ Parsing patterns, take 7.
 Rewriting pattern classes to take extra argument.
 -}
 
-module Parse7 where
+module Scratch.Parse7 where
 
 import Control.Applicative
 import System.Random
@@ -33,9 +36,12 @@ import Sound.SC3
 import Sound.SC3.Lepton.Pattern.Dummy
 import Sound.SC3.Lepton.Pattern.Interpreter.R (gens,initialT,shiftT)
 import Sound.SC3.Lepton.Pattern.ToOSC
+import Sound.SC3.Lepton.Pattern.Play
 
-import Scratch.Parse5 (E(..), Etree(..), etree, toE)
 import Scratch.L
+import Scratch.Etree (Etree(..))
+import Scratch.Parse5 (E(..), etree, toE)
+import Scratch.Type00
 
 import qualified Data.Binary as Bin
 import qualified Data.Map as M
@@ -94,6 +100,28 @@ class Plc p where
 class Psnew p where
   psnew :: String -> Maybe Int -> AddAction -> Int -> [(String, p r Double)]
            -> p r (ToOSC Double)
+
+class Pnum p where
+  padd :: Num a => p h a -> p h a -> p h a
+  pmul :: Num a => p h a -> p h a -> p h a
+  psub :: Num a => p h a -> p h a -> p h a
+  pnegate :: Num a => p h a -> p h a
+  pabs :: Num a => p h a -> p h a
+  psignum :: Num a => p h a -> p h a
+  pfromInteger :: Num a => Integer -> p h a
+
+class Pfractional p where
+  pdiv :: Fractional a => p h a -> p h a -> p h a
+  precip :: Fractional a => p h a -> p h a
+  pfromRational :: Fractional a => Rational -> p h a
+
+class Pfloating p where
+  pexp :: Floating a => p h a -> p h a
+  psqrt :: Floating a => p h a -> p h a
+  plog :: Floating a => p h a -> p h a
+
+class Punary p where
+  pmidiCPS :: UnaryOp a => p h a -> p h a
 
 ------------------------------------------------------------------------------
 -- Sample terms
@@ -169,6 +197,18 @@ instance Psnew L where
       tail $ shiftT 0 $
       unL (pappend (pval initialT) (T.sequenceA $ M.fromList ms)) h g
 
+instance Pnum L where
+  padd = (+)
+  pmul = (*)
+  psub = (-)
+  pnegate = negate
+  pabs = abs
+  psignum = signum
+  pfromInteger = fromInteger
+
+instance Punary L where
+  pmidiCPS = midiCPS
+
 ------------------------------------------------------------------------------
 -- For viewing
 
@@ -229,8 +269,94 @@ instance Plc S where
   app e1 e2 = S $ \h -> "app (" ++ unS e1 h ++ ") (" ++ unS e2 h ++ ")"
 
 instance Psnew S where
-  psnew def nid aa tid ms = S $ \_ ->
-    "psnew " ++ unwords [show def,show nid,show aa,show tid] ++ " " ++ show ms
+  psnew def nid aa tid ms = S $ \h ->
+    "psnew " ++ unwords [show def,show nid,show aa,show tid] ++ " " ++ unSs ms h
+    where
+      unSs ns i = case ns of
+        [] -> "[]"
+        ((k,v):ns') ->
+          '[' : ("(" ++ show k ++ "," ++ unS v i ++ ")" ++ unSs' ns' i)
+      unSs' os j = case os of
+        [] -> "]"
+        ((k,v):ps) -> ",(" ++ show k ++ "," ++ unS v j ++ ")" ++ unSs' ps j
+
+instance Eq (S h a) where
+  a == b = unS a 0 == unS b 0
+
+instance Num (S h a) where
+  a + b = S $ \h -> concat ["(",unS a h,") + (",unS b h,")"]
+  a * b = S $ \h -> concat ["(",unS a h,") * (",unS b h,")"]
+  a - b = S $ \h -> concat ["(",unS a h,") - (",unS b h,")"]
+  negate e = S $ \h -> "negate (" ++ unS e h ++ ")"
+  abs e = S $ \h -> "abs (" ++ unS e h ++ ")"
+  signum e = S $ \h -> "signum (" ++ unS e h ++ ")"
+  fromInteger n = S $ \_ -> "pval " ++ show (fromInteger n :: Int)
+
+showFloating :: Show a => String -> a -> S h s
+showFloating f x = S (const $ f ++ " (" ++ show x ++ ")")
+
+instance Ord (S h a) where
+  compare _ _ = EQ
+
+instance Fractional (S h a) where
+  a / b = S $ \h -> concat ["(",unS a h,") / (",unS b h,")"]
+  recip = showFloating "recip"
+  fromRational n = S $ \_ -> "pval " ++ show (fromRational n :: Double)
+
+instance Floating (S h a) where
+  pi = S (const "pi")
+  exp = showFloating "exp"
+  log = showFloating "log"
+  sqrt = showFloating "sqrt"
+  a ** b = S (const $ "(" ++ show a ++ ") ** (" ++ show b ++ ")")
+  sin = showFloating "sin"
+  tan = showFloating "tan"
+  cos = showFloating "cos"
+  asin = showFloating "asin"
+  atan = showFloating "atan"
+  acos = showFloating "acos"
+  sinh = showFloating "sinh"
+  tanh = showFloating "tanh"
+  cosh = showFloating "cosh"
+  asinh = showFloating "asinh"
+  atanh = showFloating "atanh"
+  acosh = showFloating "acosh"
+
+instance UnaryOp (S h a) where
+  ampDb = showFloating "ampDb"
+  asFloat = showFloating "asFloat"
+  asInt = showFloating "asInt"
+  bitNot = showFloating "bitNot"
+  cpsMIDI = showFloating "cpsMIDI"
+  cpsOct = showFloating "cpsOct"
+  cubed = showFloating "cubed"
+  dbAmp = showFloating "dbAmp"
+  distort = showFloating "distort"
+  frac = showFloating "frac"
+  isNil = showFloating "isNil"
+  log10 = showFloating "log10"
+  log2 = showFloating "log2"
+  midiCPS = showFloating "midiCPS"
+  midiRatio = showFloating "midiRatio"
+  notE = showFloating "notE"
+  notNil = showFloating "notNil"
+  octCPS = showFloating "octCPS"
+  ramp_ = showFloating "ramp_"
+  ratioMIDI = showFloating "ratioMIDI"
+  softClip = showFloating "softClip"
+  squared = showFloating "squared"
+
+instance Pnum S where
+  padd = (+)
+  pmul = (*)
+  psub = (-)
+  pnegate = negate
+  pabs = abs
+  psignum = signum
+  pfromInteger = fromInteger
+
+instance Punary S where
+  pmidiCPS x = S $ \h -> "midiCPS (" ++ unS x h ++ ")"
 
 ------------------------------------------------------------------------------
 -- For expression tree
@@ -302,7 +428,23 @@ mkParams h ps = case ps of
   []         -> []
   ((k,v):qs) -> Leaf (Bin.encode k):unE v h:mkParams h qs
 
--- instance (VarEnv g, h ~ Value g)=> Num (E h a) where
+instance Pnum E where
+  padd = (+)
+  pmul = (*)
+  psub = (-)
+  pnegate = negate
+  pabs = abs
+  psignum = signum
+  pfromInteger = undefined
+
+instance Pfractional E where
+  pdiv = (/)
+  precip = recip
+  pfromRational = fromRational
+
+instance Punary E where
+  pmidiCPS = midiCPS
+
 instance Num (E h a) where
   (+) = binaryE "+"
   (*) = binaryE "*"
@@ -313,14 +455,12 @@ instance Num (E h a) where
   fromInteger a = E $ \h ->
     Node "pval" [Leaf (Bin.encode (fromInteger a :: Double))]
 
--- instance (VarEnv g, h ~ Value g) => Fractional (E h a) where
 instance Fractional (E h a) where
   (/) = binaryE "/"
   recip = unaryE "recip"
   fromRational a = E $ \h ->
     Node "pval" [Leaf (Bin.encode (fromRational a :: Double))]
 
--- instance (VarEnv g, h ~ Value g) => Floating (E h a) where
 instance Floating (E h a) where
   pi = constE "pi"
   exp = unaryE "exp"
@@ -341,7 +481,6 @@ instance Floating (E h a) where
   atanh = unaryE "atanh"
   acosh = unaryE "acosh"
 
--- instance (VarEnv g, h ~ Value g) => UnaryOp (E h a) where
 instance UnaryOp (E h a) where
   ampDb = unaryE "ampDb"
   asFloat = unaryE "asFloat"
@@ -367,105 +506,13 @@ instance UnaryOp (E h a) where
   squared = unaryE "squared"
 
 ------------------------------------------------------------------------------
--- Types and variable environments
-
--- XXX: Add r and h used in FromTree as parameter for Ty,
--- Make
---
--- > data Ty t where
--- >   TyDouble :: Num (r h Double) => Ty r h Double
--- >   TyInt    :: Num (r h Int) => Ty r h Int
--- >   ...
---
---
-data Ty t where
-  TyInt    :: Ty Int
-  TyDouble :: Ty Double
-  TyBool   :: Ty Bool
-  TyToOSC  :: Ty a -> Ty (ToOSC a)
-  TyArr    :: Ty a -> Ty b -> Ty (a->b)
-  TyList   :: Ty a -> Ty [a]
-  TyAny    :: a -> Ty a
-
-data ExtTy = forall t. ExtTy (Ty t)
-
-instance Show ExtTy where
-  show (ExtTy ty) = "ExtTy (" ++ show ty ++ ")"
-
-instance Show (Ty t) where
-  show t = "Ty " ++ go t where
-    go :: Ty a -> String
-    go u = case u of
-      TyInt     -> "Int"
-      TyDouble  -> "Double"
-      TyBool    -> "Bool"
-      TyToOSC a -> "ToOSC (" ++ go a ++ ")"
-      TyArr a b -> '(' : go a ++ " -> " ++ go b ++ ")"
-      TyList a  -> '[' : go a ++ "]"
-      _         -> "Other"
-
-data Term r h where
-  Term :: Ty t -> r h t -> Term r h
-
-data Equal a b where
-  Equal :: forall c. Equal c c
-
-cmpTy :: Ty a -> Ty b -> Maybe (Equal a b)
-cmpTy a b = case (a,b) of
-  (TyInt,TyInt)             -> return Equal
-  (TyDouble,TyDouble)       -> return Equal
-  (TyBool,TyBool)           -> return Equal
-  (TyToOSC a, TyToOSC b)    -> cmpTy a b >>= \Equal -> return Equal
-  (TyArr a1 b1,TyArr a2 b2) -> do
-    Equal <- cmpTy a1 a2
-    Equal <- cmpTy b1 b2
-    return Equal
-  _                         -> Nothing
-
-{-
--- VarEnv using TypeFamilies.
-
-class VarEnv g where
-  type Value g :: *
-  findvar :: Plc r => Int -> g -> Either String (Term r (Value g))
-
-data VarDesc t = VarDesc Int (Ty t)
-
-instance VarEnv () where
-  type Value () = ()
-  findvar _ _ = Left "Variable unbound"
-
-instance VarEnv g => VarEnv (VarDesc t,g) where
-  type Value (VarDesc t,g) = (t,Value g)
-  findvar i (VarDesc j t,g)
-    | i == j = return $ Term t pz
-    | otherwise = findvar i g >>= \(Term t' v) -> return $ Term t' (ps v)
-
-instance VarEnv g => VarEnv ((Int,Ty t),g) where
-  type Value ((Int,Ty t),g) = (t,Value g)
-  findvar i ((j,t),g)
-    | i == j = return $ Term t pz
-    | otherwise = findvar i g >>= \(Term u v) -> return $ Term u (ps v)
-
-type FromTree r =
-  forall t g h.
-  ( Pval r, Plist r, Pempty r, Prepeat r, Pprim r
-  , Pappend r, Pconcat r, Preplicate r, Pseq r, Pforever r, Pcycle r
-  , Prand r, Prange r
-  , Psnew r
-  , Plc r
-  , VarEnv g, h ~ Value g
-  , Bin.Binary t, Show t, Random t
-  , Num (r h t), Num (r h Int), Num (r h Double), Num (r h (ToOSC Double))
-  ) => (Etree,Ty t,g) -> Either String (Term r h)
-  -- (
-  -- , VarEnv g, h ~ Value g)
-  -- => (Etree,g) -> Either String (Term r h)
-
--}
+-- Variable environment for lambda calculus with de Bruijn indice
 
 -- VarEnv using FunctionalDependency.
 -- Rank-N type level recursion only works with FunctionalDependency version?
+
+data Term r h where
+  Term :: Ty t -> r h t -> Term r h
 
 class VarEnv g h | g -> h where
   findvar :: (Plc r) => Int -> g -> Either String (Term r h)
@@ -475,30 +522,68 @@ data VarDesc t = VarDesc Int (Ty t)
 instance VarEnv () () where
   findvar _ _ = Left "Variable unbound"
 
-instance VarEnv g h => VarEnv (VarDesc t,g) (t,h) where
+instance (VarEnv g h) => VarEnv (VarDesc t,g) (t,h) where
   findvar i (VarDesc j t,g)
     | i == j = return $ Term t pz
     | otherwise = findvar i g >>= \(Term t' v) -> return $ Term t' (ps v)
+
+{-
+-- VarEnv using TypeFamilies.
+
+type family Vars g :: *
+type instance Vars () = ()
+type instance Vars (VarDesc t,g) = (t,Vars g)
+
+-- ghci> :t undefined :: Vars (VarDesc t2,(VarDesc t1,(VarDesc t0,())))
+-- undefined :: Vars (VarDesc t2,(VarDesc t1,(VarDesc t0,())))
+--   :: (t2, (t1, (t0, ())))
+
+class VarEnv g where
+  findvar :: (Plc r, h ~ Vars g) => Int -> g -> Either String (Term r h)
+
+data VarDesc t = VarDesc Int (Ty t)
+
+instance VarEnv () where
+  findvar _ _ = Left "Variable unbound"
+
+instance (VarEnv g) => VarEnv (VarDesc t,g) where
+  findvar i (VarDesc j t,g)
+    | i == j = return $ Term t pz
+    | otherwise = findvar i g >>= \(Term t' v) -> return $ Term t' (ps v)
+
+type FromTree r =
+  forall g h t.
+  ( Pval r, Plist r, Pempty r, Prepeat r, Pprim r
+  , Pappend r, Pconcat r, Preplicate r, Pseq r, Pforever r, Pcycle r
+  , Prand r, Prange r
+  , Psnew r
+  , Plc r
+  , VarEnv g, h ~ Vars g
+  , Bin.Binary t, Show t, Random t
+  -- , Num (r h t), Num (r h Int), Num (r h Double), Num (r h (ToOSC Double))
+  ) => (Etree,Ty t,g) -> Either String (Term r h)
+
+-}
 
 ------------------------------------------------------------------------------
 -- Deserializer
 
 type FromTree r =
-  forall g h t any.
+  forall g h t.
   ( Pval r, Plist r, Pempty r, Prepeat r, Pprim r
   , Pappend r, Pconcat r, Preplicate r, Pseq r, Pforever r, Pcycle r
   , Prand r, Prange r
   , Psnew r
   , Plc r, VarEnv g h
-  , Bin.Binary t, Show t, Random t
-  --, Num (r h t), Num (r h Int), Num (r h Double), Num (r h (ToOSC Double))
+  , Bin.Binary t, Show t, Random t, Num t, UnaryOp t
+  , Pnum r, Punary r
   ) => (Etree,Ty t,g) -> Either String (Term r h)
 
 fixFT :: (forall r. FromTree r -> FromTree r) -> FromTree r
 fixFT f = f (fixFT f)
 
--- fromTree :: forall r h g. VarEnv g h => FromTree r h g
--- fromTree = fixFT fromTreeO
+fromTree :: forall r. FromTree r
+fromTree = fixFT fromTreeO
 
 fromTreeO :: forall r.FromTree r -> FromTree r
 fromTreeO self (e,t,g) = case e of
@@ -518,7 +603,7 @@ fromTreeO self (e,t,g) = case e of
         rest <- unParams qs
         return $ (Bin.decode k,r):rest
 
-fromTreeE :: forall r. FromTree r -> FromTree r
+fromTreeE :: FromTree r -> FromTree r
 fromTreeE self (e,t,g) = case e of
   Node "pval" [Leaf x] -> return $ Term t (pval $ Bin.decode x)
   Node "plist" [Leaf x] -> return $ Term t (plist $ Bin.decode x)
@@ -566,11 +651,27 @@ fromTreeE self (e,t,g) = case e of
     return $ Term (TyArr argty (TyList bodyty)) (lam bodyval)
   Node "app" [e1,e2] -> do
     Term (TyArr bndty (TyList bodyty)) e1' <- self (e1,t,g)
-    Term argty e2' <- self (e2,t,g)
+    -- XXX: Type of argument may vary.
+    --
+    -- For instance, when function was applyed from outside of psnew and
+    -- pz, ps was used inside parameter, body is expecting Double.
+    -- When pz, ps was used in ppar, argument type will be (ToOSC Double).
+    -- Where to couple the type of argument and body?
+    -- Or will it be better to remove this type passing from caller entirely?
+    --
+    -- Term argty e2' <- self (e2,t,g)
+    Term argty e2' <- self (e2,TyDouble,g)
     case cmpTy bndty argty of
       Just Equal -> return $ Term bodyty (app e1' e2')
-  -- _ -> fromTreeN self (e,t,g)
+  _ -> fromTreeN self (e,t,g)
   where
+    treeToTy e = case e of
+      Node "TyInt" [] -> return $ ExtTy TyInt
+      Node "TyDouble" [] -> return $ ExtTy TyDouble
+      Node "TyArr" [e1,e2] -> do
+        ExtTy t1 <- treeToTy e1
+        ExtTy t2 <- treeToTy e2
+        return $ ExtTy $ TyArr t1 t2
     fromTreeEList (es,t,d) = case es of
       []     -> return []
       (x:xs) -> do
@@ -578,41 +679,54 @@ fromTreeE self (e,t,g) = case e of
         case cmpTy t t1 of
           Just Equal -> (r1:) <$> fromTreeEList (xs,t,d)
 
--- fromTreeN :: forall r. FromTree r -> FromTree r
--- fromTreeN self (e,t,g) = case e of
---   Node "+" [e1,e2] -> do
---     Term t1 v1 <- self (e1,t,g)
---     Term t2 v2 <- self (e2,t,g)
---     case (cmpTy t t1, cmpTy t t2) of
---       (Just Equal,Just Equal) -> return $ Term t (v1 + v2)
-
-treeToTy :: Etree -> Either String ExtTy
-treeToTy e = case e of
-  Node "TyInt" [] -> return $ ExtTy TyInt
-  Node "TyDouble" [] -> return $ ExtTy TyDouble
-  Node "TyArr" [e1,e2] -> do
-    ExtTy t1 <- treeToTy e1
-    ExtTy t2 <- treeToTy e2
-    return $ ExtTy $ TyArr t1 t2
+fromTreeN :: forall r. FromTree r -> FromTree r
+fromTreeN self (e,t,g) = case e of
+  Node "+" [e1,e2] -> do
+    Term t1 v1 <- self (e1,t,g)
+    Term t2 v2 <- self (e2,t,g)
+    case (cmpTy t t1, cmpTy t t2) of
+      (Just Equal,Just Equal) -> return $ Term t (padd v1 v2)
+  Node "-" [e1,e2] -> do
+    Term t1 v1 <- self (e1,t,g)
+    Term t2 v2 <- self (e2,t,g)
+    case (cmpTy t t1, cmpTy t t2) of
+      (Just Equal,Just Equal) -> return $ Term t (psub v1 v2)
+  Node "midiCPS" [e1] -> do
+    Term t1 v1 <- self (e1,t,g)
+    case cmpTy t t1 of
+      Just Equal -> return $ Term t $ pmidiCPS v1
 
 ------------------------------------------------------------------------------
 -- Tests
 
--- t2s :: Etree -> String
--- t2s e = case fromTree (e,TyToOSC TyDouble,()) of
---   Right (Term _ e') -> view e'
---   Left err          -> err
+t2s :: Etree -> String
+t2s e = case fromTree (e,TyToOSC TyDouble,()) of
+  Right (Term _ e') -> view e'
+  Left err          -> err
 
--- t2sD :: Etree -> String
--- t2sD e = case fixFT fromTreeE (e,TyDouble,()) of
---   Right (Term _ e') -> view e'
---   Left err          -> err
+t2sD :: Etree -> String
+t2sD e = case fixFT fromTreeE (e,TyDouble,()) of
+  Right (Term _ e') -> view e'
+  Left err          -> err
 
 -- Use of scoped type variable make difference to dumped core.
--- t2rio :: Etree -> IO ()
--- t2rio e = case fromTree (e,TyDouble,()) of
---   Right (Term TyDouble e' :: Term L h) -> mapM_ print =<< runLIO e'
---   Left err -> error err
+t2rio :: Etree -> IO ()
+t2rio e = case fromTree (e,TyToOSC TyDouble,()) of
+  Right (Term (TyToOSC TyDouble) e' :: Term L h) -> mapM_ print =<< runLIO e'
+  Left err -> error err
+
+t2l :: Etree -> Either String (L () (ToOSC Double))
+t2l e = case fromTree (e,TyToOSC TyDouble,()) of
+  Right (Term (TyToOSC TyDouble) e' :: Term L ()) -> return e'
+  Left err -> Left err
+
+playE :: E () (ToOSC Double) -> IO ()
+playE e = do
+  let et = etree e
+  print et
+  case fromTree (et,TyToOSC TyDouble,()) of
+    Right (Term (TyToOSC TyDouble) e' :: Term L ()) -> audition e'
+    Left err -> putStrLn err
 
 pspeFreq =
   pcycle
@@ -630,9 +744,21 @@ pspe = psnew "speSynth" Nothing AddToTail 1
   ,("freq", midiCPS pspeFreq)]
 
 pspe2 =
-  let dt = 0.52 in
   lam (psnew "speSynth" Nothing AddToTail 1
-       [("dur", prepeat (dt/4))
+       [("dur", prepeat 0.13)
        ,("amp", prepeat 0.1)
-       ,("freq", midiCPS (pconcat [pz-12,pz,pz+12,pz]))])
+       ,("freq", midiCPS (pconcat [pz-12,pz]))])
   `app` pspeFreq
+
+p01 =
+  psnew "speSynth" Nothing AddToTail 1
+  [("dur",prepeat 0.0917)
+  ,("amp",prepeat 0.1)
+  ,("freq", lam (midiCPS (preplicate (pval 3) pz)) `app` pspeFreq)]
+
+p02 =
+  lam (psnew "speSynth" Nothing AddToTail 1
+        [("dur",prepeat 0.0917)
+        ,("amp",prepeat 0.1)
+        ,("freq", midiCPS (preplicate (pval 3) pz))])
+ `app` pspeFreq

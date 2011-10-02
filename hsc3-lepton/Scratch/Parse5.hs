@@ -46,26 +46,11 @@ import Sound.SC3.Lepton.Pattern.Expression
 import Sound.SC3.Lepton.Pattern.ToOSC
 import Sound.SC3.Lepton.Pattern.Play
 
+import Scratch.Etree
 import Scratch.L
 
 import qualified Data.ByteString.Lazy.Char8 as LC8
 import qualified Data.Binary as Bin
-
-data Etree
-  = Leaf ByteString
-  | Node ByteString [Etree]
-    deriving (Eq,Show,Data,Typeable)
-
-instance Bin.Binary Etree where
-  {-# INLINE put #-}
-  put e = case e of
-    Leaf n    -> Bin.putWord8 0 *> Bin.put n
-    Node s es -> Bin.putWord8 1 *> Bin.put s *> Bin.put es
-  {-# INLINE get #-}
-  get = Bin.getWord8 >>= \i -> case i of
-    0 -> Leaf <$> Bin.get
-    1 -> Node <$> Bin.get <*> Bin.get
-    _ -> error $ "Unexpected index in get: " ++ show i
 
 -- | Newtype wrapper for converting to expression tree.
 newtype E h a = E {unE :: Int -> Etree}
@@ -322,8 +307,8 @@ class Plc2 p where
   app2 :: p h (a->[b]) -> p h a -> p h b
 
 type FromTree r =
-  forall t g h.
-  ( VarEnv g h, Plc2 r
+  forall g h t.
+  ( VarEnv g h , Plc2 r -- , Pappend (r h)
   , Show t, Bin.Binary t
   ) => (Etree,Ty t,g) -> Either String (Term r h)
 
@@ -344,8 +329,8 @@ instance VarEnv g h => VarEnv (VarDesc t,g) (t,h) where
 -- instance Pappend (W h) where pappend x y = W $ pappend (unW x) (unW y)
 
 -- | Fix function for FromTree.
-fixE :: forall r. (FromTree r -> FromTree r) -> FromTree r
-fixE f = f (fixE f)
+-- fixE :: forall r h g. VarEnv g h => (FromTree r g h -> FromTree r g h) -> FromTree r g h
+-- fixE f = f (fixE f)
 
 fromTreeV :: forall r. FromTree r -> FromTree r
 fromTreeV self (e,t,d) = case e of

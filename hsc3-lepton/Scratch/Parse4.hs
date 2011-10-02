@@ -1,10 +1,12 @@
-{-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE
+   DeriveDataTypeable
+ , GADTs
+ , KindSignatures
+ , NoMonomorphismRestriction
+ , OverloadedStrings
+ , RankNTypes
+ , ScopedTypeVariables
+ #-}
 {-|
 Module      : $Header$
 License     : BSD3
@@ -12,7 +14,7 @@ Stability   : unstable
 Portability : non-portable (GADTs, RankNTypes, etc)
 
 Parsing patterns, take 4. Deserialization was faster than ParseP.
-
+This pattern matcher is working, though does not undersand lam and app.
 -}
 module Scratch.Parse4 where
 
