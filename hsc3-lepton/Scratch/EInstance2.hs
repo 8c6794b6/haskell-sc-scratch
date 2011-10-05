@@ -84,6 +84,7 @@ tyTree t = case t of
   TyToOSC a -> Node "ToOSC" [tyTree a]
   TyArr a b -> Node "Arr" [tyTree a,tyTree b]
   TyTup a b -> Node "Tup" [tyTree a,tyTree b]
+  TyAny     -> Node "Any" []
 
 instance Psnew E where
   psnew def nid aa tid ps = E $ \h ->

@@ -124,6 +124,8 @@ class Psnew p where
   psnew :: String -> Maybe Int -> AddAction -> Int -> [(String, p r Double)]
            -> p r (ToOSC Double)
 
+-- class Pnset p where ...
+
 class Pmerge p where
   pmerge :: p h (ToOSC Double) -> p h (ToOSC Double) -> p h (ToOSC Double)
 

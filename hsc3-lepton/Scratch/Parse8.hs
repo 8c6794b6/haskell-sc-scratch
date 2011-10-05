@@ -7,6 +7,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-|
 Module      : $Header$
 CopyRight   : (c) 8c6794b6
@@ -22,26 +23,18 @@ Result values are not having type class constraints.
 At last, this approach seems working well enough for use in implementing
 audible pattern sent to sequence server. So here's couple TODOs:
 
-* Add TemplateHaskell helper for:
-  * FromTree class constraints
-  * Node expression matching
-
 * Implement rest of pattern expressions (Pint, Pdouble, Pnset, etc)
 
 * Move to Lepton and replace current pattern classes
 
 -}
-
 module Scratch.Parse8 where
 
-import Control.Monad
 import Data.ByteString.Lazy (ByteString)
-import System.Random (Random)
 
 import Data.Binary
 import Sound.SC3
 
-import Sound.SC3.Lepton.Pattern.Dummy
 import Sound.SC3.Lepton.Pattern.ToOSC
 import Sound.SC3.Lepton.Pattern.Play
 
@@ -53,48 +46,22 @@ import Scratch.PC02
 import Scratch.Parse5 (E(..), etree, toE)
 import Scratch.S
 import Scratch.SInstance2 ()
+import Scratch.Term00
 import Scratch.Type00
+import Scratch.THHelper
 
-data Term r h where
-  Term :: Ty t -> r h t -> Term r h
-
-class VarEnv g h | g -> h where
-  findvar :: Plambda r => Int -> g -> Either String (Term r h)
-
-data VarDesc t where
-  VarDesc :: Int -> Ty t -> VarDesc t
-
-instance VarEnv () () where
-  findvar _ _ = Left "Variable unbound"
-
-instance (VarEnv g h) => VarEnv (VarDesc t,g) (t,h) where
-  findvar i (VarDesc j t,g)
-    | i == j = return $ Term t pz
-    | otherwise = findvar i g >>= \(Term t' v) -> return $ Term t' (ps v)
-
+{-|
+Type synonym for expression deserializing function, for tying the knot
+of higher-rank open recursion functions.
+-}
 type FromTree r =
   forall g h.
   ( Pint r, Pdouble r, Pappend r, Pconcat r
   , Preplicate r, Pseq r, Pforever r,Pcycle r
-  , Prand r, Pshuffle r, Ptuple r
-  , Plambda r, VarEnv g h
+  , Prand r, Pshuffle r
+  , Ptuple r, Plambda r, VarEnv g h
   , Psnew r, Pmerge r, Ppar r
   ) => (Etree,g) -> Either String (Term r h)
-
-{-|
-When 'h' type variable in (Term r h) is not exposed in FromTree,
-we need to write this recursion in let expression, when this recursion
-was moved out to where clause, it need to use h for scoped type variable.
-Can we avoid writing pattern class constraints? TemplateHaskell?
--}
-type FromTreeList r =
-  forall g h t.
-  ( Pint r, Pdouble r, Pappend r, Pconcat r
-  , Preplicate r, Pseq r, Pforever r,Pcycle r
-  , Prand r, Pshuffle r, Ptuple r
-  , Plambda r, VarEnv g h
-  , Psnew r, Pmerge r, Ppar r
-  ) => FromTree r -> Ty t -> ([Etree],g) -> Either String [r h t]
 
 -- | Higher rank fixed point combinator for FromTree.
 fixFT :: (forall r. FromTree r -> FromTree r) -> FromTree r
@@ -137,16 +104,7 @@ type parameter passed to function.
 fromTree :: forall r. FromTree r
 fromTree = fixFT fromTreeO
 
--- | Is there a way to avoid specifying type?
-fromTreeList :: FromTreeList r
-fromTreeList self t (xs,g) = case xs of
-  [] -> return []
-  (y:ys) -> do
-    Term t' v <- self (y,g)
-    case cmpTy t t' of
-      Just Equal -> (v:) `fmap` fromTreeList self t (ys,g)
-
--- | Node pattern matcher for OSC patterns.
+-- | Node matcher for OSC patterns.
 fromTreeO :: forall r. FromTree r -> FromTree r
 fromTreeO self (e,g) = case e of
   Node "psnew" (Leaf def:Leaf nid:Leaf aa:Leaf tid:ps) -> do
@@ -161,7 +119,8 @@ fromTreeO self (e,g) = case e of
     Term (TyToOSC TyDouble) v2 <- self (e2,g)
     return $ Term (TyToOSC TyDouble) $ pmerge v1 v2
   Node "ppar" es -> do
-    vs <- fromTreeList self (TyToOSC TyDouble) (es,g)
+    let t1 = TyToOSC TyDouble
+    vs <- $(listRec 'self 't1 'g) es
     return $ Term (TyToOSC TyDouble) $ ppar vs
   _ -> fromTreeE self (e,g)
   where
@@ -172,8 +131,10 @@ fromTreeO self (e,g) = case e of
         rest <- unParams qs
         return $ (decode k,r):rest
 
+-- | Node matcher for composition patterns.
 fromTreeE :: forall r. FromTree r -> FromTree r
 fromTreeE self (e,g) = case e of
+
   -- List patterns
   Node "pappend" [e1,e2] -> do
     Term t1 v1 <- self (e1,g)
@@ -182,13 +143,7 @@ fromTreeE self (e,g) = case e of
       Just Equal -> return $ Term t1 (pappend v1 v2)
   Node "pconcat" (e1:es) -> do
     Term t1 v1 <- self (e1,g)
-    -- XXX: Explicit recursion without calling fromTreeList.
-    -- let go xs = case xs of
-    --       []     -> return []
-    --       (y:ys) -> self (y,g) >>= \(Term t2 v2) -> case cmpTy t1 t2 of
-    --         Just Equal -> (v2:) `fmap` go ys
-    -- vs <- go es
-    vs <- fromTreeList self t1 (es,g)
+    vs <- $(listRec 'self 't1 'g) es
     return $ Term t1 $ pconcat (v1:vs)
   Node "preplicate" [e1,e2] -> do
     Term t1 v1 <- self (e1,g)
@@ -196,25 +151,29 @@ fromTreeE self (e,g) = case e of
     case cmpTy t1 tint of
       Just Equal -> return $ Term t2 $ preplicate v1 v2
   Node "pseq" (e0:e1:es) -> do
-    Term t0 v0 <- self (e0,g)
+    Term TyInt v0 <- self (e0,g)
     Term t1 v1 <- self (e1,g)
-    vs <- fromTreeList self t1 (es,g)
-    case cmpTy t0 tint of
-      Just Equal -> return $ Term t1 $ pseq v0 (v1:vs)
+    vs <- $(listRec 'self 't1 'g) es
+    return $ Term t1 $ pseq v0 (v1:vs)
   Node "pforever" [e1] -> do
     Term t1 v1 <- self (e1,g)
     return $ Term t1 $ pforever v1
   Node "pcycle" (e1:es) -> do
     Term  t1 v1 <- self (e1,g)
-    vs <- fromTreeList self t1 (es,g)
+    vs <- $(listRec 'self 't1 'g) es
     return $ Term t1 $ pcycle (v1:vs)
+
   -- Random patterns
   Node "prand" (e0:e1:es) -> do
-    Term t0 v0 <- self (e0,g)
+    Term TyInt v0 <- self (e0,g)
     Term t1 v1 <- self (e1,g)
-    vs <- fromTreeList self t1 (es,g)
-    case cmpTy t0 tint of
-      Just Equal -> return $ Term t1 $ prand v0 (v1:vs)
+    vs <- $(listRec 'self 't1 'g) es
+    return $ Term t1 $ prand v0 (v1:vs)
+  Node "pshuffle" (e1:es) -> do
+    Term t1 v1 <- self (e1,g)
+    vs <- $(listRec 'self 't1 'g) es
+    return $ Term t1 $ pshuffle (v1:vs)
+
   -- Composition patterns
   Node "pzip" [e1,e2] -> do
     Term t1 v1 <- self (e1,g)
@@ -239,35 +198,47 @@ fromTreeE self (e,g) = case e of
       Just Equal -> return $ Term bodyty (papp bval aval)
   _ -> fromTreeD self (e,g)
 
+-- | Node matcher for Double expressions.
 fromTreeD :: forall r. FromTree r -> FromTree r
 fromTreeD self (e,g) = case e of
   Node "pdouble" [Leaf x] ->
     return $ Term tdouble (pdouble $ decode x)
-  Node "*@" [e1,e2] -> do
-    Term TyDouble v1 <- self (e1,g)
-    Term TyDouble v2 <- self (e2,g)
-    return $ Term TyDouble $ v1 *@ v2
-  Node "pdrange" [e1,e2] -> do
-    Term TyDouble v1 <- self (e1,g)
-    Term TyDouble v2 <- self (e2,g)
-    return $ Term tdouble $ pdrange v1 v2
-  Node "pmidiCPS" [e1] -> do
-    Term TyDouble v1 <- self (e1,g)
-    return $ Term TyDouble $ pmidiCPS v1
-  _ -> fromTreeI self (e,g)
+  Node "ppi" [] ->
+    return $ Term tdouble ppi
+  Node name [e1] ->
+    $(dmatch1s 'name
+      ["pdnegate","pdabs","pdsignum","precip","pexp","psqrt","plog"
+      ,"psin","ptan","pcos","pasin","patan","pacos","psinh","pcosh","ptanh"
+      ,"pasinh","pacosh","patanh","pampDb","pasFloat","pasInt","pbitNot"
+      ,"pcpsMIDI","pcpsOct","pdbAmp","pdistort","pfrac","pisNil","plog10"
+      ,"plog2","pmidiCPS","pmidiRatio","pnotE","pnotNil","poctCPS","pramp_"
+      ,"pratioMIDI","psoftClip","psquared"]
+      'self 'e1 'g 'delegate)
+  Node name [e1,e2] -> do
+    $(dmatch2s 'name
+      ["+@","*@","-@","pdrange","/@","**@","plogBase"]
+      'self 'e1 'e2 'g 'delegate)
+  _ -> delegate
+  where
+    delegate = fromTreeI self (e,g)
 
+-- | Node matcher for Int expressions.
 fromTreeI :: forall r. FromTree r -> FromTree r
 fromTreeI self (e,g) = case e of
   Node "pint" [Leaf x] -> return $ Term tint (pint $ decode x)
-  Node "+!" [e1,e2] -> do
-    Term TyInt v1 <- self (e1,g)
-    Term TyInt v2 <- self (e2,g)
-    return $ Term TyInt $ v1 +! v2
-  Node "pirange" [e1,e2] -> do
-    Term TyInt v1 <- self (e1,g)
-    Term TyInt v2 <- self (e2,g)
-    return $ Term TyInt (pirange v1 v2)
+  Node name [e1] -> do
+    case name of
+      "pinegate" -> $(imatch1 'self 'e1 'g 'pinegate)
+      "piabs" -> $(imatch1 'self 'e1 'g 'piabs)
+      "pisignum" -> $(imatch1 'self 'e1 'g 'pisignum)
+  Node name [e1,e2] -> do
+    case name of
+      "+!" -> $(imatch2 'self 'e1 'e2 'g '(+!))
+      "*!" -> $(imatch2 'self 'e1 'e2 'g '(*!))
+      "-!" -> $(imatch2 'self 'e1 'e2 'g '(-!))
+      "pirange" -> $(imatch2 'self 'e1 'e2 'g 'pirange)
 
+-- | Parse Node tree to type.
 treeToTy :: Etree -> Either String ExtTy
 treeToTy t = case t of
   Leaf "Int" -> return $ ExtTy tint
@@ -286,6 +257,7 @@ treeToTy t = case t of
     ExtTy t1 <- treeToTy e1
     ExtTy t2 <- treeToTy e2
     return $ ExtTy $ tarr t1 t2
+  Node "Any" [] -> return $ ExtTy TyAny
 
 ------------------------------------------------------------------------------
 -- Deserializer with fixed types.
@@ -298,6 +270,10 @@ e2s e = case fromTree (etree e,()) of Right (Term _ e') -> view e'
 
 t2l :: Etree -> Either String (L () (ToOSC Double))
 t2l e = case fromTree (e,()) of
+  Right (Term (TyToOSC TyDouble) e' :: Term L ()) -> Right e'
+
+e2l :: E () (ToOSC Double) -> Either String (L () (ToOSC Double))
+e2l e = case fromTree (etree e,()) of
   Right (Term (TyToOSC TyDouble) e' :: Term L ()) -> Right e'
 
 t2lio :: Etree -> IO ()

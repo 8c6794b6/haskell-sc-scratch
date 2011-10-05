@@ -1,5 +1,8 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-|
 Module      : $Header$
 CopyRight   : (c) 8c6794b6
@@ -34,10 +37,11 @@ data Ty t where
   TyList   :: Ty a -> Ty [a]
   TyTup    :: Ty a -> Ty b -> Ty (a,b)
   TyArr    :: Ty a -> Ty b -> Ty (a->b)
-  TyAny    :: a -> Ty a
+  TyAny    :: Ty a
 
 toTy :: Ty t -> Ty t
 toTy = id
+
 
 instance TyC Ty where
   tint = TyInt
@@ -48,8 +52,6 @@ instance TyC Ty where
   ttup = TyTup
   tarr = TyArr
 
--- asInt :: (TyC t1, TyC t2) => t1 Int -> t2 Int
--- asInt t = unTR (TR t)
 tyc :: TyC typ => (forall typ1. TyC typ1 => typ1 a) -> typ a
 tyc t = unTR (TR t)
 
@@ -88,7 +90,7 @@ instance Show (Ty t) where
       TyList a  -> '[' : go a ++ "]"
       TyTup a b -> '(' : go a ++ "," ++ go b ++ ")"
       TyArr a b -> '(' : go a ++ " -> " ++ go b ++ ")"
-      _         -> "Other"
+      _         -> "any"
 
 data Equal a b where
   Equal :: Equal c c
