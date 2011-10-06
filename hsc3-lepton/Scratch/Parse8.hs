@@ -38,12 +38,13 @@ import Sound.SC3
 import Sound.SC3.Lepton.Pattern.ToOSC
 import Sound.SC3.Lepton.Pattern.Play
 
+import Scratch.E
 import Scratch.EInstance2 (tyTree)
 import Scratch.Etree (Etree(..),ppTree)
-import Scratch.L
-import Scratch.LInstance2 ()
+-- import Scratch.L2
+import Scratch.L3
+-- import Scratch.LInstance2 ()
 import Scratch.PC02
-import Scratch.Parse5 (E(..), etree, toE)
 import Scratch.S
 import Scratch.SInstance2 ()
 import Scratch.Term00
@@ -59,8 +60,8 @@ type FromTree r =
   ( Pint r, Pdouble r, Pappend r, Pconcat r
   , Preplicate r, Pseq r, Pforever r,Pcycle r
   , Prand r, Pshuffle r
-  , Ptuple r, Plambda r, VarEnv g h
-  , Psnew r, Pmerge r, Ppar r
+  , Ptuple r, Plambda r, VarEnv g h, Pfsm r
+  , Psnew r, Pnset r, Pmerge r, Ppar r, Pdrop r, Ptake r
   ) => (Etree,g) -> Either String (Term r h)
 
 -- | Higher rank fixed point combinator for FromTree.
@@ -113,17 +114,29 @@ fromTreeO self (e,g) = case e of
         aa'  = decode aa
         tid' = decode tid
     ps' <- unParams ps
-    return $ Term (TyToOSC TyDouble) $ psnew def' nid' aa' tid' ps'
+    return $ Term toscd $ psnew def' nid' aa' tid' ps'
+  Node "pnset" (Leaf nid:ps) -> do
+    let nid' = decode nid
+    ps' <- unParams ps
+    return $ Term toscd $ pnset nid' ps'
   Node "pmerge" [e1,e2] -> do
     Term (TyToOSC TyDouble) v1 <- self (e1,g)
     Term (TyToOSC TyDouble) v2 <- self (e2,g)
-    return $ Term (TyToOSC TyDouble) $ pmerge v1 v2
+    return $ Term toscd $ pmerge v1 v2
   Node "ppar" es -> do
-    let t1 = TyToOSC TyDouble
-    vs <- $(listRec 'self 't1 'g) es
-    return $ Term (TyToOSC TyDouble) $ ppar vs
+    vs <- $(listRec 'self 'toscd 'g) es
+    return $ Term toscd $ ppar vs
+  Node "ptakeT" [e1,e2] -> do
+    Term TyDouble v1 <- self (e1,g)
+    Term (TyToOSC TyDouble) v2 <- self (e2,g)
+    return $ Term toscd $ ptakeT v1 v2
+  Node "pdropT" [e1,e2] -> do
+    Term TyDouble v1 <- self (e1,g)
+    Term (TyToOSC TyDouble) v2 <- self (e2,g)
+    return $ Term toscd $ pdropT v1 v2
   _ -> fromTreeE self (e,g)
   where
+    toscd = TyToOSC TyDouble
     unParams ps = case ps of
       []            -> return []
       (Leaf k:v:qs) -> do
@@ -134,7 +147,6 @@ fromTreeO self (e,g) = case e of
 -- | Node matcher for composition patterns.
 fromTreeE :: forall r. FromTree r -> FromTree r
 fromTreeE self (e,g) = case e of
-
   -- List patterns
   Node "pappend" [e1,e2] -> do
     Term t1 v1 <- self (e1,g)
@@ -146,10 +158,9 @@ fromTreeE self (e,g) = case e of
     vs <- $(listRec 'self 't1 'g) es
     return $ Term t1 $ pconcat (v1:vs)
   Node "preplicate" [e1,e2] -> do
-    Term t1 v1 <- self (e1,g)
+    Term TyInt v1 <- self (e1,g)
     Term t2 v2 <- self (e2,g)
-    case cmpTy t1 tint of
-      Just Equal -> return $ Term t2 $ preplicate v1 v2
+    return $ Term t2 $ preplicate v1 v2
   Node "pseq" (e0:e1:es) -> do
     Term TyInt v0 <- self (e0,g)
     Term t1 v1 <- self (e1,g)
@@ -185,6 +196,20 @@ fromTreeE self (e,g) = case e of
   Node "psnd" [e1] -> do
     Term (TyTup _ t1) v1 <- self (e1,g)
     return $ Term t1 (psnd v1)
+
+  Node "pfsm" (Leaf is:e1:es) -> do
+    let is' = decode is
+    Term t1 v1 <- self (e1,g)
+    let go zs = case zs of
+           []             -> return []
+           (x:Leaf js:xs) -> do
+              let js' = decode js :: [Int]
+              Term t2 v2 <- self (x,g)
+              case cmpTy t1 t2 of
+                Just Equal -> ((v2,js'):) `fmap` go xs
+    vs <- go (e1:es)
+    return $ Term t1 $ pfsm is' vs
+
   Node "var" [Leaf x] -> findvar (decode x) g
   Node "plam" [Leaf v,ty,body] -> do
     let v' = decode v
@@ -276,9 +301,9 @@ e2l :: E () (ToOSC Double) -> Either String (L () (ToOSC Double))
 e2l e = case fromTree (etree e,()) of
   Right (Term (TyToOSC TyDouble) e' :: Term L ()) -> Right e'
 
-t2lio :: Etree -> IO ()
-t2lio e = case fromTree (e,()) of
-  Right (Term (TyToOSC TyDouble) e' :: Term L h) -> mapLIO_ print e'
+playT :: Etree -> IO ()
+playT e = case fromTree (e,()) of
+  Right (Term (TyToOSC TyDouble) e' :: Term L h) -> audition $ toL e'
 
 ------------------------------------------------------------------------------
 -- Sample terms
@@ -333,5 +358,19 @@ pspe2 =
          ,("freq", f pspeFreq)]
   in  ppar
        [mkSpe pmidiCPS
-       ,mkSpe (\x -> pmidiCPS x *@ pforever (pdouble 0.25))
-       ,mkSpe (\x -> pmidiCPS x *@ pforever (pdouble 3))]
+       ,mkSpe (\x -> pmidiCPS x *@ pforever (pdouble 0.5))
+       ,mkSpe (\x -> pmidiCPS x *@ pforever (pdouble 1.5))]
+
+pspe3 =
+  let d = pdouble
+      mkspe f =
+        psnew "speSynth" Nothing AddToTail 1
+        [("dur", pforever (d 0.13))
+        ,("amp", pforever (d 0.1))
+        ,("freq", f pz)]
+  in plam tdouble
+     (ppar
+      [mkspe pmidiCPS
+      ,mkspe (\x -> pmidiCPS x *@ d 0.5)
+      ,mkspe (\x -> pmidiCPS x *@ d 1.5)])
+     `papp` pspeFreq

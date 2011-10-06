@@ -42,7 +42,6 @@ data Ty t where
 toTy :: Ty t -> Ty t
 toTy = id
 
-
 instance TyC Ty where
   tint = TyInt
   tdouble = TyDouble

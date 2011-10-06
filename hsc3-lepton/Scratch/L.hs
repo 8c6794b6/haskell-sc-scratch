@@ -64,11 +64,19 @@ instance Show (L h a) where
   show _ = "L"
 
 instance Functor (L h) where
-  fmap f l = L $ \h g -> fmap f (unL l h g)
+  fmap f (L l) = L $ \h g -> map f (l h g)
 
 instance Applicative (L h) where
   pure x = L $ \_ _ -> repeat x
-  L f <*> L a = L $ \h g -> let g' = snd (next g) in zipWith id (f h g) (a h g')
+  L f <*> L a = L $ \h g ->
+    let g' = snd . next $ g
+    in  zipWith ($) (f h g) (a h g')
+
+instance Monad (L h) where
+  return x = L $ \_ _ -> [x]
+  a >>= k = L $ \h g ->
+    let g' = snd . next $ g
+    in  concatMap (\x -> unL (k x) h g) (unL a h g)
 
 instance Eq (L h a) where
   _ == _ = True

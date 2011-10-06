@@ -31,8 +31,9 @@ import Sound.SC3.Lepton.Pattern.Play
 
 import Scratch.EInstance2 ()
 import Scratch.Etree (Etree(..),ppTree)
-import Scratch.L
-import Scratch.LInstance2 ()
+import Scratch.L2
+-- import Scratch.L
+-- import Scratch.LInstance2 ()
 import Scratch.PC02
 import Scratch.Parse5 (E(..), etree, toE)
 import Scratch.S

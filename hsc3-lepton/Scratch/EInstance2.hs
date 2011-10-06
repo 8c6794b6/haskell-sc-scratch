@@ -9,7 +9,7 @@ Maintainer  : 8c6794b6@gmail.com
 Stability   : unstable
 Portability : non-portable
 
-E Instances of classes in PC01
+E Instances of classes in PC02
 -}
 module Scratch.EInstance2 where
 
@@ -21,8 +21,11 @@ import qualified Data.Binary as Bin
 
 import Scratch.PC02
 import Scratch.Etree (Etree(..))
-import Scratch.Parse5 (E(..), etree, toE)
+import Scratch.E
 import Scratch.Type00
+
+------------------------------------------------------------------------------
+-- Helper functions
 
 constE :: ByteString -> E h a
 constE str = E $ \_ -> Node str []
@@ -30,10 +33,10 @@ constE str = E $ \_ -> Node str []
 primE :: Bin.Binary a => ByteString -> a -> E h b
 primE str x = E $ \_ -> Node str [Leaf $ Bin.encode x]
 
-unaryE :: ByteString -> E h a -> E h a
+unaryE :: ByteString -> E h1 a1 -> E h2 a2
 unaryE str e = E $ \h -> Node str [unE e h]
 
-binaryE :: ByteString -> E h a -> E h a -> E h a
+binaryE :: ByteString -> E h1 a1 -> E h2 a2 -> E h3 a3
 binaryE str e1 e2 = E $ \h -> Node str [unE e1 h, unE e2 h]
 
 listE :: ByteString -> [E h a] -> E h a
@@ -43,6 +46,9 @@ mkParams :: Bin.Binary a => Int -> [(a, E h e)] -> [Etree]
 mkParams h ps = case ps of
   []         -> []
   ((k,v):qs) -> Leaf (Bin.encode k):unE v h:mkParams h qs
+
+------------------------------------------------------------------------------
+-- Pattern classes
 
 instance Pappend E where pappend x y = binaryE "pappend" x y
 
@@ -62,9 +68,18 @@ instance Pcycle E where pcycle = listE "pcycle"
 instance Pforever E where pforever = unaryE "pforever"
 
 instance Ptuple E where
-  pzip a b = E $ \h -> Node "pzip" [unE a h,unE b h]
-  pfst e = E $ \h -> Node "pfst" [unE e h]
-  psnd e = E $ \h -> Node "psnd" [unE e h]
+  pzip = binaryE "pzip"
+  pfst = unaryE "pfst"
+  psnd = unaryE "psnd"
+
+instance Pfsm E where
+  pfsm is ps = E $ \h ->
+    let is' = Bin.encode is
+        ps' = mkChoices ps
+        mkChoices xs = case xs of
+          [] -> []
+          ((y,js):ys) -> unE y h:Leaf (Bin.encode js):mkChoices ys
+    in  Node "pfsm" (Leaf is':ps')
 
 instance Plambda E where
   pz = E $ \h -> Node "var" [Leaf $ Bin.encode (pred h)]
@@ -92,6 +107,11 @@ instance Psnew E where
     in  Node "psnew" $
         Leaf (Bin.encode def):Leaf (Bin.encode nid):
         Leaf (Bin.encode aa):Leaf (Bin.encode tid):ps'
+
+instance Pnset E where
+  pnset nid ps = E $ \h ->
+    let ps' = mkParams h ps
+    in  Node "pnset" $ Leaf (Bin.encode nid):ps'
 
 instance Pmerge E where
   pmerge = binaryE "pmerge"

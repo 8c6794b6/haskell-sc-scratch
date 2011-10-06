@@ -147,6 +147,8 @@ psw' =
     , l_new "loop02" loop02
     , l_new "loop03" loop03 ]
 
+goLoop01 = audition $ toR loop01
+
 loop01 = psnew "rspdef1" Nothing AddToHead 1
   [("dur",  pcycle [preplicate 1024 (1/41)
                    ,preplicate 512 (2/41)
@@ -410,3 +412,23 @@ pspeL =
       ,("amp", prepeat 0.1)
       ,("freq", midiCPS (pz-12))]
     ]) `app` pspeFreq
+
+------------------------------------------------------------------------------
+-- Checking behaviour of range
+
+lll02 = let d = pval in
+  psnew "rspdef1" Nothing AddToHead 1
+  [("dur", pforever (d 0.4))
+  ,("freq", pforever (d 880))
+  ,("atk", pforever (prange (d 0.001) (d 1)))]
+
+
+lll01 = let d = pval in
+  psnew "rspdef1" Nothing AddToHead 1
+  [("dur", pforever (d 0.2))
+  ,("amp", pforever (d 0.3))
+  ,("pan", pforever (prange (d (-1)) (d 1)))
+  ,("freq", pforever $ prange (d 100) (d 8000))
+  ,("atk", pforever (d 1e-4))
+  ,("dcy", pforever (d 1))
+  ]

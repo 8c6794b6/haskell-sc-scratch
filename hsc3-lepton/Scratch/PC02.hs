@@ -16,6 +16,9 @@ import Sound.SC3 (AddAction)
 import Sound.SC3.Lepton.Pattern.ToOSC (ToOSC)
 import Scratch.Type00
 
+------------------------------------------------------------------------------
+-- Primitive patterns
+
 class Pint p where
   pint :: Int -> p h Int
 
@@ -84,6 +87,9 @@ class Pdouble p where
   psoftClip  :: p h Double -> p h Double
   psquared   :: p h Double -> p h Double
 
+------------------------------------------------------------------------------
+-- Composing patterns
+
 class Pappend p where
   pappend :: p h a -> p h a -> p h a
 
@@ -108,6 +114,9 @@ class Prand p where
 class Pshuffle p where
   pshuffle :: [p h a] -> p h a
 
+class Pfsm p where
+  pfsm :: [Int] -> [(p h a,[Int])] -> p h a
+
 class Ptuple p where
   pzip :: p h a -> p h b -> p h (a,b)
   pfst :: p h (a,b) -> p h a
@@ -120,14 +129,24 @@ class Plambda p where
   -- plam :: TR a -> p (a,h) b -> p h (a->[b])
   papp :: p h (a->[b]) -> p h a -> p h b
 
+------------------------------------------------------------------------------
+-- OSC patterns
+
 class Psnew p where
   psnew :: String -> Maybe Int -> AddAction -> Int -> [(String, p r Double)]
            -> p r (ToOSC Double)
 
--- class Pnset p where ...
+class Pnset p where
+  pnset :: Int -> [(String, p r Double)] -> p r (ToOSC Double)
 
 class Pmerge p where
   pmerge :: p h (ToOSC Double) -> p h (ToOSC Double) -> p h (ToOSC Double)
 
 class Ppar p where
   ppar :: [p h (ToOSC Double)] -> p h (ToOSC Double)
+
+class Ptake p where
+  ptakeT :: p h Double -> p h (ToOSC Double) -> p h (ToOSC Double)
+
+class Pdrop p where
+  pdropT :: p h Double -> p h (ToOSC Double) -> p h (ToOSC Double)

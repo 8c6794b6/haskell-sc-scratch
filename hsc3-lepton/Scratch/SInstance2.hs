@@ -131,6 +131,16 @@ instance Ptuple S where
   pfst = liftS "pfst"
   psnd = liftS "psnd"
 
+instance Pfsm S where
+  pfsm is ps = S $ \h ->
+    let f xs = case xs of
+          []            -> ""
+          ((p,js):rest) -> "[(" ++ unS p h ++ "," ++ show js ++ ")" ++ g rest
+        g xs = case xs of
+          []            -> "]"
+          ((p,js):rest) -> ",(" ++ unS p h ++ "," ++ show js ++ ")" ++ g rest
+    in  "pfsm " ++ show is ++ " " ++ f ps
+
 instance Plambda S where
   pz = S $ \h -> "x" ++ show (pred h)
   ps v = S $ \h -> unS v (pred h)
@@ -141,15 +151,26 @@ instance Plambda S where
 
 instance Psnew S where
   psnew def nid aa tid ms = S $ \h ->
-    "psnew " ++ unwords [show def,show nid,show aa,show tid] ++ " " ++ unSs ms h
-    where
-      unSs ns i = case ns of
-        [] -> "[]"
-        ((k,v):ns') ->
-          '[' : ("(" ++ show k ++ "," ++ unS v i ++ ")" ++ unSs' ns' i)
-      unSs' os j = case os of
-        [] -> "]"
-        ((k,v):ps) -> ",(" ++ show k ++ "," ++ unS v j ++ ")" ++ unSs' ps j
+    "psnew " ++ unwords [show def,show nid,show aa,show tid] ++ " " ++ unParams ms h
+
+instance Pnset S where
+  pnset nid ms = S $ \h ->
+    "pnset " ++ show nid ++ " " ++ unParams ms h
+
+instance Ptake S where
+  ptakeT n p = S $ \h -> "ptakeT (" ++ unS n h ++ ") (" ++ unS p h ++ ")"
+
+instance Pdrop S where
+  pdropT n p = S $ \h -> "pdropT (" ++ unS n h ++ ") (" ++ unS p h ++ ")"
+
+unParams ns i = case ns of
+  [] -> "[]"
+  ((k,v):ns') ->
+    '[' : ("(" ++ show k ++ "," ++ unS v i ++ ")" ++ unSs' ns' i)
+  where
+    unSs' os j = case os of
+      [] -> "]"
+      ((k,v):ps) -> ",(" ++ show k ++ "," ++ unS v j ++ ")" ++ unSs' ps j
 
 instance Pmerge S where
   pmerge = liftS2 "pmerge"

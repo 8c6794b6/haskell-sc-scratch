@@ -57,6 +57,18 @@ ppTree e = case e of
     text (show (Bin.decode aa :: AddAction)) <+>
     int (Bin.decode tid :: Int) $$
     (nest 2 $ sep $ unParam ps)
+  Node "pfsm" (Leaf ini:ps) ->
+    text "Node" <+>
+    (doubleQuotes $ text "pfsm") <+>
+    (text "Leaf" <+>
+     (brackets $ vcat $ punctuate comma (map int (Bin.decode ini)))) $$
+    (nest 2 $ sep $ unChoices ps)
+  Node "plam" [Leaf v,t,body] ->
+    text "Node" <+>
+    (doubleQuotes $ text "plam") $+$
+    (nest 2 (text "Leaf" <+> int (Bin.decode v))) $+$
+    (nest 2 $ ppTyTree t) $+$
+    (nest 2 $ brackets $ ppTree body)
   Node n es ->
     text "Node" <+>
     (doubleQuotes $ text (LC8.unpack n)) $+$
@@ -68,3 +80,19 @@ ppTree e = case e of
       []            -> []
       (Leaf k:e:ps) ->
         parens (text (Bin.decode k) <> comma $$ ppTree e) : unParam ps
+    unChoices es = case es of
+      [] -> []
+      n:Leaf js:ps ->
+        (ppTree n $$
+         (text "Leaf" <+>
+          (brackets $ hcat $ punctuate comma (map int (Bin.decode js))))):
+        unChoices ps
+
+ppTyTree :: Etree -> Doc
+ppTyTree e = case e of
+  Leaf x ->
+    text "Leaf" <+> text (LC8.unpack x)
+  Node n es ->
+    text "Node" <+>
+    (doubleQuotes $ text (LC8.unpack n)) $+$
+    (nest 2 $ brackets (sep (punctuate comma $ map ppTree es)))
