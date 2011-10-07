@@ -23,6 +23,7 @@ import Sound.SC3
 import Sound.SC3.ID
 import Sound.SC3.Lepton
 import Sound.SC3.Lepton.Pattern.Play
+import Sound.SC3.Lepton.Pattern.Dummy
 import Sound.SC3.Lepton.Pattern.ToOSC
 import Sound.SC3.Lepton.Pattern.Interpreter.E
 
@@ -39,19 +40,19 @@ goHuh fd =
     (reset fd)
     (play fd $ toR allP)
 
-goHuh' :: IO ()
-goHuh'= do
-  withSC3 $ \fd -> reset fd >> patchNode n0 fd
-  withLept $ \fd -> do
-    msg <- bundle' 1 0
-      [ l_new "huh1" huh1P, l_new "huh2" huh2P, l_new "huh3" huh3P
-      , l_new "kik" kikP, l_new "snr" snrP, l_new "hat" hatP
-      , l_new "pu" puP, l_new "bell" bellP
-      , l_new "drn1" drn1P, l_new "drn2" drn2P
-      ]
-    send fd msg
+-- goHuh' :: IO ()
+-- goHuh'= do
+--   withSC3 $ \fd -> reset fd >> patchNode n0 fd
+--   withLept $ \fd -> do
+--     msg <- bundle' 1 0
+--       [ l_new "huh1" huh1P, l_new "huh2" huh2P, l_new "huh3" huh3P
+--       , l_new "kik" kikP, l_new "snr" snrP, l_new "hat" hatP
+--       , l_new "pu" puP, l_new "bell" bellP
+--       , l_new "drn1" drn1P, l_new "drn2" drn2P
+--       ]
+--     send fd msg
 
-writeHuh = writeScore [] n0 (ptakeT 180 allP)
+-- writeHuh = writeScore [] n0 (ptakeT 180 allP)
 
 {-
 
@@ -61,13 +62,13 @@ UDP protocol cannot send message larger than 65535 bytes in single
 connection. Sending multiple bundle with 'mapM_' with same timestamps.
 
 -}
-huhps fd = do
-  t0 <- (+0.1) `fmap` utcr
-  mapM_ (\(n,p) -> send fd $ bundle (UTCr t0) [l_new n p])
-    [ ("huh1",huh1P), ("huh2",huh2P), ("huh3",huh3P)
-    , ("kik", kikP), ("snr", snrP), ("hat", hatP)
-    , ("pu", puP), ("bell", bellP), ("drn1P",drn1P), ("drn2P",drn2P)
-    ]
+-- huhps fd = do
+--   t0 <- (+0.1) `fmap` utcr
+--   mapM_ (\(n,p) -> send fd $ bundle (UTCr t0) [l_new n p])
+--     [ ("huh1",huh1P), ("huh2",huh2P), ("huh3",huh3P)
+--     , ("kik", kikP), ("snr", snrP), ("hat", hatP)
+--     , ("pu", puP), ("bell", bellP), ("drn1P",drn1P), ("drn2P",drn2P)
+--     ]
 
 setupHuh :: Transport t => t -> IO OSC
 setupHuh fd = do
@@ -100,9 +101,9 @@ n0 =
      [g 10
       [s 1000 "lfsin" []
       ,s 1001 "cf2drn"
-      ["out":=19,"gate":=1, "amp":=0]
+      ["out":=20,"gate":=1, "amp":=0]
       ,s 1002 "cf2drn"
-      ["out":=20,"gate":=1, "amp":=0]]
+      ["out":=22,"gate":=1, "amp":=0]]
      ]
     ,g 2
      [s 2000 "cf2rev" -- huh1
@@ -132,9 +133,9 @@ n0 =
      ,s 8008 "cf2mix"  -- bell
       ["out":=0,"a_in":<=18,"amp":=0.8,"pan":=0.1]
      ,s 8009 "cf2mix" -- drn 1
-      ["out":=0,"a_in":<=19,"amp":=0.5,"pan":=(-0.45)]
+      ["out":=0,"a_in":<=20,"amp":=0.9,"pan":=(-0.25)]
      ,s 8010 "cf2mix" -- drn 2
-      ["out":=0,"a_in":<=20,"amp":=0.8,"pan":=0.45]
+      ["out":=0,"a_in":<=22,"amp":=0.9,"pan":=0.25]
      ]
     ,g 9
      [s 9000 "cf2mst"

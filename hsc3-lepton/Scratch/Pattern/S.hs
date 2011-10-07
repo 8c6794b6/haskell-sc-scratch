@@ -4,14 +4,33 @@ CopyRight   : (c) 8c6794b6
 License     : BSD3
 Maintainer  : 8c6794b6@gmail.com
 Stability   : unstable
-Portability : non-portable
+Portability : portable
 
-S Instances of classes in PC02
+Simple string representation for pattern.
 -}
-module Scratch.SInstance2 where
+module Scratch.Pattern.S where
 
-import Scratch.PC02
-import Scratch.S
+import Sound.SC3
+import Scratch.Pattern.PC02
+
+newtype S h a = S {unS :: Int -> String}
+
+toS :: S h a -> S h a
+toS = id
+
+view :: S h a -> String
+view e = unS e 0
+
+viewSs :: [S h a] -> Int -> String
+viewSs ss n = case ss of
+  [] -> "[]"; (t:ts) -> '[': unS t n ++ go ts
+  where go us = case us of [] -> "]"; (v:vs) -> ',' : unS v n ++ go vs
+
+instance Show (S h a) where
+  show = view
+
+instance Eq (S h a) where
+  a == b = unS a 0 == unS b 0
 
 ------------------------------------------------------------------------------
 -- Helper functions
@@ -135,10 +154,10 @@ instance Pfsm S where
   pfsm is ps = S $ \h ->
     let f xs = case xs of
           []            -> ""
-          ((p,js):rest) -> "[(" ++ unS p h ++ "," ++ show js ++ ")" ++ g rest
+          ((p,js):rest) -> concat ["[(",unS p h,",",show js,")",g rest]
         g xs = case xs of
           []            -> "]"
-          ((p,js):rest) -> ",(" ++ unS p h ++ "," ++ show js ++ ")" ++ g rest
+          ((p,js):rest) -> concat [",(",unS p h,",",show js,")",g rest]
     in  "pfsm " ++ show is ++ " " ++ f ps
 
 instance Plambda S where

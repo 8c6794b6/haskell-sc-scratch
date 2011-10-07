@@ -53,7 +53,6 @@ pspeFreq =
     ,prand (prange (pval 3) (pval 9))
        [pval 74,pval 75,pval 77,pval 79,pval 81]]
 
-
 -- Unison, using same random seed.
 pspe2 =
   ppar
@@ -69,19 +68,19 @@ pspe2 =
 
 -- Non-unison, bundled two patterns.
 -- Different random seed will be used in leptseq.
-pspe2' =
-  bundle' 1 0
-    [ l_new "pspe1" $
-      psnew "speSynth" Nothing AddToTail 1
-      [("dur", prepeat 0.13)
-      ,("amp", prepeat 0.1)
-      ,("freq", midiCPS pspeFreq)]
-    , l_new "pspe2" $
-      psnew "speSynth" Nothing AddToTail 1
-      [("dur", prepeat 0.13)
-      ,("amp", prepeat 0.1)
-      ,("freq", midiCPS (prepeat (-7) + pspeFreq))]
-    ]
+-- pspe2' =
+--   bundle' 1 0
+--     [ l_new "pspe1" $
+--       psnew "speSynth" Nothing AddToTail 1
+--       [("dur", prepeat 0.13)
+--       ,("amp", prepeat 0.1)
+--       ,("freq", midiCPS pspeFreq)]
+--     , l_new "pspe2" $
+--       psnew "speSynth" Nothing AddToTail 1
+--       [("dur", prepeat 0.13)
+--       ,("amp", prepeat 0.1)
+--       ,("freq", midiCPS (prepeat (-7) + pspeFreq))]
+--     ]
 
 -- Unison, using papp and plam
 pspe3 =
@@ -135,17 +134,17 @@ pspe6 =
    ,("freq", (papp (plam (\x -> preplicate 16 (midiCPS (x-17)))) pspeFreq))]
   ]
 
-psw'for'180'seconds path =
-  writeScore [] (Group 0 [Group 1 []]) (ptakeT 180 psw) path
+-- psw'for'180'seconds path =
+--   writeScore [] (Group 0 [Group 1 []]) (ptakeT 180 psw) path
 
 psw = pappend set03 (ppar [loop01, loop02, loop03])
 
-psw' =
-  bundle' 1 0
-    [ l_new "set03" set03
-    , l_new "loop01" loop01
-    , l_new "loop02" loop02
-    , l_new "loop03" loop03 ]
+-- psw' =
+--   bundle' 1 0
+--     [ l_new "set03" set03
+--     , l_new "loop01" loop01
+--     , l_new "loop02" loop02
+--     , l_new "loop03" loop03 ]
 
 goLoop01 = audition $ toR loop01
 
@@ -198,11 +197,11 @@ p02 pan = psnew "rspdef1" Nothing AddToTail 1
 ------------------------------------------------------------------------------
 -- Communicating with pattern server
 
-goP01s :: IO ()
-goP01s = withLept $ \fd -> forM_ [1..10] $ \i -> do
-  pan <- randomRIO (-1,1)
-  send fd =<< bundle' 8 (0.001*2**fromIntegral i)
-    [l_new ("p01_" ++ show i) (p01' (pval pan))]
+-- goP01s :: IO ()
+-- goP01s = withLept $ \fd -> forM_ [1..10] $ \i -> do
+--   pan <- randomRIO (-1,1)
+--   send fd =<< bundle' 8 (0.001*2**fromIntegral i)
+--     [l_new ("p01_" ++ show i) (p01' (pval pan))]
 
 ------------------------------------------------------------------------------
 -- Testing behaviour of finite patterns
@@ -308,13 +307,13 @@ pp003 = psnew "rspdef1" Nothing AddToTail 1
   ,("pan", prepeat 0.3)
   ,("dcy", pforever (prange 1e-2 1))]
 
-add'pp001 = leptseq =<< bundle' (pp00t*2) 0 [l_new "pp001" pp001]
-add'pp002 = leptseq =<< bundle' (pp00t*48) 0 [l_new "pp002" pp002]
-add'pp003 = leptseq =<< bundle' (pp00t*48) 0 [l_new "pp003" pp003]
+-- add'pp001 = leptseq =<< bundle' (pp00t*2) 0 [l_new "pp001" pp001]
+-- add'pp002 = leptseq =<< bundle' (pp00t*48) 0 [l_new "pp002" pp002]
+-- add'pp003 = leptseq =<< bundle' (pp00t*48) 0 [l_new "pp003" pp003]
 
-del'pat name = leptseq =<< bundle' (pp00t*2) 0 [l_free name]
-pause'at i name = leptseq =<< bundle' (pp00t*i) 0 [l_pause name]
-run'at i name = leptseq =<< bundle' (pp00t*i) 0 [l_run name]
+-- del'pat name = leptseq =<< bundle' (pp00t*2) 0 [l_free name]
+-- pause'at i name = leptseq =<< bundle' (pp00t*i) 0 [l_pause name]
+-- run'at i name = leptseq =<< bundle' (pp00t*i) 0 [l_run name]
 
 es01 = pseq (prange 1 4) [1, plist [2,3,4], prange 5 10]
 

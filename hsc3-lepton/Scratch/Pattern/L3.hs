@@ -14,7 +14,7 @@ L Instances of classes in PC02, using System.Random.MWC.
 Couple instances are using unsafe function.
 
 -}
-module Scratch.L3
+module Scratch.Pattern.L3
   ( L(..), toL
   , runLIO, mapLIO_, foldLIO, foldLIO_
   ) where
@@ -23,7 +23,6 @@ import Control.Applicative
 import Control.Monad
 import System.IO.Unsafe
 
-import Control.Monad.ST (ST,runST)
 import Control.Monad.Primitive
 import Sound.SC3
 import System.Random.MWC
@@ -33,8 +32,8 @@ import Sound.SC3.Lepton.Pattern.Interpreter.R
 import Sound.SC3.Lepton.Pattern.ToOSC
 import Sound.SC3.Lepton.Pattern.Play
 
-import Scratch.PC02
-import Scratch.Type00
+import Scratch.Pattern.PC02
+import Scratch.Pattern.Type00
 
 import qualified Data.IntMap as I
 import qualified Data.Map as M
@@ -78,6 +77,18 @@ rangeL lo hi = L $ \h g -> do
   his <- unL hi h g
   zipWithM uniformR (zip los his) (repeat g)
 
+predTL ::
+  (Double -> Double -> Bool)
+  -> L h Double -> L h (ToOSC Double) -> L h (ToOSC Double)
+predTL cond t p = L $ \h g -> do
+    p' <- unL p h g
+    t' <- head <$> unL t h g
+    let f cur xs = case xs of
+          [] -> []
+          (y:ys) | cond t' cur -> y : f (cur+getDur y) ys
+                 | otherwise   -> []
+    return $ f 0 p'
+
 ------------------------------------------------------------------------------
 -- Base classes
 
@@ -90,6 +101,12 @@ instance Applicative (L h) where
     as <- a h g
     bs <- b h g
     return $ zipWith ($) as bs
+
+instance Monad (L h) where
+  return x = L $ \_ _ -> return [x]
+  l >>= k = L $ \h g -> do
+    ls <- unL l h g
+    unL (pconcat (map k ls)) h g
 
 instance Show (L h a) where
   show _ = "L"
@@ -104,7 +121,12 @@ instance Num a => Num (L h a) where
   abs = fmap abs
   negate = fmap negate
   signum = fmap signum
-  fromInteger = pure . fromInteger
+  fromInteger x = L $ \_ _ -> return [fromInteger x]
+
+instance Fractional a => Fractional (L h a) where
+  (/) = liftA2 (/)
+  recip = fmap recip
+  fromRational x = L $ \_ _ -> return [fromRational x]
 
 ------------------------------------------------------------------------------
 -- For Audible instance
@@ -267,15 +289,3 @@ instance Pdrop L where
 
 instance Ptake L where
   ptakeT = predTL (>)
-
-predTL ::
-  (Double -> Double -> Bool)
-  -> L h Double -> L h (ToOSC Double) -> L h (ToOSC Double)
-predTL cond t p = L $ \h g -> do
-    p' <- unL p h g
-    t' <- head <$> unL t h g
-    let f cur xs = case xs of
-          [] -> []
-          (y:ys) | cond t' cur -> y : f (cur+getDur y) ys
-                 | otherwise   -> []
-    return $ f 0 p'

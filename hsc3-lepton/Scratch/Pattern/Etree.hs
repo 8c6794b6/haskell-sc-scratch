@@ -9,7 +9,9 @@ Portability : portable
 Expression syntax tree used for serialization/deserialization.
 
 -}
-module Scratch.Etree where
+module Scratch.Pattern.Etree
+  ( Etree(..), ppTree, ppTyTree
+  ) where
 
 import Data.Data
 import Data.ByteString.Lazy (ByteString)

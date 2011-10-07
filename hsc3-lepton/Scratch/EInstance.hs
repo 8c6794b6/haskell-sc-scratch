@@ -41,7 +41,6 @@ mkParams h ps = case ps of
   []         -> []
   ((k,v):qs) -> Leaf (Bin.encode k):unE v h:mkParams h qs
 
-
 instance Pval E where pval = primE "pval"
 
 instance Plist E where plist xs = primE "plist" xs

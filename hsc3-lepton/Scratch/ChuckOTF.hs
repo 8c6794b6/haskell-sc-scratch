@@ -145,24 +145,24 @@ otfNodes =
 ------------------------------------------------------------------------------
 -- Actions for patterns
 
-addKik = addPat 0 "kik" kikP
-addHat = addPat 0 "hat" hatP
-addHato = addPat 0 "hat-open" hatoP
-addSnr = addPat t "snr" snrP
-addSin1 = addPat 0 "sin-lo" sin1P
-addSin2 = addPat 0 "sin-hi" sin2P
+-- addKik = addPat 0 "kik" kikP
+-- addHat = addPat 0 "hat" hatP
+-- addHato = addPat 0 "hat-open" hatoP
+-- addSnr = addPat t "snr" snrP
+-- addSin1 = addPat 0 "sin-lo" sin1P
+-- addSin2 = addPat 0 "sin-hi" sin2P
 
-dumpPat = withLept . flip send $ l_dump
+-- dumpPat = withLept . flip send $ l_dump
 
-addAll = sequence_ [addKik, addSnr, addHat, addHato, addSin1, addSin2]
+-- addAll = sequence_ [addKik, addSnr, addHat, addHato, addSin1, addSin2]
 
-addAllButSnare' = bundle' (t*2) 0
-  [ l_new "kik" kikP, l_new "hat" hatP, l_new "hat-open" hatoP
-  , l_new "sin-lo" sin1P, l_new "sin-hi" sin2P ]
+-- addAllButSnare' = bundle' (t*2) 0
+--   [ l_new "kik" kikP, l_new "hat" hatP, l_new "hat-open" hatoP
+--   , l_new "sin-lo" sin1P, l_new "sin-hi" sin2P ]
 
-resetAll = withLept (flip send l_freeAll)
-addPat d n e = withLept . flip send =<< bundle' (t*2) d [l_new n e]
-delPat n = withLept . flip send =<< bundle' (t*2) 0 [l_free n]
+-- resetAll = withLept (flip send l_freeAll)
+-- addPat d n e = withLept . flip send =<< bundle' (t*2) d [l_new n e]
+-- delPat n = withLept . flip send =<< bundle' (t*2) 0 [l_free n]
 
-pausePat n = leptseq =<< bundle' (t*2) 0 [l_pause n]
-runPat n = leptseq =<< bundle' (t*2) 0 [l_run n]
+-- pausePat n = leptseq =<< bundle' (t*2) 0 [l_pause n]
+-- runPat n = leptseq =<< bundle' (t*2) 0 [l_run n]

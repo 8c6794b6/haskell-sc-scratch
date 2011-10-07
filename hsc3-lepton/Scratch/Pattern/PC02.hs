@@ -9,12 +9,12 @@ Portability : non-portable
 Pattern classes with kind (* -> * -> *), with fixed type,
 no class constraints.
 -}
-module Scratch.PC02 where
+module Scratch.Pattern.PC02 where
 
 import Sound.SC3 (AddAction)
 
 import Sound.SC3.Lepton.Pattern.ToOSC (ToOSC)
-import Scratch.Type00
+import Scratch.Pattern.Type00
 
 ------------------------------------------------------------------------------
 -- Primitive patterns

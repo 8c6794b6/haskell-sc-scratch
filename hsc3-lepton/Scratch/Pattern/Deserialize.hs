@@ -21,14 +21,11 @@ Using fixed types in pattern expression classes.
 Result values are not having type class constraints.
 
 At last, this approach seems working well enough for use in implementing
-audible pattern sent to sequence server. So here's couple TODOs:
-
-* Implement rest of pattern expressions (Pint, Pdouble, Pnset, etc)
-
-* Move to Lepton and replace current pattern classes
+audible pattern sent to sequence server. Move to Lepton and replace
+current pattern classes.
 
 -}
-module Scratch.Parse8 where
+module Scratch.Pattern.Deserialize where
 
 import Data.ByteString.Lazy (ByteString)
 
@@ -38,18 +35,14 @@ import Sound.SC3
 import Sound.SC3.Lepton.Pattern.ToOSC
 import Sound.SC3.Lepton.Pattern.Play
 
-import Scratch.E
-import Scratch.EInstance2 (tyTree)
-import Scratch.Etree (Etree(..),ppTree)
--- import Scratch.L2
-import Scratch.L3
--- import Scratch.LInstance2 ()
-import Scratch.PC02
-import Scratch.S
-import Scratch.SInstance2 ()
-import Scratch.Term00
-import Scratch.Type00
-import Scratch.THHelper
+import Scratch.Pattern.E
+import Scratch.Pattern.Etree
+import Scratch.Pattern.L3
+import Scratch.Pattern.PC02
+import Scratch.Pattern.S
+import Scratch.Pattern.THHelper
+import Scratch.Pattern.Term00
+import Scratch.Pattern.Type00
 
 {-|
 Type synonym for expression deserializing function, for tying the knot
@@ -301,14 +294,12 @@ e2l :: E () (ToOSC Double) -> Either String (L () (ToOSC Double))
 e2l e = case fromTree (etree e,()) of
   Right (Term (TyToOSC TyDouble) e' :: Term L ()) -> Right e'
 
-playT :: Etree -> IO ()
-playT e = case fromTree (e,()) of
+playE :: E () (ToOSC Double) -> IO ()
+playE e = case fromTree (etree e,()) of
   Right (Term (TyToOSC TyDouble) e' :: Term L h) -> audition $ toL e'
 
 ------------------------------------------------------------------------------
 -- Sample terms
-
-prettyE = ppTree . etree
 
 lam01 = papp (plam tdouble pz) (pdouble 1)
 lam02 = papp (plam tint pz) (pint 1)
@@ -347,7 +338,7 @@ pspeFreq =
 
 pspe = psnew "speSynth" Nothing AddToTail 1
   [("dur", pforever (pdouble 0.13))
-  ,("amp", pforever (pdouble 0.1))
+  ,("amp", pforever (pdouble 0.25))
   ,("freq", pmidiCPS pspeFreq)]
 
 pspe2 =

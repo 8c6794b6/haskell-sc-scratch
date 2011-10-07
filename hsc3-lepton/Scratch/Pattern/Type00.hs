@@ -14,7 +14,7 @@ Portability : non-portable
 Type representation used in pattern expression tree deserializer.
 
 -}
-module Scratch.Type00 where
+module Scratch.Pattern.Type00 where
 
 import Sound.SC3.Lepton.Pattern.ToOSC
 
@@ -110,3 +110,4 @@ cmpTy a b = case (a,b) of
     Equal <- cmpTy b1 b2
     return Equal
   _                         -> Nothing
+

@@ -12,22 +12,19 @@ Sample patterns, take 2.
 -}
 module Scratch.SampleData2 where
 
+import Sound.OpenSoundControl
 import Sound.SC3
+
+import Sound.SC3.Lepton.Pattern.Client
 import Sound.SC3.Lepton.Pattern.Play
-
--- import Scratch.L2
--- import Scratch.L
--- import Scratch.LInstance2
-import Scratch.L3
-import Scratch.E
-import Scratch.EInstance2
-import Scratch.Etree
-import Scratch.PC02
-import Scratch.S
-import Scratch.SInstance2
-import Scratch.Type00
-
 import Sound.SC3.Lepton.Tree
+
+import Scratch.Pattern.E
+import Scratch.Pattern.Etree
+import Scratch.Pattern.L3
+import Scratch.Pattern.PC02
+import Scratch.Pattern.S
+import Scratch.Pattern.Type00
 
 pspeFreq =
   let d=pdouble; i=pint in

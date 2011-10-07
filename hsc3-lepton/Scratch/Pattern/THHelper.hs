@@ -30,14 +30,14 @@ variable env may vary, cannot put all functions in list, and lookup it.
 ... or is there a way to do same thing without using TH?
 
 -}
-module Scratch.THHelper where
+module Scratch.Pattern.THHelper where
 
 import Language.Haskell.TH
 
-import Scratch.PC02
-import Scratch.Term00
-import Scratch.Type00
-import Scratch.Etree
+import Scratch.Pattern.PC02
+import Scratch.Pattern.Term00
+import Scratch.Pattern.Type00
+import Scratch.Pattern.Etree
 
 -- | Show contents after applying ppr.
 printQ :: Ppr a => Q a -> IO ()

@@ -15,10 +15,10 @@ Module to hold Term and VerEnv.
 Separated to this module due to use in TemplateHaskell code.
 
 -}
-module Scratch.Term00 where
+module Scratch.Pattern.Term00 where
 
-import Scratch.Type00
-import Scratch.PC02
+import Scratch.Pattern.Type00
+import Scratch.Pattern.PC02
 
 -- | Variable environment.
 class VarEnv g h | g -> h where

@@ -1,6 +1,5 @@
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-|
 Module      : $Header$
 CopyRight   : (c) 8c6794b6
@@ -9,20 +8,32 @@ Maintainer  : 8c6794b6@gmail.com
 Stability   : unstable
 Portability : non-portable
 
-E Instances of classes in PC02
+E, for serializing/deserializing expression tree.
 -}
-module Scratch.EInstance2 where
+module Scratch.Pattern.E where
 
 import Data.ByteString.Lazy (ByteString)
+import Text.PrettyPrint (Doc)
 
 import Sound.SC3
 
+import Scratch.Pattern.Etree
+import Scratch.Pattern.PC02
+import Scratch.Pattern.Type00
+
 import qualified Data.Binary as Bin
 
-import Scratch.PC02
-import Scratch.Etree (Etree(..))
-import Scratch.E
-import Scratch.Type00
+-- | Newtype wrapper for converting to expression tree.
+newtype E h a = E {unE :: Int -> Etree}
+
+toE :: E h a -> E h a
+toE = id
+
+etree :: E h a -> Etree
+etree e = unE e 0
+
+prettyE :: E h a -> Doc
+prettyE = ppTree . etree
 
 ------------------------------------------------------------------------------
 -- Helper functions
@@ -47,12 +58,52 @@ mkParams h ps = case ps of
   []         -> []
   ((k,v):qs) -> Leaf (Bin.encode k):unE v h:mkParams h qs
 
+tyTree :: Ty t -> Etree
+tyTree t = case t of
+  TyDouble  -> Leaf "Double"
+  TyInt     -> Leaf "Int"
+  TyList a  -> Node "List" [tyTree a]
+  TyToOSC a -> Node "ToOSC" [tyTree a]
+  TyArr a b -> Node "Arr" [tyTree a,tyTree b]
+  TyTup a b -> Node "Tup" [tyTree a,tyTree b]
+  TyAny     -> Node "Any" []
+
+------------------------------------------------------------------------------
+-- Base classes
+
+instance Show (E h a) where
+  show e = show $ etree e
+
+instance Eq (E h a) where
+  e1 == e2 = show e1 == show e2
+
+instance Ord (E h a) where
+  compare _ _ = EQ
+
+instance Num a => Num (E h a) where
+  (+) = error "Umbiguous use of '+' in E"
+  (*) = error "Umbiguous use of '*' in E"
+  (-) = error "Umbiguous use of '-' in E"
+  abs = error "Umbiguous use of 'abs' in E"
+  negate = error "Umbiguous use of 'negate' in E"
+  signum = error "Umbiguous use of 'signum' in E"
+  fromInteger x = E $ \_ ->
+    Node "pint" [Leaf (Bin.encode (fromInteger x :: Int))]
+
+instance Fractional a => Fractional (E h a) where
+  (/) = error "Umbiguous use of '/' in E"
+  recip = error "Umbiguous use of 'recip' in E"
+  fromRational x = E $ \_ ->
+    Node "pdouble" [Leaf (Bin.encode (fromRational x :: Double))]
+
 ------------------------------------------------------------------------------
 -- Pattern classes
 
-instance Pappend E where pappend x y = binaryE "pappend" x y
+instance Pappend E where
+  pappend x y = binaryE "pappend" x y
 
-instance Pconcat E where pconcat = listE "pconcat"
+instance Pconcat E where
+  pconcat = listE "pconcat"
 
 instance Prand E where
   prand i xs = E $ \h -> Node "prand" (unE i h:map (flip unE h) xs)
@@ -63,9 +114,11 @@ instance Preplicate E where
 instance Pseq E where
   pseq n xs = E $ \h -> Node "pseq" (unE n h:map (flip unE h) xs)
 
-instance Pcycle E where pcycle = listE "pcycle"
+instance Pcycle E where
+  pcycle = listE "pcycle"
 
-instance Pforever E where pforever = unaryE "pforever"
+instance Pforever E where
+  pforever = unaryE "pforever"
 
 instance Ptuple E where
   pzip = binaryE "pzip"
@@ -91,16 +144,6 @@ instance Plambda E where
     in  Node "plam" [v,ty,body]
   papp x y = E $ \h -> Node "papp" [unE x h, unE y h]
 
-tyTree :: forall t. Ty t -> Etree
-tyTree t = case t of
-  TyDouble  -> Leaf "Double"
-  TyInt     -> Leaf "Int"
-  TyList a  -> Node "List" [tyTree a]
-  TyToOSC a -> Node "ToOSC" [tyTree a]
-  TyArr a b -> Node "Arr" [tyTree a,tyTree b]
-  TyTup a b -> Node "Tup" [tyTree a,tyTree b]
-  TyAny     -> Node "Any" []
-
 instance Psnew E where
   psnew def nid aa tid ps = E $ \h ->
     let ps' = mkParams h ps
@@ -118,6 +161,12 @@ instance Pmerge E where
 
 instance Ppar E where
   ppar = listE "ppar"
+
+instance Ptake E where
+  ptakeT = binaryE "ptakeT"
+
+instance Pdrop E where
+  pdropT = binaryE "pdropT"
 
 instance Pint E where
   pint = primE "pint"
