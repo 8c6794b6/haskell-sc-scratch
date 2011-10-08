@@ -15,7 +15,6 @@ module Scratch.Pattern.Huh2 where
 import Sound.SC3
 import Sound.SC3.Lepton
 import Scratch.Huh (n0)
-import qualified Codec.Compression.Zlib as Z
 
 main :: IO ()
 main = withSC3 runHuh
@@ -28,9 +27,7 @@ runHuh fd = do
 bpm = 295
 
 allP = ppar
-  [ huh1P, huh2P, huh3P
-  , kikP, snrP, hatP
-  , puP, drn1P, drn2P, bellP ]
+  [ huh1P, huh2P, huh3P, kikP, snrP, hatP, puP, drn1P, drn2P, bellP ]
 
 ------------------------------------------------------------------------------
 -- Helpers
@@ -181,3 +178,8 @@ bellPa =
   , pcycle
     [ pmidiCPS $ prand (i 16) (map pdouble $ replicate 16 0 ++ [79,84,89,91,96])
     , pseq (i 12) (ds [0,0,0,0])]]
+
+------------------------------------------------------------------------------
+-- Effecty
+
+shwP = undefined

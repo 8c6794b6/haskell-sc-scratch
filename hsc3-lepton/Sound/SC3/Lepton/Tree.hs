@@ -20,9 +20,10 @@ module Sound.SC3.Lepton.Tree
     module All
   )  where
 
-import Sound.SC3.Lepton.Tree.Tree as All
-import Sound.SC3.Lepton.Tree.Diff as All
 import Sound.SC3.Lepton.Tree.Connection as All
+import Sound.SC3.Lepton.Tree.Diff as All
+import Sound.SC3.Lepton.Tree.Nd as All
+import Sound.SC3.Lepton.Tree.Tree as All
 import Sound.SC3.Lepton.Tree.Zipper as All
 
 -- $example_interactive

@@ -10,9 +10,7 @@ Portability : non-portable
 Simple string representation for pattern.
 -}
 module Sound.SC3.Lepton.Pattern.Interpreter.S
-  ( S(..)
-  , toS
-  , view
+  ( S(..), toS, view
   ) where
 
 import Sound.SC3.Lepton.Pattern.Expression.Class
@@ -28,8 +26,12 @@ view e = unS e 0
 
 viewSs :: [S h a] -> Int -> String
 viewSs ss n = case ss of
-  [] -> "[]"; (t:ts) -> '[': unS t n ++ go ts
-  where go us = case us of [] -> "]"; (v:vs) -> ',' : unS v n ++ go vs
+  []     -> "[]"
+  (t:ts) -> '[': unS t n ++ go ts
+  where
+    go us = case us of
+      []     -> "]"
+      (v:vs) -> ',' : unS v n ++ go vs
 
 instance Show (S h a) where
   show = view

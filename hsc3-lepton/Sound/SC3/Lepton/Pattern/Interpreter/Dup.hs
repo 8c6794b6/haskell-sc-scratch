@@ -13,7 +13,9 @@ Portability : non-portable
 Data type to duplicate expression.
 
 -}
-module Sound.SC3.Lepton.Pattern.Interpreter.Dup where
+module Sound.SC3.Lepton.Pattern.Interpreter.Dup
+  ( Dup(..), duplicate, dupl, dupr
+  ) where
 
 import Control.Arrow
 import Sound.SC3.Lepton.Pattern.Expression

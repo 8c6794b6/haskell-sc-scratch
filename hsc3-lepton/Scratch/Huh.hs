@@ -22,10 +22,6 @@ import Sound.OpenSoundControl
 import Sound.SC3
 import Sound.SC3.ID
 import Sound.SC3.Lepton
--- import Sound.SC3.Lepton.Pattern.Play
--- import Sound.SC3.Lepton.Pattern.Dummy
--- import Sound.SC3.Lepton.Pattern.ToOSC
--- import Sound.SC3.Lepton.Pattern.Interpreter.E
 
 import qualified Data.ByteString.Lazy.Char8 as LC8
 import qualified Sound.SC3.Lepton.Pattern.Play as Play
@@ -101,9 +97,9 @@ n0 =
      [g 10
       [s 1000 "lfsin" []
       ,s 1001 "cf2drn"
-      ["out":=20,"gate":=1, "amp":=0]
+       ["out":=20,"gate":=1, "amp":=0]
       ,s 1002 "cf2drn"
-      ["out":=22,"gate":=1, "amp":=0]]
+       ["out":=22,"gate":=1, "amp":=0]]
      ]
     ,g 2
      [s 2000 "cf2rev" -- huh1
@@ -115,11 +111,11 @@ n0 =
      ]
     ,g 8
      [s 8000 "cf2mix" -- huh1
-      ["out":=0,"a_in":<=10,"amp":=1.6,"pan":=0]
+      ["out":=0,"a_in":<=10,"amp":=1.8,"pan":=0]
      ,s 8001 "cf2mix" -- huh2
-      ["out":=0,"a_in":<=11,"amp":=1.0,"pan":=(-0.8)]
+      ["out":=0,"a_in":<=11,"amp":=1.4,"pan":=(-0.8)]
      ,s 8002 "cf2mix" -- huh3
-      ["out":=0,"a_in":<=12,"amp":=1.0,"pan":=0.8]
+      ["out":=0,"a_in":<=12,"amp":=1.4,"pan":=0.8]
      ,s 8003 "cf2mix" -- kik
       ["out":=0,"a_in":<=13,"amp":=0.8,"pan":=0.03]
      ,s 8004 "cf2mix" -- snr
@@ -143,173 +139,6 @@ n0 =
   where
     g = Group
     s = Synth
-
-------------------------------------------------------------------------------
--- Patterns
---
-
--- bpm = 295
-
--- allP = ppar
---   [ huh1P, huh2P, huh3P
---   , kikP, snrP, hatP
---   , puP, drn1P, drn2P, bellP ]
-
--- l = withLept . flip send
-
--- huh1P =
---   psnew "cf2huh" Nothing AddToTail 10
---   [("dur", pforever (60/bpm))
---   ,("out", pforever 10)
---   ,("t_trig",
---     pseq 1
---     [pseq 4 [0,1,0,0, 1,0,0,1, 0,0,1,0, 1,0,1,0]
---     ,pcycle
---      [pseq 12 [0,1,0,0, 1,0,0,1, 0,0,1,0, 1,0,1,0]
---      ,pseq 4  [0,1,0,1, 1,1,0,0, 0,0,0,1, 1,0,0,1]]])
---    ]
-
--- huh2P =
---   psnew "cf2huh" Nothing AddToTail 10
---   [("dur", pforever (60/bpm))
---   ,("out", pforever 11)
---   ,("t_trig",
---     pseq 1
---     [pseq 16 [0,0,0,0]
---     ,pcycle
---      [pseq 12 [1,0,1,0, 1,0,0,0, 1,0,1,0, 1,0,0,0]
---      ,pseq 14 [0,0,0,0], pseq 4 [0,1]]])
---   ]
-
--- huh3P =
---   psnew "cf2huh" Nothing AddToTail 10
---   [("dur", pforever (60/bpm))
---   ,("out", pforever 12)
---   ,("t_trig",
---     pseq 1
---     [pseq 16 [0,0,0,0]
---     ,pcycle
---      [pseq 12 [0,1,0,1, 0,0,0,1, 0,1,0,1, 0,0,0,1]
---      ,pseq 14 [0,0,0,0], pseq 4 [1,0]]])
---   ]
-
--- kikP =
---   psnew "cf2kik" Nothing AddToTail 10
---   [("dur", pforever (60/bpm))
---   ,("out", pforever 13)
---   ,("t_trig",
---     pseq 1
---     [pseq 4
---      [1,0,0,0, 1,0,0,0, 0.8,0,0,0, 1,0,0,0]
---     ,pcycle
---      [pseq 3 [pseq 4
---               [1,  0,0,0, 0.8,0,0, prand 1 [0,0.7,0.8,1]
---               ,0.9,0,0,0, 1,  0,0, prand 1 [0,0.7,0.8,1]]]
---      ,pseq 4
---       [1,0,0,0.7, 1,0,0,1, 0,0.9,0,0.8, 0.9,0,0,1]]])
---    ]
-
--- snrP =
---   psnew "cf2snr" Nothing AddToTail 10
---   [("dur", pforever (60/bpm))
---   ,("out", pforever 14)
---   ,("t_trig",
---     pseq 1
---     [pseq 56 [0], pconcat [0.8,0.6,0,0.2, 0.2,0.8,0.4,1.0]
---     ,pcycle
---      [pseq 3
---       [pseq 3 [pseq 3 [0,0,prange 0.6 1, 0]
---               ,pconcat [0,0,prange 0.6 0.8, prange 0.6 0.8]]
---       ,pconcat [pseq 2 [0,0,prange 0.6 0.8,0], prand 8 [0,0.5,0.75,1]]]
---      ,pseq 3 [0,0,0,0, prand 1 [0.9,1.0],0,0,0
---              ,0,0,0,0, prand 4 [1,0.8,0]]
---      ,pconcat [0,0,0,0, prand 1 [0.9,1.0],0,0,0
---               ,prand 8 [0,0,0,0.5,0.6,0.7,0.8,0.9,1]]]])
---    ]
-
--- hatP =
---   psnew "cf2hat" Nothing AddToTail 10
---   [("dur", pforever (60/bpm))
---   ,("out", pforever 15)
---   ,("t_trig",
---     pconcat
---     [pseq 62 [0], pconcat [0.6,0.8]
---     ,pcycle
---      [pseq 3
---       [pseq 32 [prand 1 [0,0,0,0,0,0,0.2]
---                ,prand 1 [0.5,0.8,1.0]]]
---      ,pseq 32 [0]
---      ,pconcat
---       [pseq 30 [0], plist [0.6,0.8]]]])
---   ]
-
--- puP =
---   psnew "cf2pu" Nothing AddToTail 10
---   [("dur", pforever (60/bpm))
---   ,("out", pforever 16)
---   ,("t_trig", pforever 1)
---   ,("freq", midiCPS $
---    pcycle
---    [prand 7
---     [plist [36,55,62,36, 55,62,36,55]
---     ,plist [36,60,72,36, 60,72,36,60]
---     ,plist [36,53,58,36, 53,58,36,53]]
---    ,36, prand 2 [60,67]
---    ,36, prand 2 [67,72]
---    ,prand 2 [48,53,55,60,65,67]])
---   ]
-
--- drn1P =
---   let f = midiCPS in
---   pnset 1001
---   [("dur", pforever (60/bpm))
---   ,("amp", prepeat 0.3)
---   ,("freq",
---     pconcat
---     [pseq 32 [0]
---     ,pcycle
---      [pseq 3
---       [f 72, 0, 0, 0,  0, 0, 0, 0,  0,f 67, 0, 0,f 65, 0, 0, 0
---       ,f 67, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0, f 65, 0, 0, 0
---       ,f 60, 0, 0, 0,  0, 0, 0, 0,  0,f 55, 0, 0, f 65, 0, 0, 0
---       ,f 67, pseq 15 [0]]
---      ,pconcat
---       [f 72, pseq 31 [0]
---       ,f 60, pseq 31 [0]]]])
---   ]
-
--- drn2P =
---   let f = midiCPS in
---   pnset 1002
---   [("dur", pforever (60/bpm))
---   ,("amp", prepeat 0.3)
---   ,("freq",
---    pconcat
---     [pseq 32 [0]
---     ,pcycle
---      [pseq 3
---       [ 0, 0, f 55,0, 0, 0, f 60, 0,  0, 0, 0, 0,  0,    0, 0, 0
---       , 0, 0, 0, 0,   f 67, 0, 0, 0,  0, 0, 0, 0,  f 60, 0, 0, 0
---       , 0, 0, 0, 0,   0, 0, f 67, 0,  0, 0, 0, 0,  0,    0, 0, 0
---       , 0, 0, 0, 0,   f 60, 0, 0, 0,  0, 0, 0, 0,  0,    0, 0, 0]
---      ,pconcat
---       [ 0, 0, f 55,0, pseq 28 [0]
---       , 0, 0,    0,0, 0, 0, f 67, 0, pseq 24 [0]]]])
---    ]
-
--- bellP =
---   psnew "cf2bell" Nothing AddToTail 10
---   [("dur", pforever (60/bpm))
---   ,("out", pforever 18)
---   ,("t_trig", pforever 1)
---   ,("freq",
---     pconcat
---     [pseq 16 [0,0,0,0]
---     ,pseq 6 [0,0,0,0]
---     ,pcycle
---      [midiCPS $ prand 16 (map pval $ replicate 16 0 ++ [79,84,89,91,96])
---      ,pseq 12 [0,0,0,0]]])
---   ]
 
 -- shwP =
 --   undefined
