@@ -35,8 +35,8 @@ module Sound.SC3.Lepton.Pattern.Deserialize
   , playE
   ) where
 
-import Data.Binary
-import Sound.SC3
+import Data.Binary (decode)
+import Sound.SC3 (audition)
 
 import Sound.SC3.Lepton.Pattern.Play ()
 import Sound.SC3.Lepton.Pattern.ToOSC
@@ -317,71 +317,3 @@ playE e = case fromTree (etree e,()) of
   Right (Term (TyToOSC TyDouble) e' :: Term L h) -> audition $ toL e'
   Right (Term t _ :: Term L ()) -> putStrLn $ "Deserialized type: " ++ show t
   Left err -> putStrLn err
-
-------------------------------------------------------------------------------
--- Sample terms
-
--- lam01 = papp (plam tdouble pz) (pdouble 1)
--- lam02 = papp (plam tint pz) (pint 1)
-
-{-
-Type of pdouble inside lambda expression differs from pdouble written
-outside, defining twice, or we could have wrote pdouble directly,
-without let bindings.
--}
--- p01 =
---   let d=pdouble; i=pint
---   in  plam tdouble (pseq (i 8) [pz, d 2, d 3])
---   `papp`
---   let d=pdouble
---   in  pdrange (d 1) (d 10)
-
--- p02 =
---   let x1=pfst pz; x2=pfst (psnd pz); x3=psnd (psnd pz)
---       ty = ttup tdouble (ttup tdouble tdouble)
---   in  plam ty (pconcat [x1,x2,x3])
---   `papp`
---   let d=pdouble; i=pint
---   in pzip (pconcat (map d [1..4])) .
---      pzip (pseq (i 4) [pdrange (d 1) (d 10)]) $
---      pconcat (map d [100,75..0])
-
--- pspeFreq =
---   let d=pdouble; i=pint in
---   pcycle
---     [pseq (pirange (i 0) (i 1))
---        [pconcat $ map d [24,31,36,43,48,55]]
---     ,pseq (pirange (i 2) (i 5))
---        [d 60, prand (i 1) [d 63,d 65]
---        ,d 67, prand (i 1) [d 70,d 72,d 74]]
---     ,prand (pirange (i 3) (i 9)) (map d [74,75,77,79,81])]
-
--- pspe = psnew "speSynth" Nothing AddToTail 1
---   [("dur", pforever (pdouble 0.13))
---   ,("amp", pforever (pdouble 0.25))
---   ,("freq", pmidiCPS pspeFreq)]
-
--- pspe2 =
---   let mkSpe f =
---         psnew "speSynth" Nothing AddToTail 1
---          [("dur", pforever (pdouble 0.13))
---          ,("amp", pforever (pdouble 0.1))
---          ,("freq", f pspeFreq)]
---   in  ppar
---        [mkSpe pmidiCPS
---        ,mkSpe (\x -> pmidiCPS x *@ pforever (pdouble 0.5))
---        ,mkSpe (\x -> pmidiCPS x *@ pforever (pdouble 1.5))]
-
--- pspe3 =
---   let d = pdouble
---       mkspe f =
---         psnew "speSynth" Nothing AddToTail 1
---         [("dur", pforever (d 0.13))
---         ,("amp", pforever (d 0.1))
---         ,("freq", f pz)]
---   in plam tdouble
---      (ppar
---       [mkspe pmidiCPS
---       ,mkspe (\x -> pmidiCPS x *@ d 0.5)
---       ,mkspe (\x -> pmidiCPS x *@ d 1.5)])
---      `papp` pspeFreq

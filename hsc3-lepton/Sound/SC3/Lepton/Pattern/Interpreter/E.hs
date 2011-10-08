@@ -1,5 +1,6 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-|
 Module      : $Header$
 CopyRight   : (c) 8c6794b6
@@ -10,16 +11,21 @@ Portability : non-portable
 
 E, for serializing/deserializing expression tree.
 -}
-module Sound.SC3.Lepton.Pattern.Interpreter.E where
+module Sound.SC3.Lepton.Pattern.Interpreter.E
+  ( E(..)
+  , toE
+  , etree
+  , prettyE
+  , tyTree
+  ) where
 
 import Data.ByteString.Lazy (ByteString)
 import Text.PrettyPrint (Doc)
 
-import Sound.SC3.Lepton.Pattern.Expression.Class
-import Sound.SC3.Lepton.Pattern.Expression.Etree
-import Sound.SC3.Lepton.Pattern.Expression.Type
+import Sound.SC3.Lepton.Pattern.Expression
 
 import qualified Data.Binary as Bin
+import qualified Data.ByteString.Lazy.Char8 as LC8
 
 -- | Newtype wrapper for converting to expression tree.
 newtype E h a = E {unE :: Int -> Etree}
@@ -98,6 +104,11 @@ instance Fractional a => Fractional (E h a) where
 ------------------------------------------------------------------------------
 -- Pattern classes
 
+ppiE = constE "ppi"
+
+$(derivePint ''E 'primE 'unaryE 'binaryE)
+$(derivePdouble ''E 'primE 'ppiE 'unaryE 'binaryE)
+
 instance Pappend E where
   pappend x y = binaryE "pappend" x y
 
@@ -166,65 +177,3 @@ instance Ptake E where
 
 instance Pdrop E where
   pdropT = binaryE "pdropT"
-
-instance Pint E where
-  pint = primE "pint"
-  (+!) = binaryE "+!"
-  (*!) = binaryE "*!"
-  (-!) = binaryE "-!"
-  pinegate = unaryE "pinegate"
-  piabs = unaryE "piabs"
-  pisignum = unaryE "pisignum"
-  pirange = binaryE "pirange"
-
-instance Pdouble E where
-  pdouble = primE "pdouble"
-  (+@) = binaryE "+@"
-  (*@) = binaryE "*@"
-  (-@) = binaryE "-@"
-  pdnegate = unaryE "pdnegate"
-  pdabs = unaryE "pdabs"
-  pdsignum = unaryE "pdsignum"
-  pdrange = binaryE "pdrange"
-  (/@) = binaryE "/@"
-  precip = unaryE "recip"
-  ppi = constE "ppi"
-  pexp = unaryE "pexp"
-  psqrt = unaryE "psqrt"
-  plog = unaryE "plog"
-  (**@) = binaryE "**@"
-  plogBase = binaryE "plogBase"
-  psin = unaryE "psin"
-  ptan = unaryE "ptan"
-  pcos = unaryE "pcos"
-  pasin = unaryE "pasin"
-  patan = unaryE "patan"
-  pacos = unaryE "pacos"
-  psinh = unaryE "psinh"
-  ptanh = unaryE "ptanh"
-  pcosh = unaryE "pcosh"
-  pasinh = unaryE "pasinh"
-  patanh = unaryE "patanh"
-  pacosh = unaryE "pacosh"
-  pampDb = unaryE "pampDb"
-  pasFloat = unaryE "pasFloat"
-  pasInt = unaryE "pasInt"
-  pbitNot = unaryE "pbitNot"
-  pcpsMIDI = unaryE "pcpsMIDI"
-  pcpsOct = unaryE "pcpsOct"
-  pcubed = unaryE "pcubed"
-  pdbAmp = unaryE "pdbAmp"
-  pdistort = unaryE "pdistort"
-  pfrac = unaryE "pfrac"
-  pisNil = unaryE "pisNil"
-  plog10 = unaryE "plog10"
-  plog2 = unaryE "plog2"
-  pmidiCPS = unaryE "pmidiCPS"
-  pmidiRatio = unaryE "pmidiRatio"
-  pnotE = unaryE "pnotE"
-  pnotNil = unaryE "pnotNil"
-  poctCPS = unaryE "poctCPS"
-  pramp_ = unaryE "pramp_"
-  pratioMIDI = unaryE "pratioMIDI"
-  psoftClip = unaryE "psoftClip"
-  psquared = unaryE "psquared"

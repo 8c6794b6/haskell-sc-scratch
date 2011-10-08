@@ -32,6 +32,9 @@ allP = ppar
   , kikP, snrP, hatP
   , puP, drn1P, drn2P, bellP ]
 
+------------------------------------------------------------------------------
+-- Helpers
+
 d = pdouble
 ds = map pdouble
 i = pint
@@ -49,8 +52,8 @@ huh1P = pconcat (map (mkSN "cf2huh" 10 "t_trig") [huh1Pa, huh1Pb])
 huh1Pa = pseq (i 4) (map d [0,1,0,0, 1,0,0,1, 0,0,1,0, 1,0,1,0])
 huh1Pb =
   pcycle
-   [pseq (i 12) (map d [0,1,0,0, 1,0,0,1, 0,0,1,0, 1,0,1,0])
-   ,pseq (i 4)  (map d [0,1,0,1, 1,1,0,0, 0,0,0,1, 1,0,0,1])]
+   [pseq (i 12) (ds [0,1,0,0, 1,0,0,1, 0,0,1,0, 1,0,1,0])
+   ,pseq (i 4)  (ds [0,1,0,1, 1,1,0,0, 0,0,0,1, 1,0,0,1])]
 
 huh2P = pconcat (map (mkSN "cf2huh" 11 "t_trig") [huh2Pa, huh2Pb])
 huh2Pa = pseq (i 16) (map d [0,0,0,0])
@@ -76,14 +79,14 @@ kikPa =
   pseq (i 4) (ds [1,0,0,0, 1,0,0,0, 0.8,0,0,0, 1,0,0,0])
 kikPb =
   pcycle
-  [pseq (i 3)
-   [pseq (i 4)
-    [ d 1, d 0, d 0,d 0, d 0.8
-    , d 0, d 0, prand (i 1) (ds [0,0.7,0.8,1])
-    , d 0.9, d 0,d 0,d 0
-    , d 1, d 0,d 0, prand (i 1) (ds [0,0.7,0.8,1])]]
-  ,pseq (i 4)
-   (ds [1,0,0,0.7, 1,0,0,1, 0,0.9,0,0.8, 0.9,0,0,1 ])]
+  [ pseq (i 3)
+    [ pseq (i 4)
+      [ d 1, d 0, d 0,d 0, d 0.8
+      , d 0, d 0, prand (i 1) (ds [0,0.7,0.8,1])
+      , d 0.9, d 0,d 0,d 0
+      , d 1, d 0,d 0, prand (i 1) (ds [0,0.7,0.8,1])]]
+  , pseq (i 4)
+    (ds [1,0,0,0.7, 1,0,0,1, 0,0.9,0,0.8, 0.9,0,0,1 ])]
 
 snrP = pconcat (map (mkSN "cf2snr" 14 "t_trig") [snrPa,snrPb])
 snrPa =
@@ -137,44 +140,44 @@ puPa =
 drn1P =
   let f = pmidiCPS . pdouble; z = d 0 in
   pnset 1001
-  [("dur", pforever (d (60/bpm)))
-  ,("amp", pforever (d 0.3))
-  ,("freq",
-    pconcat
-    [pseq (i 32) (ds [0])
-    ,pcycle
-     [pseq (i 3)
-      [f 72, z, z, z,  z, z, z, z,  z,f 67, z, z,f 65, z, z, z
-      ,f 67, z, z, z,  z, z, z, z,  z, z, z, z, f 65, z, z, z
-      ,f 60, z, z, z,  z, z, z, z,  z,f 55, z, z, f 65, z, z, z
-      ,f 67, pseq (i 15) [z]]
-     ,pconcat
-      [f 72, pseq (i 31) [z]
-      ,f 60, pseq (i 31) [z]]]])]
+  [ ("dur", pforever (d (60/bpm)))
+  , ("amp", pforever (d 0.3))
+  , ("freq",
+     pconcat
+     [ pseq (i 32) (ds [0])
+     , pcycle
+       [ pseq (i 3)
+         [ f 72, z, z, z,  z, z, z, z,  z,f 67, z, z,f 65, z, z, z
+         , f 67, z, z, z,  z, z, z, z,  z, z, z, z, f 65, z, z, z
+         , f 60, z, z, z,  z, z, z, z,  z,f 55, z, z, f 65, z, z, z
+         , f 67, pseq (i 15) [z]]
+       , pconcat
+         [ f 72, pseq (i 31) [z]
+         , f 60, pseq (i 31) [z]]]])]
 
 drn2P =
   let f = pmidiCPS . pdouble; z = d 0 in
   pnset 1002
-  [("dur", pforever (d (60/bpm)))
-  ,("amp", pforever (d 0.3))
-  ,("freq",
-   pconcat
-    [pseq (i 32) (ds [0])
-    ,pcycle
-     [pseq (i 3)
-      [ z, z, f 55,z, z, z, f 60, z,  z, z, z, z,  z,    z, z, z
-      , z, z, z, z,   f 67, z, z, z,  z, z, z, z,  f 60, z, z, z
-      , z, z, z, z,   z, z, f 67, z,  z, z, z, z,  z,    z, z, z
-      , z, z, z, z,   f 60, z, z, z,  z, z, z, z,  z,    z, z, z]
-     ,pconcat
-      [ z, z, f 55,z, pseq (i 28) [z]
-      , z, z,    z,z, z, z, f 67, z, pseq (i 24) [z]]]]) ]
+  [ ("dur", pforever (d (60/bpm)))
+  , ("amp", pforever (d 0.3))
+  , ("freq",
+     pconcat
+     [ pseq (i 32) (ds [0])
+     , pcycle
+       [ pseq (i 3)
+         [ z, z, f 55,z, z, z, f 60, z,  z, z, z, z,  z,    z, z, z
+         , z, z, z, z,   f 67, z, z, z,  z, z, z, z,  f 60, z, z, z
+         , z, z, z, z,   z, z, f 67, z,  z, z, z, z,  z,    z, z, z
+         , z, z, z, z,   f 60, z, z, z,  z, z, z, z,  z,    z, z, z]
+       , pconcat
+         [ z, z, f 55,z, pseq (i 28) [z]
+         , z, z,    z,z, z, z, f 67, z, pseq (i 24) [z]]]]) ]
 
 bellP = mkSN2 "cf2bell" 18 "freq" bellPa
 bellPa =
   pconcat
-  [pseq (i 16) (ds [0,0,0,0])
-  ,pseq (i 6) (ds [0,0,0,0])
-  ,pcycle
-   [pmidiCPS $ prand (i 16) (map pdouble $ replicate 16 0 ++ [79,84,89,91,96])
-   ,pseq (i 12) (ds [0,0,0,0])]]
+  [ pseq (i 16) (ds [0,0,0,0])
+  , pseq (i 6) (ds [0,0,0,0])
+  , pcycle
+    [ pmidiCPS $ prand (i 16) (map pdouble $ replicate 16 0 ++ [79,84,89,91,96])
+    , pseq (i 12) (ds [0,0,0,0])]]

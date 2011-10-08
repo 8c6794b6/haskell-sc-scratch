@@ -1,5 +1,9 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE GADTs #-}
 {-|
 
 Module      : $Header$
@@ -21,7 +25,7 @@ import Test.QuickCheck
 
 import Sound.SC3
 import Sound.SC3.Lepton.Pattern
--- import Sound.SC3.Lepton.Pattern.Interpreter.Expr
+-- import Sound.SC3.Lepton.Pattern
 import Sound.SC3.Lepton.QuickCheck
 import System.Random.Mersenne.Pure64
 
@@ -46,12 +50,14 @@ tests = []
 
 -- prop_prim_num = with_ppar_snew_nset num_patterns
 
+-- prop_prim_double = with_ppar_snew_nset double_patterns
+
 -- prop_floating = with_ppar_snew_nset floating_patterns
 
 -- prop_fractional = with_ppar_snew_nset fractional_patterns
 
 -- prop_fromnum =
---   forAll (arbitrary `suchThat` 
+--   forAll (arbitrary `suchThat`
 --           (\(_,n::Integer,d::Integer) -> d /= 0 && n /= 0)) $
 --   \(i::Int,n::Integer,d::Integer) ->
 --   let m = n % d
@@ -61,7 +67,7 @@ tests = []
 --       fromIntegral i == toBz (fromIntegral i) &&
 --       fromRational m == toS (fromRational m) &&
 --       fromIntegral i == toS (fromIntegral i)
-      
+
 -- prop_outer_repeat = forAll mixed_patterns $ \p ->
 --   let p1 = toExpr (preplicate 2 (pmerge (snew_foo p) (nset_100 p)))
 --       p2 = toExpr (pseq (prange 1 4) [snew_foo p, nset_100 p])
@@ -72,14 +78,14 @@ tests = []
 -- with_ppar_snew_nset ps = forAll ps $ \p ->
 --   let p' = pconcat [ ppar [ snew_foo p, nset_100 p ]
 --                    , pmerge (snew_foo p) (nset_100 p) ]
---       Right (b :: Bz (ToOSC Double)) = fromExpr p'
---       Right (s :: S (ToOSC Double)) = fromExpr p'
---       Right (e :: Expr (ToOSC Double)) = fromExpr p'
+--       -- Right (b :: Bz (ToOSC Double)) = fromExpr p'
+--       Right (s :: S (ToOSC Double)) = fromTree p'
+--       -- Right (e :: Expr (ToOSC Double)) = fromExpr p'
 --   in  check_expr e && check_bz_s b s
 
 -- check_expr e = e `deepseq`
---   let Right eb = fromExpr (decode (encode $ toExpr e))
---       Right es = fromExpr =<< Srl.decode (Srl.encode $ toExpr e)
+--   let Right eb = fromTree (decode (encode $ toExpr e))
+--       Right es = fromTree =<< Srl.decode (Srl.encode $ toExpr e)
 --       eString = fmap show e
 --   in  eb == e && es == e &&
 --       eString `deepseq` not (null (show $ prettyP eString)) &&
@@ -108,6 +114,34 @@ tests = []
 -- random_patterns = make_patterns $ \p1 p2 pi ->
 --   [ prandom, prange p1 p2, pchoose pi [p1,p2]
 --   , prand pi [p1,p2], pshuffle [p1,p2] ]
+
+-- prop_s_is_s =
+--   forAll intP $ \(x :: Pint p => p h Int) ->
+--   forAll doubleP $ \(y :: Pdouble p => p h Double)->
+--   let s = view (preplicate x y)
+--   in  case fromTree (etree (preplicate x y),()) of
+--     Right (Term _ e') -> view e' == s
+--     Left err          -> False
+
+-- s_is_s p =
+--   let p' = dup
+  
+ap2 :: (a -> a -> c) -> a -> c
+ap2 f = \x -> f x x
+
+intP =
+  elements
+  [ ap2 (+!), ap2 (*!), ap2 (-!)
+  , piabs, pinegate, pisignum, ap2 pirange
+  ] <*> (pint <$> arbitrary)
+
+doubleP =
+  elements
+  [ ap2 (+@), ap2 (*@), ap2 (-@), ap2 pdrange
+  , pdabs, pdnegate, pdsignum, ap2 (/@), precip, psqrt, plog
+  , ap2 (**@), ap2 plogBase
+  -- XXX: more functions for double ...
+  ] <*> (pdouble <$> arbitrary)
 
 -- num_patterns =
 --   elements [\x -> x + x, \x -> x * x, \x -> x - x, abs, negate, signum] <*>

@@ -10,7 +10,9 @@ Expression syntax tree used for serialization/deserialization.
 
 -}
 module Sound.SC3.Lepton.Pattern.Expression.Etree
-  ( Etree(..), ppTree, ppTyTree
+  ( Etree(..)
+  , ppTree
+  , ppTyTree
   ) where
 
 import Data.Data
@@ -91,7 +93,6 @@ ppTree e = case e of
           (brackets $ hcat $ punctuate comma (map int (Bin.decode js))))):
         unChoices ps
       _ -> error "Malformed parameters"
-
 
 ppTyTree :: Etree -> Doc
 ppTyTree e = case e of

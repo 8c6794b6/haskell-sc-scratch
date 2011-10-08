@@ -1,10 +1,11 @@
+{-# LANGUAGE TemplateHaskell #-}
 {-|
 Module      : $Header$
 CopyRight   : (c) 8c6794b6
 License     : BSD3
 Maintainer  : 8c6794b6@gmail.com
 Stability   : unstable
-Portability : portable
+Portability : non-portable
 
 Simple string representation for pattern.
 -}
@@ -15,6 +16,7 @@ module Sound.SC3.Lepton.Pattern.Interpreter.S
   ) where
 
 import Sound.SC3.Lepton.Pattern.Expression.Class
+import Sound.SC3.Lepton.Pattern.Expression.THHelper
 
 newtype S h a = S {unS :: Int -> String}
 
@@ -41,12 +43,6 @@ instance Eq (S h a) where
 constS :: Show a => String -> a -> S h b
 constS str a = S $ \_ -> str ++ " " ++ show a
 
-litS :: String -> S h a
-litS str = S $ \_ -> str
-
-binS :: String -> S h1 a1 -> S h2 a2 -> S h a
-binS str a b = S $ \h -> concat ["(",unS a h,") ",str," (",unS b h,")"]
-
 liftS :: String -> S h1 a1 -> S h2 a2
 liftS str a = S $ \h -> concat [str," (",unS a h,")"]
 
@@ -59,70 +55,14 @@ liftSs str ss = S $ \h -> concat [str ++ " " ++ viewSs ss h]
 liftS1s :: String -> S h1 a1 -> [S h2 a2] -> S h3 a3
 liftS1s str s ss = S $ \h -> concat [str," (",unS s h,") ",viewSs ss h]
 
+piS :: S h a
+piS = S $ const "ppi"
+
 ------------------------------------------------------------------------------
 -- Instances
 
-instance Pint S where
-  pint = constS "pint"
-  (+!) = binS "+!"
-  (*!) = binS "*!"
-  (-!) = binS "-!"
-  pinegate = liftS "pinegate"
-  piabs = liftS "piabs"
-  pisignum = liftS "pisignum"
-  pirange = liftS2 "pirange"
-
-instance Pdouble S where
-  pdouble = constS "pdouble"
-  (+@) = binS "+@"
-  (*@) = binS "*@"
-  (-@) = binS "-@"
-  pdnegate = liftS "pdnegate"
-  pdabs = liftS "pdabs"
-  pdsignum = liftS "pdsignum"
-  pdrange = liftS2 "pdrange"
-  (/@) = binS "/@"
-  precip = liftS "precip"
-  ppi = litS "ppi"
-  pexp = liftS "pexp"
-  psqrt = liftS "psqrt"
-  plog = liftS "plog"
-  (**@) = binS "**@"
-  plogBase = liftS2 "plogBase"
-  psin = liftS "psin"
-  ptan = liftS "ptan"
-  pcos = liftS "pcos"
-  pasin = liftS "pasin"
-  patan = liftS "patan"
-  pacos = liftS "pacos"
-  psinh = liftS "psinh"
-  ptanh = liftS "ptanh"
-  pcosh = liftS "pcosh"
-  pasinh = liftS "pasinh"
-  patanh = liftS "patanh"
-  pacosh = liftS "pacosh"
-  pampDb = liftS "pampDb"
-  pasFloat = liftS "pasFloat"
-  pasInt = liftS "pasInt"
-  pbitNot = liftS "pbitNot"
-  pcpsMIDI = liftS "pcpsMIDI"
-  pcpsOct = liftS "pcpsOct"
-  pcubed = liftS "pcubed"
-  pdbAmp = liftS "pdbAmp"
-  pdistort = liftS "pdistort"
-  pfrac = liftS "pfrac"
-  pisNil = liftS "pisNil"
-  plog10 = liftS "plog10"
-  plog2 = liftS "plog2"
-  pmidiCPS = liftS "pmidiCPS"
-  pmidiRatio = liftS "pmidiRatio"
-  pnotE = liftS "pnotE"
-  pnotNil = liftS "pnotNil"
-  poctCPS = liftS "poctCPS"
-  pramp_ = liftS "pramp_"
-  pratioMIDI = liftS "pratioMIDI"
-  psoftClip = liftS "psoftClip"
-  psquared = liftS "psquared"
+$(derivePint ''S 'constS 'liftS 'liftS2)
+$(derivePdouble ''S 'constS 'piS 'liftS 'liftS2)
 
 instance Pappend S where
   pappend = liftS2 "pappend"

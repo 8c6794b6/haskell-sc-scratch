@@ -63,9 +63,9 @@ library
     Sound.SC3.Lepton.Pattern.Expression
     Sound.SC3.Lepton.Pattern.Expression.Class
     Sound.SC3.Lepton.Pattern.Expression.Etree
+    Sound.SC3.Lepton.Pattern.Expression.THHelper
     Sound.SC3.Lepton.Pattern.Expression.Term
     Sound.SC3.Lepton.Pattern.Expression.Type
-    Sound.SC3.Lepton.Pattern.Expression.THHelper
     Sound.SC3.Lepton.Pattern.Interpreter
     Sound.SC3.Lepton.Pattern.Interpreter.E
     Sound.SC3.Lepton.Pattern.Interpreter.L
@@ -108,6 +108,7 @@ library
     primitive,
     random,
     random-shuffle,
+    split,
     stream-fusion >= 0.1.2.2,
     syb,
     template-haskell,
