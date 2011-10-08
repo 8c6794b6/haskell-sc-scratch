@@ -30,14 +30,12 @@ variable env may vary, cannot put all functions in list, and lookup it.
 ... or is there a way to do same thing without using TH?
 
 -}
-module Scratch.Pattern.THHelper where
+module Sound.SC3.Lepton.Pattern.Expression.THHelper where
 
 import Language.Haskell.TH
 
-import Scratch.Pattern.PC02
-import Scratch.Pattern.Term00
-import Scratch.Pattern.Type00
-import Scratch.Pattern.Etree
+import Sound.SC3.Lepton.Pattern.Expression.Term
+import Sound.SC3.Lepton.Pattern.Expression.Type
 
 -- | Show contents after applying ppr.
 printQ :: Ppr a => Q a -> IO ()
@@ -87,6 +85,7 @@ match1 typ self e g fun =
   in  [e| do Term ty v1 <- $self' ($e',$g')
              case cmpTy ty $typ' of
                Just Equal -> return $ Term $typ' ($fun' v1)
+               _          -> Left $ "match1: type mismatch"
         |]
 
 -- | Body of deserialization for 2 arguments function.
@@ -98,6 +97,7 @@ match2 typ self e1 e2 g fun =
              Term t2 v2 <- $self' ($e2',$g')
              case (cmpTy t1 $typ',cmpTy t2 $typ') of
                (Just Equal,Just Equal) -> return $ Term $typ' ($fun' v1 v2)
+               _                       -> Left "match2: type mismatch"
         |]
 
 -- | Recursively call deserialization function with comparing result type
@@ -110,4 +110,5 @@ listRec self t1 g =
                Term t2 v2 <- $(varE self) (y,$(varE g))
                case cmpTy $(varE t1) t2 of
                  Just Equal -> (v2:) `fmap` rec ys
+                 Nothing    -> error "listRec: type mismatch"
        in  rec |]

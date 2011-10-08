@@ -106,7 +106,7 @@ queryTree n = Message "/g_queryTree" [Int n, Int 1]
 -- returing message.
 queryNode :: Transport t => Int -> t -> IO OSC
 queryNode n = \fd -> do
-  async fd (notify True)
+  _ <- async fd (notify True)
   send fd (n_query [n])
   wait fd "/n_info"
 

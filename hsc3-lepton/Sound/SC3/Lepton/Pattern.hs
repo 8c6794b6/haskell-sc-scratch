@@ -35,6 +35,7 @@ module Sound.SC3.Lepton.Pattern
     module All
   ) where
 
+import Sound.SC3.Lepton.Pattern.Deserialize as All
 import Sound.SC3.Lepton.Pattern.Expression as All
 import Sound.SC3.Lepton.Pattern.Client as All
 import Sound.SC3.Lepton.Pattern.Interpreter as All
@@ -46,22 +47,22 @@ import Sound.SC3.Lepton.Pattern.ToOSC as All
 Making pattern in ghci:
 
 > > :set -XNoMonomorphismRestriction
-> > let p1 = pchoose (pval 3) [pval 10, plist [1..5]]
+> > let p1 = prand (pint 3) [pdouble 10, pconcat (map pdouble [1..5])]
 
 Viewing the pattern:
 
-> > showP p1
-> "pchoose (pval 3) [pval 10,plist [1,2,3,4,5]]"
+> > toS p1
+> prand (pint 3) [pdouble 10.0,pconcat [pdouble 1.0,pdouble 2.0,pdouble 3.0,pdouble 4.0,pdouble 5.0]]
 
 And running it:
 
-> > runPIO p1 -- try several times
-> [10,1,2,3,4,5,10]
+> > runLIO p1 -- try several times
+> [10.0,1.0,2.0,3.0,4.0,5.0,10.0]
 
 The type of this pattern is:
 
 > > :t p1
-> p1 :: (Pval p, Num t, Enum t, Plist p, Pchoose p) => p t
+> p1 :: (Pint p, Pdouble p, Pconcat p, Prand p) => p h Double
 
 -}
 
@@ -84,12 +85,12 @@ example from supercollider help file.
 > main = withSC3 go
 >
 > -- | Load synthdef and play the pattern.
-> go :: (Transport t) => t -> IO ()
+> go :: Transport t => t -> IO ()
 > go fd = do
 >   async fd . d_recv . synthdef "speSynth" =<< speSynth
->   foldPIO_ f () pspe
+>   mapLIO_ f pspe
 >   where
->     f _ v = do
+>     f v = do
 >       send fd $ s_new "speSynth" (-1) AddToTail 1 [("freq",midiCPS v)]
 >       threadDelay (floor $ 0.13 * 1e6)
 >
@@ -110,13 +111,13 @@ example from supercollider help file.
 >
 > -- Pattern used for pitches.
 > pspe =
+>   let i=pint; d=pdouble; ds=map pdouble in
 >   pcycle
->     [pchoose 1
->        [pempty, plist [24,31,36,43,48,55]]
->     ,pseq (prange 2 5)
->        [60, pchoose 1 [63,65], 67, pchoose 1 [70,72,74]]
->     ,pchoose (prange 3 9)
->        [74,75,77,79,81]]
+>     [prand (pirange (i 0) (i 1))
+>        [pconcat (ds [24,31,36,43,48,55])]
+>     ,pseq (pirange (i 2) (i 5))
+>        [d 60,prand (i 1) (ds [63,65]),d 67,prand (i 1) (ds [70,72,74])]
+>     ,prand (pirange (i 3) (i 9)) (ds [74,75,77,79,81])]
 
 Below is the original pattern written in sclang:
 
@@ -135,11 +136,9 @@ Below is the original pattern written in sclang:
 
 Playing patterns with play function from 'Audible' class.
 
-> import Control.Concurrent (threadDelay)
-> import Data.Map ((!))
-> import Data.Traversable (sequenceA)
-> import qualified Data.Map as M
+> {-# LANGUAGE NoMonomorphismRestriction #-}
 >
+> import Sound.OpenSoundControl
 > import Sound.SC3
 > import Sound.SC3.Lepton
 >
@@ -147,10 +146,10 @@ Playing patterns with play function from 'Audible' class.
 > main = withSC3 goBuzz
 >
 > -- | Play the pattern.
-> goBuzz :: (Transport t) => t -> IO ()
+> goBuzz :: Transport t => t -> IO ()
 > goBuzz fd = do
 >   async fd $ d_recv $ synthdef "buzz" buzz
->   play fd (madjust "dur" (\t -> t*60/160) pBuzz :: R (ToOSC Double))
+>   play fd $ toL pBuzz
 >
 > -- | UGen for buzz.
 > buzz :: UGen
@@ -164,20 +163,26 @@ Playing patterns with play function from 'Audible' class.
 >     tr = tr_control "t_trig" 1
 >
 > -- Pattern for amp, dur, freq, and pan.
-> pBuzz = snew "buzz" Nothing AddToTail 1
->   [("amp", pcycle [0.3, 0.1,  0.1,   0.3,  0.1,  0.1,  0.1])
->   ,("dur", pcycle [1,   0.55, 0.45,  0.54, 0.46, 0.53, 0.47])
->   ,("freq", fmap midiCPS $
->             pcycle [48, pchoose 13 cm, 53, pchoose 13 fm
->                    ,48, pchoose 13 cm, 43, pchoose 13 g7
->                    ,48, pchoose 13 cm, 53, pchoose 13 fm
->                    ,50, pchoose 6 fm, 43, pchoose 6 g7
->                    ,48, pchoose 6 cm, 55, pchoose 6 cm])
->   ,("pan", pcycle [plist [-1,-0.9..1], plist [1,0.9..(-1)]])]
+> pBuzz = psnew "buzz" Nothing AddToTail 1
+>   [("amp",
+>     pcycle (ds [0.3, 0.1,  0.1,   0.3,  0.1,  0.1,  0.1]))
+>   ,("dur",
+>     pcycle (ds [1,   0.55, 0.45,  0.54, 0.46, 0.53, 0.47]) *@
+>     pforever (d (60/160)))
+>   ,("freq",
+>     pmidiCPS $ pcycle
+>     [d 48, pr 13 cm, d 53, pr 13 fm
+>     ,d 48, pr 13 cm, d 43, pr 13 g7
+>     ,d 48, pr 13 cm, d 53, pr 13 fm
+>     ,d 50, pr 6 fm, d 43, pr 6 g7
+>     ,d 48, pr 6 cm, d 55, pr 6 cm])
+>   ,("pan",
+>     pcycle [pconcat (ds [-1,-0.9..1]),pconcat (ds [1,0.9..(-1)])])]
 >   where
->     cm = [55, 67,72,75,79,84,87]
->     fm = [60, 68,72,77,80,84,89]
->     g7 = [50, 67,71,74,77,79,83]
+>     cm = ds [55, 67,72,75,79,84,87]
+>     fm = ds [60, 68,72,77,80,84,89]
+>     g7 = ds [50, 67,71,74,77,79,83]
+>     i = pint; d = pdouble; ds = map pdouble; pr x = prand (i x)
 
 -}
 
@@ -185,13 +190,13 @@ Playing patterns with play function from 'Audible' class.
 
 Directly writing function for R:
 
-> > runPIO $ pseq 3 [1,2,R $ \_ -> [999,1024]]
+> > runLIO $ pseq 3 [1,2,L $ \_ _ -> return [999,1024]]
 > [1,2,999,1024,1,2,999,1024,1,2,999,1024]
 
 For S:
 
-> > showP $ prand (S $ \_ -> "foo bar buzz") [1..5]
-> "prand (foo bar buzz) [pval 1,pval 2,pval 3,pval 4,pval 5]"
+> > view $ prand (S $ \_ -> "foo bar buzz") (map pint [1..5])
+> "prand (foo bar buzz) [pint 1,pint 2,pint 3,pint 4,pint 5]"
 
 -}
 
@@ -218,7 +223,28 @@ example in chuck, by Perry and Ge, from:
 > import Sound.SC3
 > import Sound.SC3.ID
 > import Sound.SC3.Lepton
-> import Sound.SC3.Lepton.Pattern.Client
+>
+> setup'otf = withSC3 $ \fd -> do
+>   reset fd
+>   async fd $ bundle immediately $
+>     (map (d_recv . uncurry synthdef))
+>      [("otfperc",otfperc),("otfsine", otfsine)
+>      ,("otfrev1", otfrev1),("otfrev2",otfrev2)] ++
+>     (zipWith (\i file -> b_allocRead i (soundsDir </> file) 0 0)
+>      [0..]
+>      ["kick.wav", "snare-hop.wav", "hihat.wav", "hihat-open.wav"])
+>   patchNode otfNodes fd
+>
+> soundsDir = "/path/to/sound/files/"
+>
+> otfNodes =
+>   g 0
+>     [g 1 []
+>     ,g 2
+>       [s 1000 "otfrev1" []
+>       ,s 1001 "otfrev2" ["in":=2,"mix":=0.5]]]
+>   where
+>     g = Group; s = Synth
 >
 > ------------------------------------------------------------------------------
 > -- Synth defs
@@ -247,74 +273,56 @@ example in chuck, by Perry and Ge, from:
 > -- Patterns
 >
 > kikP = psnew "otfperc" Nothing AddToHead 1
->   [("dur", pforever t)
->   ,("bnum", prepeat 0)
->   ,("pan", prepeat (-0.1))
->   ,("amp", pforever (prange 0.5 0.7))]
+>   [("dur", pforever (d t))
+>   ,("bnum", pforever (d 0))
+>   ,("pan", pforever (d (-0.1)))
+>   ,("amp", pforever (pdrange (d 0.7) (d 0.9)))]
 >
 > snrP = psnew "otfperc" Nothing AddToHead 1
->   [("dur", pforever (prepeat t * prand 1 [2, plist [0.75,1.25]]))
->   ,("bnum", prepeat 1)
->   ,("pan", prepeat 0.3)]
+>   [("dur",
+>     (pforever (d t) *@ pforever (prnd [d 2, pconcat (ds [0.75,1.25])])))
+>   ,("bnum", pforever (d 1))
+>   ,("pan", pforever (d 0.3))]
 >
 > hatP = psnew "otfperc" Nothing AddToHead 1
->   [("dur", pforever (prepeat t * prand 1 [0.5, plist [0.25,0.25]]))
->   ,("bnum", prepeat 2)
->   ,("pan", prepeat (-0.3))
->   ,("amp", pforever (prange 0.3 0.4))]
+>   [("dur",
+>     pforever (d t) *@ pforever (prnd [d 0.5, pconcat (ds [0.25,0.25])]))
+>   ,("bnum", pforever (d 2))
+>   ,("pan", pforever (d (-0.3)))
+>   ,("amp", pforever (pdrange (d 0.3) (d 0.4)))]
 >
 > hatoP = psnew "otfperc" Nothing AddToHead 1
->   [("dur", pforever t)
->   ,("bnum", prepeat 3)
->   ,("pan", prepeat (-0.3))
->   ,("amp", pforever (prange 0.2 0.4))]
+>   [("dur", pforever (d t))
+>   ,("bnum", pforever (d 3))
+>   ,("pan", pforever (d (-0.3)))
+>   ,("amp", pforever (pdrange (d 0.2) (d 0.4)))]
 >
 > sin1P = psnew "otfsine" Nothing AddToHead 1
->   [("dur", pforever (t * 0.25))
->   ,("out", prepeat 2)
+>   [("dur", pforever (d (0.25*t)))
+>   ,("out", pforever (d 2))
 >   ,("freq",
->     pforever $ midiCPS (21 + (prand 1 [0,12,24,36] + prand 1 [0,2,4,7,9])))
->   ,("amp", pforever 0.5)
->   ,("pan", pforever 0.1)]
+>     pforever $ pmidiCPS
+>     ((d 21) +@ (prnd (ds [0,12,24,36])) +@ (prnd (ds [0,2,4,7,9]))))
+>   ,("amp", pforever (d 0.65))
+>   ,("pan", pforever (d 0.1))]
 >
 > sin2P = psnew "otfsine" Nothing AddToHead 1
->   [("dur", pforever (t * prand 1 [0.5,0.25]))
->   ,("out", prepeat 2)
+>   [("dur", pforever (prnd (ds [0.5*t,0.25*t])))
+>   ,("out", pforever (d 2))
 >   ,("freq",
->     pforever $ midiCPS (69 + (prand 1 [0,12,24,36] + prand 1 [0,2,4,7,9])))
->   ,("amp", pforever 0.2)
->   ,("pan", pforever (-0.2))]
+>     pforever $ pmidiCPS
+>     ((d 69) +@ (prnd (ds [0,12,24,36])) +@ (prnd (ds [0,2,4,7,9]))))
+>   ,("amp", pforever (d 0.2))
+>   ,("pan", pforever (d (-0.2)))]
 >
 > t = 0.5
+> d = pdouble
+> ds = map pdouble
+> i = pint
+> prnd = prand (i 1)
 >
 > sin1N = 0xbaca
->
 > sin2N = 0xcaba
->
-> ------------------------------------------------------------------------------
-> -- Sends synthdefs, allocate buffers, add new synth nodes.
->
-> setup'otf = withSC3 $ \fd -> do
->   reset fd
->   async fd $ bundle immediately $
->     (map (d_recv . uncurry synthdef))
->      [("otfperc",otfperc),("otfsine", otfsine)
->      ,("otfrev1", otfrev1),("otfrev2",otfrev2)] ++
->     (zipWith (\i file -> b_allocRead i (soundsDir </> file) 0 0)
->      [0..]
->      ["kick.wav", "snare-hop.wav", "hihat.wav", "hihat-open.wav"])
->   patchNode otfNodes fd
->
-> soundsDir = "souncs/examples/data" -- modify this appripriately
->
-> otfNodes =
->   g 0
->     [g 1 []
->     ,g 2
->       [s 1000 "otfrev1" []
->       ,s 1001 "otfrev2" ["in":=2,"mix":=0.5]]]
->   where
->     g = Group; s = Synth
 >
 > ------------------------------------------------------------------------------
 > -- Actions for patterns
@@ -325,6 +333,9 @@ example in chuck, by Perry and Ge, from:
 > addSnr = addPat t "snr" snrP
 > addSin1 = addPat 0 "sin-lo" sin1P
 > addSin2 = addPat 0 "sin-hi" sin2P
+> addPat d n e = withLept . flip send =<< bundle' (t*2) d [l_new n e]
+>
+> resetAll = withLept (flip send l_freeAll)
 
 After loading above module in ghci, try:
 

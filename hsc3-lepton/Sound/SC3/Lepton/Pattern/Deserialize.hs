@@ -20,29 +20,28 @@ Parsing patterns, take 8.
 Using fixed types in pattern expression classes.
 Result values are not having type class constraints.
 
-At last, this approach seems working well enough for use in implementing
-audible pattern sent to sequence server. Move to Lepton and replace
-current pattern classes.
-
 -}
-module Scratch.Pattern.Deserialize where
-
-import Data.ByteString.Lazy (ByteString)
+module Sound.SC3.Lepton.Pattern.Deserialize
+  ( FromTree
+  , fromTree
+  , fromTreeO
+  , fromTreeE
+  , fromTreeD
+  , fromTreeI
+  , t2s
+  , e2s
+  , t2l
+  , e2l
+  , playE
+  ) where
 
 import Data.Binary
 import Sound.SC3
 
+import Sound.SC3.Lepton.Pattern.Play ()
 import Sound.SC3.Lepton.Pattern.ToOSC
-import Sound.SC3.Lepton.Pattern.Play
-
-import Scratch.Pattern.E
-import Scratch.Pattern.Etree
-import Scratch.Pattern.L3
-import Scratch.Pattern.PC02
-import Scratch.Pattern.S
-import Scratch.Pattern.THHelper
-import Scratch.Pattern.Term00
-import Scratch.Pattern.Type00
+import Sound.SC3.Lepton.Pattern.Expression
+import Sound.SC3.Lepton.Pattern.Interpreter
 
 {-|
 Type synonym for expression deserializing function, for tying the knot
@@ -58,7 +57,7 @@ type FromTree r =
   ) => (Etree,g) -> Either String (Term r h)
 
 -- | Higher rank fixed point combinator for FromTree.
-fixFT :: (forall r. FromTree r -> FromTree r) -> FromTree r
+fixFT :: (forall r0. FromTree r0 -> FromTree r0) -> FromTree r1
 fixFT f = f (fixFT f)
 
 {-|
@@ -101,16 +100,16 @@ fromTree = fixFT fromTreeO
 -- | Node matcher for OSC patterns.
 fromTreeO :: forall r. FromTree r -> FromTree r
 fromTreeO self (e,g) = case e of
-  Node "psnew" (Leaf def:Leaf nid:Leaf aa:Leaf tid:ps) -> do
+  Node "psnew" (Leaf def:Leaf nid:Leaf aa:Leaf tid:xs) -> do
     let def' = decode def
         nid' = decode nid
         aa'  = decode aa
         tid' = decode tid
-    ps' <- unParams ps
+    ps' <- unParams xs
     return $ Term toscd $ psnew def' nid' aa' tid' ps'
-  Node "pnset" (Leaf nid:ps) -> do
+  Node "pnset" (Leaf nid:xs) -> do
     let nid' = decode nid
-    ps' <- unParams ps
+    ps' <- unParams xs
     return $ Term toscd $ pnset nid' ps'
   Node "pmerge" [e1,e2] -> do
     Term (TyToOSC TyDouble) v1 <- self (e1,g)
@@ -130,12 +129,13 @@ fromTreeO self (e,g) = case e of
   _ -> fromTreeE self (e,g)
   where
     toscd = TyToOSC TyDouble
-    unParams ps = case ps of
+    unParams xs = case xs of
       []            -> return []
       (Leaf k:v:qs) -> do
         (Term TyDouble r :: Term r any) <- fixFT fromTreeE (v,g)
         rest <- unParams qs
         return $ (decode k,r):rest
+      _             -> error "Malformed param pattern pairs"
 
 -- | Node matcher for composition patterns.
 fromTreeE :: forall r. FromTree r -> FromTree r
@@ -146,6 +146,7 @@ fromTreeE self (e,g) = case e of
     Term t2 v2 <- self (e2,g)
     case cmpTy t1 t2 of
       Just Equal -> return $ Term t1 (pappend v1 v2)
+      Nothing    -> Left "pappend: type mismatch"
   Node "pconcat" (e1:es) -> do
     Term t1 v1 <- self (e1,g)
     vs <- $(listRec 'self 't1 'g) es
@@ -192,7 +193,7 @@ fromTreeE self (e,g) = case e of
 
   Node "pfsm" (Leaf is:e1:es) -> do
     let is' = decode is
-    Term t1 v1 <- self (e1,g)
+    Term t1 _ <- self (e1,g)
     let go zs = case zs of
            []             -> return []
            (x:Leaf js:xs) -> do
@@ -200,6 +201,8 @@ fromTreeE self (e,g) = case e of
               Term t2 v2 <- self (x,g)
               case cmpTy t1 t2 of
                 Just Equal -> ((v2,js'):) `fmap` go xs
+                Nothing    -> Left "pfsm: type mismatch"
+           _ -> Left "pfsm: malformed pattern"
     vs <- go (e1:es)
     return $ Term t1 $ pfsm is' vs
 
@@ -214,6 +217,7 @@ fromTreeE self (e,g) = case e of
     Term aty aval <- self (e2,g)
     case cmpTy bndty aty of
       Just Equal -> return $ Term bodyty (papp bval aval)
+      Nothing    -> Left "papp: type mismatch"
   _ -> fromTreeD self (e,g)
 
 -- | Node matcher for Double expressions.
@@ -249,12 +253,17 @@ fromTreeI self (e,g) = case e of
       "pinegate" -> $(imatch1 'self 'e1 'g 'pinegate)
       "piabs" -> $(imatch1 'self 'e1 'g 'piabs)
       "pisignum" -> $(imatch1 'self 'e1 'g 'pisignum)
+      _ -> delegate
   Node name [e1,e2] -> do
     case name of
       "+!" -> $(imatch2 'self 'e1 'e2 'g '(+!))
       "*!" -> $(imatch2 'self 'e1 'e2 'g '(*!))
       "-!" -> $(imatch2 'self 'e1 'e2 'g '(-!))
       "pirange" -> $(imatch2 'self 'e1 'e2 'g 'pirange)
+      _ -> delegate
+  _ -> delegate
+  where
+    delegate = error $ "Malformaed expression: " ++ show e
 
 -- | Parse Node tree to type.
 treeToTy :: Etree -> Either String ExtTy
@@ -262,11 +271,11 @@ treeToTy t = case t of
   Leaf "Int" -> return $ ExtTy tint
   Leaf "Double" -> return $ ExtTy tdouble
   Node "List" [e] -> do
-    ExtTy t <- treeToTy e
-    return $ ExtTy $ tlist t
+    ExtTy ty <- treeToTy e
+    return $ ExtTy $ tlist ty
   Node "ToOSC" [e] -> do
-    ExtTy t <- treeToTy e
-    return $ ExtTy $ ttoosc t
+    ExtTy ty <- treeToTy e
+    return $ ExtTy $ ttoosc ty
   Node "Tup" [e1,e2] -> do
     ExtTy t1 <- treeToTy e1
     ExtTy t2 <- treeToTy e2
@@ -276,92 +285,103 @@ treeToTy t = case t of
     ExtTy t2 <- treeToTy e2
     return $ ExtTy $ tarr t1 t2
   Node "Any" [] -> return $ ExtTy TyAny
+  _ -> Left $ "Unknown type: " ++ show t
 
 ------------------------------------------------------------------------------
 -- Deserializer with fixed types.
 
 t2s :: Etree -> String
-t2s e = case fromTree (e,()) of Right (Term _ e') -> view e'
+t2s e = case fromTree (e,()) of
+  Right (Term _ e') -> view e'
+  Left err          -> err
 
 e2s :: E h a -> String
-e2s e = case fromTree (etree e,()) of Right (Term _ e') -> view e'
+e2s e = case fromTree (etree e,()) of
+  Right (Term _ e') -> view e'
+  Left err -> err
 
 t2l :: Etree -> Either String (L () (ToOSC Double))
 t2l e = case fromTree (e,()) of
   Right (Term (TyToOSC TyDouble) e' :: Term L ()) -> Right e'
+  Right (Term t _ :: Term L ()) -> Left $ "Deserialized type: " ++ show t
+  Left err -> Left err
 
 e2l :: E () (ToOSC Double) -> Either String (L () (ToOSC Double))
 e2l e = case fromTree (etree e,()) of
   Right (Term (TyToOSC TyDouble) e' :: Term L ()) -> Right e'
+  Right (Term t _ :: Term L ()) -> Left $ "Deserialized type: " ++ show t
+  Left err -> Left err
 
 playE :: E () (ToOSC Double) -> IO ()
 playE e = case fromTree (etree e,()) of
   Right (Term (TyToOSC TyDouble) e' :: Term L h) -> audition $ toL e'
+  Right (Term t _ :: Term L ()) -> putStrLn $ "Deserialized type: " ++ show t
+  Left err -> putStrLn err
 
 ------------------------------------------------------------------------------
 -- Sample terms
 
-lam01 = papp (plam tdouble pz) (pdouble 1)
-lam02 = papp (plam tint pz) (pint 1)
+-- lam01 = papp (plam tdouble pz) (pdouble 1)
+-- lam02 = papp (plam tint pz) (pint 1)
 
 {-
 Type of pdouble inside lambda expression differs from pdouble written
 outside, defining twice, or we could have wrote pdouble directly,
 without let bindings.
 -}
-p01 =
-  let d=pdouble; i=pint
-  in  plam tdouble (pseq (i 8) [pz, d 2, d 3])
-  `papp`
-  let d=pdouble
-  in  pdrange (d 1) (d 10)
+-- p01 =
+--   let d=pdouble; i=pint
+--   in  plam tdouble (pseq (i 8) [pz, d 2, d 3])
+--   `papp`
+--   let d=pdouble
+--   in  pdrange (d 1) (d 10)
 
-p02 =
-  let x1=pfst pz; x2=pfst (psnd pz); x3=psnd (psnd pz)
-      ty = ttup tdouble (ttup tdouble tdouble)
-  in  plam ty (pconcat [x1,x2,x3])
-  `papp`
-  let d=pdouble; i=pint
-  in pzip (pconcat (map d [1..4])) .
-     pzip (pseq (i 4) [pdrange (d 1) (d 10)]) $
-     pconcat (map d [100,75..0])
+-- p02 =
+--   let x1=pfst pz; x2=pfst (psnd pz); x3=psnd (psnd pz)
+--       ty = ttup tdouble (ttup tdouble tdouble)
+--   in  plam ty (pconcat [x1,x2,x3])
+--   `papp`
+--   let d=pdouble; i=pint
+--   in pzip (pconcat (map d [1..4])) .
+--      pzip (pseq (i 4) [pdrange (d 1) (d 10)]) $
+--      pconcat (map d [100,75..0])
 
-pspeFreq =
-  let d=pdouble; i=pint in
-  pcycle
-    [pseq (pirange (i 0) (i 1))
-       [pconcat $ map d [24,31,36,43,48,55]]
-    ,pseq (pirange (i 2) (i 5))
-       [d 60, prand (i 1) [d 63,d 65]
-       ,d 67, prand (i 1) [d 70,d 72,d 74]]
-    ,prand (pirange (i 3) (i 9)) (map d [74,75,77,79,81])]
+-- pspeFreq =
+--   let d=pdouble; i=pint in
+--   pcycle
+--     [pseq (pirange (i 0) (i 1))
+--        [pconcat $ map d [24,31,36,43,48,55]]
+--     ,pseq (pirange (i 2) (i 5))
+--        [d 60, prand (i 1) [d 63,d 65]
+--        ,d 67, prand (i 1) [d 70,d 72,d 74]]
+--     ,prand (pirange (i 3) (i 9)) (map d [74,75,77,79,81])]
 
-pspe = psnew "speSynth" Nothing AddToTail 1
-  [("dur", pforever (pdouble 0.13))
-  ,("amp", pforever (pdouble 0.25))
-  ,("freq", pmidiCPS pspeFreq)]
+-- pspe = psnew "speSynth" Nothing AddToTail 1
+--   [("dur", pforever (pdouble 0.13))
+--   ,("amp", pforever (pdouble 0.25))
+--   ,("freq", pmidiCPS pspeFreq)]
 
-pspe2 =
-  let mkSpe f =
-        psnew "speSynth" Nothing AddToTail 1
-         [("dur", pforever (pdouble 0.13))
-         ,("amp", pforever (pdouble 0.1))
-         ,("freq", f pspeFreq)]
-  in  ppar
-       [mkSpe pmidiCPS
-       ,mkSpe (\x -> pmidiCPS x *@ pforever (pdouble 0.5))
-       ,mkSpe (\x -> pmidiCPS x *@ pforever (pdouble 1.5))]
+-- pspe2 =
+--   let mkSpe f =
+--         psnew "speSynth" Nothing AddToTail 1
+--          [("dur", pforever (pdouble 0.13))
+--          ,("amp", pforever (pdouble 0.1))
+--          ,("freq", f pspeFreq)]
+--   in  ppar
+--        [mkSpe pmidiCPS
+--        ,mkSpe (\x -> pmidiCPS x *@ pforever (pdouble 0.5))
+--        ,mkSpe (\x -> pmidiCPS x *@ pforever (pdouble 1.5))]
 
-pspe3 =
-  let d = pdouble
-      mkspe f =
-        psnew "speSynth" Nothing AddToTail 1
-        [("dur", pforever (d 0.13))
-        ,("amp", pforever (d 0.1))
-        ,("freq", f pz)]
-  in plam tdouble
-     (ppar
-      [mkspe pmidiCPS
-      ,mkspe (\x -> pmidiCPS x *@ d 0.5)
-      ,mkspe (\x -> pmidiCPS x *@ d 1.5)])
-     `papp` pspeFreq
+-- pspe3 =
+--   let d = pdouble
+--       mkspe f =
+--         psnew "speSynth" Nothing AddToTail 1
+--         [("dur", pforever (d 0.13))
+--         ,("amp", pforever (d 0.1))
+--         ,("freq", f pz)]
+--   in plam tdouble
+--      (ppar
+--       [mkspe pmidiCPS
+--       ,mkspe (\x -> pmidiCPS x *@ d 0.5)
+--       ,mkspe (\x -> pmidiCPS x *@ d 1.5)])
+--      `papp` pspeFreq

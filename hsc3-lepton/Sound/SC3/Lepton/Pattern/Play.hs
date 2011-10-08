@@ -21,7 +21,7 @@ import Sound.OpenSoundControl
 import Sound.OpenSoundControl.Coding.Byte
 import Sound.SC3
 
-import Sound.SC3.Lepton.Pattern.Interpreter
+import Sound.SC3.Lepton.Pattern.Interpreter.L
 import Sound.SC3.Lepton.Pattern.ToOSC
 import Sound.SC3.Lepton.Tree
 import Sound.SC3.Lepton.UGen.Factory
@@ -32,8 +32,9 @@ import qualified Data.Map as M
 -------------------------------------------------------------------------------
 -- Types
 
--- | Composable, audible event pattern.
-type Msg a = R (ToOSC a)
+-- | Type class used to play sequence of message.
+class Playable p where
+  playIO :: (b -> a -> IO b) -> b -> p a -> IO ()
 
 -- | Plays pattern.
 --
@@ -41,7 +42,7 @@ type Msg a = R (ToOSC a)
 -- invokation of play action to pattern. When this synth has been removed, pattern
 -- sequence will stop.
 --
-instance Audible (R (ToOSC Double)) where
+instance Playable p => Audible (p (ToOSC Double)) where
   play fd r = bracket
     (do send fd (notify True)
         trid <- newNid
@@ -53,35 +54,30 @@ instance Audible (R (ToOSC Double)) where
 ------------------------------------------------------------------------------
 -- Guts
 
+instance Playable (L ()) where
+  playIO = foldLIO_
+
 -- | Run message immediately
---
-runMsg :: Transport t
-   => R (ToOSC Double)
-   -- ^ Pattern to play
-   -> Int
-   -- ^ Node id used for trigger synth
-   -> t
-   -- ^ Destination
-   -> IO ()
+runMsg :: (Playable p, Transport t)
+  => p (ToOSC Double)
+  -- ^ Pattern to play
+  -> Int
+  -- ^ Node id used for trigger synth
+  -> t
+  -- ^ Destination
+  -> IO ()
 runMsg msg trid fd =  utcr >>= \now -> runMsgFrom (UTCr now) msg trid fd
-{-# SPECIALISE runMsg :: R (ToOSC Double) -> Int -> UDP -> IO () #-}
-{-# SPECIALISE runMsg :: R (ToOSC Double) -> Int -> TCP -> IO () #-}
+{-# SPECIALISE runMsg :: L () (ToOSC Double) -> Int -> UDP -> IO () #-}
+{-# SPECIALISE runMsg :: L () (ToOSC Double) -> Int -> TCP -> IO () #-}
 
 -- | Run message from given time.
 --
 -- When 'NaN' is found in 'freq' key of Map, replace the message
 -- with sending 's_new silence'.
 --
-runMsgFrom :: Transport t
-   => Time
-   -- ^ Time used in first bundled message.
-   -> R (ToOSC Double)
-   -- ^ Pattern to play
-   -> Int
-   -- ^ Node id used for trigger synth
-   -> t
-   -- ^ Destination
-   -> IO ()
+runMsgFrom
+  :: (Playable p, Transport t) =>
+     Time -> p (ToOSC Double) -> Int -> t -> IO ()
 runMsgFrom time msg trid fd = bracket_ newTrigger freeTrigger work where
   --
   -- When delta time is small amount, latency (> 1ms) occurs in
@@ -96,7 +92,8 @@ runMsgFrom time msg trid fd = bracket_ newTrigger freeTrigger work where
   freeTrigger = send fd $ n_free [trid]
   work = do
     let now = as_utcr time
-    foldPIO_ go (now,now,[]) msg
+    -- foldPIO_ go (now,now,[]) msg
+    playIO go (now,now,[]) msg
   go (t0,t1,acc) o
     | getDur o == 0 || null acc = return (t0,t1,o:acc)
     | otherwise                 = do
@@ -108,24 +105,26 @@ runMsgFrom time msg trid fd = bracket_ newTrigger freeTrigger work where
       when enoughTime $ waitUntil fd "/tr" trid
       return (t0+dt,t1',[o])
   tick = n_set trid [("t_trig",1)]
-{-# SPECIALISE runMsgFrom :: Time -> R (ToOSC Double) -> Int -> UDP -> IO () #-}
-{-# SPECIALISE runMsgFrom :: Time -> R (ToOSC Double) -> Int -> TCP -> IO () #-}
+{-# SPECIALISE runMsgFrom :: Time -> L () (ToOSC Double) -> Int -> TCP -> IO () #-}
+{-# SPECIALISE runMsgFrom :: Time -> L () (ToOSC Double) -> Int -> UDP -> IO () #-}
 
 -- | Run pausable message. MVar contains the time assumed as now.
 --
 -- This action is checking contents of MVar for every response.
 -- For performance significant message sending, use runMsg or runMsgFrom.
 --
-runPausableMsg :: Transport t
-  => MVar Double -> R (ToOSC Double) -> Int -> t -> IO ()
+runPausableMsg :: (Playable p, Transport t)
+  => MVar Double -> p (ToOSC Double) -> Int -> t -> IO ()
 runPausableMsg mvar msg trid fd = bracket_ newTrig freeTrig work where
   newTrig = send fd $ s_new "tr" trid AddToHead 1 []
   freeTrig = send fd $ n_free [trid]
-  work = foldPIO_ go [] msg
+  -- work = foldPIO_ go [] msg
+  work = playIO go [] msg
   go acc o
     | getDur o == 0 || null acc = return (o:acc)
     | otherwise                 = do
       -- XXX: When to get and put contents of MVar?
+      -- Is this use of MVar thread safe?
       let dt = getDur o
       msgs <- mkOSCs acc trid
       modifyMVar_ mvar $ \tl -> case tl + dt of
@@ -233,12 +232,13 @@ mkOpts nid a val acc = case break (== '/') a of
 -- Non-realtime
 
 -- | Write OSC from pattern, for non-realtime use with scsynth.
-writeScore ::
+writeScore :: (Playable p) =>
   [OSC]
   -- ^ Initial OSC message.
   -> SCNode
   -- ^ Initial node graph.
-  -> R (ToOSC Double)
+  -- -> R (ToOSC Double)
+  -> p (ToOSC Double)
   -- ^ Pattern containing OSC message.
   -> FilePath
   -- ^ Path to save OSC data.
@@ -246,7 +246,8 @@ writeScore ::
 writeScore ini n0 pat path = withFile path WriteMode $ \hdl -> do
   let n0' = diffMessage (Group 0 []) n0
   BSL.hPut hdl (oscWithSize (bundle (NTPr 0) (n0' ++ ini)))
-  foldPIO_ (k hdl) 0 pat
+  -- foldPIO_ (k hdl) 0 pat
+  playIO (k hdl) 0 pat
   where
     k hdl t o
       | isSilence o = return (t+getDur o)

@@ -1,7 +1,6 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-|
-Module      : $Header$import Scratch.S
-
+Module      : $Header$
 CopyRight   : (c) 8c6794b6
 License     : BSD3
 Maintainer  : 8c6794b6@gmail.com
@@ -14,93 +13,78 @@ module Scratch.SampleData2 where
 
 import Sound.OpenSoundControl
 import Sound.SC3
+import Sound.SC3.Lepton
 
-import Sound.SC3.Lepton.Pattern.Client
-import Sound.SC3.Lepton.Pattern.Play
-import Sound.SC3.Lepton.Tree
-
-import Scratch.Pattern.E
-import Scratch.Pattern.Etree
-import Scratch.Pattern.L3
-import Scratch.Pattern.PC02
-import Scratch.Pattern.S
-import Scratch.Pattern.Type00
-
+-- Motif pattern for frequency
 pspeFreq =
-  let d=pdouble; i=pint in
+  let d=pdouble; ds=map pdouble; i=pint in
   pcycle
     [pseq (pirange (i 0) (i 1))
-       [pconcat $ map d [24,31,36,43,48,55]]
+       [pconcat (ds [24,31,36,43,48,55])]
     ,pseq (pirange (i 2) (i 5))
-       [d 60, prand (i 1) [d 63,d 65]
-       ,d 67, prand (i 1) [d 70,d 72,d 74]]
-    ,prand (pirange (i 3) (i 9)) (map d [74,75,77,79,81])]
+       [d 60, prand (i 1) (ds [63,65])
+       ,d 67, prand (i 1) (ds [70,72,74])]
+    ,prand (pirange (i 3) (i 9)) (ds [74,75,77,79,81])]
 
 pspe = psnew "speSynth" Nothing AddToTail 1
   [("dur", pforever (pdouble 0.13))
   ,("amp", pforever (pdouble 0.22))
   ,("freq", pmidiCPS pspeFreq)]
 
+-- SPE builder
+mkspe x = let d=pdouble in
+  psnew "speSynth" Nothing AddToTail 1
+  [("dur", pforever (d 0.13)),("amp", pforever (d 0.1)),("freq", x)]
+
+mkspe' t a x = let d=pdouble in
+  psnew "speSynth" Nothing AddToTail 1
+  [("dur", pforever t),("amp", pforever a),("freq", x)]
+
 -- Non-unison.
-pspe2 =
-  let mkSpe f =
-        psnew "speSynth" Nothing AddToTail 1
-         [("dur", pforever (pdouble 0.13))
-         ,("amp", pforever (pdouble 0.1))
-         ,("freq", f pspeFreq)]
-  in  ppar
-       [mkSpe pmidiCPS
-       ,mkSpe (\x -> pmidiCPS x *@ pforever (pdouble 0.25))
-       ,mkSpe (\x -> pmidiCPS x *@ pforever (pdouble 2))]
+pspe2 = let x = pmidiCPS pspeFreq in
+  ppar
+  [ mkspe x
+  , mkspe (x *@ pforever (pdouble 0.25))
+  , mkspe (x *@ pforever (pdouble 2))]
 
 -- Unison.
 pspe3 =
-  let d = pdouble in
-  plam tdouble
-  (ppar
-   [psnew "speSynth" Nothing AddToTail 1
-    [("dur", pforever (d 0.13))
-    ,("amp", pforever (d 0.1))
-    ,("freq", pmidiCPS pz)]
-   ,psnew "speSynth" Nothing AddToTail 1
-    [("dur", pforever (d 0.13))
-    ,("amp", pforever (d 0.1))
-    ,("freq", pmidiCPS pz *@ d 0.25)]
-   ,psnew "speSynth" Nothing AddToTail 1
-    [("dur", pforever (d 0.13))
-    ,("amp", pforever (d 0.1))
-    ,("freq", pmidiCPS pz *@ d 2)]])
-  `papp`
-  pspeFreq
+  let d=pdouble; m=pmidiCPS pz
+  in  plam tdouble (ppar [mkspe m,mkspe (m *@ d 0.25),mkspe (m *@ d 2)])
+      `papp` pspeFreq
 
--- Unison
+-- Inter octave.
+pspe3a =
+  let d=pdouble
+  in  plam tdouble (mkspe (pmidiCPS $ pconcat [pz-@d 12,pz,pz+@d 12]))
+      `papp` pspeFreq
+
+-- Inter octave unison with repetation.
+pspe3b =
+  let d=pdouble; i=pint
+  in  plam tdouble
+      (ppar [mkspe' (d 0.13) (d 0.1) (pmidiCPS $ preplicate (i 4) (pz+@d 12))
+            ,mkspe' (d 0.26) (d 0.1) (pmidiCPS $ preplicate (i 2) pz)
+            ,mkspe' (d 0.52) (d 0.1) (pmidiCPS (pz-@d 24))])
+      `papp` pspeFreq
+
+-- Unison.
 pspe4a =
-  let d = pdouble
-      mkspe f =
-        psnew "speSynth" Nothing AddToTail 1
-        [("dur", pforever (d 0.13))
-        ,("amp", pforever (d 0.1))
-        ,("freq", f pz)]
-  in plam tdouble
-     (ppar
-      [mkspe pmidiCPS
-      ,mkspe (\x -> pmidiCPS x *@ d 0.9925)
-      ,mkspe (\x -> pmidiCPS x *@ d 1.002)])
-     `papp` pspeFreq
+  let d=pdouble; x=pmidiCPS pz
+  in  plam tdouble
+       (ppar
+        [mkspe x
+        ,mkspe (x *@ d 0.9925)
+        ,mkspe (x *@ d 1.002)])
+       `papp` pspeFreq
 
--- Non-unison
+-- Non-unison.
 pspe4b =
-  let d = pdouble
-      mkspe f =
-        psnew "speSynth" Nothing AddToTail 1
-        [("dur", pforever (d 0.13))
-        ,("amp", pforever (d 0.1))
-        ,("freq", f pspeFreq)]
-  in ppar
-      [mkspe pmidiCPS
-      ,mkspe (\x -> pmidiCPS x *@ pforever (d 0.9925))
-      ,mkspe (\x -> pmidiCPS x *@ pforever (d 1.002))]
-
+  let d = pdouble; x=pmidiCPS pspeFreq
+  in  ppar
+      [mkspe x
+      ,mkspe (x *@ pforever (d 0.9925))
+      ,mkspe (x *@ pforever (d 1.002))]
 
 lll01 = let d = pdouble in
   psnew "rspdef1" Nothing AddToHead 1
@@ -119,6 +103,13 @@ lll02 = let d = pdouble; i=pint in
   ,("atk", pforever (pdrange (d 0.001) (d 1)))]
 
 psw = pappend set03 (ppar [loop01, loop02, loop03])
+
+psw' =
+  withLept . flip send =<< bundle' 0 0
+  [ l_new "set03" set03
+  , l_new "loop01" loop01
+  , l_new "loop02" loop02
+  , l_new "loop03" loop03 ]
 
 loop01 = let d=pdouble; i=pint in
   psnew "rspdef1" Nothing AddToHead 1

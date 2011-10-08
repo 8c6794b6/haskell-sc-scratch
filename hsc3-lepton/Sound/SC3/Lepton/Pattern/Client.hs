@@ -26,13 +26,11 @@ module Sound.SC3.Lepton.Pattern.Client
 
 import Data.Fixed
 
-{-
 import Data.Binary (encode)
--}
 import Sound.OpenSoundControl
 
-import Sound.SC3.Lepton.Pattern.Interpreter.Bz
 import Sound.SC3.Lepton.Pattern.ToOSC
+import Sound.SC3.Lepton.Pattern.Interpreter.E
 
 import qualified Codec.Compression.Zlib as Z
 
@@ -69,7 +67,8 @@ bundle' unit dt oscs
 -- OSC Messages building functions
 
 -- | Add new pattern and run it.
-l_new :: String -> Bz (ToOSC Double) -> OSC
+-- l_new :: String -> Bz (ToOSC Double) -> OSC
+l_new :: String -> E () (ToOSC Double) -> OSC    
 l_new key pat = Message "/l_new" [String key, encodePattern pat]
 
 -- | Free pattern. When pattern with given key does not exist, do nothing.
@@ -84,12 +83,6 @@ l_freeAll = Message "/l_freeAll" []
 l_dump :: OSC
 l_dump = Message "/l_dump" []
 
-{-
-
-Not implemented yet.
-
--}
-
 -- | Pause pattern. When pattern with given key does not exist, do nothing.
 l_pause :: String -> OSC
 l_pause key = Message "/l_pause" [String key]
@@ -99,12 +92,15 @@ l_run :: String -> OSC
 l_run key = Message "/l_run" [String key]
 
 -- | Add new pattern, but not start it.
-l_add :: String -> Bz (ToOSC Double) -> OSC
+-- l_add :: String -> Bz (ToOSC Double) -> OSC
+l_add :: String -> E () (ToOSC Double) -> OSC
 l_add key pat = Message "/l_add" [String key, encodePattern pat]
 
 -- | Encode pattern to compressed Blob message.
-encodePattern :: Bz (ToOSC Double) -> Datum
-encodePattern = Blob . Z.compress . lazyByteStringP
+-- encodePattern :: Bz (ToOSC Double) -> Datum
+encodePattern :: E () (ToOSC Double) -> Datum
+encodePattern = Blob . Z.compress . encode . etree
+-- encodePattern = Blob . Z.compress . lazyByteStringP
 
 -- Alternative.
 --

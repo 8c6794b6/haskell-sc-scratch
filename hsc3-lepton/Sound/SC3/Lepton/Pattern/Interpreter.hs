@@ -1,36 +1,13 @@
-{-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE Rank2Types #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NoImplicitPrelude #-}
-------------------------------------------------------------------------------
--- |
--- Module      : $Header$
--- CopyRight   : (c) 8c6794b6
--- License     : BSD3
--- Maintainer  : 8c6794b6@gmail.com
--- Stability   : unstable
--- Portability : non-portable (Rank2Types, FlexibleContexts)
---
--- Interpreter of pattern DSL.
---
-module Sound.SC3.Lepton.Pattern.Interpreter
-  ( -- * Running patterns
-    R(..), toR, runP, runPIO, foldPIO, foldPIO_, mapPIO_, nan,
+{-|
+Module      : $Header$
+License     : BSD3
+Stability   : unstable
+Portability : portable
 
-    -- * Showing patterns
-    S(..), toS, showP,
+Module to exporting pattern interpreters.
+-}
+module Sound.SC3.Lepton.Pattern.Interpreter ( module All ) where
 
-    -- * ByteString builder and parser
-    Bz(..), toBz, byteStringP, lazyByteStringP, parseP,
-
-    -- * Syntax representation of patterns
-    Expr(..), toExpr, fromExpr, prettyP
-
-  ) where
-
-import Sound.SC3.Lepton.Pattern.ParseP
--- import Sound.SC3.Lepton.Pattern.Interpreter.Fusion
-import Sound.SC3.Lepton.Pattern.Interpreter.Bz
-import Sound.SC3.Lepton.Pattern.Interpreter.R
-import Sound.SC3.Lepton.Pattern.Interpreter.S
-import Sound.SC3.Lepton.Pattern.Interpreter.Expr
+import Sound.SC3.Lepton.Pattern.Interpreter.E as All
+import Sound.SC3.Lepton.Pattern.Interpreter.L as All
+import Sound.SC3.Lepton.Pattern.Interpreter.S as All

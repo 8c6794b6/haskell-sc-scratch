@@ -310,16 +310,6 @@ instance Pfsm Bz where
 ------------------------------------------------------------------------------
 -- Lambda
 
--- instance Plam Bz where
---   plam f = Bz $ \h ->
---     case "x" <> fromString (show h) of
---       x -> case mkList (flip unBz (succ h)) (f (Bz $ const x)) of
---         body -> "plam (\\" <> x <> " -> " <> body <> ")"
-
--- instance Papp Bz where
---   papp f e = Bz $ \h ->
---     "papp" <> space <> braced (unBz f h) <> space <> braced (unBz e h)
-
 instance Plam Bz where
   plam f = Bz $ \h ->
     case "x" <> fromString (show h) of

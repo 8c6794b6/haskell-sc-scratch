@@ -9,7 +9,7 @@ Portability : portable
 Expression syntax tree used for serialization/deserialization.
 
 -}
-module Scratch.Pattern.Etree
+module Sound.SC3.Lepton.Pattern.Expression.Etree
   ( Etree(..), ppTree, ppTyTree
   ) where
 
@@ -79,9 +79,10 @@ ppTree e = case e of
     text "Leaf" <+> int (Bin.decode x :: Int)
   where
     unParam es = case es of
-      []            -> []
-      (Leaf k:e:ps) ->
-        parens (text (Bin.decode k) <> comma $$ ppTree e) : unParam ps
+      []          -> []
+      Leaf k:x:xs ->
+        parens (text (Bin.decode k) <> comma $$ ppTree x) : unParam xs
+      _             -> error "Malformed parameters"
     unChoices es = case es of
       [] -> []
       n:Leaf js:ps ->
@@ -89,6 +90,8 @@ ppTree e = case e of
          (text "Leaf" <+>
           (brackets $ hcat $ punctuate comma (map int (Bin.decode js))))):
         unChoices ps
+      _ -> error "Malformed parameters"
+
 
 ppTyTree :: Etree -> Doc
 ppTyTree e = case e of

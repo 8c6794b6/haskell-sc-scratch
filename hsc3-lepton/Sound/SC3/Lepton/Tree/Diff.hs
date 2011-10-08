@@ -236,7 +236,7 @@ ddm a b = do
 (>>*) :: Transport t => (t -> IO a) -> (t -> IO b) -> t -> IO b
 (act1 >>* act2) fd = do
   sessId <- randomRIO (0,2^(16::Int))
-  act1 fd
+  _ <- act1 fd
   send fd $ sync sessId
   Message _ [Int replyId] <- wait fd "/synced"
   res <- act2 fd

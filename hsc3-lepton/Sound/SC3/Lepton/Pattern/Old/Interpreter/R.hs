@@ -13,14 +13,20 @@ Portability : non-portable (FlexibleInstances)
 
 -}
 module Sound.SC3.Lepton.Pattern.Interpreter.R
-  ( R(..)
+  ( -- * Guts
+    R(..)
   , toR
   , runP
   , runPIO
   , mapPIO_
   , foldPIO
   , foldPIO_
+    -- * Utils
   , nan
+  , gens
+  , initialT
+  , shiftT
+  , mergeL
   ) where
 
 import Control.Applicative (Applicative(..), (<$>))
@@ -33,8 +39,9 @@ import Prelude hiding
 import System.Random (Random(..), RandomGen(..))
 
 import Control.Monad.Stream
+import Data.Binary (Binary)
 import Data.List.Stream
-import Sound.SC3
+import Sound.SC3 hiding (Binary)
 import System.Random.Mersenne.Pure64
 import System.Random.Shuffle (shuffle')
 
@@ -317,15 +324,13 @@ instance Pfsm R where
             idx' = head $ shuffle' js (length js) g
         in  runP p g ++ go idx' g'
 
-instance Psnew R where
-  psnew = mkSnew
+instance Psnew R where psnew = mkSnew
 
-instance Pnset R where
-  pnset = mkNset
+instance Pnset R where pnset = mkNset
 
 -- | Make 's_new' messages.
 mkSnew ::
-  Num a =>
+  (Binary a, Num a) =>
   String -> Maybe Int -> AddAction -> Int -> [(String, R a)] -> R (ToOSC a)
 mkSnew def nid aa tid ms = ToOSC sn <$> ms' where
   sn = Snew def nid aa tid
@@ -338,7 +343,7 @@ mkSnew def nid aa tid ms = ToOSC sn <$> ms' where
     -> [(String, R Double)] -> R (ToOSC Double) #-}
 
 -- | Make 'n_set' messages.
-mkNset :: Num a => Int -> [(String, R a)] -> R (ToOSC a)
+mkNset :: (Binary a, Num a) => Int -> [(String, R a)] -> R (ToOSC a)
 mkNset nid ms = ToOSC o <$> ms' where
   o = Nset nid
   ms' = R $ \g ->
@@ -369,47 +374,11 @@ shiftT t ms = case ms of
   _ -> []
 {-# INLINE shiftT #-}
 
-{-
-
--- | Same as @(\<*\>)@.
-instance Papp R where
-  papp = (<*>)
-
-instance Plam R where
-  plam = rlam
-
-rlam :: (R a -> R b) -> R (a->b)
-rlam f = R $ \g -> rec (repeat func) (gens g)
-   where
-     -- rec (h:hs) (j:js) = h j : rec hs js
-     -- rec _ _ = []
-     rec = zipWith ($)
-     func g' x = head $ unR (f (R $ \_ -> [x])) g'
-
--}
-
--- instance Plam R where
---   plam f = R $ \g ->
---     repeat (\x -> concat $ zipWith unR (f (R $ \_ -> [x])) (gens g))
-
--- instance Papp R where
---   papp f p = R $ \g -> concat $ zipWith ($) (unR f g) (unR p g)
-
 instance Plam R where
   plam k = R $ \_ -> repeat (\x -> (k (R $ const [x])))
 
 instance Papp R where
   papp k p = R $ \g -> unR (pconcat $ zipWith ($) (unR k g) (unR p g)) g
-
-rk = R (\_ -> [\x -> plist [x,x,x]])
-ra = R (\_ -> [1,2,3])
-
--- rlam' :: (R a -> R b) -> R (a->b)
--- rlam' f = R $ \g -> cycle [\x -> head $ unR (f (R $ \_ -> [x])) g]
--- rlam' f = R $ \g -> rec (repeat func) (gens g)
---    where
---      rec (h:hs) (j:js) = h j : rec hs js
---      func g' x = unR (f (R $ const x)) g'
 
 ------------------------------------------------------------------------------
 -- Util

@@ -18,6 +18,7 @@ implements all shown classes.
 -}
 module Sound.SC3.Lepton.Pattern.ParseP
   ( parseP
+  , parsePR
   , oPatterns
   , iPatterns
   , dPatterns
@@ -39,7 +40,12 @@ import qualified Data.Attoparsec.Char8 as A
 
 import Sound.SC3.Lepton.Pattern.Dummy ()
 import Sound.SC3.Lepton.Pattern.Interpreter.Bz
+import Sound.SC3.Lepton.Pattern.Interpreter.R
+import Sound.SC3.Lepton.Pattern.ToOSC
 import qualified Sound.SC3.Lepton.Pattern.Expression as P
+
+parsePR :: LC8.ByteString -> Either String (R (ToOSC Double))
+parsePR = parseP
 
 parseP = eitherResult . parse oPatterns
 

@@ -12,25 +12,12 @@ Rewrite of Huh using pattern pattern classes in PC02.
 -}
 module Scratch.Pattern.Huh2 where
 
-import Data.Binary (encode, decode)
 import Sound.SC3
-
-import Sound.SC3.Lepton.Pattern.Expression (Mergable(..))
-import Sound.SC3.Lepton.Pattern.Client
-import Sound.SC3.Lepton.Pattern.Play
-import Sound.SC3.Lepton.Pattern.Interpreter.R ()
-import Sound.SC3.Lepton.Tree
-
+import Sound.SC3.Lepton
 import Scratch.Huh (n0)
-import Scratch.Pattern.Deserialize
-import Scratch.Pattern.E
-import Scratch.Pattern.Etree
-import Scratch.Pattern.PC02
-import Scratch.Pattern.L3
-import Scratch.Pattern.S
-
 import qualified Codec.Compression.Zlib as Z
 
+main :: IO ()
 main = withSC3 runHuh
 
 runHuh fd = do
@@ -85,7 +72,8 @@ huh3Pb =
 -- Percussive tones
 
 kikP = pconcat (map (mkSN "cf2kik" 13 "t_trig") [kikPa,kikPb])
-kikPa = pseq (i 4) (ds [1,0,0,0, 1,0,0,0, 0.8,0,0,0, 1,0,0,0])
+kikPa =
+  pseq (i 4) (ds [1,0,0,0, 1,0,0,0, 0.8,0,0,0, 1,0,0,0])
 kikPb =
   pcycle
   [pseq (i 3)
@@ -108,12 +96,12 @@ snrPb =
     [ pseq (i 3)
       [ pseq (i 3) [d 0,d 0,pdrange (d 0.6) (d 1),d 0]
       , pconcat [d 0,d 0,pdrange (d 0.6) (d 0.8), pdrange (d 0.6) (d 0.8)]]
-    , pconcat [ pseq (i 2) [d 0,d 0,pdrange (d 0.6) (d 0.8),d 0]
-              , prand (i 8) [d 0, d 0.5, d 0.75, d 1 ]]]
+    , pconcat [pseq (i 2) [d 0,d 0,pdrange (d 0.6) (d 0.8),d 0]
+              , prand (i 8) [d 0, d 0.5, d 0.75, d 1]]]
   , pseq (i 3) [ d 0, d 0, d 0, d 0
                , prand (i 1) [d 0.9, d 1.0], d 0, d 0, d 0
                , d 0, d 0, d 0, d 0
-               , prand (i 4) (ds [1,0.8,0]) ]
+               , prand (i 4) (ds [1,0.8,0])]
   , pconcat [ d 0, d 0, d 0, d 0
             , prand (i 1) [d 0.9, d 1.0], d 0, d 0, d 0
             , prand (i 8) (ds [0,0,0,0.5,0.6,0.7,0.8,0.9,1])]]

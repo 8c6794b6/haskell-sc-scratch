@@ -40,9 +40,7 @@ import Control.Monad.Reader
 import Data.Data
 import Data.Ord (comparing)
 
-{-
-import Data.Binary (Binary, decode)
--}
+import Data.Binary (decode)
 import Sound.OpenSoundControl
 import Sound.SC3 hiding (Binary, env)
 
@@ -53,6 +51,10 @@ import qualified Data.List as L
 import qualified Data.Map as M
 
 import Sound.SC3.Lepton.Pattern
+
+-- import Scratch.Pattern.Parse8
+-- import Scratch.Pattern.Etree
+-- import Scratch.Pattern.L3
 
 default (Integer, Double)
 
@@ -116,7 +118,8 @@ data Thread = Thread
   { -- | Status of this thread.
     tState :: ThreadState
     -- | Pattern used by this thread.
-  , tPat :: R (ToOSC Double)
+  -- , tPat :: R (ToOSC Double)
+  , tPat :: L () (ToOSC Double)
     -- | Lock used for pausing thread.
   , tLock :: MVar Double
   } deriving (Eq)
@@ -228,29 +231,32 @@ runLPause time key = modifyEnv $ \env ->
       return $ env {envThreads = M.adjust (const t) key (envThreads env)}
     _ -> return env
 
--- forkNewThread :: Maybe Time -> String -> R (ToOSC Double) -> ServerLoop ()
--- forkNewThread time key pat = do
---   mvar <- ask
---   modifyEnv $ \env -> do
---     lck <- liftIO $ newMVar ()
---     tid <- liftIO $ forkIO $ withTransport (fromConInfo $ envSC env) $ \fd ->
---       bracket
---         (do send fd (notify True)
---             now <- utcr
---             time' <- maybe (return $ UTCr now)
---               (\t -> return $ if UTCr now > t then (UTCr now) else t) time
---             trid <- newNid
---             return (time',trid,fd))
---         (\(_,trid,fd') -> do
---             let f (Thread _ p l) = Thread Finished p l
---             modifyMVar_ mvar $ \env' -> do
---               return $ env' {envThreads=M.adjust f key (envThreads env')}
---             send fd' $ bundle immediately [notify False, n_free [trid]])
---         (\(time',trid,fd') -> runMsgFrom time' pat trid fd')
---     let t = Thread (Running tid) pat lck
---     return $ env {envThreads=M.insert key t (envThreads env)}
-
+{-
 forkNewThread :: Maybe Time -> String -> R (ToOSC Double) -> ServerLoop ()
+forkNewThread time key pat = do
+  mvar <- ask
+  modifyEnv $ \env -> do
+    lck <- liftIO $ newMVar ()
+    tid <- liftIO $ forkIO $ withTransport (fromConInfo $ envSC env) $ \fd ->
+      bracket
+        (do send fd (notify True)
+            now <- utcr
+            time' <- maybe (return $ UTCr now)
+              (\t -> return $ if UTCr now > t then (UTCr now) else t) time
+            trid <- newNid
+            return (time',trid,fd))
+        (\(_,trid,fd') -> do
+            let f (Thread _ p l) = Thread Finished p l
+            modifyMVar_ mvar $ \env' -> do
+              return $ env' {envThreads=M.adjust f key (envThreads env')}
+            send fd' $ bundle immediately [notify False, n_free [trid]])
+        (\(time',trid,fd') -> runMsgFrom time' pat trid fd')
+    let t = Thread (Running tid) pat lck
+    return $ env {envThreads=M.insert key t (envThreads env)}
+-}
+
+-- forkNewThread :: Maybe Time -> String -> R (ToOSC Double) -> ServerLoop ()
+forkNewThread :: Maybe Time -> String -> L () (ToOSC Double) -> ServerLoop ()
 forkNewThread time key pat = do
   mvar <- ask
   modifyEnv $ \env -> do
@@ -332,9 +338,13 @@ getThreadId (Thread st _ _) = case st of
   Paused tid  -> Just tid
   _           -> Nothing
 
+decodePattern :: BL.ByteString -> Either String (L () (ToOSC Double))
+decodePattern = fmap toL . t2l . decode . Z.decompress
+
+{-
 decodePattern :: BL.ByteString -> Either String (R (ToOSC Double))
 decodePattern = fmap toR . parseP . Z.decompress
-
+-}
 {-
 decodePattern pat = toR <$> fromExpr (decode $ Z.decompress pat)
 -}

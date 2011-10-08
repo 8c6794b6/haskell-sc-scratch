@@ -1,228 +1,202 @@
-{-# LANGUAGE Rank2Types #-}
-{-# LANGUAGE FlexibleContexts #-}
 {-|
 Module      : $Header$
 CopyRight   : (c) 8c6794b6
 License     : BSD3
 Maintainer  : 8c6794b6@gmail.com
 Stability   : unstable
-Portability : non-portable
+Portability : portable
 
-'S' for showing patterns.
-
+Simple string representation for pattern.
 -}
-module Sound.SC3.Lepton.Pattern.Interpreter.S where
+module Sound.SC3.Lepton.Pattern.Interpreter.S
+  ( S(..)
+  , toS
+  , view
+  ) where
 
-import Control.Applicative
-import Data.Data
-import Text.Show.Functions ()
+import Sound.SC3.Lepton.Pattern.Expression.Class
 
-import Sound.SC3
+newtype S h a = S {unS :: Int -> String}
 
-import Sound.SC3.Lepton.Pattern.Expression
-import Sound.SC3.Lepton.Pattern.ToOSC
-
--- | \"S\" for showing patterns.
---
--- Enumeration for floating points are not working here also.
--- fromEnum and toEnum are assuming pval only.
---
-newtype S s = S {unS :: forall a. Show s => a -> String}
-
--- | Alias of 'id' for fixing type.
-toS :: S a -> S a
+toS :: S h a -> S h a
 toS = id
 
--- | Show string representation of pattern.
-showP :: Show a => S a -> String
-showP p = unS p ()
+view :: S h a -> String
+view e = unS e 0
 
-instance (Show a, Eq a) => Eq (S a) where
-  a == b = showP a == showP b
+viewSs :: [S h a] -> Int -> String
+viewSs ss n = case ss of
+  [] -> "[]"; (t:ts) -> '[': unS t n ++ go ts
+  where go us = case us of [] -> "]"; (v:vs) -> ',' : unS v n ++ go vs
 
-instance Show a => Show (S a) where
-  show = showP
+instance Show (S h a) where
+  show = view
 
-instance Typeable1 S where
-  typeOf1 _ =
-    mkTyConApp (mkTyCon "Sound.SC3.Lepton.Pattern.Interpreter.S.S") []
+instance Eq (S h a) where
+  a == b = unS a 0 == unS b 0
 
--- | Plain numbers would be shown as pval.
-instance (Num a) => Num (S a) where
-  a + b = S $ \_ -> "(" ++ showP a ++ ") + (" ++ showP b ++ ")"
-  a * b = S $ \_ -> "(" ++ showP a ++ ") * (" ++ showP b ++ ")"
-  a - b = S $ \_ -> "(" ++ showP a ++ ") - (" ++ showP b ++ ")"
-  abs n = S $ \_ -> "abs (" ++ showP n ++ ")"
-  negate n = S $ \_ -> "negate (" ++ showP n ++ ")"
-  signum n = S $ \_ -> "signum (" ++ showP n ++ ")"
-  fromInteger n = S $ \_ -> "pval " ++ show (fromInteger n :: Int)
+------------------------------------------------------------------------------
+-- Helper functions
 
-instance (Fractional a) => Fractional (S a) where
-  a / b = S $ \_ -> "(" ++ showP a ++ ") / (" ++ showP b ++ ")"
-  recip a = S $ \_ -> "recip (" ++ showP a ++ ")"
-  fromRational n = S $ \_ -> "pval " ++ show (fromRational n :: Double)
+constS :: Show a => String -> a -> S h b
+constS str a = S $ \_ -> str ++ " " ++ show a
 
-instance (Show a, Enum a) => Enum (S a) where
-  pred n = S $ \_ -> "pred (" ++ showP n ++ ")"
-  succ n = S $ \_ -> "succ (" ++ showP n ++ ")"
-  -- XXX: how to tell the type?
-  fromEnum n = case words $ showP n of
-    [x]         -> read x
-    ["pval", x] -> fromEnum (read x :: Double)
-    e           -> error $ "fromEnum: " ++ show e
-  toEnum n = S $ \_ -> "pval " ++ show n
+litS :: String -> S h a
+litS str = S $ \_ -> str
 
-instance Functor S where
-  fmap f (S _) = S (\_ -> show f)
+binS :: String -> S h1 a1 -> S h2 a2 -> S h a
+binS str a b = S $ \h -> concat ["(",unS a h,") ",str," (",unS b h,")"]
 
-instance Applicative S where
-  pure a = S (\_ -> show a)
-  S f <*> S _ = S (\_ -> show f)
+liftS :: String -> S h1 a1 -> S h2 a2
+liftS str a = S $ \h -> concat [str," (",unS a h,")"]
 
-instance (Show a, Ord a) => Ord (S a) where
-  compare _ _ = EQ
+liftS2 :: String -> S h1 a1 -> S h2 a2 -> S h3 a3
+liftS2 str a b = S $ \h -> concat [str," (",unS a h,") (",unS b h,")"]
 
-instance Floating a => Floating (S a) where
-  pi = S (const "pi")
-  exp = showFloating "exp"
-  log = showFloating "log"
-  sqrt = showFloating "sqrt"
-  a ** b = S (const $ "(" ++ show a ++ ") ** (" ++ show b ++ ")")
-  sin = showFloating "sin"
-  tan = showFloating "tan"
-  cos = showFloating "cos"
-  asin = showFloating "asin"
-  atan = showFloating "atan"
-  acos = showFloating "acos"
-  sinh = showFloating "sinh"
-  tanh = showFloating "tanh"
-  cosh = showFloating "cosh"
-  asinh = showFloating "asinh"
-  atanh = showFloating "atanh"
-  acosh = showFloating "acosh"
+liftSs :: String -> [S h1 a1] -> S h2 a2
+liftSs str ss = S $ \h -> concat [str ++ " " ++ viewSs ss h]
 
-showFloating :: Show a => String -> a -> S s
-showFloating f x = S (const $ f ++ " (" ++ show x ++ ")")
+liftS1s :: String -> S h1 a1 -> [S h2 a2] -> S h3 a3
+liftS1s str s ss = S $ \h -> concat [str," (",unS s h,") ",viewSs ss h]
 
-instance UnaryOp a => UnaryOp (S a) where
-  ampDb = showFloating "ampDb"
-  asFloat = showFloating "asFloat"
-  asInt = showFloating "asInt"
-  bitNot = showFloating "bitNot"
-  cpsMIDI = showFloating "cpsMIDI"
-  cpsOct = showFloating "cpsOct"
-  cubed = showFloating "cubed"
-  dbAmp = showFloating "dbAmp"
-  distort = showFloating "distort"
-  frac = showFloating "frac"
-  isNil = showFloating "isNil"
-  log10 = showFloating "log10"
-  log2 = showFloating "log2"
-  midiCPS = showFloating "midiCPS"
-  midiRatio = showFloating "midiRatio"
-  notE = showFloating "notE"
-  notNil = showFloating "notNil"
-  octCPS = showFloating "octCPS"
-  ramp_ = showFloating "ramp_"
-  ratioMIDI = showFloating "ratioMIDI"
-  softClip = showFloating "softClip"
-  squared = showFloating "squared"
+------------------------------------------------------------------------------
+-- Instances
 
---
--- Instance for expressions
---
+instance Pint S where
+  pint = constS "pint"
+  (+!) = binS "+!"
+  (*!) = binS "*!"
+  (-!) = binS "-!"
+  pinegate = liftS "pinegate"
+  piabs = liftS "piabs"
+  pisignum = liftS "pisignum"
+  pirange = liftS2 "pirange"
 
-instance Pval S where
-  pval a = S $ \_ -> "pval " ++ show a
-
-instance Pempty S where
-  pempty = S $ \_ -> "pempty"
-
-instance Plist S where
-  plist a = S $ \_ -> "plist " ++ show a
-
-instance Pconcat S where
-  pconcat p = S $ \_ -> "pconcat " ++ showList p ""
+instance Pdouble S where
+  pdouble = constS "pdouble"
+  (+@) = binS "+@"
+  (*@) = binS "*@"
+  (-@) = binS "-@"
+  pdnegate = liftS "pdnegate"
+  pdabs = liftS "pdabs"
+  pdsignum = liftS "pdsignum"
+  pdrange = liftS2 "pdrange"
+  (/@) = binS "/@"
+  precip = liftS "precip"
+  ppi = litS "ppi"
+  pexp = liftS "pexp"
+  psqrt = liftS "psqrt"
+  plog = liftS "plog"
+  (**@) = binS "**@"
+  plogBase = liftS2 "plogBase"
+  psin = liftS "psin"
+  ptan = liftS "ptan"
+  pcos = liftS "pcos"
+  pasin = liftS "pasin"
+  patan = liftS "patan"
+  pacos = liftS "pacos"
+  psinh = liftS "psinh"
+  ptanh = liftS "ptanh"
+  pcosh = liftS "pcosh"
+  pasinh = liftS "pasinh"
+  patanh = liftS "patanh"
+  pacosh = liftS "pacosh"
+  pampDb = liftS "pampDb"
+  pasFloat = liftS "pasFloat"
+  pasInt = liftS "pasInt"
+  pbitNot = liftS "pbitNot"
+  pcpsMIDI = liftS "pcpsMIDI"
+  pcpsOct = liftS "pcpsOct"
+  pcubed = liftS "pcubed"
+  pdbAmp = liftS "pdbAmp"
+  pdistort = liftS "pdistort"
+  pfrac = liftS "pfrac"
+  pisNil = liftS "pisNil"
+  plog10 = liftS "plog10"
+  plog2 = liftS "plog2"
+  pmidiCPS = liftS "pmidiCPS"
+  pmidiRatio = liftS "pmidiRatio"
+  pnotE = liftS "pnotE"
+  pnotNil = liftS "pnotNil"
+  poctCPS = liftS "poctCPS"
+  pramp_ = liftS "pramp_"
+  pratioMIDI = liftS "pratioMIDI"
+  psoftClip = liftS "psoftClip"
+  psquared = liftS "psquared"
 
 instance Pappend S where
-  pappend a b = S $ \_ -> "pappend (" ++ showP a ++ ") (" ++ showP b ++ ")"
+  pappend = liftS2 "pappend"
 
-instance Pseq S where
-  pseq n p = S $ \_ -> "pseq (" ++ showP n ++ ") " ++ showList p ""
+instance Pconcat S where
+  pconcat = liftSs "pconcat"
 
 instance Preplicate S where
-  preplicate n p = S $ \_ -> "preplicate (" ++ showP n ++ ") (" ++ showP p ++ ")"
+  preplicate = liftS2 "preplicate"
 
-instance Prand S where
-  prand n p = S $ \x -> "prand (" ++ unS n x ++ ") " ++ showList p ""
-
-instance Prange S where
-  prange lo hi = S $ \_ -> "prange (" ++ showP lo ++ ") (" ++ showP hi ++ ")"
-
-instance Prandom S where
-  prandom = S $ \_ -> "prandom"
-
-instance Pshuffle S where
-  pshuffle p = S $ \_ -> "pshuffle " ++ showList p ""
-
-instance Pchoose S where
-  pchoose n p = S $ \_ -> "pchoose (" ++ showP n ++ ") " ++ showList p ""
-
-instance Pcycle S where
-  pcycle p = S $ \_ -> "pcycle " ++ showList p ""
-
-instance Prepeat S where
-  prepeat a = S $ \_ -> "prepeat " ++ show a
+instance Pseq S where
+  pseq = liftS1s "pseq"
 
 instance Pforever S where
-  pforever p = S $ \_ -> "pforever (" ++ show p ++ ")"
+  pforever = liftS "pforever"
 
--- instance Papp S where
---   papp _ _ = S $ \_ -> "papp "
+instance Pcycle S where
+  pcycle = liftSs "pcycle"
 
-instance Pmerge S where
-  pmerge a b = S (\_ -> "pmerge (" ++ showP a ++ ") (" ++ showP b ++ ")")
+instance Prand S where
+  prand = liftS1s "prand"
 
-instance Ppar S where
-  ppar ps = S (\_ -> "ppar " ++ showList ps "")
+instance Pshuffle S where
+  pshuffle = liftSs "prand"
 
-instance Show a => Mergable (S a) where
-  merge a b = S (\_ -> unwords ["merge", show a, show b])
-
-instance PtakeT S where
-  ptakeT t p = S $ \_ -> "ptakeT " ++ show t ++ " (" ++ showP p ++ ")"
-
-instance PdropT S where
-  pdropT t p = S $ \_ -> "pdropT " ++ show t ++ " (" ++ showP p ++ ")"
+instance Ptuple S where
+  pzip = liftS2 "pzip"
+  pfst = liftS "pfst"
+  psnd = liftS "psnd"
 
 instance Pfsm S where
-  pfsm is cs = S $ \_ -> "pfsm " ++ showList is "" ++ showList cs ""
+  pfsm is ss = S $ \h ->
+    let f xs = case xs of
+          []            -> ""
+          ((p,js):rest) -> concat ["[(",unS p h,",",show js,")",g rest]
+        g xs = case xs of
+          []            -> "]"
+          ((p,js):rest) -> concat [",(",unS p h,",",show js,")",g rest]
+    in  "pfsm " ++ show is ++ " " ++ f ss
+
+instance Plambda S where
+  pz = S $ \h -> "x" ++ show (pred h)
+  ps v = S $ \h -> unS v (pred h)
+  plam t k = S $ \h ->
+    let x = "x" ++ show h
+    in  "plam (\\" ++ x ++ " :: " ++ show t ++ " -> " ++ unS k (succ h) ++ ")"
+  papp = liftS2 "papp"
 
 instance Psnew S where
-  psnew def nid aa tid ms =
-    S (\_ -> show (Snew def nid aa tid) ++ " " ++ show ms)
+  psnew def nid aa tid ms = S $ \h ->
+    "psnew " ++ unwords [show def,show nid,show aa,show tid] ++ " " ++ unParams ms h
 
 instance Pnset S where
-  pnset i ms =
-    S (\_ -> show (Nset i) ++ " " ++ show ms)
+  pnset nid ms = S $ \h ->
+    "pnset " ++ show nid ++ " " ++ unParams ms h
 
--- instance Plam S where
---   plam f = S $ \_ -> "\\x -> " ++ unS (f (S $ const "")) () ++ ")"
+instance Ptake S where
+  ptakeT n p = S $ \h -> "ptakeT (" ++ unS n h ++ ") (" ++ unS p h ++ ")"
 
--- instance Papp S where
---   papp a b = S $ \x -> "(" ++ unS a x ++ " " ++ unS b x ++ ")"
+instance Pdrop S where
+  pdropT n p = S $ \h -> "pdropT (" ++ unS n h ++ ") (" ++ unS p h ++ ")"
 
-instance Plam S where
-  plam e = S $ \_ ->
-    "plam (\\" ++ "x -> " ++ showP (e (S (\_ -> "x"))) ++ ")"
+unParams :: Show a => [(a, S h a1)] -> Int -> String
+unParams ns i = case ns of
+  [] -> "[]"
+  ((k,v):ns') ->
+    '[' : ("(" ++ show k ++ "," ++ unS v i ++ ")" ++ unSs' ns' i)
+  where
+    unSs' os j = case os of
+      [] -> "]"
+      ((k,v):xs) -> ",(" ++ show k ++ "," ++ unS v j ++ ")" ++ unSs' xs j
 
-showSs :: [String] -> String
-showSs ss = case ss of
-  []     -> "[]"
-  (x:xs) -> '[' : x ++ showSs' xs where
-    showSs' ys = case ys of
-      []     -> "]"
-      (z:zs) -> ',' : z ++ showSs' zs
+instance Pmerge S where
+  pmerge = liftS2 "pmerge"
 
-instance Papp S where
-  papp f e = S $ \h -> "papp (" ++ unS f () ++ " " ++ unS e () ++ ")"
+instance Ppar S where
+  ppar = liftSs "ppar"

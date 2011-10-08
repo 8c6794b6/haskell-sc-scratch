@@ -15,10 +15,10 @@ Module to hold Term and VerEnv.
 Separated to this module due to use in TemplateHaskell code.
 
 -}
-module Scratch.Pattern.Term00 where
+module Sound.SC3.Lepton.Pattern.Expression.Term where
 
-import Scratch.Pattern.Type00
-import Scratch.Pattern.PC02
+import Sound.SC3.Lepton.Pattern.Expression.Class
+import Sound.SC3.Lepton.Pattern.Expression.Type
 
 -- | Variable environment.
 class VarEnv g h | g -> h where

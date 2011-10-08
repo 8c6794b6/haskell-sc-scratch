@@ -14,9 +14,12 @@ L Instances of classes in PC02, using System.Random.MWC.
 Couple instances are using unsafe function.
 
 -}
-module Scratch.Pattern.L3
+module Sound.SC3.Lepton.Pattern.Interpreter.L
   ( L(..), toL
-  , runLIO, mapLIO_, foldLIO, foldLIO_
+  , runLIO
+  , mapLIO_
+  , foldLIO
+  , foldLIO_
   ) where
 
 import Control.Applicative
@@ -26,18 +29,15 @@ import System.IO.Unsafe
 import Control.Monad.Primitive
 import Sound.SC3
 import System.Random.MWC
+import System.Random.Shuffle
 
-import Sound.SC3.Lepton.Pattern.Expression (Mergable(..))
-import Sound.SC3.Lepton.Pattern.Interpreter.R
 import Sound.SC3.Lepton.Pattern.ToOSC
-import Sound.SC3.Lepton.Pattern.Play
-
-import Scratch.Pattern.PC02
-import Scratch.Pattern.Type00
+import Sound.SC3.Lepton.Pattern.Expression.Class
 
 import qualified Data.IntMap as I
 import qualified Data.Map as M
 import qualified Data.Traversable as T
+import qualified System.Random as R
 
 ------------------------------------------------------------------------------
 -- L, with MWC random.
@@ -47,8 +47,6 @@ newtype L h a = L {unL :: h -> (Gen (PrimState IO)) -> IO [a]}
 
 toL :: L () a -> L () a
 toL = id
-
-runL (L l) g = l () g
 
 runLIO :: L () a -> IO [a]
 runLIO (l :: L () a) = withSystemRandom (unL l () :: GenIO -> IO [a])
@@ -67,15 +65,18 @@ foldLIO_ k z l = foldLIO k z l >> return ()
 
 constL2 :: a -> L h a
 constL2 x = L $ \_ _ -> return [x]
+{-# INLINE constL2 #-}
 
 liftL2 :: ([a] -> [b] -> [c]) -> L h a -> L h b -> L h c
 liftL2 f a b = L $ \h g -> liftA2 f (unL a h g) (unL b h g)
+{-# INLINE liftL2 #-}
 
 rangeL :: Variate a => L h a -> L h a -> L h a
 rangeL lo hi = L $ \h g -> do
   los <- unL lo h g
   his <- unL hi h g
   zipWithM uniformR (zip los his) (repeat g)
+{-# INLINE rangeL #-}
 
 predTL ::
   (Double -> Double -> Bool)
@@ -88,6 +89,42 @@ predTL cond t p = L $ \h g -> do
           (y:ys) | cond t' cur -> y : f (cur+getDur y) ys
                  | otherwise   -> []
     return $ f 0 p'
+{-# INLINE predTL #-}
+
+shiftT :: Num a => a -> [M.Map String a] -> [M.Map String a]
+shiftT t ms = case ms of
+  (m1:m2:r) ->
+    let m1' = M.adjust (const t) "dur" m1
+        t'  = M.findWithDefault 0 "dur" m1
+    in  (m1'):shiftT t' (m2:r)
+  [m1] ->
+    -- XXX:
+    -- Sending dummy silent event at the end of list
+    -- to receive /n_go response from server.
+    --
+    let m1' = M.adjust (const t) "dur" m1
+        t'  = M.findWithDefault 0 "dur" m1
+    in  [m1',M.fromList [("freq",0),("dur",t')]]
+  _ -> []
+{-# INLINE shiftT #-}
+
+initialT :: Num a => M.Map String a
+initialT = M.singleton "dur" 0
+{-# INLINE initialT #-}
+{-# SPECIALIZE initialT :: M.Map String Double #-}
+
+mergeL :: Double -> (Double,Double) ->
+          [ToOSC Double] -> [ToOSC Double] -> [ToOSC Double]
+mergeL _ _ [] [] = []
+mergeL t (ta,_) (a:as) [] = tadjust "dur" (const $ getDur a + ta - t) a : as
+mergeL t (_,tb) [] (b:bs) = tadjust "dur" (const $ getDur b + tb - t) b : bs
+mergeL t (ta,tb) (a:as) (b:bs)
+  | ua <= ub  = tadjust "dur" (const $ ua-t) a : mergeL ua (ua,tb) as (b:bs)
+  | otherwise = tadjust "dur" (const $ ub-t) b : mergeL ub (ta,ub) (a:as) bs
+  where
+    ua = ta + getDur a
+    ub = tb + getDur b
+{-# INLINE mergeL #-}
 
 ------------------------------------------------------------------------------
 -- Base classes
@@ -97,10 +134,7 @@ instance Functor (L h) where
 
 instance Applicative (L h) where
   pure x = L $ \_ _ -> return $ repeat x
-  L a <*> L b = L $ \h g -> do
-    as <- a h g
-    bs <- b h g
-    return $ zipWith ($) as bs
+  L a <*> L b = L $ \h g -> liftM2 (zipWith ($)) (a h g) (b h g)
 
 instance Monad (L h) where
   return x = L $ \_ _ -> return [x]
@@ -127,12 +161,6 @@ instance Fractional a => Fractional (L h a) where
   (/) = liftA2 (/)
   recip = fmap recip
   fromRational x = L $ \_ _ -> return [fromRational x]
-
-------------------------------------------------------------------------------
--- For Audible instance
-
-instance Playable (L ()) where
-  playIO = foldLIO_
 
 ------------------------------------------------------------------------------
 -- Patterns
@@ -225,16 +253,17 @@ instance Pcycle L where
   pcycle = pforever . pconcat
 
 instance Prand L where
-  prand n ps = L $ \h g0 -> do
+  prand n es = L $ \h g0 -> do
     num <- sum `liftM` (unL n h g0)
     let go g' = do
-          i <- uniformR (0,length ps-1) g'
-          unL (ps!!i) h g'
+          i <- uniformR (0,length es-1) g'
+          unL (es!!i) h g'
     concat `liftM` replicateM num (go g0)
 
 instance Pshuffle L where
-  pshuffle ps = L $ \h g0 -> do
-    undefined
+  pshuffle ls = L $ \h g0 -> do
+    ls' <- pconcat <$> (shuffle' ls (length ls) <$> R.newStdGen)
+    unL ls' h g0
 
 instance Ptuple L where
   pzip = liftL2 zip
@@ -243,9 +272,9 @@ instance Ptuple L where
 
 -- XXX: Using 'unsafeInterleaveIO'.
 instance Pfsm L where
-  pfsm is ps = L $ \h g -> do
+  pfsm is ls = L $ \h g -> do
     ini <- uniformR (0,length is-1) g
-    let cm = I.fromList (zip [0..] ps)
+    let cm = I.fromList (zip [0..] ls)
         go idx = case I.lookup idx cm of
           Nothing -> return []
           Just (p,[]) -> unL p h g
@@ -279,7 +308,7 @@ instance Pnset L where
     return $ fmap (ToOSC sn) (tail $ shiftT 0 $ initialT : ms')
 
 instance Pmerge L where
-  pmerge = liftL2 merge
+  pmerge = liftL2 (mergeL 0 (0,0))
 
 instance Ppar L where
   ppar = foldr1 pmerge

@@ -59,14 +59,17 @@ library
     Sound.SC3.Lepton.Parser.SynthDef
     Sound.SC3.Lepton.Pattern
     Sound.SC3.Lepton.Pattern.Client
-    Sound.SC3.Lepton.Pattern.Dummy
+    Sound.SC3.Lepton.Pattern.Deserialize
     Sound.SC3.Lepton.Pattern.Expression
+    Sound.SC3.Lepton.Pattern.Expression.Class
+    Sound.SC3.Lepton.Pattern.Expression.Etree
+    Sound.SC3.Lepton.Pattern.Expression.Term
+    Sound.SC3.Lepton.Pattern.Expression.Type
+    Sound.SC3.Lepton.Pattern.Expression.THHelper
     Sound.SC3.Lepton.Pattern.Interpreter
-    Sound.SC3.Lepton.Pattern.Interpreter.Bz
-    Sound.SC3.Lepton.Pattern.Interpreter.Expr
-    Sound.SC3.Lepton.Pattern.Interpreter.R
+    Sound.SC3.Lepton.Pattern.Interpreter.E
+    Sound.SC3.Lepton.Pattern.Interpreter.L
     Sound.SC3.Lepton.Pattern.Interpreter.S
-    Sound.SC3.Lepton.Pattern.ParseP
     Sound.SC3.Lepton.Pattern.Play
     Sound.SC3.Lepton.Pattern.Server
     Sound.SC3.Lepton.Pattern.ToOSC
@@ -98,13 +101,16 @@ library
     hsc3 >= 0.10,
     mersenne-random-pure64,
     mtl,
+    mwc-random,
     parallel,
     parsec >= 3.0,
     pretty,
+    primitive,
     random,
     random-shuffle,
     stream-fusion >= 0.1.2.2,
     syb,
+    template-haskell,
     uniplate >= 1.6,
     unordered-containers,
     vector,

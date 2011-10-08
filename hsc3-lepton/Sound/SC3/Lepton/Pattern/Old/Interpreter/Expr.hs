@@ -271,7 +271,7 @@ fromExprUnary self e = case e of
 ------------------------------------------------------------------------------
 -- Numeric classes
 
-instance Num a => Num (Expr a) where
+instance (Bin.Binary a, Num a) => Num (Expr a) where
   a + b = Node "+" [a,b]
   a * b = Node "*" [a,b]
   a - b = Node "-" [a,b]
@@ -280,12 +280,12 @@ instance Num a => Num (Expr a) where
   signum a = Node "signum" [a]
   fromInteger a = pval (fromInteger a)
 
-instance Fractional a => Fractional (Expr a) where
+instance (Bin.Binary a, Fractional a) => Fractional (Expr a) where
   a / b = Node "/" [a,b]
   recip a = Node "recip" [a]
   fromRational a = pval (fromRational a)
 
-instance Floating a => Floating (Expr a) where
+instance (Bin.Binary a, Floating a) => Floating (Expr a) where
   pi = Node "pi" []
   exp a = Node "exp" [a]
   sqrt a = Node "sqrt" [a]
@@ -308,7 +308,7 @@ instance Floating a => Floating (Expr a) where
 instance Ord a => Ord (Expr a) where
   compare _ _ = EQ
 
-instance UnaryOp a => UnaryOp (Expr a) where
+instance (Bin.Binary a, UnaryOp a) => UnaryOp (Expr a) where
   ampDb a = Node "ampDb" [a]
   asFloat a = Node "asFloat" [a]
   asInt a = Node "asInt" [a]
