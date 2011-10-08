@@ -32,6 +32,8 @@ module Sound.SC3.Lepton.Pattern.Expression.THHelper
     -- * Helper for deriving instance
   , derivePint
   , derivePdouble
+  , derivePintDup
+  , derivePdoubleDup
   ) where
 
 import Data.String
@@ -218,31 +220,37 @@ derivePdouble tname fdouble fpi funary fbinary = instanceD' contexts def decs
     decs       = [doubledef,pidef] ++ unaryDefs ++ binaryDefs
     doubledef  = mkprimf 'pdouble fdouble
     pidef      = funD 'ppi [clause [] (normalB [| $(varE fpi) |]) []]
-    unaryDefs  = mkunaryf funary f1s
-    binaryDefs = mkbinaryf fbinary f2s
-    f1s =
-      [ 'pdnegate, 'pdabs, 'pdsignum, 'precip, 'pexp, 'psqrt, 'plog
-      , 'psin, 'ptan, 'pcos, 'pasin, 'patan, 'pacos, 'psinh, 'ptanh, 'pcosh
-      , 'pasinh, 'patanh, 'pacosh, 'pampDb, 'pasFloat, 'pasInt, 'pbitNot
-      , 'pcpsMIDI, 'pcpsOct, 'pcubed, 'pdbAmp, 'pdistort, 'pfrac, 'pisNil
-      , 'plog10, 'plog2, 'pmidiCPS, 'pmidiRatio, 'pnotE, 'pnotNil, 'poctCPS
-      , 'pramp_, 'pratioMIDI, 'psoftClip, 'psquared ]
-    f2s =
-      ['(+@), '(*@), '(-@), 'pdrange, '(/@), '(**@), 'plogBase]
+    unaryDefs  = mkunaryf funary df1s
+    binaryDefs = mkbinaryf fbinary df2s
 
+-- | Functions in Pdouble which takes single argument.
+df1s =
+  -- XXX: Is there a way to extract these functions?
+  [ 'pdnegate, 'pdabs, 'pdsignum, 'precip, 'pexp, 'psqrt, 'plog
+  , 'psin, 'ptan, 'pcos, 'pasin, 'patan, 'pacos, 'psinh, 'ptanh, 'pcosh
+  , 'pasinh, 'patanh, 'pacosh, 'pampDb, 'pasFloat, 'pasInt, 'pbitNot
+  , 'pcpsMIDI, 'pcpsOct, 'pcubed, 'pdbAmp, 'pdistort, 'pfrac, 'pisNil
+  , 'plog10, 'plog2, 'pmidiCPS, 'pmidiRatio, 'pnotE, 'pnotNil, 'poctCPS
+  , 'pramp_, 'pratioMIDI, 'psoftClip, 'psquared ]
 
+-- | Functions in Pdouble which takes 2 arguments.
+df2s = ['(+@), '(*@), '(-@), 'pdrange, '(/@), '(**@), 'plogBase]
+
+-- | Helper to build prim function.
 mkprimf :: Name -> Name -> DecQ
 mkprimf ftarget fobject =
   funD ftarget
   [clause [varP "x"]
    (normalB [| $(varE fobject) $(baseName ftarget) $(varE "x") |]) []]
 
+-- | Helper to build single arg function.
 mkunaryf :: Name -> [Name] -> [DecQ]
 mkunaryf funary fns = map g fns where
   g fn =
     funD fn [clause [varP "x"]
              (normalB [| $(varE funary) $(baseName fn) $(varE "x") |]) []]
 
+-- | Helper to build function taking 2 args.
 mkbinaryf :: Name -> [Name] -> [DecQ]
 mkbinaryf fbinary fns = map g fns where
   g fn =
@@ -250,63 +258,43 @@ mkbinaryf fbinary fns = map g fns where
     [clause [varP "x", varP "y"]
      (normalB [| $(varE fbinary) $(baseName fn) $(varE "x") $(varE "y") |]) []]
 
-{-
-When we have:
+-- | Helper for Dup data type to derive instance of Pint.
+derivePintDup :: Name -> Name -> Name -> Name -> Q [Dec]
+derivePintDup tname fint funary fbinary = instanceD' contexts def decs
+  where
+    instanceD' x y z = fmap (:[]) (instanceD x y z)
+    contexts   = cxt [classP ''Pint [varT "l"], classP ''Pint [varT "r"]]
+    def = appT (conT ''Pint) [t| $(conT tname) $(varT "l") $(varT "r")|]
+    decs = [intdef] ++ unaryDefs ++ binaryDefs
+    intdef =
+      funD 'pint
+      [clause [varP "x"] (normalB [| $(varE fint) $(varE "x") |]) []]
+    unaryDefs  = flip map ['pinegate, 'piabs, 'pisignum] $ \f ->
+      funD f [clause [varP "x"]
+              (normalB [| $(varE funary) $(varE f) $(varE "x") |]) []]
+    binaryDefs = flip map ['(+!), '(*!), '(-!), 'pirange] $ \f ->
+      funD f [clause [varP "x", varP "y"]
+       (normalB [| $(varE fbinary) $(varE f) $(varE "x") $(varE "y") |]) []]
 
-> dup'ds =
->   [d| instance (Pappend l, Pappend r) => Pappend (Dup l r) where
->          pappend (Dup al ar) (Dup bl br) = Dup (pappend al ar) (pappend bl br)
->     |]
-
-This looks like:
-
-> ghci> showQ dup'ds
-
-this:
-
-[InstanceD
- [ClassP Pappend [VarT l_0], ClassP Pappend [VarT r_1]]
-  (AppT (ConT Pappend) (AppT (AppT (ConT Dup) (VarT l_0)) (VarT r_1)))
-   [FunD pappend
-    [Clause [ConP Dup [VarP al_2,VarP ar_3]
-            ,ConP Dup [VarP bl_4,VarP br_5]]
-    (NormalB (AppE (AppE (ConE Dup)
-                    (AppE (AppE (VarE pappend) (VarE al_2)) (VarE ar_3)))
-             (AppE (AppE (VarE pappend) (VarE bl_4)) (VarE br_5)))) []]]]
-
-idup1 :: DecQ
-idup1 = instanceD contexts def [dec] where
-  contexts = cxt [classP ''Pappend ["a"], classP ''Pappend ["b"]]
-  def = appT (conT ''Pappend) [t| Dup $("a") $("b")|]
-  dec = funD 'pappend
-    [clause [conP ''Dup ["a1","a2"],conP ''Dup ["b1","b2"]]
-     (normalB [| Dup (pappend $("a1") $("b1")) (pappend $("b1") $("b2")) |]) []]
-
-idup1'pappend :: DecQ
-idup1'pappend = idup1' ''Pappend 'pappend
-
-idup1'preplicate :: DecQ
-idup1'preplicate = idup1' ''Preplicate 'preplicate
-
-idup1' :: Name -> Name -> DecQ
-idup1' cname fname = instanceD contexts def [dec] where
-  contexts = cxt [classP cname ["a"], classP cname ["b"]]
-  def = appT (conT cname) [t| Dup $("a") $("b")|]
-  dec = funD fname
-    [clause [conP ''Dup ["a1","a2"], conP ''Dup ["b1","b2"]]
-     (normalB [| Dup ($fname' $("a1") $("b1")) ($fname' $("a2") $("b2")) |]) []]
-  fname' = varE fname
-
-instance IsString Exp where
-  fromString = VarE . mkName
-
-instance IsString (Q Pat) where
-  fromString = varP . mkName
-
-instance IsString (Q Exp) where
-  fromString = varE . mkName
-
-instance IsString (Q Type) where
-  fromString = varT . mkName
-
--}
+-- | Helper for Dup data type to derive instance of Pdouble.
+derivePdoubleDup :: Name -> Name -> Name -> Name -> Name -> Q [Dec]
+derivePdoubleDup tname fdouble fpi funary fbinary = instanceD' contexts def decs
+  where
+    instanceD' x y z = fmap (:[]) (instanceD x y z)
+    contexts   = cxt [classP ''Pdouble [varT "l"], classP ''Pdouble [varT "r"]]
+    def        = appT (conT ''Pdouble) [t| $(conT tname) $(varT "l") $(varT "r")|]
+    decs       = [doubledef,pidef] ++ unaryDefs ++ binaryDefs
+    doubledef  =
+      funD 'pdouble
+      [clause [varP "x"] (normalB [| $(varE fdouble) $(varE "x") |]) []]
+    pidef      = funD 'ppi [clause [] (normalB [| $(varE fpi) |]) []]
+    unaryDefs  = map mkU df1s
+    mkU f      =
+      funD f
+      [clause [varP "x"]
+       (normalB [|$(varE funary) $(varE f) $(varE "x")|]) []]
+    binaryDefs = map mkB df2s
+    mkB f      =
+      funD f
+      [clause [varP "x", varP "y"]
+       (normalB [| $(varE fbinary) $(varE f) $(varE "x") $(varE "y") |]) []]

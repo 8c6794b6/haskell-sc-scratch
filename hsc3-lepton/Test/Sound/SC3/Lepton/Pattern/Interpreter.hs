@@ -25,7 +25,6 @@ import Test.QuickCheck
 
 import Sound.SC3
 import Sound.SC3.Lepton.Pattern
--- import Sound.SC3.Lepton.Pattern
 import Sound.SC3.Lepton.QuickCheck
 import System.Random.Mersenne.Pure64
 
@@ -33,7 +32,11 @@ import qualified Data.ByteString.Lazy as BSL
 import qualified Data.Serialize as Srl
 
 tests :: [Property]
-tests = []
+tests =
+  [ label "s_is_s" prop_s_is_s
+  ]
+
+-- tests = []
 -- tests =
 --   [ label "prop_prim_num" prop_prim_num
 --   , label "prop_listpat" prop_listpat
@@ -115,26 +118,35 @@ tests = []
 --   [ prandom, prange p1 p2, pchoose pi [p1,p2]
 --   , prand pi [p1,p2], pshuffle [p1,p2] ]
 
--- prop_s_is_s =
---   forAll intP $ \(x :: Pint p => p h Int) ->
---   forAll doubleP $ \(y :: Pdouble p => p h Double)->
---   let s = view (preplicate x y)
---   in  case fromTree (etree (preplicate x y),()) of
---     Right (Term _ e') -> view e' == s
---     Left err          -> False
+prop_s_is_s :: Property
+prop_s_is_s =
+  forAll intP $ \x ->
+  forAll doubleP $ \y ->
+  let expr = psnew "foo" Nothing AddToTail 1 [("bar",param)]
+      param = body `papp` x `papp` y'
+      body =
+        plam tint (plam tdouble
+         (preplicate (prand a [a, a+!pint 2, a*!pint 3]) b))
+      a = ps pz; b = pz
+      y' = pdrange y (y *@ pdouble 2)
+      d = duplicate expr
+      s = view (dupl d)
+      e = fromTree (etree (dupr d),())
+  in  case e of
+    Right (Term _ e') -> view e' == s
+    Left err          -> False
 
--- s_is_s p =
---   let p' = dup
-  
 ap2 :: (a -> a -> c) -> a -> c
 ap2 f = \x -> f x x
 
+intP :: Pint p => Gen (p h Int)
 intP =
   elements
   [ ap2 (+!), ap2 (*!), ap2 (-!)
   , piabs, pinegate, pisignum, ap2 pirange
   ] <*> (pint <$> arbitrary)
 
+doubleP :: Pdouble p => Gen (p h Double)
 doubleP =
   elements
   [ ap2 (+@), ap2 (*@), ap2 (-@), ap2 pdrange
