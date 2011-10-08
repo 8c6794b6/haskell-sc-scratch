@@ -122,3 +122,11 @@ infoExample n = do
     VarI n t d f ->
       stringE $ unwords ["Var:", show n, show t, show d]
     TyVarI _ _ -> stringE "tyVar"
+
+printQ x = putStrLn =<< (runQ $ (show . ppr) `fmap` x)
+showQ x = putStrLn =<< (runQ $ show `fmap` x)
+
+fun01'd = [d| fun01 width height = show width ++ ", " ++ show height |]
+fun01 width height = show width ++ ", " ++ show height
+
+-- fun01'd2 = [d| $fun01 |]

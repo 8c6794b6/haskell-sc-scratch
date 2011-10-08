@@ -57,26 +57,6 @@ read_t (Node "TArr" [e1,e2]) = do
   return . Typ $ tarr t1 t2
 read_t tree = fail $ "Bad type expression: " ++ show tree
 
-read_t2 = fix' read_t2'
-
-read_t2' :: (Tree -> Either String Typ) -> Tree -> Either String Typ
-read_t2' f e = case e of
-  Node "TInt" [] -> return $ Typ tint
-  Node "TArr" [e1,e2] -> do
-    Typ t1 <- read_t2' f e1
-    Typ t2 <- read_t2' f e2
-    return . Typ $ tarr t1 t2
-  _ -> fail $ "Bad type expression: " ++ show e
-
-
-read_t3 = fix' read_t3' 
-
-read_t3' :: (Tree -> Either String Typ) -> Tree -> Either String Typ
-read_t3' f e = case e of
-  Node "TBool" [] -> return $ Typ tbool
-  _               -> read_t2' f e
-    
-  
 ------------------------------------------------------------------------------
 -- Type checking environment
 
@@ -131,83 +111,6 @@ typecheck n gamma = case n of
                                  view_t t1, "and", view_t t2]
   _ -> fail $ "Invalid Tree: " ++ show n
 
-
-{-
-Desired type for typecheck' is
-
-> typecheck' ::
->  (Tree -> gamma -> Either String (Dyterm repr h))
->   Tree -> gamma -> Either String (Dynterm repr h)
-
-So that we can write
-
-> typecheck = fix typecheck'
-
--}
-
--- typecheck' = undefined
-
-type G gamma repr h = (Tree,gamma) -> Either String (DynTerm repr h)
--- fix' :: ((Tree, gamma) -> Either String (DynTerm repr h)
---         -> (Tree, gamma) -> Either String (DynTerm repr h))
---         -> (Tree, gamma) -> Either String (DynTerm repr h)
--- fix' :: (t -> t) -> t
--- fix' :: (forall g r h. G g r h -> G g r h) -> G g r h
-fix' f = f (fix' f)
-
-pfix :: (forall g r h. G g r h -> G g r h) -> G g r h
-pfix f = res where
-  res :: G g r h
-  res = case f res of
-    -- XXX: case match on VarDesc? Modify G type synonym.
-    _ -> undefined
-    
-qfix :: (forall gamma h. Var gamma h => (Tree,gamma) -> Either String (DynTerm repr h))    
-        -> (Tree,gamma) -> Either String (DynTerm repr h)
-qfix f = res where
-  res = undefined
-  
--- fix' :: (a -> a) -> a
--- fix' f = f (fix' f)
-    
--- blah = pfix typecheck'
-
--- typecheck' ::
---   (Symantics repr)
---   => (forall gamma' h'. Var gamma' h' => (Tree,gamma') -> Either String (DynTerm repr h'))
---   -> (forall gamma h. Var gamma h => (Tree,gamma) -> Either String (DynTerm repr h))
-typecheck' :: (Symantics repr, Var g h)  
-  => (forall g h. Var g h => (Tree,g) -> Either String (DynTerm repr h))
-  -> (Tree,g) -> Either String (DynTerm repr h)
-typecheck' self (n,gamma) = case n of
-  Node "Int" [Leaf str] -> case reads str of
-    [(i,[])] -> return $ DynTerm tint (int i)
-    _        -> fail $ "Bad Int literal: " ++ str
-  Node "Add" [e1,e2] -> do
-    DynTerm (TQ t1) d1 <- self (e1,gamma)
-    DynTerm (TQ t2) d2 <- self (e2,gamma)
-    case (as_int t1 d1, as_int t2 d2) of
-      (Just t1',Just t2') -> return . DynTerm tint $ add t1' t2'
-      (Nothing,_)         -> fail $ "Bad type of a summand: " ++ view_t t1
-      (_,Nothing)         -> fail $ "Bad type of a summand: " ++ view_t t2
-  Node "Var" [Leaf name] -> findvar name gamma
-  Node "Lam" [Leaf name, etyp,ebody] -> do
-    Typ ta <- read_t etyp
-    DynTerm tbody body <- self (ebody,(VarDesc ta name, gamma))
-    return $ DynTerm (tarr ta tbody) (lam body)
-  Node "App" [e1,e2] -> do
-    DynTerm (TQ t1) d1 <- self (e1,gamma)
-    DynTerm (TQ t2) d2 <- self (e2,gamma)
-    AsArrow _ arr_cast <- return $ as_arrow t1
-    let errarr = fail $ "operator type is not an arrow: " ++ view_t t1
-    (ta,tb,equ_t1ab) <- maybe errarr return arr_cast
-    let df = equ_cast equ_t1ab d1
-    case safe_gcast (TQ t2) d2 ta of
-      Just da -> return . DynTerm tb $ app df da
-      _       -> fail $ unwords ["Bad type of the application: ",
-                                 view_t t1, "and", view_t t2]
-  _ -> fail $ "Invalid Tree: " ++ show n
-
 ------------------------------------------------------------------------------
 -- Simple terms
 
@@ -242,9 +145,9 @@ tx_view t = case t of
 -- To covert monomorphic binding to polymorphic in tc_evalview.
 --
 
-newtype CL h a =
-  CL {unCL :: forall (repr :: * -> * -> *).
-              (MulSYM repr, Symantics repr) => repr h a}
+newtype CL h a = CL
+  {unCL :: forall (repr :: * -> * -> *).
+           (MulSYM repr, Symantics repr, BoolSYM repr) => repr h a}
 
 instance Symantics CL where
   int x = CL $ int x
@@ -304,7 +207,169 @@ dt8 = tc_evalview
 -- * Add booleans
 --
 
+------------------------------------------------------------------------------
+-- Open recursion of typecheck
+
+fix' f = f (fix' f)
+
+read_t2 = fix' read_t2'
+
+read_t2' :: (Tree -> Either String Typ) -> Tree -> Either String Typ
+read_t2' f e = case e of
+  Node "TInt" [] -> return $ Typ tint
+  Node "TArr" [e1,e2] -> do
+    Typ t1 <- read_t2' f e1
+    Typ t2 <- read_t2' f e2
+    return . Typ $ tarr t1 t2
+  _ -> fail $ "Bad type expression: " ++ show e
+
+read_t3 = fix' read_t3'
+
+read_t3' :: (Tree -> Either String Typ) -> Tree -> Either String Typ
+read_t3' f e = case e of
+  Node "TBool" [] -> return $ Typ tbool
+  _               -> read_t2' f e
+
+{-|
+Desired type for typecheck' is
+
+> typecheck' ::
+>  (Tree -> gamma -> Either String (Dynterm repr h))
+>   Tree -> gamma -> Either String (Dynterm repr h)
+
+So that we can write
+
+> typecheck = fix typecheck'
+
+Though, every call of findvar will require different type for gamma,
+we need polymorphic function which could be applyed to all gammas.
+Push the type signature for gamma inside the signature in G.
+
+-}
+type G =
+  forall gamma repr h.
+  (Var gamma h, Symantics repr, MulSYM repr, BoolSYM repr) =>
+  (Tree, gamma) -> Either String (DynTerm repr h)
+
+-- | Fix combinator for G.
+fixG :: (G -> G) -> G
+fixG f = f (fixG f)
+
+typecheck' :: G -> G
+typecheck' self (n,gamma) = case n of
+  Node "Int" [Leaf str] -> case reads str of
+    [(i,[])] -> return $ DynTerm tint (int i)
+    _        -> fail $ "Bad Int literal: " ++ str
+  Node "Add" [e1,e2] -> do
+    DynTerm (TQ t1) d1 <- self (e1,gamma)
+    DynTerm (TQ t2) d2 <- self (e2,gamma)
+    case (as_int t1 d1, as_int t2 d2) of
+      (Just t1',Just t2') -> return . DynTerm tint $ add t1' t2'
+      (Nothing,_)         -> fail $ "Bad type of a summand: " ++ view_t t1
+      (_,Nothing)         -> fail $ "Bad type of a summand: " ++ view_t t2
+  Node "Var" [Leaf name] -> findvar name gamma
+  Node "Lam" [Leaf name, etyp,ebody] -> do
+    Typ ta <- read_t3 etyp
+    DynTerm tbody body <- self (ebody,(VarDesc ta name, gamma))
+    return $ DynTerm (tarr ta tbody) (lam body)
+  Node "App" [e1,e2] -> do
+    DynTerm (TQ t1) d1 <- self (e1,gamma)
+    DynTerm (TQ t2) d2 <- self (e2,gamma)
+    AsArrow _ arr_cast <- return $ as_arrow t1
+    let errarr = fail $ "operator type is not an arrow: " ++ view_t t1
+    (ta,tb,equ_t1ab) <- maybe errarr return arr_cast
+    let df = equ_cast equ_t1ab d1
+    case safe_gcast (TQ t2) d2 ta of
+      Just da -> return . DynTerm tb $ app df da
+      _       -> fail $ unwords ["Bad type of the application: ",
+                                 view_t t1, "and", view_t t2]
+  _ -> fail $ "Invalid Tree: " ++ show n
+
+------------------------------------------------------------------------------
+-- MulSYM
+
 instance MulSYM CL where
   mul e1 e2 = CL $ mul (unCL e1) (unCL e2)
 
 tr_mul e1 e2 = Node "Mul" [e1,e2]
+
+typecheckMul :: G -> G
+typecheckMul self (n,gamma) = case n of
+  Node "Mul" [e1,e2] -> do
+    DynTerm (TQ t1) d1 <- self (e1,gamma)
+    DynTerm (TQ t2) d2 <- self (e2,gamma)
+    case (as_int t1 d1, as_int t2 d2) of
+      (Just t1',Just t2') -> return . DynTerm tint $ mul t1' t2'
+      (Nothing,_) -> fail $ "Bad type of mul: " ++ view_t t1
+      (_,Nothing) -> fail $ "Bad type of mul: " ++ view_t t2
+  _ -> typecheck' self (n,gamma)
+
+-- | Tying the knot.
+typecheck2 :: G
+typecheck2 = fixG typecheckMul
+
+tc_evalview2 :: Tree -> Either String (String, String)
+tc_evalview2 exp = do
+  DynTerm tr d <- typecheck2 (exp,())
+  let d' = unCL d
+  return $ (show_as tr $ eval d', view d')
+
+tc_evalint :: Tree -> Either String Int
+tc_evalint exp = do
+  DynTerm (TQ tr) d <- typecheck2 (exp,())
+  case as_int tr (unCL d) of
+    Just i  -> return $ eval i
+    Nothing -> Left $ "Result type was not Int"
+
+do1 = tc_evalview2 (tr_add (tr_int 1) (tr_int 2))
+-- > do1
+-- Right ("3","(1+2)")
+
+do2 = tc_evalview2 (tr_app (tr_int 1) (tr_int 2))
+-- > do2
+-- *** Exception: operator type is not an arrow: Int
+
+do4 = tc_evalview2
+  (tr_lam "x" tr_tint
+   (tr_lam "y" (tr_tint `tr_tarr` tr_tint)
+    (tr_lam "z" tr_tint (tr_var "y"))))
+
+-- Untyped Church Numeral 2
+do8 = tc_evalview2
+  (tr_app
+   (tr_app exp_n2
+    (tr_lam "x" tr_tint (tr_add (tr_var "x") (tr_var "x"))))
+   (tr_int 11))
+
+dm1 = tc_evalview2
+  (tr_add (tr_mul (tr_int 2) (tr_int 3)) (tr_int 10))
+-- > dm1
+-- Right ("16","((2*3)+10)")
+
+------------------------------------------------------------------------------
+-- Adding BoolSYM
+
+instance BoolSYM CL where
+  bool b = CL $ bool b
+  if_ pe te fe = CL $ if_ (unCL pe) (unCL te) (unCL fe)
+  leq e1 e2 = CL $ leq (unCL e1) (unCL e2)
+
+tr_bool b = Node "Bool" [Leaf (show b)]
+tr_if e1 e2 e3 = Node "If" [e1,e2,e3]
+tr_leq e1 e2 = Node "Leq" [e1,e2]
+
+typecheckBool :: G -> G
+typecheckBool self (n,gamma) = case n of
+  Node "Bool" [Leaf str] -> case reads str of
+    [(b,[])] -> return $ DynTerm tbool (bool b)
+    _        -> fail $ "Bad Bool literal: " ++ str
+  -- Node "If" [e1,e2,e3] -> do
+  --   DynTerm (TQ tp) dp <- self (e1,gamma)
+  --   DynTerm (TQ tt) dt <- self (e2,gamma)
+  --   DynTerm (TQ tf) df <- self (e3,gamma)
+  --   case as_bool tp dp of
+  --     Just tp' -> return $ DynTerm (TQ tt) $ if_ dp dt df
+  --     Nothing  -> fail $ "Bad If literal: " ++ view_t tp
+  Node "Leq" [e1,e2] -> do
+    undefined
+  _ -> typecheckMul self (n,gamma)

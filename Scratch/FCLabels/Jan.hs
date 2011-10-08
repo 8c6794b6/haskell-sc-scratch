@@ -13,7 +13,7 @@
 module Jan where
 
 import Control.Arrow
-import Data.Record.Label
+import Data.Label
 
 data Person = Person 
   { _name :: String
@@ -30,3 +30,5 @@ $(mkLabels [''Person, ''Place])
 jan :: Person
 jan = Person "jan" 71 True (Place "Utrecht" "The Netherlands" "Europe")
 
+bob :: Person
+bob = Person "bob" undefined True undefined

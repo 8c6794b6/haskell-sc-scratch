@@ -85,10 +85,10 @@ instance Show (Ty a) where
     TyAny     -> "any"
     TyInt     -> "Int"
     TyArr a b -> concat ["(",show a," -> ",show b,")"]
-    
+
 data Equal a b where
   Equal :: Equal c c
-  
+
 instance Show (Equal a b) where
   show _ = "Equal"
 
@@ -96,7 +96,7 @@ cmpTy :: Ty a -> Ty b -> Maybe (Equal a b)
 cmpTy ta tb = case (ta,tb) of
   (TyInt,TyInt)             -> Just Equal
   (TyArr a1 a2,TyArr b1 b2) -> do
-    Equal <- cmpTy a1 b1 
+    Equal <- cmpTy a1 b1
     Equal <- cmpTy a2 b2
     return Equal
   _                         -> Nothing
@@ -143,8 +143,8 @@ So the task is:
 
 ... Suppose, found something.
 The reason de Bruijn indice helps deserialization is that, class Sym contains
-method to refer variables, s and z. These variable referencing functions may 
-necessary during the deseerialization. If not, how can the variable looked up 
+method to refer variables, s and z. These variable referencing functions may
+necessary during the deseerialization. If not, how can the variable looked up
 from abstract syntax representation, preserving itself as variable, not as
 applyed value.
 
@@ -169,14 +169,14 @@ instance Sym TyTree where
         -- bdy' = bdy
         bdy' = removeVarTy bdy
     in  Node "lam" [v,ty,bdy']
-  app e1 e2 = TyTree $ \h -> 
+  app e1 e2 = TyTree $ \h ->
     let e1' = unTyTree e1 h
         e2' = unTyTree e2 h
     in  Node "app" [e1',e2']
 
 lamTy :: Tree -> Tree -> Tree
 lamTy var bdy = case var of
-  Node "var" (v:_) -> 
+  Node "var" (v:_) ->
     let f u b = case b of
           Node "var" ts | u `elem` ts -> head ts
           Node  _    ts -> head $ map (f u) ts
@@ -192,19 +192,19 @@ removeVarTy t = case t of
   Leaf e -> t
   Node "var" [e1,e2] -> Node "var" [e2]
   Node n ts -> Node n (map removeVarTy ts)
-  
+
 data ExtTy where
   ExtTy :: Ty a -> ExtTy
 
 instance Show ExtTy where
   show (ExtTy t) = "ExtTy " ++ show t
-  
+
 data Typed con where
   Typed :: Ty ty -> con ty -> Typed con
 
 type Env r = Sym r => [(String,Typed r)]
 
--- fromTree :: Sym con => Tree -> Env con -> Either String (Typed con)
+--- fromTree :: Sym con => Tree -> Env con -> Either String (Typed con)
 fromTree t d = case t of
   Node "int" [Leaf x] -> case safeRead x of
     Right x' -> return $ Typed TyInt (int x')
@@ -214,8 +214,14 @@ fromTree t d = case t of
     return $ Typed TyInt $ add i1 i2
   Node "var" [Leaf v] -> do
     case lookup v d of
-      Just (ExtTy t) -> return $ Typed t (error "value of var")
-      Nothing -> 
+      -- XXX: What should be passed to second arg of Typed?
+      -- When Sym class has z and s, we can use VarDesc and lookup tuple
+      -- each by each. We need a method to denote the argument as var.
+      -- How can we?
+      --- Just (ExtTy t) -> return $ Typed t (error $ "value of var: " ++ show t)
+      Just (ExtTy t) ->
+        return $ Typed t (error $ "value of " ++ show t)
+      Nothing ->
         Left $ "Unbound variable: " ++ v ++ " in env: " ++ show (map fst d)
   Node "lam" [v,ty,bdy] -> do
     let Node "var" [Leaf vname] = v
@@ -244,15 +250,15 @@ tree2ty t = case t of
     ExtTy t2 <- tree2ty e2
     return $ ExtTy $ TyArr t1 t2
   _                    -> Left $ "Unknown type: " ++ show t
-  
+
 -- fromTree_lam :: Tree -> [(String,ExtTy)] -> Either String ExtTy
--- fromTree_lam e d = case e of 
+-- fromTree_lam e d = case e of
 --   Node "lam" [v,ty,bdy] -> do
 --     let Node "var" [Leaf idx] = v
 --     ety@(ExtTy argty) <- tree2ty ty
 --     Typed bdyty bdyval <- fromTree bdy ((idx,argty):d)
 --     return $ ExtTy bdyty
-  
+
 newtype Tyty a = Tyty {unTyty :: ExtTy}
 
 instance Sym Tyty where

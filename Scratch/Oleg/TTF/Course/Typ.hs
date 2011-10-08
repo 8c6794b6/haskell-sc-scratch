@@ -77,6 +77,10 @@ instance TBool SafeCast where
 
 newtype AsBool a = AsBool (Maybe (EQU a Bool))
 
+as_bool :: AsBool a -> c a -> Maybe (c Bool)
+as_bool (AsBool (Just equ)) r = Just $ equ_cast equ r
+as_bool _ _                   = Nothing
+
 instance TBool AsBool where
   tbool = AsBool $ Just refl
 
@@ -176,6 +180,8 @@ as_arrow :: AsArrow a -> AsArrow a
 as_arrow = id
 
 -- more cases could be added ...
+
+
 
 newtype SafeCast a = SafeCast (forall b. TQ b -> Maybe (EQU a b))
 

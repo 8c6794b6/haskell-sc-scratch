@@ -22,6 +22,8 @@ TODO: Remove z and s from target language.
 -}
 module Take04c where
 
+import Control.Monad.Instances ()
+
 import Type01
 
 class Sym r where
@@ -201,11 +203,11 @@ treeToTy e = case e of
 newtype W h a = W {unW :: forall r. (Var r, Sym r) => r h a}
 
 instance Sym W where
-    int x     = W $ int x
-    add e1 e2 = W $ add (unW e1) (unW e2)
-    lam e     = W $ lam (unW e)
-    app e1 e2 = W $ app (unW e1) (unW e2)
+  int x     = W $ int x
+  add e1 e2 = W $ add (unW e1) (unW e2)
+  lam e     = W $ lam (unW e)
+  app e1 e2 = W $ app (unW e1) (unW e2)
 
 instance Var W where
-    z         = W z
-    s v       = W $ s (unW v)
+  z         = W z
+  s v       = W $ s (unW v)

@@ -26,7 +26,7 @@ ppTree :: Tree -> Doc
 ppTree t = case t of
   Leaf s    -> text s
   Node s ts -> text s <+> (vcat $ map (parens . ppTree) ts)
-  
+
 safeRead :: Read b => String -> Either String b
 safeRead s = case reads s of
   [(x,"")] -> Right x
@@ -35,17 +35,12 @@ safeRead s = case reads s of
 ------------------------------------------------------------------------------
 -- Type representations
 
-class Tyty t where
-  tany :: t a
-  tint :: t Int
-  tarr :: t a -> t b -> t (a->b)
-
 data Ty t where
   Ty :: a -> Ty a
   TyAny :: Ty a
   TyInt :: Ty Int
   TyArr :: Ty a -> Ty b -> Ty (a->b)
-  
+
 instance Show (Ty a) where
   show t = case t of
     Ty _      -> "type of something"
@@ -53,11 +48,6 @@ instance Show (Ty a) where
     TyInt     -> "Int"
     TyArr a b -> concat ["(",show a," -> ",show b,")"]
 
-instance Tyty Ty where
-  tany = TyAny
-  tint = TyInt
-  tarr = TyArr
-  
 toTy :: Ty a -> Ty a
 toTy = id
 
@@ -81,6 +71,3 @@ data ExtTy where
 
 instance Show ExtTy where
   show (ExtTy ty) = "ExtTy"
-
-data Typed thing where
-  Typed :: Ty ty -> thing ty -> Typed thing
