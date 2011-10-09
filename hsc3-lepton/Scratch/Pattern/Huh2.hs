@@ -27,7 +27,9 @@ runHuh fd = do
 bpm = 295
 
 allP = ppar
-  [ huh1P, huh2P, huh3P, kikP, snrP, hatP, puP, drn1P, drn2P, bellP ]
+  [ huh1P, huh2P, huh3P
+  , kikP, snrP, hatP
+  , puP, drn1P, drn2P, bellP ]
 
 ------------------------------------------------------------------------------
 -- Helpers
@@ -180,6 +182,6 @@ bellPa =
     , pseq (i 12) (ds [0,0,0,0])]]
 
 ------------------------------------------------------------------------------
--- Effecty
+-- SE
 
 shwP = undefined

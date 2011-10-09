@@ -11,6 +11,7 @@ Expression syntax tree used for serialization/deserialization.
 -}
 module Sound.SC3.Lepton.Pattern.Expression.Etree
   ( Etree(..)
+  , etSize
   , ppTree
   , ppTyTree
   ) where
@@ -41,6 +42,11 @@ instance Bin.Binary Etree where
     0 -> Leaf <$> Bin.get
     1 -> Node <$> Bin.get <*> Bin.get
     _ -> error $ "Unexpected index in get: " ++ show i
+
+etSize :: Etree -> Int
+etSize e = case e of
+  Leaf _ -> 1
+  Node _ ns -> 1 + sum (map etSize ns)
 
 ppTree :: Etree -> Doc
 ppTree e = case e of

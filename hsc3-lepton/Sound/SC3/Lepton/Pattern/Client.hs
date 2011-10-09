@@ -67,7 +67,6 @@ bundle' unit dt oscs
 -- OSC Messages building functions
 
 -- | Add new pattern and run it.
--- l_new :: String -> Bz (ToOSC Double) -> OSC
 l_new :: String -> E () (ToOSC Double) -> OSC    
 l_new key pat = Message "/l_new" [String key, encodePattern pat]
 
@@ -92,15 +91,12 @@ l_run :: String -> OSC
 l_run key = Message "/l_run" [String key]
 
 -- | Add new pattern, but not start it.
--- l_add :: String -> Bz (ToOSC Double) -> OSC
 l_add :: String -> E () (ToOSC Double) -> OSC
 l_add key pat = Message "/l_add" [String key, encodePattern pat]
 
 -- | Encode pattern to compressed Blob message.
--- encodePattern :: Bz (ToOSC Double) -> Datum
 encodePattern :: E () (ToOSC Double) -> Datum
 encodePattern = Blob . Z.compress . encode . etree
--- encodePattern = Blob . Z.compress . lazyByteStringP
 
 -- Alternative.
 --

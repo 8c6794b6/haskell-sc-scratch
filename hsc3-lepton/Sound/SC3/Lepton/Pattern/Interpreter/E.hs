@@ -25,7 +25,6 @@ import Text.PrettyPrint (Doc)
 import Sound.SC3.Lepton.Pattern.Expression
 
 import qualified Data.Binary as Bin
-import qualified Data.ByteString.Lazy.Char8 as LC8
 
 -- | Newtype wrapper for converting to expression tree.
 newtype E h a = E {unE :: Int -> Etree}
@@ -56,6 +55,9 @@ binaryE str e1 e2 = E $ \h -> Node str [unE e1 h, unE e2 h]
 
 listE :: ByteString -> [E h a] -> E h a
 listE str es = E $ \h -> Node str (map (flip unE h) es)
+
+ppiE :: E h a
+ppiE = constE "ppi"
 
 mkParams :: Bin.Binary a => Int -> [(a, E h e)] -> [Etree]
 mkParams h es = case es of
@@ -104,8 +106,6 @@ instance Fractional a => Fractional (E h a) where
 ------------------------------------------------------------------------------
 -- Pattern classes
 
-ppiE = constE "ppi"
-
 $(derivePint ''E 'primE 'unaryE 'binaryE)
 $(derivePdouble ''E 'primE 'ppiE 'unaryE 'binaryE)
 
@@ -114,9 +114,6 @@ instance Pappend E where
 
 instance Pconcat E where
   pconcat = listE "pconcat"
-
-instance Prand E where
-  prand i xs = E $ \h -> Node "prand" (unE i h:map (flip unE h) xs)
 
 instance Preplicate E where
   preplicate n x = E $ \h -> Node "preplicate" [unE n h, unE x h]
@@ -129,6 +126,12 @@ instance Pcycle E where
 
 instance Pforever E where
   pforever = unaryE "pforever"
+
+instance Prand E where
+  prand i xs = E $ \h -> Node "prand" (unE i h:map (flip unE h) xs)
+
+instance Pshuffle E where
+  pshuffle = listE "pshuffle"
 
 instance Ptuple E where
   pzip = binaryE "pzip"

@@ -232,9 +232,9 @@ fromTreeD self (e,g) = case e of
       ["pdnegate","pdabs","pdsignum","precip","pexp","psqrt","plog"
       ,"psin","ptan","pcos","pasin","patan","pacos","psinh","pcosh","ptanh"
       ,"pasinh","pacosh","patanh","pampDb","pasFloat","pasInt","pbitNot"
-      ,"pcpsMIDI","pcpsOct","pdbAmp","pdistort","pfrac","pisNil","plog10"
-      ,"plog2","pmidiCPS","pmidiRatio","pnotE","pnotNil","poctCPS","pramp_"
-      ,"pratioMIDI","psoftClip","psquared"]
+      ,"pcpsMIDI","pcpsOct","pcubed","pdbAmp","pdistort","pfrac","pisNil"
+      ,"plog10","plog2","pmidiCPS","pmidiRatio","pnotE","pnotNil","poctCPS"
+      ,"pramp_","pratioMIDI","psoftClip","psquared"]
       'self 'e1 'g 'delegate)
   Node name [e1,e2] -> do
     $(dmatch2s 'name

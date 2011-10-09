@@ -77,7 +77,7 @@ This scratch is a challenge to accomplish these 2 goals:
 
   2. To remove manual book keeping of synth node id
 
-Suppose that, in our desired syntax, we can write something like:
+This module enable to write SCNodes in expression like:
 
 > nodes =
 >   let foo = syn "foo" ["out"*=10,"freq"*<-100,"amp"*=1]
@@ -90,7 +90,7 @@ Note the absence of node ids, and bar is referring to value of foo with
 
 > prmv foo "out"
 
-Applying a function, say 'toNode' will convert above to SCNode:
+Applying a function 'nodify' will convert above to SCNode:
 
 > nodify nodes
 
@@ -100,6 +100,7 @@ will result in:
 >   [Group 1
 >     [Synth 1000 "foo" ["out":=10,"freq":<-100,"amp":=1]
 >     ,Synth 1001 "bar" ["out":=1,"a_in":<=10]]]
+
 
 Group nodes need their Id values specified, and Synth nodes could be
 written without Node id. When give, the specified value would be used.
