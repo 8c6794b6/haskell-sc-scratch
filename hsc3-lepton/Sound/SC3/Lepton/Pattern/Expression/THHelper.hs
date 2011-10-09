@@ -129,7 +129,7 @@ match1 typ self e g fun =
   in  [e| do Term ty v1 <- $self' ($e',$g')
              case cmpTy ty $typ' of
                Just Equal -> return $ Term $typ' ($fun' v1)
-               _          -> Left $ "match1: type mismatch"
+               _ -> Left ("match1: type mismatch"::String)
         |]
 
 -- | Body of deserialization for 2 arguments function.
@@ -141,7 +141,7 @@ match2 typ self e1 e2 g fun =
              Term t2 v2 <- $self' ($e2',$g')
              case (cmpTy t1 $typ',cmpTy t2 $typ') of
                (Just Equal,Just Equal) -> return $ Term $typ' ($fun' v1 v2)
-               _                       -> Left "match2: type mismatch"
+               _ -> Left ("match2: type mismatch"::String)
         |]
 
 -- | Recursively call deserialization function with comparing result type
@@ -224,6 +224,7 @@ derivePdouble tname fdouble fpi funary fbinary = instanceD' contexts def decs
     binaryDefs = mkbinaryf fbinary df2s
 
 -- | Functions in Pdouble which takes single argument.
+df1s :: [Name]
 df1s =
   -- XXX: Is there a way to extract these functions?
   [ 'pdnegate, 'pdabs, 'pdsignum, 'precip, 'pexp, 'psqrt, 'plog
@@ -234,6 +235,7 @@ df1s =
   , 'pramp_, 'pratioMIDI, 'psoftClip, 'psquared ]
 
 -- | Functions in Pdouble which takes 2 arguments.
+df2s :: [Name]
 df2s = ['(+@), '(*@), '(-@), 'pdrange, '(/@), '(**@), 'plogBase]
 
 -- | Helper to build prim function.
