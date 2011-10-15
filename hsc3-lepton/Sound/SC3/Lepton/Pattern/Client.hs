@@ -14,7 +14,7 @@ module Sound.SC3.Lepton.Pattern.Client
     withLept
   , leptseq
   , bundle'
-    -- * Message builder
+    -- * Commands
   , l_add
   , l_dump
   , l_new
@@ -22,6 +22,7 @@ module Sound.SC3.Lepton.Pattern.Client
   , l_freeAll
   , l_pause
   , l_run
+  , l_update
   ) where
 
 import Data.Fixed
@@ -93,6 +94,9 @@ l_run key = Message "/l_run" [String key]
 -- | Add new pattern, but not start it.
 l_add :: String -> E () (ToOSC Double) -> OSC
 l_add key pat = Message "/l_add" [String key, encodePattern pat]
+
+l_update :: String -> E () (ToOSC Double) -> OSC
+l_update key pat = Message "/l_update" [String key, encodePattern pat]
 
 -- | Encode pattern to compressed Blob message.
 encodePattern :: E () (ToOSC Double) -> Datum

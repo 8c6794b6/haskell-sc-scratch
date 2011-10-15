@@ -8,10 +8,14 @@ Module to count number of expressions in haskell sorce code.
 Counts 'Name' element in given haskell src path from command line.
 Multiple files could be passed as command line argument.
 
+Suppose that, we want to measure amount of literal elements in haskell
+source code. In this implementation, we will use haskell-src-exts
+package, and count number of Name data type.
+
 -}
 module Main where
 
-import Data.Generics (everything, mkQ)
+import Data.Generics (mkQ, everything)
 import System.Environment (getArgs)
 import Language.Haskell.Exts
 
@@ -36,7 +40,17 @@ exprSize = everything (+) (0 `mkQ` exprUnit)
 -- | Constantly returns 1. 
 exprUnit :: Name -> Int
 exprUnit _ = 1
-    
+
+-- Alternative: Using uniplate
+--     
+-- import Data.Generics.Uniplate.Data
+--     
+-- exprSize :: Module -> Int
+-- exprSize x = length [nameIt y| y <- universeBi x]
+  
+-- nameIt :: Name -> Name  
+-- nameIt = id
+
 -- | Custom ParseMode used for parsing.
 -- Enabling almost all language extensions.
 myParseMode :: ParseMode

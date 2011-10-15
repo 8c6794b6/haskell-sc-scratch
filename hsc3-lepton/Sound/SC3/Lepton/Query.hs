@@ -50,13 +50,6 @@ query fd q = bracket fd close (runReaderT (runQuery q))
 s :: IO UDP
 s = openUDP "127.0.0.1" 57110
 
--- -- | Latency.
--- latency :: Double
--- latency = 0.01
-
--- bundle :: Double -> [OSC] -> OSC
--- bundle time ms = Bundle (UTCr (time + latency)) ms
-
 allNodes :: Query SCNode
 allNodes = do
   fd <- ask

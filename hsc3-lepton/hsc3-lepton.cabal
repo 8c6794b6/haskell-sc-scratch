@@ -1,5 +1,5 @@
-name:		hsc3-lepton
-version:	0.0.6
+name:           hsc3-lepton
+version:        0.0.6
 synopsis:       Client side utility collection for scsynth.
 author:         8c6794b6
 maintainer:     8c6794b6@gmail.com
@@ -67,6 +67,7 @@ library
     Sound.SC3.Lepton.Pattern.Expression.Term
     Sound.SC3.Lepton.Pattern.Expression.Type
     Sound.SC3.Lepton.Pattern.Interpreter
+    Sound.SC3.Lepton.Pattern.Interpreter.Dup
     Sound.SC3.Lepton.Pattern.Interpreter.E
     Sound.SC3.Lepton.Pattern.Interpreter.L
     Sound.SC3.Lepton.Pattern.Interpreter.S
@@ -84,6 +85,7 @@ library
     Sound.SC3.Lepton.UGen.Demand
     Sound.SC3.Lepton.UGen.Factory
     Sound.SC3.Lepton.UGen.Missing
+    Sound.SC3.Lepton.UGen.Pretty
     Sound.SC3.Lepton.Util
   build-depends:
     QuickCheck >= 2.0,
@@ -114,6 +116,5 @@ library
     syb,
     template-haskell,
     uniplate >= 1.6,
-    unordered-containers,
     vector,
     zlib

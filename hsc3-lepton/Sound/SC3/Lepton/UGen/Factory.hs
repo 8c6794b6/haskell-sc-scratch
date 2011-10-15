@@ -11,7 +11,10 @@ module Sound.SC3.Lepton.UGen.Factory where
 
 import Data.List (isPrefixOf)
 
+import Data.Generics.Uniplate.Data
 import Sound.SC3
+
+import Sound.SC3.Lepton.Instance ()
 
 -- | Makes different control ugen depending on its name prefix.
 --
@@ -45,6 +48,7 @@ ctrl name val
 -- | For backword compatibility, synonym for \@\@.
 (=:) :: String -> Double -> UGen
 (=:) = ctrl
+{-# DEPRECATED (=:) "Use @@ instead" #-}
 
 -- | Wrapper for making continuous KR control ugens.
 --
@@ -59,3 +63,20 @@ ctrls name vals = mce . snd $ sigs
     sigs = foldr f (1,[ctrl name $ head vals]) (tail vals)
     f :: Double -> (Int, [UGen]) -> (Int, [UGen])
     f a (i,us) = (i+1, ctrl (name ++ "_" ++ show i) a : us)
+
+-- | Set control value of given UGen.
+setc ::
+  String    -- ^ Name of control parameter
+  -> Double -- ^ New value
+  -> UGen   -- ^ Target ugen
+  -> UGen
+setc name value = transform f where
+  f (Control r name' _ t) | name == name' = Control r name value t
+  f x = x
+
+-- | Set control values of given UGen
+setcs ::
+  [(String,Double)] -- ^ List of params to updat
+  -> UGen           -- ^ Target ugen
+  -> UGen
+setcs kvs ug = foldr (\(k,v) acc -> setc k v acc) ug kvs

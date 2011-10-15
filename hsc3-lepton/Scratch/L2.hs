@@ -17,7 +17,7 @@ import Control.Applicative
 import Prelude hiding
   ((++), (!!), length, concat, concatMap, reverse, head, take, tail
   ,replicate,zipWith, zipWith3, cycle, repeat, iterate, sum
-  ,foldr1, Monad(..), (=<<), map, mapM_, zip)
+  ,foldr1, Monad(..), (=<<), map, mapM_, zip, sequence_)
 import System.Random (Random(..),next,randomR)
 
 import Sound.SC3
@@ -27,8 +27,8 @@ import Control.Monad.Stream
 import System.Random.Mersenne.Pure64
 import System.Random.Shuffle
 
-import Sound.SC3.Lepton.Pattern.Interpreter.R (shiftT,initialT)
-import Sound.SC3.Lepton.Pattern.Expression (Mergable(..))
+-- import Sound.SC3.Lepton hiding (shuffle')
+import Sound.SC3.Lepton.Pattern.Expression
 import Sound.SC3.Lepton.Pattern.Play
 import Sound.SC3.Lepton.Pattern.ToOSC
 
@@ -37,108 +37,142 @@ import qualified Data.IntMap as I
 import qualified Data.Map as M
 import qualified Data.Traversable as T
 
-import Scratch.PC02
+-- import Scratch.PC02
 
 ------------------------------------------------------------------------------
 -- Exposed functions
 
-newtype L h a = L {unL :: h -> PureMT -> [a]}
+newtype PL h a = PL {unPL :: h -> PureMT -> [a]}
 
-toL :: L () a -> L () a
-toL = id
+toPL :: PL () a -> PL () a
+toPL = id
 
-runL :: L () a -> PureMT -> [a]
-runL p g = unL p () g
+runPL :: PL () a -> PureMT -> [a]
+runPL p g = unPL p () g
 
-runLIO :: L () a -> IO [a]
-runLIO p = unL p () <$> newPureMT
+runPLIO :: PL () a -> IO [a]
+runPLIO p = unPL p () <$> newPureMT
 
-mapLIO_ :: (a -> IO b) -> L () a -> IO ()
-mapLIO_ k p = mapM_ k =<< runLIO p
+mapPLIO_ :: (a -> IO b) -> PL () a -> IO ()
+mapPLIO_ k p = mapM_ k =<< runPLIO p
 
-foldLIO :: (b -> a -> IO b) -> b -> L () a -> IO b
-foldLIO k z p = foldM k z =<< runLIO p
+foldPLIO :: (b -> a -> IO b) -> b -> PL () a -> IO b
+foldPLIO k z p = foldM k z =<< runPLIO p
 
-foldLIO_ :: (b -> a -> IO b) -> b -> L () a -> IO ()
-foldLIO_ k z p = foldLIO k z p >> return ()
+foldPLIO_ :: (b -> a -> IO b) -> b -> PL () a -> IO ()
+foldPLIO_ k z p = foldPLIO k z p >> return ()
 
 ------------------------------------------------------------------------------
 -- Helper functions
 
-constL2 :: a -> L h a
-constL2 x = L $ \_ _ -> [x]
-{-# INLINE constL2 #-}
+constPL2 :: a -> PL h a
+constPL2 x = PL $ \_ _ -> [x]
+{-# INLINE constPL2 #-}
 
-rangeL :: Random a => L h a -> L h a -> L h a
-rangeL a b = L $ \h g0 ->
+rangePL :: Random a => PL h a -> PL h a -> PL h a
+rangePL a b = PL $ \h g0 ->
   let g1 = snd . next $ g0
       g2 = snd . next $ g1
   in  zipWith3 (\lo hi g' -> fst $ randomR (lo,hi) g')
-        (unL a h g0) (unL b h g1) (gens g2)
-{-# INLINE rangeL #-}
-{-# SPECIALIZE rangeL :: L h Int -> L h Int -> L h Int #-}
-{-# SPECIALIZE rangeL :: L h Double -> L h Double -> L h Double #-}
+        (unPL a h g0) (unPL b h g1) (gens g2)
+{-# INLINE rangePL #-}
+{-# SPECIALIZE rangePL :: PL h Int -> PL h Int -> PL h Int #-}
+{-# SPECIALIZE rangePL :: PL h Double -> PL h Double -> PL h Double #-}
 
-mergeL :: L h (ToOSC Double) -> L h (ToOSC Double) -> L h (ToOSC Double)
-mergeL p1 p2 = L $ \h g ->
-    let p1' = unL p1 h g
-        p2' = unL p2 h g
-    in  p1' `CP.par` (p2' `CP.pseq` merge p1' p2')
-{-# INLINE mergeL #-}
+mergePL :: PL h (ToOSC Double) -> PL h (ToOSC Double) -> PL h (ToOSC Double)
+mergePL p1 p2 = PL $ \h g ->
+    let p1' = unPL p1 h g
+        p2' = unPL p2 h g
+    in  p1' `CP.par` (p2' `CP.pseq` mergePL' 0 (0,0) p1' p2')
+{-# INLINE mergePL #-}
+
+mergePL' :: Double -> (Double,Double) ->
+          [ToOSC Double] -> [ToOSC Double] -> [ToOSC Double]
+mergePL' _ _ [] [] = []
+mergePL' t (ta,_) (a:as) [] = tadjust "dur" (const $ getDur a + ta - t) a : as
+mergePL' t (_,tb) [] (b:bs) = tadjust "dur" (const $ getDur b + tb - t) b : bs
+mergePL' t (ta,tb) (a:as) (b:bs)
+  | ua <= ub  = tadjust "dur" (const $ ua-t) a : mergePL' ua (ua,tb) as (b:bs)
+  | otherwise = tadjust "dur" (const $ ub-t) b : mergePL' ub (ta,ub) (a:as) bs
+  where
+    ua = ta + getDur a
+    ub = tb + getDur b
 
 gens :: PureMT -> [PureMT]
 gens = iterate (snd . next)
 {-# INLINE gens #-}
 
+shiftT :: Num a => a -> [M.Map String a] -> [M.Map String a]
+shiftT t ms = case ms of
+  (m1:m2:r) ->
+    let m1' = M.adjust (const t) "dur" m1
+        t'  = M.findWithDefault 0 "dur" m1
+    in  (m1'):shiftT t' (m2:r)
+  [m1] ->
+    -- XXX:
+    -- Sending dummy silent event at the end of list
+    -- to receive /n_go response from server.
+    --
+    let m1' = M.adjust (const t) "dur" m1
+        t'  = M.findWithDefault 0 "dur" m1
+    in  [m1',M.fromList [("freq",0),("dur",t')]]
+  _ -> []
+{-# INLINE shiftT #-}
+
+initialT :: Num a => M.Map String a
+initialT = M.singleton "dur" 0
+{-# INLINE initialT #-}
+{-# SPECIALIZE initialT :: M.Map String Double #-}
+
 ------------------------------------------------------------------------------
 -- Base classes
 
-instance Show (L h a) where
-  show _ = "L"
+instance Show (PL h a) where
+  show _ = "PL"
 
-instance Functor (L h) where
-  fmap f (L l) = L $ \h g -> map f (l h g)
+instance Functor (PL h) where
+  fmap f (PL l) = PL $ \h g -> map f (l h g)
 
-instance Applicative (L h) where
-  pure x = L $ \_ _ -> repeat x
-  L f <*> L a = L $ \h g ->
+instance Applicative (PL h) where
+  pure x = PL $ \_ _ -> repeat x
+  PL f <*> PL a = PL $ \h g ->
     let g' = snd . next $ g
     in  zipWith ($) (f h g) (a h g')
 
-instance Monad (L h) where
-  return x = L $ \_ _ -> [x]
-  a >>= k = L $ \h g ->
+instance Monad (PL h) where
+  return x = PL $ \_ _ -> [x]
+  a >>= k = PL $ \h g ->
     let g' = snd . next $ g
-    in  concatMap (\x -> unL (k x) h g) (unL a h g)
+    in  concatMap (\x -> unPL (k x) h g) (unPL a h g)
 
-instance Eq (L h a) where
+instance Eq (PL h a) where
   _ == _ = True
 
-instance Ord (L h a) where
+instance Ord (PL h a) where
   compare _ _ = EQ
 
-instance Playable (L ()) where
-  playIO = foldLIO_
+instance Playable (PL ()) where
+  playIO = foldPLIO_
 
 ------------------------------------------------------------------------------
 -- Numeric classes
 
-instance Num a => Num (L h a) where
+instance Num a => Num (PL h a) where
   (+) = liftA2 (+)
   (*) = liftA2 (*)
   (-) = liftA2 (-)
   abs = fmap abs
   negate = fmap negate
   signum = fmap signum
-  fromInteger x = L $ \_ _ -> [fromInteger x]
+  fromInteger x = PL $ \_ _ -> [fromInteger x]
 
-instance Fractional a => Fractional (L h a) where
+instance Fractional a => Fractional (PL h a) where
   (/) = liftA2 (/)
   recip = fmap recip
-  fromRational x = L $ \_ _ -> [fromRational x]
+  fromRational x = PL $ \_ _ -> [fromRational x]
 
-instance Floating a => Floating (L h a) where
-  pi = L $ \_ _ -> [pi]
+instance Floating a => Floating (PL h a) where
+  pi = PL $ \_ _ -> [pi]
   exp = fmap exp
   sqrt = fmap sqrt
   log = fmap log
@@ -157,7 +191,7 @@ instance Floating a => Floating (L h a) where
   atanh = fmap atanh
   acosh = fmap acosh
 
-instance UnaryOp a => UnaryOp (L h a) where
+instance UnaryOp a => UnaryOp (PL h a) where
   ampDb = fmap ampDb
   asFloat = fmap asFloat
   asInt = fmap asInt
@@ -184,25 +218,25 @@ instance UnaryOp a => UnaryOp (L h a) where
 ------------------------------------------------------------------------------
 -- Prim patterns
 
-instance Pint L where
-  pint = constL2
+instance Pint PL where
+  pint = constPL2
   (+!) = (+)
   (*!) = (*)
   (-!) = (-)
   pinegate = negate
   piabs = abs
   pisignum = signum
-  pirange = rangeL
+  pirange = rangePL
 
-instance Pdouble L where
-  pdouble = constL2
+instance Pdouble PL where
+  pdouble = constPL2
   (+@) = (+)
   (*@) = (*)
   (-@) = (-)
   pdnegate = negate
   pdabs = abs
   pdsignum = signum
-  pdrange = rangeL
+  pdrange = rangePL
   (/@) = (/)
   precip = recip
   ppi = pi
@@ -249,113 +283,113 @@ instance Pdouble L where
 ------------------------------------------------------------------------------
 -- List pattern
 
-instance Pappend L where
-  pappend a b = L $ \h g -> unL a h g ++ unL b h (snd (next g))
+instance Pappend PL where
+  pappend a b = PL $ \h g -> unPL a h g ++ unPL b h (snd (next g))
 
-instance Pconcat L where
+instance Pconcat PL where
   pconcat = foldr1 pappend
 
-instance Preplicate L where
-  preplicate n p = L $ \h g ->
-    let p' = concatMap (`replicate` p) (unL n h g)
-    in  concat $ zipWith (\q g' -> unL q h g') p' (gens g)
+instance Preplicate PL where
+  preplicate n p = PL $ \h g ->
+    let p' = concatMap (`replicate` p) (unPL n h g)
+    in  concat $ zipWith (\q g' -> unPL q h g') p' (gens g)
 
-instance Pseq L where
+instance Pseq PL where
   pseq n = preplicate n . foldr1 pappend
 
-instance Pforever L where
-  pforever p = L $ \h g -> concatMap (unL p h) (gens g)
+instance Pforever PL where
+  pforever p = PL $ \h g -> concatMap (unPL p h) (gens g)
 
-instance Pcycle L where
+instance Pcycle PL where
   pcycle ps = case ps of
-    [] -> L $ \_ _ -> []
+    [] -> PL $ \_ _ -> []
     _  -> pforever $ pseq 1 ps
 
 ------------------------------------------------------------------------------
 -- Random patterns
 
-instance Prand L where
-  prand i xs = L $ \h g0 ->
+instance Prand PL where
+  prand i xs = PL $ \h g0 ->
     let g1 = snd . next $ g0
-        gs = take (sum $ unL i h g0) (gens g1)
-        f x = let (j,_) = randomR (0,length xs-1) x in unL (xs!!j) h x
+        gs = take (sum $ unPL i h g0) (gens g1)
+        f x = let (j,_) = randomR (0,length xs-1) x in unPL (xs!!j) h x
     in  concatMap f gs
 
-instance Pshuffle L where
-  pshuffle ps = L $ \h g ->
+instance Pshuffle PL where
+  pshuffle ps = PL $ \h g ->
     let g' = snd (next g)
-        f x y = unL x h y
+        f x y = unPL x h y
     in  concat $ zipWith f (shuffle' ps (length ps) g) (gens g')
 
 ------------------------------------------------------------------------------
 -- Combination patterns
 
-instance Ptuple L where
-  pzip a b = L $ \h g -> zip (unL a h g) (unL b h (snd $ next g))
+instance Ptuple PL where
+  pzip a b = PL $ \h g -> zip (unPL a h g) (unPL b h (snd $ next g))
   pfst = fmap fst
   psnd = fmap snd
 
-instance Pfsm L where
-  pfsm is cs = L $ \h g0 ->
+instance Pfsm PL where
+  pfsm is cs = PL $ \h g0 ->
     let cm = I.fromList (zip [0..] cs)
         go idx g = case I.lookup idx cm of
           Nothing     -> []
-          Just (p,[]) -> unL p h g
+          Just (p,[]) -> unPL p h g
           Just (p,js) ->
             let g'   = snd (next g)
                 idx' = head $ shuffle' js (length js) g
-            in  unL p h g ++ go idx' g'
+            in  unPL p h g ++ go idx' g'
     in  go (head $ shuffle' is (length is) g0) g0
 
-instance Plambda L where
-  pz = L $ \(a,_) _ -> [a]
-  ps v = L $ \(_,h) g -> unL v h g
-  plam _ k = L $ \h g -> repeat (\x -> unL k (x,h) g)
-  papp e1 e2 = L $ \h g -> concat $ zipWith ($) (unL e1 h g) (unL e2 h g)
+instance Plambda PL where
+  pz = PL $ \(a,_) _ -> [a]
+  ps v = PL $ \(_,h) g -> unPL v h g
+  plam _ k = PL $ \h g -> repeat (\x -> unPL k (x,h) g)
+  papp e1 e2 = PL $ \h g -> concat $ zipWith ($) (unPL e1 h g) (unPL e2 h g)
 
 ------------------------------------------------------------------------------
 -- OSC patterns
 
-instance Psnew L where
+instance Psnew PL where
   psnew = lsnew
 
-lsnew :: String -> Maybe Int -> AddAction -> Int -> [(String,L h Double)]
-      -> L h (ToOSC Double)
-lsnew def nid aa tid ms = L $ \h g ->
+lsnew :: String -> Maybe Int -> AddAction -> Int -> [(String,PL h Double)]
+      -> PL h (ToOSC Double)
+lsnew def nid aa tid ms = PL $ \h g ->
   let o = Snew def nid aa tid
   in  ToOSC o <$>
-      (tail $ shiftT 0 $ initialT : unL (T.sequenceA $ M.fromList ms) h g)
+      (tail $ shiftT 0 $ initialT : unPL (T.sequenceA $ M.fromList ms) h g)
 {-# INLINE lsnew #-}
 
-instance Pnset L where
+instance Pnset PL where
   pnset = lnset
 
-lnset nid ms = L $ \h g ->
+lnset nid ms = PL $ \h g ->
   let o = Nset nid
   in  ToOSC o <$>
-      (tail $ shiftT 0 $ initialT:unL (T.sequenceA $ M.fromList ms) h g)
+      (tail $ shiftT 0 $ initialT:unPL (T.sequenceA $ M.fromList ms) h g)
 {-# INLINE lnset #-}
 
-instance Pmerge L where
-  pmerge = mergeL
+instance Pmerge PL where
+  pmerge = mergePL
 
-instance Ppar L where
+instance Ppar PL where
   ppar = foldr1 pmerge
 
-instance Ptake L where
-  ptakeT t p = L $ \h g ->
-    let ps = unL p h g
-        t' = head $ unL t h g
+instance Ptake PL where
+  ptakeT t p = PL $ \h g ->
+    let ps = unPL p h g
+        t' = head $ unPL t h g
         f cur rs = case rs of
           [] -> []
           (q:qs) | cur <= t' -> q : f (cur+getDur q) qs
                  | otherwise -> []
     in  f 0 ps
 
-instance Pdrop L where
-  pdropT t p = L $ \h g ->
-    let ps = unL p h g
-        t' = head $ unL t h g
+instance Pdrop PL where
+  pdropT t p = PL $ \h g ->
+    let ps = unPL p h g
+        t' = head $ unPL t h g
         f cur rs = case rs of
           [] -> []
           (q:qs) | t' < cur  -> q : f (cur+getDur q) qs

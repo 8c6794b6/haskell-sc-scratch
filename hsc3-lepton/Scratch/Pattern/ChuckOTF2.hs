@@ -96,8 +96,8 @@ sin1P = psnew "otfsine" Nothing AddToHead 1
   [("dur", pforever (d (0.25*t)))
   ,("out", pforever (d 2))
   ,("freq",
-    pforever $ pmidiCPS
-    ((d 21) +@ (prnd (ds [0,12,24,36])) +@ (prnd (ds [0,2,4,7,9]))))
+    let fs = [midiCPS (21+x+y)|x<-[0,12,24,36],y<-[0,2,4,7,9]] in
+    pforever (prnd (ds fs)))
   ,("amp", pforever (d 0.65))
   ,("pan", pforever (d 0.1))]
 
@@ -105,12 +105,13 @@ sin2P = psnew "otfsine" Nothing AddToHead 1
   [("dur", pforever (prnd (ds [0.5*t,0.25*t])))
   ,("out", pforever (d 2))
   ,("freq",
-    pforever $ pmidiCPS
-    ((d 69) +@ (prnd (ds [0,12,24,36])) +@ (prnd (ds [0,2,4,7,9]))))
+    let fs = [midiCPS (69+x+y)|x<-[0,12,24,36],y<-[0,2,4,7,9]] in
+    pforever (prnd (ds fs)))
   ,("amp", pforever (d 0.2))
   ,("pan", pforever (d (-0.2)))]
 
-t = 0.5
+-- t = 0.5
+t = 0.52
 d = pdouble
 ds = map pdouble
 i = pint
@@ -144,3 +145,27 @@ delPat n = withLept . flip send =<< bundle' (t*2) 0 [l_free n]
 
 pausePat n = leptseq =<< bundle' (t*2) 0 [l_pause n]
 runPat n = leptseq =<< bundle' (t*2) 0 [l_run n]
+
+{-
+
+-- Workspace
+
+setup'otf
+addAll
+
+leptseq l_dump
+leptseq l_freeAll
+
+mapM_ delPat ["hat-open", "snr", "hat"]
+
+addKik
+addHat >> addHato
+addHat
+addHato
+addSnr
+
+sequence_ [addHat, addHato]
+
+addSin1 >> addSnr >> addKik
+
+-}

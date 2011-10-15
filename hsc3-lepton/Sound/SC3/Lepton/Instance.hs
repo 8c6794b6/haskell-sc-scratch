@@ -56,6 +56,9 @@ deriving instance Typeable UGen
 
 deriving instance Data AddAction
 deriving instance Typeable AddAction
+
+deriving instance Data UGenId
+deriving instance Typeable UGenId
 #else
 instance Typeable Datum where
   typeOf _  = mkTyConApp tc_Datum []
@@ -347,4 +350,42 @@ con_MRG = mkConstr ty_UGen "MRG" [] Prefix
 ty_UGen :: DataType
 ty_UGen = mkDataType "Sound.SC3.UGen.UGen"
           [con_Constant,con_Control,con_Primitive,con_Proxy,con_MCE,con_MRG]
+
+instance Typeable UGenId where
+  typeOf _ = mkTyConApp tc_UGenId []
+
+tc_UGenId = mkTyCon "Sound.SC3.UGen.UGenId"
+
+
+instance Data UGenId where
+  gfoldl _ z NoId = z NoId
+  gfoldl k z (UserId kv) = z UserId `k` kv
+  gfoldl k z (SystemId i) = z SystemId `k` i
+
+  gunfold d k z c = case constrIndex c of
+    1 -> z NoId
+    2 -> k (z UserId)
+    3 -> k (z SystemId)
+    _ -> undefined
+
+  toConstr NoId = con_NoId
+  toConstr (UserId _) = con_UserId
+  toConstr (SystemId _) = con_SystemId
+
+  dataTypeOf _ = ty_UGenId
+
+con_NoId :: Constr
+con_NoId = mkConstr ty_UGenId "NoId" [] Prefix
+
+con_UserId :: Constr
+con_UserId = mkConstr ty_UGenId "UserId" [] Prefix
+
+con_SystemId :: Constr
+con_SystemId = mkConstr ty_UGenId "SystemId" [] Prefix
+
+ty_UGenId :: DataType
+ty_UGenId = mkDataType "Sound.SC3.UGen.UGenId"
+  [con_NoId,con_UserId,con_SystemId]
+
+
 #endif

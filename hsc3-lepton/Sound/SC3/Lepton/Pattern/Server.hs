@@ -188,7 +188,8 @@ sendMessage time m = case m of
   Message "/l_dump" []                    -> runLDump time
   Message "/l_add" [String key, Blob pat] -> runLAdd time key pat
   Message "/l_run" [String key]           -> runLRun time key
-  Message "/l_pause"  [String key]        -> runLPause time key
+  Message "/l_pause" [String key]         -> runLPause time key
+  Message "/l_update" [String key, Blob pat] -> runLUpdate time key pat
   _ -> do
     st <- liftIO . readMVar =<< ask
     liftIO $ withTransport (fromConInfo (envSC st)) (flip send m)
@@ -231,6 +232,42 @@ runLPause time key = modifyEnv $ \env ->
       return $ env {envThreads = M.adjust (const t) key (envThreads env)}
     _ -> return env
 
+runLUpdate :: Maybe Time -> String -> BL.ByteString -> ServerLoop ()
+runLUpdate time key pat = do
+  case decodePattern pat of
+    Right pat' -> do
+      mvar <- ask
+      liftIO $ modifyMVar_ mvar $ \env -> do
+        let tmap = envThreads env
+        env' <- case M.lookup key tmap of
+          Just t -> do
+            maybePause time
+            F.mapM_ killThread (getThreadId t)
+            return $ env {envThreads=M.delete key tmap}
+          Nothing -> return env
+        lck <- newEmptyMVar
+        tid <- forkIO $ withTransport (fromConInfo $ envSC env) $ \fd ->
+          bracket
+            (do send fd (notify True)
+                now <- utcr
+                time' <- maybe (return $ UTCr now)
+                  (\t -> return $ if UTCr now > t then UTCr now else t) time
+                trid <- newNid
+                return (time',trid,fd))
+            (\(_,trid,fd') -> do
+                 -- modifyMVar_ mvar $ \env' ->
+                 --   return $ env' {envThreads=M.delete key (envThreads env')}
+                 send fd' $ bundle immediately [notify False, n_free [trid]])
+            (\(time',trid,fd') -> do
+                -- putMVar lck (as_utcr time')
+                -- runPausableMsg lck pat' trid fd')
+                runMsgFrom time' pat' trid fd')
+        let t = Thread (Running tid) pat' lck
+            env'' = env' {envThreads=M.insert key t (envThreads env')}
+        -- liftIO $ print (fmap showThread $ envThreads env'')
+        return $ env' {envThreads=M.insert key t (envThreads env')}
+    Left err   -> liftIO $ putStr err
+
 {-
 forkNewThread :: Maybe Time -> String -> R (ToOSC Double) -> ServerLoop ()
 forkNewThread time key pat = do
@@ -255,7 +292,6 @@ forkNewThread time key pat = do
     return $ env {envThreads=M.insert key t (envThreads env)}
 -}
 
--- forkNewThread :: Maybe Time -> String -> R (ToOSC Double) -> ServerLoop ()
 forkNewThread :: Maybe Time -> String -> L () (ToOSC Double) -> ServerLoop ()
 forkNewThread time key pat = do
   mvar <- ask
@@ -272,7 +308,8 @@ forkNewThread time key pat = do
         (\(_,trid,fd') -> do
             let f (Thread _ p l) = Thread Finished p l
             modifyMVar_ mvar $ \env' -> do
-              return $ env' {envThreads=M.adjust f key (envThreads env')}
+              -- return $ env' {envThreads=M.adjust f key (envThreads env')}
+              return $ env' {envThreads=M.delete key (envThreads env')}
             send fd' $ bundle immediately [notify False, n_free [trid]])
         (\(time',trid,fd') -> do
             putMVar lck (as_utcr time')
@@ -339,12 +376,11 @@ getThreadId (Thread st _ _) = case st of
   _           -> Nothing
 
 decodePattern :: BL.ByteString -> Either String (L () (ToOSC Double))
-decodePattern = fmap toL . t2l . decode . Z.decompress
+decodePattern = t2l . decode . Z.decompress
 
 {-
 decodePattern :: BL.ByteString -> Either String (R (ToOSC Double))
 decodePattern = fmap toR . parseP . Z.decompress
--}
-{-
+
 decodePattern pat = toR <$> fromExpr (decode $ Z.decompress pat)
 -}

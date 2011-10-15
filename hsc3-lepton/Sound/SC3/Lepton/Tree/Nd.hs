@@ -71,13 +71,13 @@ node id.  It is not always better to have automatic node id
 assignment, there could be good enough reason to specify node id
 manually.
 
-This scratch is a challenge to accomplish these 2 goals:
+This scratch will provide these 2 features:
 
-  1. To get parameter of specified node
+  1. Get parameter of specified node
 
-  2. To remove manual book keeping of synth node id
+  2. Remove manual book keeping of synth node id
 
-This module enable to write SCNodes in expression like:
+SCNodes could be written in expression like:
 
 > nodes =
 >   let foo = syn "foo" ["out"*=10,"freq"*<-100,"amp"*=1]
@@ -86,7 +86,7 @@ This module enable to write SCNodes in expression like:
 >        [grp 1
 >          [foo, bar]]
 
-Note the absence of node ids, and bar is referring to value of foo with
+Note the absence of node ids, and bar is referring value of foo with
 
 > prmv foo "out"
 
@@ -103,9 +103,9 @@ will result in:
 
 
 Group nodes need their Id values specified, and Synth nodes could be
-written without Node id. When give, the specified value would be used.
-Other wise, enumerated value from node id of parent group * 1000 will
-be used.
+written without Node id. When node id has given, the specified value
+would be used.  Other wise, enumerated value from node id of parent
+group * 1000 will be used.
 
 -}
 module Sound.SC3.Lepton.Tree.Nd

@@ -22,16 +22,19 @@ Result values are not having type class constraints.
 
 -}
 module Sound.SC3.Lepton.Pattern.Deserialize
-  ( FromTree
+  ( -- * Deserializer
+    FromTree
   , fromTree
   , fromTreeO
   , fromTreeE
   , fromTreeD
   , fromTreeI
+    -- * Fixed type converter
   , t2s
   , e2s
   , t2l
   , e2l
+    -- * Player
   , playE
   ) where
 
@@ -303,13 +306,13 @@ e2s e = case fromTree (etree e,()) of
 t2l :: Etree -> Either String (L () (ToOSC Double))
 t2l e = case fromTree (e,()) of
   Right (Term (TyToOSC TyDouble) e' :: Term L ()) -> Right e'
-  Right (Term t _ :: Term L ()) -> Left $ "Deserialized type: " ++ show t
+  Right (Term t _ :: Term L ()) -> Left $ "Type mismatch: " ++ show t
   Left err -> Left err
 
 e2l :: E () (ToOSC Double) -> Either String (L () (ToOSC Double))
 e2l e = case fromTree (etree e,()) of
   Right (Term (TyToOSC TyDouble) e' :: Term L ()) -> Right e'
-  Right (Term t _ :: Term L ()) -> Left $ "Deserialized type: " ++ show t
+  Right (Term t _ :: Term L ()) -> Left $ "Type mismatch: " ++ show t
   Left err -> Left err
 
 playE :: E () (ToOSC Double) -> IO ()

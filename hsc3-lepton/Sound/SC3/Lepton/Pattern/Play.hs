@@ -150,7 +150,7 @@ mkOSCs os tid = foldM f [] os where
             o' = toOSC (setNid nid' o)
         o' `seq` ops `seq` return ((toOSC (setNid nid' o):ops) ++ acc)
       Nset _ -> do
-        let t = ToOSC (Nset tid) (M.singleton "t_trig" 1 :: M.Map String Double)
+        let t = ToOSC (Nset tid) (M.singleton "t_trig" 1)
             o' = toOSC o
         o' `seq` t `seq` return (o':toOSC t:acc)
 
@@ -199,6 +199,22 @@ waitUntil fd str n = recv fd >>= \m -> case m of
   _                         -> waitUntil fd str n
 {-# SPECIALISE waitUntil :: UDP -> String -> Int -> IO () #-}
 {-# SPECIALISE waitUntil :: TCP -> String -> Int -> IO () #-}
+
+waitUntil2 ::
+  Transport t
+  => t
+  -> String
+  -- ^ String to match in returned OSC message.
+  -> Int
+  -- ^ Int to match in first element of returned OSC message.
+  -> Int
+  -- ^ Trigger id to match
+  -> IO ()
+waitUntil2 fd str n i = recv fd >>= \m -> case m of
+  Message !str' (Int (!n'):Int (!i'):_)
+    | str == str' && n == n' && i == i' -> return ()
+  _                                     -> waitUntil2 fd str n i
+
 
 -- | Make OSC message from given name.
 --

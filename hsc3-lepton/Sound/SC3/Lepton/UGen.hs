@@ -16,4 +16,5 @@ module Sound.SC3.Lepton.UGen
 import Sound.SC3.Lepton.UGen.Demand as All
 import Sound.SC3.Lepton.UGen.Missing as All
 import Sound.SC3.Lepton.UGen.Factory as All
+import Sound.SC3.Lepton.UGen.Pretty as All
 
