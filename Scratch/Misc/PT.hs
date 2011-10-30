@@ -148,8 +148,9 @@ mkOSC4 ls = concat $ catMaybes $ zipWith g [0,1..] ls where
   r x = 1 + ((-1) * fromIntegral (fromEnum x `mod` 3))
 
 interval :: Double
+interval = 3.90625e-3
 -- interval = 3.125e-2
-interval = 1.5625e-2
+-- interval = 1.5625e-2
 
 -- all-sorted.txt has 89723 lines.
 

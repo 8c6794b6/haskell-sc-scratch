@@ -5,7 +5,7 @@ CopyRight   : (c) 8c6794b6
 License     : BSD3
 Maintainer  : 8c6794b6
 Stability   : unstable
-Portability : non-portable (Rank2Types, FlexibleContexts)
+Portability : non-portable (NoMonomorphismRestriction)
 
 Module to contain example.
 
@@ -113,10 +113,10 @@ mkbase trans =
   , ("freq", pmidiCPS (pbase +@ pforever (d trans))) ]
 
 addspe name tran rep =
-  leptseq =<< bundle' (t*8) 0 [l_update name (mkspe2 tran rep)]
+  leptseq =<< bundle' (t*8) 0 [l_new name (mkspe2 tran rep)]
 
 addspe2 name trans reps =
-  leptseq =<< bundle' (t*8) 0 [l_update name (mkspe3 trans reps)]
+  leptseq =<< bundle' (t*8) 0 [l_new name (mkspe3 trans reps)]
 
 delspe name =
   leptseq =<< bundle' (t*8) 0 [l_free name]
@@ -126,6 +126,9 @@ delspe name =
 addspe2 "spe-u1" [0,-12,12] [1,32,16]
 addspe2 "spe-u2" [0.25,1,1.5] [1,1,1]
 delspe "spe-u2"
+delspe "spe-u1"
+
+delspe "spe2"
 
 leptseq l_dump
 leptseq l_freeAll
@@ -138,6 +141,7 @@ delspe "spe2"
 delspe "spe-mid-2"
 
 addspe "spe" 12 1
+addspe "spe" 0 1
 addspe "spe" 0 2
 addspe "spe" 0 32
 addspe "spe" 2 1
@@ -147,6 +151,7 @@ addspe "spe" 5 1
 addspe "spe" 7 1
 addspe "spe" 8 1
 addspe "spe" 9 1
+
 addspe "spe-lo" (-12) 128
 
 addspe "spe2" 17 1
@@ -157,6 +162,7 @@ addspe "spe2" 29 1
 addspe "spe-mid" 0 32
 addspe "spe-mid" 0 8
 addspe "spe-mid" 7 32
+addspe "spe-mid" 4 32
 addspe "spe-mid" 0 4
 addspe "spe-mid" 0 2
 

@@ -68,6 +68,38 @@ pspe3b =
             ,mkspe' (d 0.52) (d 0.1) (pmidiCPS (pz-@d 24))])
       `papp` pspeFreq
 
+addspe name p = leptseq =<< bundle' (0.13*8) 0 [l_new name p]
+delpat name = leptseq =<< bundle' (0.13*8) 0 [l_free name]
+dumpp = leptseq l_dump
+
+{-
+
+dumpp
+delpat "psw"
+
+addspe "spe" pspe4b
+addspe "spe" pspe2
+addspe "spe" pspe4b
+
+delpat "spe-lo"
+delpat "spe2"
+
+delpat "spe"
+
+addspe "spe-uni" pspe4a
+
+addspe "lll01" lll01
+delpat "lll01"
+
+addspe "psw" psw
+
+delpat "spe-uni"
+
+addspe "spe-non-uni" pspe2
+delpat "spe-non-uni"
+
+-}
+
 -- Unison.
 pspe4a =
   let d=pdouble; x=pmidiCPS pz
@@ -149,6 +181,19 @@ pfsm002 = pfsm [0]
   ,(mkfsm02 [2,5,7,-1], [0,4])
   ,(mkfsm02 [0,4,9],    [1,2,3])
   ]
+
+pfinite001 =
+  let i = pint; d = pdouble; ds = map d
+      fs = ds [midiCPS (y+x)| x <- [0,2,4,5,7,9,11], y <- [48,60]]
+  in  psnew "rspdef1" Nothing AddToTail 1
+      [("dur",
+        (prand (i 32)
+         [ d 0.25
+         , pconcat [d 0.125, d 0.125]
+         , pconcat (ds (replicate 4 6.25e-2))]))
+      ,("freq", pmidiCPS $ pforever (prand (i 1) fs))
+      ,("atk", pforever $ prand (i 1) (ds [0.998,0.5,0.002]))
+      ]
 
 mkfsm02 fs =
   let fs' = concatMap (\x -> map d [x+60,x+72{-,x+84-}]) fs

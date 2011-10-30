@@ -133,6 +133,14 @@ emu1 = left ()
 emu2 = right emu1
 emu3 = right (right (left (right (left (right emu2)))))
 
+-- *Fix> emu1
+-- In (Left ())
+-- *Fix> emu2
+-- In (Right In (Left ()))
+-- *Fix> emu3
+-- In (Right In (Right In (Left In (Right In (Left In (Right In (Right In (Left ()))))))))
+--
+
 data Tree' a b
   = Node a b b
   | Leaf
@@ -142,3 +150,6 @@ type Tree a = Mu (Tree' a)
 
 node a l r = In (Node a l r)
 leaf = In Leaf
+
+-- *Fix> node 3 leaf leaf
+-- In (Node 3 In (Leaf) In (Leaf))

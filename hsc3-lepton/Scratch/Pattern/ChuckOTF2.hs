@@ -46,7 +46,8 @@ otfNodes =
 
 otfperc = out ("out"@@0) sig where
   sig = pan2 (pb * ("amp"@@0.3)) ("pan"@@0) 1
-  pb = playBuf 1 ("bnum"@@0) 1 1 0 NoLoop RemoveSynth
+  pb = playBuf 1 AR ("bnum"@@0) 1 1 0 NoLoop RemoveSynth
+  -- pb = undefined
 
 otfsine = out ("out"@@0) sig where
   sig = pan2 (sinOsc AR ("freq"@@0) 0 * e) ("pan"@@0) 1
@@ -156,7 +157,7 @@ addAll
 leptseq l_dump
 leptseq l_freeAll
 
-mapM_ delPat ["hat-open", "snr", "hat"]
+mapM_ delPat ["hat-open", "hat"]
 
 addKik
 addHat >> addHato

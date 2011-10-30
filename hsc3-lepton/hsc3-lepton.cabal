@@ -35,10 +35,18 @@ test-suite main-tests
 
 executable leptseq
   ghc-options:
-    -O2 -threaded -rtsopts
+    -threaded -rtsopts
     -Wall -fno-warn-unused-do-bind -fno-warn-orphans
   main-is:
      leptseq.hs
+
+executable leptseq3
+  ghc-options:
+    -threaded -rtsopts
+    -Wall -fno-warn-unused-do-bind -fno-warn-orphans
+  main-is:
+     leptseq3.hs
+
 
 library
   ghc-options:
@@ -114,6 +122,7 @@ library
     split,
     stream-fusion >= 0.1.2.2,
     syb,
+    stm,
     template-haskell,
     uniplate >= 1.6,
     vector,

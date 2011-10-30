@@ -173,6 +173,12 @@ walk1 = walk_tree tree1 >>= check where
     putStrLn $ "found " ++ show n
     r >>= check
 
+walk2 :: IO Int
+walk2 = walk_tree tree1 >>= add where
+  add Done = return 0
+  add (Resume n r) = do
+    r >>= fmap (+n) . add
+
 same_fringe :: Tree -> Tree -> IO ()
 same_fringe t1 t2 = ap2 check (walk_tree t1) (walk_tree t2) where
   check Done Done = putStrLn "*** The same ***"
@@ -189,3 +195,22 @@ sf1 = same_fringe tree1 tree1
 sf2 = same_fringe tree2 tree2
 
 sf12 = same_fringe tree1 tree2
+
+tree3 :: Tree
+tree3 =
+  let n = Node; e = Empty
+  in  n (n e 1 e) 2 (n e 3 e)
+
+tree3' :: Tree
+tree3' =
+  let n = Node; e = Empty
+  in  n e 1 (n e 2 (n e 3 e))
+
+-- ghci> same_fringe tree3 tree3'
+-- walked to 1
+-- walked to 1
+-- walked to 2
+-- walked to 2
+-- walked to 3
+-- walked to 3
+-- *** The same ***

@@ -52,10 +52,6 @@ import qualified Data.Map as M
 
 import Sound.SC3.Lepton.Pattern
 
--- import Scratch.Pattern.Parse8
--- import Scratch.Pattern.Etree
--- import Scratch.Pattern.L3
-
 default (Integer, Double)
 
 ------------------------------------------------------------------------------
