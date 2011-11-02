@@ -2,7 +2,7 @@
 Module      : $Header$
 License     : BSD3
 Stability   : unstable
-Portability : non-portable (DeriveDataTypeable)
+Portability : portable
 
 Command line wrapper for pattern sequencer.
 
