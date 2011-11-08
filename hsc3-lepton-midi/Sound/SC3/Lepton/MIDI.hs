@@ -10,7 +10,7 @@
 -- MIDI Extension to hsc3.
 --
 
-module Sound.SC3.Wing.MIDI
+module Sound.SC3.Lepton.MIDI
     ( withMIDI
     ) where
 
