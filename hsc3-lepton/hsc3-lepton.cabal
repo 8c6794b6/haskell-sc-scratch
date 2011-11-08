@@ -40,14 +40,6 @@ executable leptseq
   main-is:
      leptseq.hs
 
-executable leptseq3
-  ghc-options:
-    -threaded -rtsopts
-    -Wall -fno-warn-unused-do-bind -fno-warn-orphans
-  main-is:
-     leptseq3.hs
-
-
 library
   ghc-options:
     -Wall

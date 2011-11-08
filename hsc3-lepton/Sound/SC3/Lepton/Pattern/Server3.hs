@@ -195,7 +195,9 @@ runLFreeAll env time = do
   tmap <- atomically $ readTVar tv
   maybePause time
   F.forM_ tmap $ \tinfo -> case tinfo of
-    Running tid -> putStrLn ("killing " ++ show tid) >> killThread tid
+    Running tid -> do
+      killThread tid
+      putStrLn $ unwords ["Thread:", show tid, "killed"]
     _           -> return ()
   atomically $ writeTVar tv $ M.empty
 
