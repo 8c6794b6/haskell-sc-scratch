@@ -2,6 +2,7 @@
 {-# LANGUAGE FunctionalDependencies, MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables, FlexibleContexts #-}
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE BangPatterns #-}
 {-|
 Module      : $Header$
 License     : BSD3
@@ -47,7 +48,10 @@ instance Arrow (SF p) where
     g l = let (x, y) = unzip l in zip (f x) y
 
 instance ArrowLoop (SF p) where
-  loop (SF f) = SF $ \x -> let (y,z) = unzip (f (zip x z)) in y
+  loop (SF f) = SF $ \x -> let (y,z) = unzip (f (zip x (stream z))) in y
+
+stream :: [a] -> [a]
+stream ~(x:xs) = x : stream xs
 
 class Num r => Clock p r | p -> r where
   rate :: p -> r
@@ -79,8 +83,6 @@ upSample (SF f) =
 delay :: a -> SF p a a
 delay i = SF (i:)
 
--- XXX: Not working, something wrong in `do rec`.
---
 sine :: forall a p. Clock p Int => Double -> SF p a Sample
 sine freq =
   let omh = 2 * pi * freq / (fromIntegral sr)
@@ -243,8 +245,6 @@ flute0 dur amp fqc press breath =
       feedbk1 = 0.4
       feedbk2 = 0.4
   in  proc _ -> do
-    -- XXX: Again, something wrong here ...
-    -- Do-rec and arrow syntax not working well together?
     rec env1 <- upSample kenv1 -< ()
         env2 <- upSample kenv2 -< ()
         envibr <- upSample kenvibr -< ()
@@ -257,16 +257,6 @@ flute0 dur amp fqc press breath =
         out <- lowpass 0.27 -< x - x * x * x + flute * feedbk2
     returnA -< out * amp * env2
 
-main :: IO ()
-main = do
-  args <- getArgs
-  case args of
-    path:freq:_ ->
-      let sr = rate (__ :: AudRate)
-          sig = sinA (read freq) :: AR
-      in  ww path (take (sr*30) $ mkStream sig)
-    _           -> putStrLn "Usage: <outfile> <freq>"
-
 -- | Write WAVE, single channel.
 ww :: FilePath -> [Sample] -> IO ()
 ww path xs =
@@ -278,3 +268,28 @@ ww path xs =
       sr = rate (__ :: AudRate)
       writer = writeWave path (AudioFormat 1 (fromIntegral sr) 16)
   in  runAudioMonad (I.enumList (mkChunks xs) writer >>= I.run)
+
+main :: IO ()
+main = do
+  args <- getArgs
+  case args of
+    path:freq:_ ->
+      let sr = rate (__ :: AudRate)
+          sig = sinA (read freq) :: AR
+          -- sig = flute0 (fromIntegral sr) 0.3 440 0.5 0.8
+      in  ww path (take sr $ mkStream sig)
+    _           -> putStrLn "Usage: <outfile> <freq>"
+
+-- main :: IO ()
+-- main = do
+--   args <- getArgs
+--   case args of
+--     base:freq:_ ->
+--       let sr = rate (__ :: AudRate)
+--           freq' = read freq
+--           mkFlute p b = take sr $ mkStream (flute0 (fromIntegral sr) 0.5 freq' p b)
+--       in  sequence_ [ ww n (mkFlute (i*0.1) (j*0.1))
+--                     | i <- [0..9], j <- [0..9]
+--                     , let n = base ++ show i ++ "_" ++ show j ++ ".wav"
+--                     , let x = i * 0.1
+--                     , let y = j * 0.1 ]
