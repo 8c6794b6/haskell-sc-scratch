@@ -4,11 +4,11 @@ Module      : $Header$
 CopyRight   : (c) 8c6794b6
 License     : BSD3
 Maintainer  : 8c6794b6@gmail.com
-Stability   : unstable
-Portability : portable
+Stability   : experimental
+Portability : non-portable (TemplateHaskell)
 
 Attempt to extract argument string passed to function with th.
-Runner side of Template haskell code.
+Caller side of Template haskell code.
 
 -}
 module FunArgRun where
@@ -16,14 +16,14 @@ module FunArgRun where
 import FunArgSrc
 
 main :: IO ()
-main = putStrLn $ unwords $
-  ["Argument of", show 'foo ++ ":"] ++ $(funArgs 'foo)
+main = do
+  putStrLn $ unwords $ ["Argument of", show 'foo ++ ":"] ++ $(funArgs 'foo)
+  putStrLn $ unwords $ ["Argument of", show 'bar ++ ":"] ++ $(funArgs 'bar)
 
 foo :: Int -> Int -> Int -> Int                
 foo apple banana cherry = (apple + banana) * cherry
 
+bar :: String
+bar = "This function does not take arguments."
 
-thisLoc = $myLocation
-thisContents = $myContents
-thisModule = $myModule
-
+thisLocation = $myLocation
