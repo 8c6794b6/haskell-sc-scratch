@@ -231,6 +231,7 @@ fromTreeD self (e,g) = case e of
   Node "ppi" [] ->
     return $ Term tdouble ppi
   Node name [e1] ->
+    -- XXX: Can we use th?
     $(dmatch1s 'name
       ["pdnegate","pdabs","pdsignum","precip","pexp","psqrt","plog"
       ,"psin","ptan","pcos","pasin","patan","pacos","psinh","pcosh","ptanh"

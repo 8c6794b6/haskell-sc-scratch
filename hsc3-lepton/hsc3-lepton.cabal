@@ -13,6 +13,10 @@ description:
   Collection of client side utility for scsynth using hsc3.
   See "Sound.SC3.Lepton" for overview.
 
+extra-source-files:
+   leptseq.hs
+   tests.hs
+
 flag hpc
   description:
     Enable compiling with hpc flag turned on
@@ -73,6 +77,7 @@ library
     Sound.SC3.Lepton.Pattern.Interpreter.S
     Sound.SC3.Lepton.Pattern.Play
     Sound.SC3.Lepton.Pattern.Server
+    Sound.SC3.Lepton.Pattern.Server3
     Sound.SC3.Lepton.Pattern.ToOSC
     Sound.SC3.Lepton.QuickCheck
     Sound.SC3.Lepton.Tree
@@ -117,5 +122,5 @@ library
     stm,
     template-haskell,
     uniplate >= 1.6,
-    vector,
+    vector >= 0.7 && < 0.9,
     zlib

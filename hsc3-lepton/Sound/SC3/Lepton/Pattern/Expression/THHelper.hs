@@ -39,8 +39,6 @@ module Sound.SC3.Lepton.Pattern.Expression.THHelper
 import Data.String
 import Language.Haskell.TH
 
-import Data.List.Split
-
 import Sound.SC3.Lepton.Pattern.Expression.Class
 import Sound.SC3.Lepton.Pattern.Expression.Term
 import Sound.SC3.Lepton.Pattern.Expression.Type
@@ -61,8 +59,10 @@ showQ :: Show a => Q a -> IO ()
 showQ x = putStrLn =<< (runQ $ show `fmap` x)
 
 -- | Extract last part of name.
-baseName :: Show a => a -> ExpQ
-baseName n = litE (stringL . last . splitOn "." . show $ n)
+-- baseName :: Show a => a -> ExpQ
+-- baseName n = litE (stringL . last . splitOn "." . show $ n)
+baseName :: Name -> ExpQ
+baseName = litE . stringL . nameBase
 
 ------------------------------------------------------------------------------
 -- For deserializer
@@ -227,6 +227,7 @@ derivePdouble tname fdouble fpi funary fbinary = instanceD' contexts def decs
 df1s :: [Name]
 df1s =
   -- XXX: Is there a way to extract these functions?
+  -- See source code of haddock.
   [ 'pdnegate, 'pdabs, 'pdsignum, 'precip, 'pexp, 'psqrt, 'plog
   , 'psin, 'ptan, 'pcos, 'pasin, 'patan, 'pacos, 'psinh, 'ptanh, 'pcosh
   , 'pasinh, 'patanh, 'pacosh, 'pampDb, 'pasFloat, 'pasInt, 'pbitNot
