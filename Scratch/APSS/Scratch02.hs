@@ -1,11 +1,15 @@
-{-# LANGUAGE Arrows, DoRec #-}
-{-# LANGUAGE FunctionalDependencies, MultiParamTypeClasses #-}
-{-# LANGUAGE ScopedTypeVariables, FlexibleContexts #-}
+{-# LANGUAGE Arrows #-}
+{-# LANGUAGE DoRec #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-|
 Module      : $Header$
+Copyright   : 8c6794b6 2011
 License     : BSD3
+Maintainer  : 8c6794b6@gmail.com
 Stability   : unstable
 Portability : non-portable (DeriveDataTypeable)
 
@@ -18,16 +22,13 @@ module APSS.Scratch02 where
 
 import Control.Arrow
 import Control.Category
-import Data.Word (Word8)
-import Data.Array.Unboxed
+import Data.Array.Unboxed (UArray, (!), listArray)
 import Prelude hiding ((.), id)
 import System.Environment (getArgs)
-import System.Random
+import System.Random (randomRs, mkStdGen)
 
 import Sound.Iteratee
-import Sound.Iteratee.Codecs.Wave
 
-import qualified Data.IntMap as IM
 import qualified Data.Iteratee as I
 import qualified Data.Vector.Storable as V
 
@@ -113,8 +114,8 @@ fastSine freq sr =
   let omh = 2 * pi * freq / fromIntegral sr
       i = sin omh
       c = 2 * cos omh
-      sine = 0:i:zipWith (\b a -> c * a - b) sine (tail sine)
-  in  sine
+      sig = 0:i:zipWith (\b a -> c * a - b) sig (tail sig)
+  in  sig
 
 -- | Using fastSine.
 sinA :: forall p a. Clock p Int => Frequency -> SF p a Sample
