@@ -56,3 +56,12 @@ tail :: Queue a -> Queue a
 tail q = case q of
   Empty                       -> emptyQueueException
   Queue (_:xs) m lenfm r lenr -> queue $ Queue xs m (lenfm-1) r lenr
+
+
+------------------------------------------------------------------------------
+-- Test
+
+toList :: Queue a -> [a]
+toList q = case q of
+  Empty -> []
+  Queue f m _ r _ -> f ++ concat (toList m) ++ reverse r
