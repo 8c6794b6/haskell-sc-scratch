@@ -13,7 +13,7 @@ Scratch written while reading
 This codes contains /skew binary random access list/, shown in figure 6.9.
 
 -}
-module Skbral where
+module Tree.Skbral where
 
 import Prelude hiding (head, tail, lookup)
 
