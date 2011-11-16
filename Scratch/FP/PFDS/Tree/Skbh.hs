@@ -15,11 +15,16 @@ This codes contains /skew binomial heap/, shown in figure 6.10.
 module Tree.Skbh where
 
 import Tree.Exception
+import Control.DeepSeq (NFData(..))
+
 
 ------------------------------------------------------------------------------
 -- Binary tree for skew binomial heap.
 
-data Tree a = Node Int a [a] [Tree a] deriving (Show)
+data Tree a = Node Int a [a] [Tree a] deriving (Eq,Show)
+
+instance NFData a => NFData (Tree a) where
+  rnf (Node i x ns ts) = rnf i `seq` rnf x `seq` rnf ns `seq` rnf ts
 
 rank :: Tree a -> Int
 rank (Node r _ _ _) = r
@@ -56,13 +61,16 @@ mergeTrees ts1 ts2 = case (ts1,ts2) of
 
 normalize :: Ord a => [Tree a] -> [Tree a]
 normalize ts = case ts of
-  [] -> []
+  []      -> []
   (t:ts') -> insTree t ts'
 
 ------------------------------------------------------------------------------
 -- Functions for heap
 
-newtype SBHeap a = SBHeap [Tree a] deriving (Show)
+newtype SBHeap a = SBHeap [Tree a] deriving (Eq,Show)
+
+instance NFData a => NFData (SBHeap a) where
+  rnf (SBHeap xs) = rnf xs
 
 empty :: SBHeap a
 empty = SBHeap []
@@ -100,7 +108,7 @@ deleteMin (SBHeap ts) = case ts of
                    | otherwise        -> (z,y:zs)
         (Node _ x xs c, ts') = getMin ts
         insertAll as bs = case (as,bs) of
-          ([],_) -> bs
+          ([],_)    -> bs
           (a:as',_) -> case insert a (SBHeap bs) of
             SBHeap bs' -> insertAll as' bs'
     in  SBHeap $ insertAll xs (mergeTrees (reverse c) (normalize ts'))
