@@ -10,7 +10,7 @@ Name:                bsb-heap
 Version:             0.1
 
 -- A short (one-line) description of the package.
-Synopsis:            bsb heap
+Synopsis:            Simple bootstrapped skew binomial heap
 
 -- A longer description of the package.
 -- Description:

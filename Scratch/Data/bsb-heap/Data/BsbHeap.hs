@@ -8,7 +8,7 @@ Maintainer  : 8c6794b6@gmail.com
 Stability   : experimental
 Portability : non-portable
 
-Bootstrapped skew binomial heap based from /purely functional data structure/,
+Bootstrapped skew binomial heap based from /Purely Functional Data Structure/,
 by Chris Okasaki.
 
 This codes implements bootstrapped heap, shown in figure 7.6.
@@ -17,6 +17,7 @@ This codes implements bootstrapped heap, shown in figure 7.6.
 module Data.BsbHeap
   ( -- * Type
     Heap
+
     -- * Heap Functions
   , empty
   , null
@@ -24,6 +25,7 @@ module Data.BsbHeap
   , insert
   , findMin
   , deleteMin
+
     -- * Converting functions
   , toList
   , toSortedList
@@ -38,7 +40,7 @@ import qualified Data.BsbHeap.SbHeap as H
 
 -- | Bootstrapped heap.
 --
--- Primitive heap is skewed binomial heap.
+-- Skewed binomial heap used as kernel.
 --
 data Heap a
    = Empty
@@ -53,6 +55,7 @@ instance Show a => Show (Heap a) where
   show h = ("Heap " ++) . (showList $ toList h) $ ""
 
 instance Eq a => Eq (Heap a) where
+  {-# INLINE (==) #-}
   h1 == h2 = case (h1, h2) of
     (Empty, Empty) -> True
     (Empty, _    ) -> False
@@ -66,6 +69,12 @@ instance Ord a => Ord (Heap a) where
     (Empty, _    )     -> LT
     (_    , Empty)     -> GT
     (Tip a _, Tip b _) -> compare a b
+
+instance Functor Heap where
+  {-# INLINE fmap #-}
+  fmap f h = case h of
+    Empty   -> Empty
+    Tip a h -> Tip (f a) (fmap (fmap f) h)
 
 instance NFData a => NFData (Heap a) where
   {-# INLINE rnf #-}
@@ -109,9 +118,10 @@ deleteMin :: Ord a => Heap a -> Heap a
 deleteMin h = case h of
   Empty -> emptyHeap
   Tip _ p
-    | H.null p -> Empty
-    | otherwise   -> case (H.findMin p, H.deleteMin p) of
+    | H.null p  -> Empty
+    | otherwise -> case (H.findMin p, H.deleteMin p) of
       (Tip !y p1, p2) -> Tip y (H.merge p1 p2)
+      _               -> emptyHeap
 {-# INLINE deleteMin #-}
 
 toList :: Heap a -> [a]
@@ -123,5 +133,5 @@ toList h = case h of
 toSortedList :: Ord a => Heap a -> [a]
 toSortedList h = case h of
   Empty    -> []
-  Tip !x p -> x : toSortedList (deleteMin h)
+  Tip !x _ -> x : toSortedList (deleteMin h)
 {-# INLINE toSortedList #-}

@@ -27,10 +27,11 @@ main = do
   g <- newStdGen
   let n = 50000
   -- mapM_ print $ F.toList $ Seq.unstableSort $ mkSeq n g
-  -- mapM_ print $ B.toSortedList $ mkBoot n g
+  mapM_ print $ B.toSortedList $ mkBoot n g
   -- mapM_ print $ K.toSortedList $ mkSkew n g
   -- mapM_ print $ sort $ mkList n g
 
-  -- print . K.findMin $ mkSkew n g
-  print . B.findMin $ mkBoot n g
-  -- print . Set.findMin $ mkSet n g
+      -- e = K.findMin $ mkSkew n g
+      -- e = Set.findMin $ mkSet n g
+      -- e = B.findMin $ mkBoot n g
+  -- putStrLn $ "Min element in heap: " ++ show e

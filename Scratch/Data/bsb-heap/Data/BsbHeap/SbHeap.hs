@@ -34,24 +34,33 @@ instance Eq a => Eq (Tree a) where
   {-# INLINE (==) #-}
   Node r1 x1 xs1 ts1 == Node r2 x2 xs2 ts2 =
     r1 == r2 && x1 == x2 && xs1 == xs2 && ts1 == ts2
+    
+instance Functor Tree where
+  {-# INLINE fmap #-}
+  fmap f (Node r x xs ts) = Node r (f x) (map f xs) (map (fmap f) ts) 
+  
+instance NFData a => NFData (Tree a) where
+  {-# INLINE rnf #-}
+  rnf (Node i x ns ts) = rnf i `seq` rnf x `seq` rnf ns `seq` rnf ts
+
 
 rank :: Tree a -> Int
-rank (Node r _ _ _) = r
+rank (Node !r _ _ _) = r
 {-# INLINE rank #-}
 
 root :: Tree a -> a
-root (Node _ x _ _) = x
+root (Node _ !x _ _) = x
 {-# INLINE root #-}
 
 link :: Ord a => Tree a -> Tree a -> Tree a
-link t1@(Node !r x1 xs1 c1) t2@(Node _ x2 xs2 c2)
+link t1@(Node !r !x1 xs1 c1) t2@(Node _ !x2 xs2 c2)
   | x1 <= x2  = Node (r+1) x1 xs1 (t2:c1)
   | otherwise = Node (r+1) x2 xs2 (t1:c2)
 {-# INLINE link #-}
 
 skewLink :: Ord a => a -> Tree a -> Tree a -> Tree a
 skewLink !x t1 t2 = case link t1 t2 of
-  Node r !y ys c
+  Node !r !y ys c
     | x <= y    -> Node r x (y:ys) c
     | otherwise -> Node r y (x:ys) c
 {-# INLINE skewLink #-}
@@ -90,7 +99,14 @@ newtype SbHeap a = SbHeap [Tree a] deriving (Show)
 instance Eq a => Eq (SbHeap a) where
   {-# INLINE (==) #-}
   SbHeap as == SbHeap bs = as == bs
-
+  
+instance Functor SbHeap where  
+  fmap f (SbHeap ts) = SbHeap (map (fmap f) ts)
+  
+instance NFData a => NFData (SbHeap a) where
+  {-# INLINE rnf #-}
+  rnf (SbHeap xs) = rnf xs
+  
 empty :: SbHeap a
 empty = SbHeap []
 {-# INLINE empty #-}
@@ -100,7 +116,7 @@ null (SbHeap hs) = P.null hs
 {-# INLINE null #-}
 
 insert :: Ord a => a -> SbHeap a -> SbHeap a
-insert x (SbHeap ts) = SbHeap $ case ts of
+insert !x (SbHeap ts) = SbHeap $ case ts of
   (t1:t2:rest)
     | rank t1 == rank t2 -> skewLink x t1 t2 : rest
     | otherwise          -> Node 0 x [] [] : ts
@@ -117,15 +133,15 @@ findMin (SbHeap ts) = case ts of
   []      -> emptyHeap
   [t]     -> root t
   (t:ts') -> case (root t, findMin (SbHeap ts')) of
-    (x,y) | x <= y    -> x
-          | otherwise -> y
+    (!x,!y) | x <= y    -> x
+            | otherwise -> y
 {-# INLINE findMin #-}
 
 deleteMin :: Ord a => SbHeap a -> SbHeap a
 deleteMin (SbHeap ts) = case ts of
   [] -> emptyHeap
   _  ->
-    let (Node _ x xs c, ts') = getMin ts
+    let (Node _ _ xs c, ts') = getMin ts
     in  SbHeap $ insertAll xs (mergeTrees (reverse c) (normalize ts'))
 {-# INLINE deleteMin #-}
 
@@ -141,7 +157,7 @@ getMin xs = case xs of
 insertAll :: Ord a => [a] -> [Tree a] -> [Tree a]
 insertAll as bs = case (as,bs) of
   ([],_)     -> bs
-  (a:as',_) -> case insert a (SbHeap bs) of SbHeap bs' -> insertAll as' bs'
+  ((!a):as',_) -> case insert a (SbHeap bs) of SbHeap bs' -> insertAll as' bs'
 {-# INLINE insertAll #-}
 
 toList :: SbHeap a -> [a]
@@ -150,23 +166,11 @@ toList (SbHeap ts) = concatMap go ts where
 {-# INLINE toList #-}
 
 toSortedList :: Ord a => SbHeap a -> [a]
-toSortedList h@(SbHeap ts) = go ts where
+toSortedList (SbHeap ts) = go ts where
   go ns = case ns of
     [] -> []
     _  -> case getMin ns of
       (Node _ x xs c, ns') ->
         x : go (insertAll xs (mergeTrees (reverse c) (normalize  ns')))
 {-# INLINE toSortedList #-}
-
-------------------------------------------------------------------------------
---
--- * Deepseq instances
---
-
-instance NFData a => NFData (Tree a) where
-  {-# INLINE rnf #-}
-  rnf (Node i x ns ts) = rnf i `seq` rnf x `seq` rnf ns `seq` rnf ts
-
-instance NFData a => NFData (SbHeap a) where
-  {-# INLINE rnf #-}
-  rnf (SbHeap xs) = rnf xs
+      
