@@ -48,14 +48,16 @@ Library
     -Wall -fno-warn-unused-do-bind
 
   Exposed-modules:
+    Data.BsbHeap
     Data.BsbHeap.Exception
+    Data.BsbHeap.SbHeap
 
   Build-depends:
-    base == 4.*,
+    base >= 4 && < 4.5,
     deepseq >= 1.1.0.2
 
   Other-modules:
-    Data.BsbHeap.SbHeap
+    -- Bench.Util
 
   -- Extra tools (e.g. alex, hsc2hs, ...) needed to build the source.
   -- Build-tools:
