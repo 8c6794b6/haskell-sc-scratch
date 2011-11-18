@@ -19,15 +19,20 @@ module VectorTut where
 import Control.Monad
 import Foreign
 import Foreign.C.Types
+import System.Environment (getArgs)
 
 import Control.DeepSeq (NFData(..))
 import Criterion.Main
 
+import qualified Data.ByteString.Lazy.Char8 as L
 import qualified Data.Vector as V
 import qualified Data.Vector.Generic as G
 import qualified Data.Vector.Generic.Mutable as GM
-import qualified Data.Vector.Unboxed as U
+import qualified Data.Vector.Random.Mersenne as VR
 import qualified Data.Vector.Storable as S
+import qualified Data.Vector.Unboxed as U
+import qualified System.Random.Mersenne as R
+import qualified System.Random.Mersenne.Pure64 as Pure64
 
 data Vec4 = Vec4
    {-# UNPACK #-} !Float
@@ -180,13 +185,103 @@ test_vector_difference = do
   -- return $ s == g && g == u
   return $ s == u
 
-main :: IO ()
-main = do
+bench_storable_unbox :: IO ()
+bench_storable_unbox = do
   same_answer <- test_vector_difference
   unless same_answer $
     error "storable/unboxed returning differenct result!"
   defaultMain
-    [ bench "storable" (nfIO storable_sum)
-    -- Using too much memory.
-    -- , bench "general" (nfIO general_sum)
-    , bench "unboxed" (nfIO unboxed_sum) ]
+    [ bgroup "bench"
+      [ bench "storable" (nfIO storable_sum)
+      -- Using too much memory.
+      -- , bench "general" (nfIO general_sum)
+      , bench "unboxed" (nfIO unboxed_sum) ] ]
+
+------------------------------------------------------------------------------
+-- IO Vectors
+
+-- Generating random value step-by-step.
+
+randomV :: (R.MTRandom a, G.Vector v a) => R.MTGen -> Int -> IO (v a)
+randomV g n = do
+  v <- GM.new n
+  fill v 0
+  G.unsafeFreeze v
+  where
+    fill v i
+      | i < n = do
+        x <- R.random g
+        GM.unsafeWrite v i x
+        fill v (i+1)
+      | otherwise = return ()
+
+test_random :: IO ()
+test_random = do
+  g <- R.newMTGen Nothing
+  vs <- randomV g 100000 :: IO (U.Vector Int)
+  print vs
+
+{-
+ghci> test_random
+.. show a vector filled with random Int
+-}
+
+-- Another random example, using vector-random package.
+
+test_random_2 :: IO ()
+test_random_2 = do
+  g <- Pure64.newPureMT
+  let a = VR.randoms g 1000000 :: U.Vector Double
+  print $ U.sum $ a
+
+test_fusion :: V.Vector Int -> Double
+test_fusion = V.foldl (\a b -> a * sqrt (fromIntegral b)) 1
+
+create :: Int -> V.Vector Int
+create n = V.enumFromTo 1 n
+
+test_create :: IO ()
+test_create = print $ test_fusion $ create 1000
+
+------------------------------------------------------------------------------
+-- Filling a vector from a file
+
+test_parse :: FilePath -> IO ()
+test_parse path = do
+  s <- L.readFile path
+  print . U.sum . parse $ s
+
+
+-- Note the use of BangPatterns, to accumulate parsed result strictly
+
+parse :: L.ByteString -> U.Vector Int
+parse = U.unfoldr step where
+  step !s = case L.readInt s of
+    Nothing       -> Nothing
+    Just (!k, !t) -> Just (k, L.tail t)
+
+
+------------------------------------------------------------------------------
+-- Main
+
+main :: IO ()
+main = do
+  arg <- getArgs
+  case arg of
+    "bench":_      -> bench_storable_unbox
+    "random":_     -> test_random
+    "random2":_    -> test_random_2
+    "fusion":_     -> test_create
+    "parse":file:_ -> test_parse file
+    _              -> usage
+
+usage :: a
+usage = error
+ "Usage: specify one of below commands:\n\
+ \\n\
+ \  bench      - Run benchmark for storable and unbox vectors \n\
+ \  random     - Show vector filled with random values\n\
+ \  random2    - Print sum of random values\n\
+ \  fusion     - Example how fusions were done in compiler optimization\n\
+ \  parse FILE - Read file containing Ints and show sum.\n\
+ \ "
