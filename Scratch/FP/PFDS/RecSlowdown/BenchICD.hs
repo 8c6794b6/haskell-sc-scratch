@@ -10,7 +10,7 @@ Portability : non-portable
 Benchmarks for data structures in RecSlowdown.
 
 -}
-module RecSlowdown.Bench where
+module RecSlowdown.BenchICD where
 
 import Prelude hiding (head, tail, last, init, (++))
 import RecSlowdown.ICD
