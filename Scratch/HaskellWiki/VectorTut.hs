@@ -30,13 +30,10 @@ import qualified Data.Vector.Unboxed as U
 import qualified Data.Vector.Storable as S
 
 data Vec4 = Vec4
-   {-# UNPACK #-} !CFloat
-   {-# UNPACK #-} !CFloat
-   {-# UNPACK #-} !CFloat
-   {-# UNPACK #-} !CFloat
-
-instance NFData CFloat where
-  rnf x = x `seq` ()
+   {-# UNPACK #-} !Float
+   {-# UNPACK #-} !Float
+   {-# UNPACK #-} !Float
+   {-# UNPACK #-} !Float
 
 instance NFData Vec4 where
   rnf (Vec4 a b c d) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` ()
@@ -52,7 +49,7 @@ mult :: Vec4 -> Vec4 -> Vec4
 mult (Vec4 a b c d) (Vec4 a' b' c' d') = Vec4 (a*a') (b*b') (c*c') (d*d')
 {-# INLINE mult #-}
 
-vsum :: Vec4 -> CFloat
+vsum :: Vec4 -> Float
 vsum (Vec4 a b c d) = a+b+c+d
 {-# INLINE vsum #-}
 
@@ -62,8 +59,8 @@ vsum (Vec4 a b c d) = a+b+c+d
 --
 
 instance Storable Vec4 where
-  sizeOf _ = sizeOf (undefined :: CFloat) * 4
-  alignment _ = alignment (undefined :: CFloat)
+  sizeOf _ = sizeOf (undefined :: Float) * 4
+  alignment _ = alignment (undefined :: Float)
 
   {-# INLINE peek #-}
   peek p = do
@@ -93,12 +90,12 @@ multList_gen !count !src
   | otherwise  = multList_gen (count-1) $ V.map (\v -> add (mult v m) a) src
 
 repCount :: Int
-repCount = 1000
+repCount = 10000
 
 arraySize :: Int
-arraySize = 2000
+arraySize = 20000
 
-storable_sum :: IO CFloat
+storable_sum :: IO Float
 storable_sum =
   return $ S.sum
     $ S.map vsum
@@ -113,7 +110,7 @@ storable_sum =
 -- V.Vector outperforms S.Vector when compiled with profiling options.
 --
 
-general_sum :: IO CFloat
+general_sum :: IO Float
 general_sum =
   return $ V.sum
     $ V.map vsum
@@ -125,43 +122,8 @@ general_sum =
 -- Using Data.Vector.Unboxed
 --
 
-------------------------------------------------------------------------------
--- CFloat and Vec4 instance of unboxed vectors
-
-newtype instance U.MVector s CFloat = MV_CFloat (U.MVector s Float)
-newtype instance U.Vector CFloat = V_CFloat (U.Vector Float)
-
-instance GM.MVector U.MVector CFloat where
-  {-# INLINE basicLength #-}
-  basicLength (MV_CFloat v) = GM.basicLength v
-  {-# INLINE basicUnsafeSlice #-}
-  basicUnsafeSlice i n (MV_CFloat v) = MV_CFloat $ GM.basicUnsafeSlice i n v
-  {-# INLINE basicOverlaps #-}
-  basicOverlaps (MV_CFloat v1) (MV_CFloat v2) = GM.basicOverlaps v1 v2
-  {-# INLINE basicUnsafeNew #-}
-  basicUnsafeNew n = MV_CFloat `liftM` GM.basicUnsafeNew n
-  {-# INLINE basicUnsafeRead #-}
-  basicUnsafeRead (MV_CFloat v) i = f2cf `liftM` GM.basicUnsafeRead v i
-  {-# INLINE basicUnsafeWrite #-}
-  basicUnsafeWrite (MV_CFloat v) i x = GM.basicUnsafeWrite v i (cf2f x)
-
-instance G.Vector U.Vector CFloat where
-  {-# INLINE basicLength #-}
-  basicLength (V_CFloat v) = G.basicLength v
-  {-# INLINE basicUnsafeFreeze #-}
-  basicUnsafeFreeze (MV_CFloat v) = V_CFloat `liftM` G.basicUnsafeFreeze v
-  {-# INLINE basicUnsafeThaw #-}
-  basicUnsafeThaw (V_CFloat v) = MV_CFloat `liftM` G.basicUnsafeThaw v
-  {-# INLINE basicUnsafeSlice #-}
-  basicUnsafeSlice i n (V_CFloat v) = V_CFloat $ G.basicUnsafeSlice i n v
-  {-# INLINE basicUnsafeIndexM #-}
-  basicUnsafeIndexM (V_CFloat v) i = f2cf `liftM` G.basicUnsafeIndexM v i
-
-instance U.Unbox CFloat
-
-
-newtype instance U.MVector s Vec4  = MV_Vec4 (U.MVector s (CFloat,CFloat,CFloat,CFloat))
-newtype instance U.Vector Vec4 = V_Vec4 (U.Vector (CFloat,CFloat,CFloat,CFloat))
+newtype instance U.MVector s Vec4  = MV_Vec4 (U.MVector s (Float,Float,Float,Float))
+newtype instance U.Vector Vec4 = V_Vec4 (U.Vector (Float,Float,Float,Float))
 
 instance GM.MVector U.MVector Vec4 where
   {-# INLINE basicLength #-}
@@ -191,25 +153,14 @@ instance G.Vector U.Vector Vec4 where
 
 instance U.Unbox Vec4
 
-------------------------------------------------------------------------------
--- Helper functions
 
-f2cf :: Float -> CFloat
-f2cf = realToFrac
-
-cf2f :: CFloat -> Float
-cf2f = realToFrac
-
-q2v4 :: (CFloat,CFloat,CFloat,CFloat) -> Vec4
+q2v4 :: (Float,Float,Float,Float) -> Vec4
 q2v4 (a,b,c,d) = Vec4 a b c d
 
-v42q :: Vec4 -> (CFloat,CFloat,CFloat,CFloat)
+v42q :: Vec4 -> (Float,Float,Float,Float)
 v42q (Vec4 a b c d) = (a,b,c,d)
 
-------------------------------------------------------------------------------
--- The sum
-
-unboxed_sum :: IO CFloat
+unboxed_sum :: IO Float
 unboxed_sum =
   return $ U.sum
     $ U.map vsum
@@ -224,16 +175,18 @@ multList_unboxed !count !src
 test_vector_difference :: IO Bool
 test_vector_difference = do
   s <- storable_sum
-  g <- general_sum
+  -- g <- general_sum
   u <- unboxed_sum
-  return $ s == g && g == u
+  -- return $ s == g && g == u
+  return $ s == u
 
 main :: IO ()
 main = do
   same_answer <- test_vector_difference
   unless same_answer $
-    error "implementetion returning differenct result!"
+    error "storable/unboxed returning differenct result!"
   defaultMain
     [ bench "storable" (nfIO storable_sum)
-    , bench "general" (nfIO general_sum)
+    -- Using too much memory.
+    -- , bench "general" (nfIO general_sum)
     , bench "unboxed" (nfIO unboxed_sum) ]
