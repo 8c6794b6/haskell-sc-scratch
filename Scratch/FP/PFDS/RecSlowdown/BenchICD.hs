@@ -1,4 +1,4 @@
-{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE NoImplicitPrelude, BangPatterns #-}
 {-|
 Module      : $Header$
 CopyRight   : (c) 8c6794b6
@@ -31,14 +31,14 @@ mkDeep len = rep (shl ++) empty len where
 
 main :: IO ()
 main = do
-  let mkappend n lr = bench n (whnf (uncurry (++)) lr)
+  let mkappend n !lr = bench n (whnf (uncurry (++)) lr)
       append_ops k =
         [ mkappend "ss" (mkShal k, mkShal k)
         , mkappend "sd" (mkShal k, mkDeep k)
         , mkappend "ds" (mkDeep k, mkShal k)
         , mkappend "dd" (mkDeep k, mkDeep k) ]
 
-      mkuop st n f cat = bench n (st f cat)
+      mkuop st n f !cat = bench n (st f cat)
       tail_ops k =
         [ mkuop whnf "s" tail (mkShal k)
         , mkuop whnf "d" tail (mkDeep k) ]
@@ -52,25 +52,15 @@ main = do
         [ mkuop nf "s" toList (mkShal k)
         , mkuop nf "d" toList (mkDeep k) ]
 
-  defaultMain
-    [ bgroup "append"
-      [ bgroup "n=100" (append_ops 100)
-      , bgroup "n=1000" (append_ops 1000)
-      , bgroup "n=10000" (append_ops 10000) ]
-    , bgroup "tail"
-      [ bgroup "n=100" (tail_ops 100)
-      , bgroup "n=1000" (tail_ops 1000)
-      , bgroup "n=10000" (tail_ops 10000) ]
-    , bgroup "cons"
-      [ bgroup "n=100" (cons_ops 100)
-      , bgroup "n=1000" (cons_ops 1000)
-      , bgroup "n=10000" (cons_ops 10000) ]
-    , bgroup "snoc"
-      [ bgroup "n=100" (snoc_ops 100)
-      , bgroup "n=1000" (snoc_ops 1000)
-      , bgroup "n=10000" (snoc_ops 10000) ]
-    , bgroup "tolist"
-      [ bgroup "n=100" (tolist_ops 100)
-      , bgroup "n=1000" (tolist_ops 1000)
-      , bgroup "n=10000" (tolist_ops 10000) ]
-    ]
+      mkgroup (n,f) =
+        bgroup n
+          [ bgroup "n=100" (f 100)
+          , bgroup "n=1000" (f 1000)
+          , bgroup "n=10000" (f 10000) ]
+
+  defaultMain $ map mkgroup
+    [ ("append", append_ops)
+    , ("tail", tail_ops)
+    , ("cons", cons_ops)
+    , ("snoc", snoc_ops)
+    , ("tolist", tolist_ops) ]

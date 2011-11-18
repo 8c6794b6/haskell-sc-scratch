@@ -34,7 +34,7 @@ main :: IO ()
 main = do
   g <- newStdGen
 
-  let mk f c n k = bench n (whnf f (c k g))
+  let mk f c n k = let v = c k g in v `seq` bench n (whnf f v)
       qops k =
         [ mk head mkQueue "head" k
         , mk tail mkQueue "tail" k
