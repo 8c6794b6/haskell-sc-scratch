@@ -52,6 +52,6 @@ i2n :: Int -> Nat
 i2n = (iterate inc [] !!)
 
 test_n2i :: [Int]
-test_n2i = 
+test_n2i =
   let ns = iterate inc []
   in  [n2i (ns !! x) | x <- [1..100]]

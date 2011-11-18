@@ -10,7 +10,7 @@ Portability : non-portable
 Scratch written while reading /purely functional data structure/,
 by Chris Okasaki.
 
-Implicit deque, from figure 8.2.
+Implicit deque, from figure 8.2. This deque is used by catenable deque.
 
 -}
 module RecSlowdown.ImplicitDeque where
@@ -19,9 +19,17 @@ import Prelude hiding (head, tail, last, init)
 import qualified Prelude as P
 import Queue.Initial (emptyQueueException)
 
+import Control.DeepSeq (NFData(..))
 import Criterion.Main
 import System.Random
 
+------------------------------------------------------------------------------
+-- Digits
+
+-- | Guts of recursive slowdown.
+--
+-- Used as a layer for supporting element addition in /O(1)/.
+--
 data D a
   = Zero
   | One a
@@ -29,23 +37,19 @@ data D a
   | Three a a a
   deriving (Show)
 
-data Queue a
-  = Shallow (D a)
-  | Deep (D a) (Queue (a,a)) (D a)
+instance Functor D where
+  fmap f d = case d of
+    Zero        -> Zero
+    One a       -> One (f a)
+    Two a b     -> Two (f a) (f b)
+    Three a b c -> Three (f a) (f b) (f c)
 
-instance Show a => Show (Queue a) where
-  show q = "Queue " ++ showList (toList q) ""
-
-empty :: Queue a
-empty = Shallow Zero
-
-isEmpty :: Queue a -> Bool
-isEmpty q = case q of Shallow Zero -> True; _ -> False
-
-toList :: Queue a -> [a]
-toList q = case q of
-  Shallow d  -> dlist d
-  Deep f m r -> dlist f ++ concatMap (\(a,b) -> [a,b]) (toList m) ++ dlist r
+instance NFData a => NFData (D a) where
+  rnf d = case d of
+    Zero        -> ()
+    One a       -> rnf a `seq` ()
+    Two a b     -> rnf a `seq` rnf b `seq` ()
+    Three a b c -> rnf a `seq` rnf b `seq` rnf c `seq` ()
 
 dcons :: a -> D a -> D a
 dcons x d = case d of
@@ -94,12 +98,81 @@ dlist d = case d of
   Two a b     -> [a,b]
   Three a b c -> [a,b,c]
 
+------------------------------------------------------------------------------
+-- Implicit deque
+
+data Queue a
+  = Shallow (D a)
+  | Deep (D a) (Queue (a,a)) (D a)
+
+instance Show a => Show (Queue a) where
+  show q = "Queue " ++ showList (toList q) ""
+
+instance Functor Queue where
+  fmap f q = case q of
+    Shallow d -> Shallow (fmap f d)
+    Deep front m r ->
+      Deep (fmap f front) (fmap (\(x,y) -> (f x,f y)) m) (fmap f r)
+
+instance NFData a => NFData (Queue a) where
+  rnf q = case q of
+    Shallow d  -> rnf d `seq` ()
+    Deep f m r -> rnf f `seq` rnf m `seq` rnf r `seq` ()
+
+------------------------------------------------------------------------------
+-- Queue size utils
+
+-- | Whether the size greater or equal to 2
+geq2 :: Queue a -> Bool
+geq2 q = case q of
+  Shallow d ->
+    case d of Zero -> False; One _ -> False; _ -> True
+  _         -> True
+
+-- | Whether the size lesser than 2
+lt2 :: Queue a -> Bool
+lt2 q = case q of
+  Shallow d ->
+    case d of Zero -> True; One _ -> True; _ -> False
+  _         -> False
+
+-- | Whether the size lesser than 4
+lt4 :: Queue a -> Bool
+lt4 q = case q of
+  Shallow _ -> True
+  _         -> False
+
+-- | Whether the size lesser than 3
+lt3 :: Queue a -> Bool
+lt3 q = case q of
+  Shallow d -> case d of
+    Three _ _ _ -> False
+    _           -> True
+  _ -> False
+
+isDeep :: Queue a -> Bool
+isDeep q = case q of Shallow _ -> False; _ -> True
+
+isShallow :: Queue a -> Bool
+isShallow = not . isDeep
+
+empty :: Queue a
+empty = Shallow Zero
+
+isEmpty :: Queue a -> Bool
+isEmpty q = case q of Shallow Zero -> True; _ -> False
+
+toList :: Queue a -> [a]
+toList q = case q of
+  Shallow d  -> dlist d
+  Deep f m r -> dlist f ++ concatMap (\(a,b) -> [a,b]) (toList m) ++ dlist r
+
 cons :: a -> Queue a -> Queue a
 cons x q = case q of
   Shallow (Three a b c)   -> Deep (Two x a) empty (Two b c)
   Shallow d               -> Shallow (dcons x d)
   Deep (Three a b c) ~m r -> Deep (Two x a) (cons (b, c) m) r
-  Deep f ~m r              -> Deep (dcons x f) m r
+  Deep f ~m r             -> Deep (dcons x f) m r
 
 head :: Queue a -> a
 head q = case q of
@@ -134,11 +207,6 @@ init q = case q of
     | otherwise -> case last m of (b,c) -> Deep f (init m) (Two b c)
   Deep f ~m r -> Deep f m (dinit r)
 
-{-
-Catenable double-ended Queues (from chapter 8.5)
-Amortimized time of head, tail, cons, snoc, last, init are O(1).
--}
-
 mkQueue :: Int -> StdGen -> Queue Int
 mkQueue n g
   | n == 0 = empty
@@ -149,6 +217,10 @@ mkList :: Int -> StdGen -> [Int]
 mkList n g
   | n == 0    = []
   | otherwise = case random g of (!x,!g') -> x : mkList (n-1) g'
+
+{-
+Amortimized time of head, tail, cons, snoc, last, init are /O(1)/.
+-}
 
 main :: IO ()
 main = do

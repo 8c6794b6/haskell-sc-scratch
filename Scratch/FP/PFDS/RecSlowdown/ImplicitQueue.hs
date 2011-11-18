@@ -48,6 +48,22 @@ data Queue a
   | Deep (OneTwo a) (Queue (a,a)) (ZeroOne a)
   deriving (Show)
 
+instance Functor ZeroOne where
+  fmap f zo = case zo of
+    Zero  -> Zero
+    One a -> One (f a)
+
+instance Functor OneTwo where
+  fmap f ot = case ot of
+    One' a -> One' (f a)
+    Two' a b -> Two' (f a) (f b)
+
+instance Functor Queue where
+  fmap f q = case q of
+    Shallow d -> Shallow (fmap f d)
+    Deep front m r ->
+      Deep (fmap f front) (fmap (\(x,y) -> (f x,f y)) m) (fmap f r)
+
 instance NFData a => NFData (Queue a) where
   rnf q = case q of
     Shallow h  -> rnf h `seq` ()
