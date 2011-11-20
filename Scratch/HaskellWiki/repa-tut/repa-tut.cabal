@@ -1,0 +1,37 @@
+Name:                repa-tut
+Version:             0.0.1
+Synopsis:            Tutorial and examples of repa
+License:             BSD3
+License-file:        LICENSE
+Author:              8c6794b6
+Maintainer:          8c6794b6@gmail.com
+Category:            Tutorial
+Build-type:          Simple
+Cabal-version:       >=1.2
+
+Executable repa-tut
+   Ghc-options:
+     -O2 -rtsopts -threaded
+   Main-is:
+     Main.hs
+   Build-depends:
+    base,
+    vector == 0.7.1,
+    repa == 2.1.*,
+    repa-algorithms == 2.1.*,
+    repa-bytestring == 2.1.*,
+    repa-io == 2.1.*
+ 
+Library
+  Exposed-modules:     
+    Tut.Repa
+  
+  Build-depends:
+    base,
+    cmdargs >= 0.9,
+    criterion == 0.5.1.0,
+    vector == 0.7.1,
+    repa == 2.1.*,
+    repa-algorithms == 2.1.*,
+    repa-bytestring == 2.1.*,
+    repa-io == 2.1.*
