@@ -1,0 +1,38 @@
+name:        codesize
+version:      0.0.1
+synopsis:     Counts number of expression nodes in haskell source code
+license:      BSD3
+license-file: LICENSE
+author:       8c6794b6
+maintainer:   8c6794b6@gmail.com
+category:     Development
+build-type:   Simple
+description:
+  Count number of expression nodes in haskell source code using haskell-src-exts
+  and generics library. Source code parsing is done with
+  Language.Haskell.Exts.parseFile function.
+  .
+  Non-haskell98 codes may fail to parse, e.g. codes containing '#' with
+  'MagicHash' language pragma.
+
+-- Extra-source-files:
+
+cabal-version:       >=1.2
+
+executable henc
+  ghc-options:
+    -Wall -rtsopts -threaded
+  main-is:
+    henc.hs
+
+library
+  exposed-modules:
+    Language.Haskell.CodeSize
+
+  build-depends:
+    base >= 4.0 && < 5,
+    haskell-src-exts >= 1.11.1,
+    syb -any
+
+  -- other-modules:
+  -- build-tools:
