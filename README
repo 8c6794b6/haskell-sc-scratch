@@ -1,4 +1,6 @@
-Scratch for haskell and supercollider. 
+Scratch for haskell (and sometime supercollider). 
 
-Heavily depending on series of hsc3 package from rohan drape. 
+Directory containins cabal file may moved out to separate repository
+when it get mature enough. 
 
+Contents under directory *Scratch* is, even more scratchy.
