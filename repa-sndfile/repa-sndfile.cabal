@@ -25,6 +25,7 @@ flag dev
     False
 
 executable rw
+  main-is: run/rw.hs
   if flag(dev)
     buildable: True
   else
@@ -33,10 +34,10 @@ executable rw
     -Wall -rtsopts -threaded
     -fno-warn-unused-do-bind
     -fno-warn-orphans
-    -auto-all -caf-all
-  main-is: run/rw.hs
+    -- -auto-all -caf-all
 
 executable gensine
+  main-is: run/gensine.hs
   if flag(dev)
     buildable: True
   else
@@ -45,8 +46,7 @@ executable gensine
     -Wall -rtsopts -threaded
     -fno-warn-unused-do-bind
     -fno-warn-orphans
-    -auto-all -caf-all
-  main-is: run/gensine.hs
+    -- -auto-all -caf-all
 
 Library
   ghc-options:
@@ -59,11 +59,12 @@ Library
 
   Build-depends:
     base >= 4.0 && < 5.0,
-    hsndfile >= 0.5,
-    hsndfile-vector >= 0.4.0,
-    vector >= 0.7 && < 0.9,
+    hsndfile >= 0.5.1,
     repa == 2.1.1.5
 
   if flag(dev)
+    build-depends:
+      hsndfile-vector >= 0.4.0,
+      vector >= 0.7 && < 0.9
     Other-modules:
       Test.ReadWrite

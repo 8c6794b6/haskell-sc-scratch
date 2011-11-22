@@ -20,6 +20,10 @@ module Data.Array.Repa.IO.Sndfile
   , writeSF
   , withSF
 
+    -- * Util
+  , toMC
+  , fromMC
+
     -- * Re-exports from hsndfile
   , S.Info(..)
   , S.Format(..)
@@ -123,11 +127,11 @@ instance (Sample e, Elt e) => Buffer (Array DIM1) e where
         dummy = sizeOf (undefined :: e)
     fptr <- mallocForeignPtrBytes (dummy * nelem)
     withForeignPtr fptr $ \ptr ->
-      let go i | i == nelem = return ()
-               | otherwise  = pokeElemOff ptr i (arr R.! (Z :. i)) >> go (i+1)
-      in  go 0
+      R.withManifest' arr $ \arr' ->
+        let go i | i == nelem = return ()
+                 | otherwise  = pokeElemOff ptr i (arr' R.! (Z :. i)) >> go (i+1)
+        in  go 0
     return (fptr, 0, nelem)
-
 
 -- | Unsafe from foreign pointer.
 --
@@ -147,7 +151,7 @@ fromMC arr = R.backpermute sh' f arr where
   sh' = Z :. (nc * nf)
   _ :. nc :. nf = R.extent arr
   f (Z :. i) = Z :. i `mod` nc :. i `div` nc
-{-# INLINABLE fromMC #-}
+{-# INLINEABLE fromMC #-}
 
 -- | Converts vector signal to multi channel signal.
 toMC :: Elt a => Int -> Array DIM1 a -> Array DIM2 a
@@ -175,6 +179,9 @@ a4 = R.fromFunction (Z :. 4 :. 5) (\(_:.i:.j) -> (i,j))
 
 TODO:
 
-* Write alternate implementation using constant space for writing.
+* Write file in constant memory.
+* Add Example
+* Change license to LGPL.
+* Wrap INLINE and SPECIALIZE pragmas with checking GHC version by CPP macro.
 
 -}
