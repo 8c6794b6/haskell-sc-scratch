@@ -128,6 +128,7 @@ instance (Sample e, Elt e) => Buffer (Array DIM1) e where
       in  go 0
     return (fptr, 0, nelem)
 
+
 -- | Unsafe from foreign pointer.
 --
 -- This function has introduced in repa 2.2.0.
@@ -153,30 +154,27 @@ toMC :: Elt a => Int -> Array DIM1 a -> Array DIM2 a
 toMC nc arr = R.backpermute sh' f arr where
   sh' = Z :. nc :. (nf `div` nc)
   _ :. nf = R.extent arr
-  -- XXX: Not working with nc > 2 ?
-  f (Z :. i :. j) = Z :. ((i+1) `div` nc) + (j * nc)
-  -- f (Z :. i :. j) = Z :. (i * nc) + ((j+1) `div` nc)
+  f (Z :. i :. j) = Z :. i + (j * nc)
 {-# INLINEABLE toMC #-}
 
 {-
 -- ---------------------------------------------------------------------------
 -- Sample arrays
 
-a1, a2 :: Array DIM2 Int
+a0, a1, a2 :: Array DIM2 Int
+a0 = R.fromList (Z :. 1 :. 10) [1..10]
 a1 = R.fromList (Z :. 2 :. 5) [1..10]
 a2 = R.fromList (Z :. 4 :. 5) [1..20]
 
 a3,a4 :: Array DIM2 (Int,Int)
 a3 = R.fromFunction (Z :. 2 :. 5) (\(_:.i:.j) -> (i,j))
 a4 = R.fromFunction (Z :. 4 :. 5) (\(_:.i:.j) -> (i,j))
-
 -}
 
 {-
 
 TODO:
 
-* Convert multi channel signals to store each channel in each index.
 * Write alternate implementation using constant space for writing.
 
 -}

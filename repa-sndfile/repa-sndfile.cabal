@@ -11,9 +11,12 @@ Maintainer:          8c6794b6@gmail.com
 -- Copyright:
 Category:            Data Structures
 Build-type:          Simple
--- Extra-source-files:
 
 Cabal-version:       >=1.2
+
+Extra-source-files:
+  run/gensine.hs
+  run/rw.hs
 
 flag dev
   description:
@@ -31,7 +34,7 @@ executable rw
     -fno-warn-unused-do-bind
     -fno-warn-orphans
     -auto-all -caf-all
-  main-is: rw.hs
+  main-is: run/rw.hs
 
 executable gensine
   if flag(dev)
@@ -43,7 +46,7 @@ executable gensine
     -fno-warn-unused-do-bind
     -fno-warn-orphans
     -auto-all -caf-all
-  main-is: gensine.hs
+  main-is: run/gensine.hs
 
 Library
   ghc-options:
@@ -64,4 +67,3 @@ Library
   if flag(dev)
     Other-modules:
       Test.ReadWrite
-      Test.GenSine
