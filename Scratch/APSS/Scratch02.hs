@@ -274,11 +274,12 @@ main :: IO ()
 main = do
   args <- getArgs
   case args of
-    path:freq:_ ->
+    dur:freq:path:_ ->
       let sr = rate (__ :: AudRate)
           sig = sinA (read freq) :: AR
+          dur' = read dur
           -- sig = flute0 (fromIntegral sr) 0.3 440 0.5 0.8
-      in  ww path (take sr $ mkStream sig)
+      in  ww path (take (sr*dur') $ mkStream sig)
     _           -> putStrLn "Usage: <outfile> <freq>"
 
 -- main :: IO ()

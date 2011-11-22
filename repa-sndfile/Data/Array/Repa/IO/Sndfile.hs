@@ -62,7 +62,7 @@ readSF path = do
     Nothing   -> error $ "readSF: failed reading " ++ path
     Just arr' -> return (info, toMC (S.channels info) arr')
 
-{-# INLINEABLE readSF #-}
+{-# INLINE readSF #-}
 {-# SPECIALIZE readSF :: FilePath -> IO (Info, Array DIM2 Double) #-}
 {-# SPECIALIZE readSF :: FilePath -> IO (Info, Array DIM2 Float) #-}
 {-# SPECIALIZE readSF :: FilePath -> IO (Info, Array DIM2 Word16) #-}
@@ -79,7 +79,7 @@ writeSF path info arr = do
   S.writeFile info path (fromMC arr)
   return ()
 
-{-# INLINEABLE writeSF #-}
+{-# INLINE writeSF #-}
 {-# SPECIALIZE writeSF :: FilePath -> Info -> Array DIM2 Double -> IO () #-}
 {-# SPECIALIZE writeSF :: FilePath -> Info -> Array DIM2 Float -> IO () #-}
 {-# SPECIALIZE writeSF :: FilePath -> Info -> Array DIM2 Word16 -> IO () #-}
@@ -98,11 +98,15 @@ withSF path act = do
     Nothing   -> error ("withSF: failed to read " ++ path)
     Just arr' -> act info (toMC (S.channels info) arr')
 
-{-# INLINEABLE withSF #-}
-{-# SPECIALIZE withSF :: FilePath -> (Info -> Array DIM2 Double -> IO b) -> IO b #-}
-{-# SPECIALIZE withSF :: FilePath -> (Info -> Array DIM2 Float -> IO b) -> IO b #-}
-{-# SPECIALIZE withSF :: FilePath -> (Info -> Array DIM2 Word16 -> IO b) -> IO b #-}
-{-# SPECIALIZE withSF :: FilePath -> (Info -> Array DIM2 Word32 -> IO b) -> IO b #-}
+{-# INLINE withSF #-}
+{-# SPECIALIZE withSF
+  :: FilePath -> (Info -> Array DIM2 Double -> IO b) -> IO b #-}
+{-# SPECIALIZE withSF
+  :: FilePath -> (Info -> Array DIM2 Float -> IO b) -> IO b #-}
+{-# SPECIALIZE withSF
+  :: FilePath -> (Info -> Array DIM2 Word16 -> IO b) -> IO b #-}
+{-# SPECIALIZE withSF
+  :: FilePath -> (Info -> Array DIM2 Word32 -> IO b) -> IO b #-}
 
 -- ---------------------------------------------------------------------------
 -- Internal work
@@ -111,13 +115,19 @@ withSF path act = do
 --
 instance (Sample e, Elt e) => Buffer (Array DIM1) e where
 
-  {-# INLINEABLE fromForeignPtr #-}
-  {-# INLINEABLE toForeignPtr #-}
-
   -- Read the whole contents to DIM1 array, ignoring channel number.
-  -- Using unsafePerformIO for peeking pointer.
   --
   fromForeignPtr fptr _ count = return $ unsafeFFP (Z :. count) fptr
+
+  {-# INLINE fromForeignPtr #-}
+  {-# SPECIALIZE fromForeignPtr
+    :: ForeignPtr Double -> Int -> Int -> IO (Array DIM1 Double) #-}
+  {-# SPECIALIZE fromForeignPtr
+    :: ForeignPtr Float -> Int -> Int -> IO (Array DIM1 Float) #-}
+  {-# SPECIALIZE fromForeignPtr
+    :: ForeignPtr Word16 -> Int -> Int -> IO (Array DIM1 Word16) #-}
+  {-# SPECIALIZE fromForeignPtr
+    :: ForeignPtr Word32 -> Int -> Int -> IO (Array DIM1 Word32) #-}
 
   -- Allocate whole memory for writing, fill in with element of array.
   --
@@ -128,10 +138,21 @@ instance (Sample e, Elt e) => Buffer (Array DIM1) e where
     fptr <- mallocForeignPtrBytes (dummy * nelem)
     withForeignPtr fptr $ \ptr ->
       R.withManifest' arr $ \arr' ->
-        let go i | i == nelem = return ()
-                 | otherwise  = pokeElemOff ptr i (arr' R.! (Z :. i)) >> go (i+1)
+        let go i
+              | i == nelem = return ()
+              | otherwise  = pokeElemOff ptr i (arr' R.! (Z :. i)) >> go (i+1)
         in  go 0
     return (fptr, 0, nelem)
+
+  {-# INLINE toForeignPtr #-}
+  {-# SPECIALIZE toForeignPtr
+    :: Array DIM1 Double -> IO (ForeignPtr Double, Int, Int) #-}
+  {-# SPECIALIZE toForeignPtr
+    :: Array DIM1 Float -> IO (ForeignPtr Float, Int, Int) #-}
+  {-# SPECIALIZE toForeignPtr
+    :: Array DIM1 Word16 -> IO (ForeignPtr Word16, Int, Int) #-}
+  {-# SPECIALIZE toForeignPtr
+    :: Array DIM1 Word32 -> IO (ForeignPtr Word32, Int, Int) #-}
 
 -- | Unsafe from foreign pointer.
 --
@@ -140,10 +161,11 @@ instance (Sample e, Elt e) => Buffer (Array DIM1) e where
 --
 unsafeFFP :: (Shape sh, Storable a) => sh -> ForeignPtr a -> Array sh a
 unsafeFFP sh fptr =
+  -- XXX: Using unsafePerformIO for peeking pointer.
   R.fromFunction sh $ \ix ->
     unsafePerformIO $ withForeignPtr fptr $ \ptr ->
       peekElemOff ptr $ R.toIndex sh ix
-{-# INLINEABLE unsafeFFP #-}
+{-# INLINE unsafeFFP #-}
 
 -- | Converts multi channel signal to vector signal.
 fromMC :: Elt a => Array DIM2 a -> Array DIM1 a
@@ -151,7 +173,7 @@ fromMC arr = R.backpermute sh' f arr where
   sh' = Z :. (nc * nf)
   _ :. nc :. nf = R.extent arr
   f (Z :. i) = Z :. i `mod` nc :. i `div` nc
-{-# INLINEABLE fromMC #-}
+{-# INLINE fromMC #-}
 
 -- | Converts vector signal to multi channel signal.
 toMC :: Elt a => Int -> Array DIM1 a -> Array DIM2 a
@@ -159,7 +181,7 @@ toMC nc arr = R.backpermute sh' f arr where
   sh' = Z :. nc :. (nf `div` nc)
   _ :. nf = R.extent arr
   f (Z :. i :. j) = Z :. i + (j * nc)
-{-# INLINEABLE toMC #-}
+{-# INLINE toMC #-}
 
 {-
 -- ---------------------------------------------------------------------------
@@ -173,15 +195,4 @@ a2 = R.fromList (Z :. 4 :. 5) [1..20]
 a3,a4 :: Array DIM2 (Int,Int)
 a3 = R.fromFunction (Z :. 2 :. 5) (\(_:.i:.j) -> (i,j))
 a4 = R.fromFunction (Z :. 4 :. 5) (\(_:.i:.j) -> (i,j))
--}
-
-{-
-
-TODO:
-
-* Write file in constant memory.
-* Add Example
-* Change license to LGPL.
-* Wrap INLINE and SPECIALIZE pragmas with checking GHC version by CPP macro.
-
 -}

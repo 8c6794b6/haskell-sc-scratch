@@ -1,8 +1,9 @@
-name:        codesize
+name:         codesize
 version:      0.0.1
 synopsis:     Counts number of expression nodes in haskell source code
 license:      BSD3
 license-file: LICENSE
+copyright:    2011, 8c6794b6
 author:       8c6794b6
 maintainer:   8c6794b6@gmail.com
 category:     Development
@@ -12,10 +13,7 @@ description:
   and generics library. Source code parsing is done with
   Language.Haskell.Exts.parseFile function.
   .
-  Non-haskell98 codes may fail to parse, e.g. codes containing '#' with
-  'MagicHash' language pragma.
-
--- Extra-source-files:
+  Parsing non-haskell98 codes sometime fails.
 
 cabal-version:       >=1.2
 
@@ -33,6 +31,3 @@ library
     base >= 4.0 && < 5,
     haskell-src-exts >= 1.11.1,
     syb -any
-
-  -- other-modules:
-  -- build-tools:
