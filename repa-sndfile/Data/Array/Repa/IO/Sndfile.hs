@@ -2,6 +2,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeOperators #-}
+{-# OPTIONS_HADDOCK prune #-}
 {-|
 Module      : $Header$
 CopyRight   : (c) 8c6794b6
@@ -11,29 +12,38 @@ Stability   : experimental
 Portability : non-portable
 
 Read and write audio file with repa arrays using libsndfile via hsndfile.
+Note that this module re-exports header related types from hsndfile.
+
+/References/
+
+* libsndfile : <http://www.mega-nerd.com/libsndfile/>
+
+* hsndfile   : <http://haskell.org/haskellwiki/Hsndfile>
 
 -}
 module Data.Array.Repa.IO.Sndfile
   (
-    -- * Example
-    -- $example
+    -- * Examples
+    -- $examples
 
     -- * Sound file reader and writer
     readSF
   , writeSF
   , withSF
 
-    -- * Util
-  , toMC
-  , fromMC
-
-    -- * Re-exports from hsndfile
+    -- * Sound file headers (re-exports from hsndfile)
   , S.Info(..)
   , S.Format(..)
   , S.HeaderFormat(..)
   , S.EndianFormat(..)
   , S.SampleFormat(..)
   , S.Count
+
+    -- * Util
+  , toMC
+  , fromMC
+  , wav16
+  , wav32
 
   ) where
 
@@ -48,9 +58,9 @@ import Sound.File.Sndfile (Buffer(..), Info(..), Sample)
 import qualified Data.Array.Repa as R
 import qualified Sound.File.Sndfile as S
 
-{-$example
+{-$examples
 
-Writing 440hz sine wav for 3 seconds to \"out.wav\".
+Read \"in.wav\", write to \"out.wav\" with same format.
 
 > module Main where
 >
@@ -58,29 +68,20 @@ Writing 440hz sine wav for 3 seconds to \"out.wav\".
 > import Data.Array.Repa.IO.Sndfile
 >
 > main :: IO ()
-> main =
+> main = do
+>   (i, a) <- readSF "in.wav" :: IO (Info, Array DIM2 Double)
+>   writeSF "out.wav" i a
+
+Writing 440hz sine wav for 3 seconds to \"sin440.wav\".
+
+> sin440 :: IO ()
+> sin440 =
 >   let dur = 3; freq = 440; sr = 48000
->
->       info = Info
->         { samplerate = sr
->         , frames = sr * dur
->         , channels = 1
->         , format = Format HeaderFormatWav SampleFormatPcm16 EndianFile
->         , sections = 1
->         , seekable = True }
->
+>       hdr = wav16 {samplerate = sr, frames = sr * dur}
 >       sig :: Array DIM2 Double
 >       sig = fromFunction (Z :. 1 :. dur * sr) $ \(_ :. _ :. i) ->
 >         sin (fromIntegral i * freq * pi * 2 / fromIntegral sr)
->
->   in  writeSF "out.wav" info sig
-
-Read \"out.wav\", write to \"copied.wav\" with same format.
-
-> copy :: IO ()
-> copy = do
->   (i, a) <- readSF "out.wav" :: IO (Info, Array DIM2 Double)
->   writeSF "copied.wav" i a
+>   in  writeSF "sin440.wav" hdr sig
 
 -}
 
@@ -193,7 +194,7 @@ instance (Sample e, Elt e) => Buffer (Array DIM1) e where
   {-# SPECIALIZE toForeignPtr
     :: Array DIM1 Word32 -> IO (ForeignPtr Word32, Int, Int) #-}
 
--- | Unsafe from foreign pointer.
+-- Unsafe from foreign pointer.
 --
 -- This function has introduced in repa 2.2.0.
 -- Writing here again to support repa < 2.2.0.
@@ -221,6 +222,23 @@ toMC nc arr = R.backpermute sh' f arr where
   _ :. nf = R.extent arr
   f (Z :. i :. j) = Z :. i + (j * nc)
 {-# INLINE toMC #-}
+
+-- | 16 bit MS wave, single channel, sampling rate = 48000.
+wav16 :: S.Info
+wav16 = S.Info
+  { samplerate = 48000
+  , channels = 1
+  , frames = 0
+  , format = S.Format S.HeaderFormatWav S.SampleFormatPcm16 S.EndianFile
+  , sections = 1
+  , seekable = True }
+{-# INLINE wav16 #-}
+
+-- | 32 bit MS wave, single channel, sampling rate = 48000.
+wav32 :: S.Info
+wav32 =
+  wav16 { format = S.Format S.HeaderFormatWav S.SampleFormatPcm32 S.EndianFile }
+{-# INLINE wav32 #-}
 
 {-
 -- ---------------------------------------------------------------------------

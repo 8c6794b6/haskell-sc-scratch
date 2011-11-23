@@ -113,6 +113,7 @@ write_sin_raw :: FilePath -> IO ()
 write_sin_raw path = write_raw path (waveMonoPcm16 ns) (take ns sin440) where
   ns = 48000
 
+{-
 write_arr :: FilePath -> Info -> Array DIM2 Double -> IO ()
 write_arr path info arr = R.withManifest' (fromMC arr) $ \arr' -> do
   alloca $ \(ptr :: Ptr Double) -> do
@@ -127,6 +128,7 @@ write_arr path info arr = R.withManifest' (fromMC arr) $ \arr' -> do
             go (n+1)
     go 0
     S.hClose hdl
+-}
 
 genSine :: Int -> Double -> Array DIM2 Double
 genSine dur frq =
