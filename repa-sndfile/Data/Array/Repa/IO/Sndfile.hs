@@ -15,6 +15,9 @@ Read and write audio file with repa arrays using libsndfile via hsndfile.
 -}
 module Data.Array.Repa.IO.Sndfile
   (
+    -- * Example
+    -- $example
+
     -- * Sound file reader and writer
     readSF
   , writeSF
@@ -44,6 +47,42 @@ import Sound.File.Sndfile (Buffer(..), Info(..), Sample)
 
 import qualified Data.Array.Repa as R
 import qualified Sound.File.Sndfile as S
+
+{-$example
+
+Writing 440hz sine wav for 3 seconds to \"out.wav\".
+
+> module Main where
+>
+> import Data.Array.Repa ((:.)(..), Array, DIM2, Z(..), fromFunction)
+> import Data.Array.Repa.IO.Sndfile
+>
+> main :: IO ()
+> main =
+>   let dur = 3; freq = 440; sr = 48000
+>
+>       info = Info
+>         { samplerate = sr
+>         , frames = sr * dur
+>         , channels = 1
+>         , format = Format HeaderFormatWav SampleFormatPcm16 EndianFile
+>         , sections = 1
+>         , seekable = True }
+>
+>       sig :: Array DIM2 Double
+>       sig = fromFunction (Z :. 1 :. dur * sr) $ \(_ :. _ :. i) ->
+>         sin (fromIntegral i * freq * pi * 2 / fromIntegral sr)
+>
+>   in  writeSF "out.wav" info sig
+
+Read \"out.wav\", write to \"copied.wav\" with same format.
+
+> copy :: IO ()
+> copy = do
+>   (i, a) <- readSF "out.wav" :: IO (Info, Array DIM2 Double)
+>   writeSF "copied.wav" i a
+
+-}
 
 -- ---------------------------------------------------------------------------
 -- Wrapper actions

@@ -15,8 +15,8 @@ Build-type:          Simple
 Cabal-version:       >=1.2
 
 Extra-source-files:
-  run/gensine.hs
-  run/rw.hs
+  example/gensine.hs
+  example/rw.hs
 
 flag dev
   description:
@@ -25,7 +25,7 @@ flag dev
     False
 
 executable rw
-  main-is: run/rw.hs
+  main-is: example/rw.hs
   if flag(dev)
     buildable: True
   else
@@ -37,7 +37,7 @@ executable rw
     -- -auto-all -caf-all
 
 executable gensine
-  main-is: run/gensine.hs
+  main-is: example/gensine.hs
   if flag(dev)
     buildable: True
   else
@@ -49,6 +49,7 @@ executable gensine
     -- -auto-all -caf-all
 
 Library
+
   ghc-options:
     -Wall
     -fno-warn-unused-do-bind

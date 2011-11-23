@@ -5,7 +5,6 @@ import Test.ReadWrite
 
 {-
 Using storable vector runs faster, depending on file size.
-When reading and writing small files is the most concern, try to avoid using repa.
 -}
 main :: IO ()
 main = do

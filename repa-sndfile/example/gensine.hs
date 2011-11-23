@@ -63,10 +63,8 @@ waveMonoPcm16 dur = Info
   , seekable = True }
 
 {- ---------------------------------------------------------------------------
- -
  - Write stereo sound, using different frequency for each channel.
- - Modify header format to 'channels = 2'
- -
+ - Modify header format to 'channels = 2' and run.
 
 genSine :: Int -> Double -> Array DIM2 Double
 genSine dur frq =
@@ -75,12 +73,12 @@ genSine dur frq =
         sin (frq * (fromIntegral i + 1) * fromIntegral j * pi * 2 / 48000)
 -}
 
--- |
--- Generating 30 seconds sine 440 hz sine wav took about 0.2 sec with repa.
--- In 8 core machine, using 8 threads, and 4x more memory than result file.
+-- | Generating 30 seconds of 440 hz sine wav took about 0.2 sec with repa,
+-- in 8 core machine, using 8 threads. It uses 4x more memory of the
+-- size of result file.
 --
 -- For just reading and writing sound files as haskell data, storable vector
--- take almost same execution time. It took about 0.25sec in same machine,
+-- took almost same execution time. It took about 0.25sec in same machine,
 -- memory usage was less.
 --
 genSine' :: Int -> Double -> Buffer Double
