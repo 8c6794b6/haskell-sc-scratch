@@ -16,8 +16,6 @@ import System.Environment (getArgs)
 import Data.Array.Repa ((:.)(..), Array, DIM2, Z(..), force, fromFunction)
 import Data.Array.Repa.IO.Sndfile
 
-import qualified Test.ReadWrite as T
-
 import Sound.File.Sndfile.Buffer.Vector
 import qualified Data.Vector.Storable as V
 import qualified Sound.File.Sndfile as S
@@ -29,38 +27,27 @@ main = do
     dur:frq:path:mode:_ ->
       let dur' = read dur
           frq' = read frq
-          fmt  = waveMonoPcm16 dur'
+          fmt  = wav16 {frames = 48000 * dur'}
       in  case mode of
         "buf" -> writeSF path fmt (force $ genSine dur' frq')
-        "raw" -> T.write_arr path fmt (T.genSine dur' frq')
         "vec" -> S.writeFile fmt path (genSine' dur' frq') >> return ()
         _     -> usage
     _ -> usage
 
 usage :: IO ()
-usage = error "Usage: duration freq path [buf|raw|vec]"
+usage = error "Usage: duration freq path [buf|vec]"
 
 -- | Generates sine wave.
-genSine ::
-  Int       -- ^ Duration in seconds.
+genSine
+  :: Int    -- ^ Duration in seconds.
   -> Double -- ^ Frequency
   -> Array DIM2 Double
-genSine dur frq =
-  let sh = Z :. 1 :. (dur * 48000)
-  in  fromFunction sh $ \(_:._:.j) -> sin (frq * fromIntegral j * pi * 2 / 48000)
+genSine dur frq = fromFunction sh go where
+  {-# INLINE sh #-}
+  sh = Z :. 1 :. (dur * 48000)
+  {-# INLINE go #-}
+  go (_:._:.j) = sin (frq * fromIntegral j * pi * 2 / 48000)
 {-# INLINE genSine #-}
-
--- | Wave single-channel PCM 16bit header format.
-waveMonoPcm16 ::
-  Int -- ^ Duration in seconds.
-  -> Info
-waveMonoPcm16 dur = Info
-  { samplerate = 48000
-  , frames = 48000 * dur
-  , channels = 1
-  , format = Format HeaderFormatWav SampleFormatPcm16 EndianFile
-  , sections = 1
-  , seekable = True }
 
 {- ---------------------------------------------------------------------------
  - Write stereo sound, using different frequency for each channel.

@@ -22,7 +22,6 @@ import Sound.File.Sndfile (Sample(..))
 
 import qualified Data.Array.Repa as R
 import qualified Data.Vector.Storable as V
-import qualified Data.Vector.Unboxed as U
 import qualified Sound.File.Sndfile as S
 import qualified Sound.File.Sndfile.Buffer.Vector as SV
 
@@ -36,9 +35,8 @@ test_copy i o = do
   (info,arr) <- readSF i :: IO (Info, Array DIM2 Double)
   writeSF o info arr
 
-
 -- ---------------------------------------------------------------------------
--- Using storable vector, much faster.
+-- Using storable vector, run faster when input file is small.
 
 test_read_vec :: Sample a => FilePath -> IO (Info, V.Vector a)
 test_read_vec file = do
@@ -113,32 +111,11 @@ write_sin_raw :: FilePath -> IO ()
 write_sin_raw path = write_raw path (waveMonoPcm16 ns) (take ns sin440) where
   ns = 48000
 
-{-
-write_arr :: FilePath -> Info -> Array DIM2 Double -> IO ()
-write_arr path info arr = R.withManifest' (fromMC arr) $ \arr' -> do
-  alloca $ \(ptr :: Ptr Double) -> do
-    hdl <- S.openFile path S.WriteMode info
-    let nf = R.size $ R.extent arr'
-        vec = R.toVector arr'
-        go n
-          | n == nf = return ()
-          | otherwise    = do
-            poke ptr (vec `U.unsafeIndex` n)
-            S.hPutBuf hdl ptr 1
-            go (n+1)
-    go 0
-    S.hClose hdl
--}
-
 genSine :: Int -> Double -> Array DIM2 Double
 genSine dur frq =
   let sh = Z :. 1 :. (dur * 48000) :: DIM2
   in  R.fromFunction sh $ \(_ :. _ :. (!j)) ->
         sin (frq * fromIntegral j * pi * 2 / 48000)
-
-write_sin_arr :: FilePath -> IO ()
-write_sin_arr path = do
-  write_arr path (waveMonoPcm16 48000) (genSine 1 440)
 
 waveMonoPcm16 :: Int -> Info
 waveMonoPcm16 nsample = Info

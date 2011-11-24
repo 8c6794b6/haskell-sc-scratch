@@ -63,7 +63,7 @@ import qualified Sound.File.Sndfile as S
 Read \"in.wav\", write to \"out.wav\" with same format.
 
 > module Main where
->
+q>
 > import Data.Array.Repa ((:.)(..), Array, DIM2, Z(..), fromFunction)
 > import Data.Array.Repa.IO.Sndfile
 >
@@ -72,7 +72,7 @@ Read \"in.wav\", write to \"out.wav\" with same format.
 >   (i, a) <- readSF "in.wav" :: IO (Info, Array DIM2 Double)
 >   writeSF "out.wav" i a
 
-Writing 440hz sine wav for 3 seconds to \"sin440.wav\".
+Write 440hz sine wav for 3 seconds to \"sin440.wav\".
 
 > sin440 :: IO ()
 > sin440 =
@@ -113,8 +113,8 @@ readSF path = do
 -- Expecting an array indexed with channel and frame, as returned from readSF.
 -- i.e. 2-dimensional array with its contents indexed with channel.
 --
-writeSF ::
-  forall a. (Elt a, Sample a) => FilePath -> Info -> Array DIM2 a -> IO ()
+writeSF
+  :: forall a. (Elt a, Sample a) => FilePath -> Info -> Array DIM2 a -> IO ()
 writeSF path info arr = do
   S.writeFile info path (fromMC arr)
   return ()
@@ -129,9 +129,9 @@ writeSF path info arr = do
 --
 -- Performs given action using sound file info and samples as arguments.
 --
-withSF ::
-  forall a b. (Sample a, Elt a) =>
-  FilePath -> (Info -> Array DIM2 a -> IO b) -> IO b
+withSF
+  :: forall a b. (Sample a, Elt a)
+  => FilePath -> (Info -> Array DIM2 a -> IO b) -> IO b
 withSF path act = do
   (info, arr) <- S.readFile path :: IO (Info, Maybe (Array DIM1 a))
   case arr of
@@ -201,7 +201,6 @@ instance (Sample e, Elt e) => Buffer (Array DIM1) e where
 --
 unsafeFFP :: (Shape sh, Storable a) => sh -> ForeignPtr a -> Array sh a
 unsafeFFP sh fptr =
-  -- XXX: Using unsafePerformIO for peeking pointer.
   R.fromFunction sh $ \ix ->
     unsafePerformIO $ withForeignPtr fptr $ \ptr ->
       peekElemOff ptr $ R.toIndex sh ix
@@ -239,17 +238,3 @@ wav32 :: S.Info
 wav32 =
   wav16 { format = S.Format S.HeaderFormatWav S.SampleFormatPcm32 S.EndianFile }
 {-# INLINE wav32 #-}
-
-{-
--- ---------------------------------------------------------------------------
--- Sample arrays
-
-a0, a1, a2 :: Array DIM2 Int
-a0 = R.fromList (Z :. 1 :. 10) [1..10]
-a1 = R.fromList (Z :. 2 :. 5) [1..10]
-a2 = R.fromList (Z :. 4 :. 5) [1..20]
-
-a3,a4 :: Array DIM2 (Int,Int)
-a3 = R.fromFunction (Z :. 2 :. 5) (\(_:.i:.j) -> (i,j))
-a4 = R.fromFunction (Z :. 4 :. 5) (\(_:.i:.j) -> (i,j))
--}
