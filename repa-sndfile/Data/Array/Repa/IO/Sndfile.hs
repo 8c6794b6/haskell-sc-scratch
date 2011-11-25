@@ -63,7 +63,7 @@ import qualified Sound.File.Sndfile as S
 Read \"in.wav\", write to \"out.wav\" with same format.
 
 > module Main where
-q>
+>
 > import Data.Array.Repa ((:.)(..), Array, DIM2, Z(..), fromFunction)
 > import Data.Array.Repa.IO.Sndfile
 >

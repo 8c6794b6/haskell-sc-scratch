@@ -1,5 +1,5 @@
 Name:           repa-sndfile
-Version:        0.0.1
+Version:        2.1.1.0
 Synopsis:       Read and write sound files to repa via libsndfile
 License:        BSD3
 License-file:   LICENSE
