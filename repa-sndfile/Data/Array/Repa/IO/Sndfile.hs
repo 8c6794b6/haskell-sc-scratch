@@ -16,12 +16,6 @@ Note that this module re-exports header related types from hsndfile.
 
 For more info about supported format, visit libsndfile web site.
 
-/References/
-
-* libsndfile : <http://www.mega-nerd.com/libsndfile/>
-
-* hsndfile   : <http://haskell.org/haskellwiki/Hsndfile>
-
 -}
 module Data.Array.Repa.IO.Sndfile
   (
@@ -46,6 +40,9 @@ module Data.Array.Repa.IO.Sndfile
   , fromMC
   , wav16
   , wav32
+    
+    -- * References
+    -- $references
 
   ) where
 
@@ -84,6 +81,14 @@ Write 440hz sine wav for 3 seconds to \"sin440.wav\".
 >       sig = fromFunction (Z :. 1 :. dur * sr) $ \(_ :. _ :. i) ->
 >         sin (fromIntegral i * freq * pi * 2 / fromIntegral sr)
 >   in  writeSF "sin440.wav" hdr sig
+
+-}
+
+{-$references
+
+* libsndfile: <http://www.mega-nerd.com/libsndfile/>
+
+* hsndfile <http://haskell.org/haskellwiki/Hsndfile>
 
 -}
 
