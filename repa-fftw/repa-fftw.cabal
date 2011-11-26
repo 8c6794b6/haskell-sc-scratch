@@ -1,0 +1,57 @@
+Name:                repa-fftw
+Version:             2.1.0
+Synopsis:            Perform fft with repa via FFTW
+License:             BSD3
+License-file:        LICENSE
+Author:              8c6794b6
+Maintainer:          8c6794b6@gmail.com
+Copyright:           8c6794b6, 2011
+Category:            Math
+Build-type:          Simple
+Cabal-version:       >=1.2
+
+-- Description:
+
+Extra-source-files:
+  examples/bench.hs
+  examples/dochead.hs
+
+flag dev
+  description:
+    Activate developer flags
+  default:
+    False
+
+executable bench
+   main-is:
+    examples/bench.hs
+
+   if flag(dev)
+     buildable:
+       True
+     build-depends:
+       criterion == 0.5.1.0,
+       random == 1.0.0.3,
+       repa-algorithms == 2.1.0.1,
+       test-framework ==0.4.*,
+       test-framework-hunit ==0.2.*,
+       test-framework-quickcheck2 ==0.2.*
+     ghc-options:
+       -Wall -fno-warn-orphans
+       -O2 -threaded -rtsopts
+   else
+     buildable: False
+
+Library
+  ghc-options:
+    -Wall -O2 -fno-warn-orphans
+
+  Exposed-modules:
+    Data.Array.Repa.FFTW
+
+  Build-depends:
+    base >= 4.0 && < 4.5,
+    carray >= 0.1.5 && < 0.2,
+    fft >= 0.1.5 && < 0.2,
+    repa == 2.1.1.5,
+    storable-complex >= 0.2
