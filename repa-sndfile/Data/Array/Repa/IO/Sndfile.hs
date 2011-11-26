@@ -14,6 +14,8 @@ Portability : non-portable
 Read and write audio file with repa arrays using libsndfile via hsndfile.
 Note that this module re-exports header related types from hsndfile.
 
+For more info about supported format, visit libsndfile web site.
+
 /References/
 
 * libsndfile : <http://www.mega-nerd.com/libsndfile/>
@@ -196,8 +198,8 @@ instance (Sample e, Elt e) => Buffer (Array DIM1) e where
 
 -- Unsafe from foreign pointer.
 --
--- This function has introduced in repa 2.2.0.
--- Writing here again to support repa < 2.2.0.
+-- This function was introduced from repa 2.2.0.
+-- Writing here to support repa < 2.2.0.
 --
 unsafeFFP :: (Shape sh, Storable a) => sh -> ForeignPtr a -> Array sh a
 unsafeFFP sh fptr =
@@ -235,6 +237,6 @@ wav16 = S.Info
 
 -- | 32 bit MS wave, single channel, sampling rate = 48000.
 wav32 :: S.Info
-wav32 =
-  wav16 { format = S.Format S.HeaderFormatWav S.SampleFormatPcm32 S.EndianFile }
+wav32 = wav16
+  { format = S.Format S.HeaderFormatWav S.SampleFormatPcm32 S.EndianFile }
 {-# INLINE wav32 #-}
