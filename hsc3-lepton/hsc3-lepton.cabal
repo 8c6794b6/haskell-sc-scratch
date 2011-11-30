@@ -49,11 +49,13 @@ library
     -Wall
     -fno-warn-unused-do-bind
     -fno-warn-orphans
-    -rtsopts
+
   if flag(hpc)
      ghc-options: -fhpc
+
   if flag(debug)
      ghc-options: -auto-all
+
   exposed-modules:
     Sound.SC3.Lepton
     Sound.SC3.Lepton.Instance
@@ -92,6 +94,7 @@ library
     Sound.SC3.Lepton.UGen.Missing
     Sound.SC3.Lepton.UGen.Pretty
     Sound.SC3.Lepton.Util
+
   build-depends:
     QuickCheck >= 2.0,
     attoparsec,
@@ -117,7 +120,6 @@ library
     random,
     random-shuffle,
     split,
-    stream-fusion >= 0.1.2.2,
     syb,
     stm,
     template-haskell,

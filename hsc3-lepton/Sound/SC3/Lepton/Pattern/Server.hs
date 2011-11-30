@@ -128,7 +128,7 @@ data ThreadState
   | Paused ThreadId
   -- | Pattern haven't started yet.
   | New
-  -- | Pattern was finite, finished running it.
+  -- | Pattern has finished running (for finite patterns only).
   | Finished
   deriving (Eq, Show, Ord)
 

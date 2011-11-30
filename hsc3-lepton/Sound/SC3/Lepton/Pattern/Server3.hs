@@ -76,14 +76,14 @@ data ThreadInfo = Running ThreadId | Stopped deriving (Eq, Show)
 -- all threads in server env will be killed.
 --
 go ::
-  -- | Port of pattern server
   Int
-  -- | Host of scsynth to connect
+  -- ^ Port of pattern server
   -> String
-  -- | Protocol of scsynth to connect
+  -- ^ Host of scsynth to connect
   -> Protocol
-  -- | Port of scsynth to connect
+  -- ^ Protocol of scsynth to connect
   -> Int
+  -- ^ Port of scsynth to connect
   -> IO ()
 go lport shost sprtc sport = bracket acquire tidyup work where
   acquire = do
@@ -119,13 +119,13 @@ handleMessage env msg = case msg of
   _                -> sendMessage env Nothing msg
 
 -- | Pattern match OSC message and send to scsynth server.
-sendMessage ::
-  -- | Environment for server
-  ServerEnv
-  -- | Offset time of OSC message
+sendMessage
+  :: ServerEnv
+  -- ^ Environment for server
   -> Maybe Time
-  -- | OSC message body
+  -- ^ Offset time of OSC message
   -> OSC
+  -- ^ OSC message body
   -> IO ()
 sendMessage env time msg = case msg of
   Bundle _ msgs                          -> mapM_ (sendMessage env time) msgs
@@ -136,22 +136,22 @@ sendMessage env time msg = case msg of
   _                                      -> putStrLn $ "Unknown: " ++ show msg
 
 -- | Run new pattern.
-runLNew ::
-  -- | Environment for server
-  ServerEnv
-  -- | Offset time of OSC message
+runLNew
+  :: ServerEnv
+  -- ^ Environment for server
   -> Maybe Time
-  -- | Name of thread
+  -- ^ Offset time of OSC message
   -> String
-  -- | Serialized pattern
+  -- ^ Name of thread
   -> ByteString
+  -- ^ Serialized pattern
   -> IO ()
 runLNew env time name blob = do
   --
   -- XXX: No gurantee for thread Map to contain un-managed threads.
   --
-  -- Since forkIO is invoked between the call of atomic STM action,
-  -- unless using unsafePerformIO, forkIO needs to called outside of
+  -- Since forkIO is invoked between atomic STM actions,
+  -- unless using unsafePerformIO, forkIO need to be called outside of
   -- STM action.
   --
   tmap <- atomically $ readTVar $ seThreads env
@@ -165,13 +165,13 @@ runLNew env time name blob = do
   atomically $ writeTVar (seThreads env) $ M.insert name (Running tid) tmap
 
 -- | Free specified thread.
-runLFree ::
-  -- | Environment for server
-  ServerEnv
-  -- | Offset time for sending message
+runLFree
+  :: ServerEnv
+  -- ^ Environment for server
   -> Maybe Time
-  -- | Thread name to kill
+  -- ^ Offset time for sending message
   -> String
+  -- ^ Thread name to kill
   -> IO ()
 runLFree env time name = do
   tmap <- atomically $ readTVar $ seThreads env
@@ -184,11 +184,11 @@ runLFree env time name = do
     _                  -> putStrLn $ "Thread " ++ name ++ " does not exist"
 
 -- | Free all thread in server environment.
-runLFreeAll ::
-  -- | Server environment
-  ServerEnv
-  -- | Offset time for sending message
+runLFreeAll
+  :: ServerEnv
+  -- ^ Server environment
   -> Maybe Time
+  -- ^ Offset time for sending message
   -> IO ()
 runLFreeAll env time = do
   let tv = seThreads env
@@ -212,15 +212,15 @@ runLDump env = do
 -- | Play given patttern with new thread.
 -- When the given pattern is finite, forked thread will update thread
 -- status of itself in server env when finished playing the pattern.
-mkThread ::
-  -- | Environment for server
-  ServerEnv
-  -- | Offset time
+mkThread
+  :: ServerEnv
+  -- ^ Environment for server
   -> Maybe Time
-  -- | Name for new thread
+  -- ^ Offset time
   -> String
-  -- | Serialized pattern
+  -- ^ Name for new thread
   -> ByteString
+  -- ^ Serialized pattern
   -> IO ()
 mkThread env time name blob = case decodePattern blob of
   Left err   -> print err

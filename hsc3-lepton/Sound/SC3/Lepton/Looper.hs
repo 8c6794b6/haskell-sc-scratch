@@ -12,42 +12,6 @@
 -- Simple manager for looping forked threads.  Main target usecase is for interactive
 -- management of audible events, though might be useful for other purposes.
 --
--- /Example/
---
--- Initialize:
---
--- > > e <- initEnv
---
--- Write actions:
---
--- > > let action1 = do {act $ print "FOO!"; rest 2}
---
--- Add action:
---
--- > > tadd e (tu 4) "one" action1
---
--- Pause and resume the thread:
---
--- > > tpause e (tu 4) "one"
--- > > tresume e (tu 4) "one"
---
--- Change TimeUnit:
---
--- > > setTimeUnit e 0.5
--- > > tresume0 e "one"
---
--- Kill thread:
---
--- > > tkill e "one"
---
--- Run multiple threads:
---
--- > > let action2 = do { ... }
--- > > let action3 = do { ... }
--- > > tadd (tu 1) e "one" action1
--- > > tadd (tu 1) e "two" action2
--- > > tadd (tu 2) e "three" action3
---
 module Sound.SC3.Lepton.Looper where
 
 import Control.Concurrent
@@ -58,6 +22,45 @@ import Control.Monad.Trans
 import Control.Monad.Reader
 import Control.Monad.State
 import Sound.OpenSoundControl
+
+
+{-$example
+
+Initialize:
+
+> > e <- initEnv
+
+Write actions:
+
+> > let action1 = do {act $ print "FOO!"; rest 2}
+
+Add action:
+
+> > tadd e (tu 4) "one" action1
+
+Pause and resume the thread:
+
+> > tpause e (tu 4) "one"
+> > tresume e (tu 4) "one"
+
+Change TimeUnit:
+
+> > setTimeUnit e 0.5
+> > tresume0 e "one"
+
+Kill thread:
+
+> > tkill e "one"
+
+Run multiple threads:
+
+> > let action2 = do { ... }
+> > let action3 = do { ... }
+> > tadd (tu 1) e "one" action1
+> > tadd (tu 1) e "two" action2
+> > tadd (tu 2) e "three" action3
+
+-}
 
 -- | Environment for managing threads.
 data TEnv = TEnv
