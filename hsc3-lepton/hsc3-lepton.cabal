@@ -1,5 +1,5 @@
 name:           hsc3-lepton
-version:        0.0.6
+version:        0.11.0
 synopsis:       Client side utility collection for scsynth.
 author:         8c6794b6
 maintainer:     8c6794b6@gmail.com
@@ -17,15 +17,9 @@ extra-source-files:
    leptseq.hs
    tests.hs
 
-flag hpc
+flag dev
   description:
-    Enable compiling with hpc flag turned on
-  default:
-    False
-
-flag debug
-  description:
-    Enable debugging options
+    Enable developer options
   default:
     False
 
@@ -50,11 +44,8 @@ library
     -fno-warn-unused-do-bind
     -fno-warn-orphans
 
-  if flag(hpc)
-     ghc-options: -fhpc
-
-  if flag(debug)
-     ghc-options: -auto-all
+  if flag(dev)
+     ghc-options: -fhpc -auto-all
 
   exposed-modules:
     Sound.SC3.Lepton
@@ -108,8 +99,8 @@ library
     deepseq,
     filepath,
     gdiff >= 1.0,
-    hosc >= 0.10,
-    hsc3 >= 0.10,
+    hosc >= 0.11,
+    hsc3 >= 0.11,
     mersenne-random-pure64,
     mtl,
     mwc-random,

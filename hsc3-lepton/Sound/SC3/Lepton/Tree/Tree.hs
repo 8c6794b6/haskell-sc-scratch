@@ -157,7 +157,6 @@ data SCNode = Group NodeId [SCNode]                -- ^ Group node
             | Synth NodeId SynthName [SynthParam]  -- ^ Synth node
               deriving (Eq,Read,Show,Data,Typeable)
 
-type NodeId = Int
 type SynthName = String
 
 -- | Data type for synth param.
