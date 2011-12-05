@@ -3,7 +3,7 @@ version:        0.11.0
 synopsis:       Client side utility collection for scsynth.
 author:         8c6794b6
 maintainer:     8c6794b6@gmail.com
-cabal-version:  >= 1.6
+cabal-version:  >= 1.8
 build-type:     Simple
 license:        BSD3
 license-file:   LICENSE
@@ -23,13 +23,49 @@ flag dev
   default:
     False
 
-test-suite main-tests
-  ghc-options:
-    -fhpc -rtsopts -auto-all
-  type:
-    exitcode-stdio-1.0
-  main-is:
-    tests.hs
+-- test-suite main-tests
+
+--   ghc-options:
+--     -rtsopts -fhpc -auto-all
+
+--   type:
+--     exitcode-stdio-1.0
+
+--   main-is:
+--     tests.hs
+
+--   build-depends:
+--     QuickCheck >= 2.0,
+--     attoparsec,
+--     base == 4.*,
+--     binary,
+--     bytestring,
+--     blaze-builder,
+--     cereal,
+--     cmdargs,
+--     containers,
+--     deepseq,
+--     filepath,
+--     gdiff >= 1.0,
+--     hosc >= 0.11,
+--     hsc3 >= 0.11,
+--     mersenne-random-pure64,
+--     mtl,
+--     mwc-random,
+--     parallel,
+--     parsec >= 3.0,
+--     pretty,
+--     primitive,
+--     random,
+--     random-shuffle,
+--     split,
+--     syb,
+--     stm,
+--     template-haskell,
+--     uniplate >= 1.6,
+--     vector >= 0.7 && < 0.9,
+--     zlib
+
 
 executable leptseq
   ghc-options:
@@ -37,6 +73,37 @@ executable leptseq
     -Wall -fno-warn-unused-do-bind -fno-warn-orphans
   main-is:
      leptseq.hs
+  build-depends:
+    QuickCheck >= 2.0,
+    attoparsec,
+    base == 4.*,
+    binary,
+    bytestring,
+    blaze-builder,
+    cereal,
+    cmdargs,
+    containers,
+    deepseq,
+    filepath,
+    gdiff >= 1.0,
+    hosc >= 0.11,
+    hsc3 >= 0.11,
+    mersenne-random-pure64,
+    mtl,
+    mwc-random,
+    parallel,
+    parsec >= 3.0,
+    pretty,
+    primitive,
+    random,
+    random-shuffle,
+    split,
+    syb,
+    stm,
+    template-haskell,
+    uniplate >= 1.6,
+    vector >= 0.7 && < 0.9,
+    zlib
 
 library
   ghc-options:
@@ -85,6 +152,12 @@ library
     Sound.SC3.Lepton.UGen.Missing
     Sound.SC3.Lepton.UGen.Pretty
     Sound.SC3.Lepton.Util
+  other-modules:
+    Test.Sound.SC3.Lepton.Common
+    Test.Sound.SC3.Lepton.Instance
+    Test.Sound.SC3.Lepton.Tree.Nd
+    Test.Sound.SC3.Lepton.Tree.Tree
+    Test.Sound.SC3.Lepton.UGen.Demand
 
   build-depends:
     QuickCheck >= 2.0,
