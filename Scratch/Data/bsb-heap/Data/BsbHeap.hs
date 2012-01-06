@@ -73,8 +73,8 @@ instance Ord a => Ord (Heap a) where
 instance Functor Heap where
   {-# INLINE fmap #-}
   fmap f h = case h of
-    Empty   -> Empty
-    Tip a h -> Tip (f a) (fmap (fmap f) h)
+    Empty    -> Empty
+    Tip a h' -> Tip (f a) (fmap (fmap f) h')
 
 instance NFData a => NFData (Heap a) where
   {-# INLINE rnf #-}
