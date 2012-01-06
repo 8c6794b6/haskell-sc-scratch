@@ -1,0 +1,60 @@
+name:          hal6
+version:       0.0.1
+synopsis:      Hal6 Scratches.
+description:   Scratch written while reading Hal6 presentation.
+author:        8c6794b6
+maintainer:    8c6794b6
+cabal-version: >= 1.8
+build-type:    Simple
+license:       BSD3
+category:      Data
+stability:     experimental
+
+extra-source-files:
+  run/partest0.hs
+  run/partest.hs
+  run/queen.hs
+
+executable partest0
+  main-is:
+    run/partest0.hs
+  ghc-options:
+    -rtsopts -eventlog
+  build-depends:
+    base >= 4.0 && < 5.0,
+    parallel
+
+executable partest
+  main-is:
+    run/partest.hs
+  ghc-options:
+    -threaded -rtsopts -eventlog
+  build-depends:
+    base >= 4.0 && < 5.0,
+    parallel
+
+executable queen
+  main-is:
+    run/queen.hs
+  ghc-options:
+    -threaded -rtsopts -eventlog
+  build-depends:
+    base >= 4.0 && < 5.0,
+    parallel
+
+
+library
+  ghc-options:
+    -Wall
+  exposed-modules:
+    Hal6.Collatz
+    Hal6.ParTest1
+    Hal6.ParTest2
+    Hal6.ParTest3
+    Hal6.ParTest4
+    Hal6.ParTest5
+    Hal6.ParTest6
+    Hal6.Queen
+  build-depends:
+    base >= 4.0 && < 5.0,
+    parallel
