@@ -1,4 +1,5 @@
 {-# LANGUAGE TypeFamilies, TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-|
 Module      : $Header$
 CopyRight   : (c) 8c6794b6
@@ -52,7 +53,6 @@ instance ExprNum Src where
 instance ExprNum Module where
   type Count Module = Int
   count = countExpressions
-
 
 -- | Count number of expression in given Module.
 countExpressions :: Module -> Int

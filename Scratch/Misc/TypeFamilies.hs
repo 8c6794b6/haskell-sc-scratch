@@ -128,3 +128,14 @@ instance (Eq e, Ord e) => Collects (S.Set e) where
 --
 sumCollects :: (Collects c1, Collects c2, Elem c1 ~ Elem c2) => c1 -> c2 -> c2
 sumCollects c1 c2 = foldr insertC c2 (toListC c1)
+
+data family F a
+
+data FI
+data FD
+
+data instance F Int    = FI
+data instance F Double = FD
+
+f :: F a -> F a
+f = undefined
