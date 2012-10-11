@@ -1,0 +1,10 @@
+An example of calling cpp function from c, and then call the c
+function from cpp main, from:
+
+  http://www.parashift.com/c++-faq-lite/cpp-objs-passed-to-c.html
+
+To compile and run:
+
+   $ g++ -I. main.cpp Fred.cpp c-function.c
+   $ ./a.out
+   wilma: 1234
