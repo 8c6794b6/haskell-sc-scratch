@@ -102,7 +102,7 @@ executable leptseq
     stm,
     template-haskell,
     uniplate >= 1.6,
-    vector >= 0.7 && < 0.9,
+    vector,
     zlib
 
 library
@@ -188,5 +188,5 @@ library
     stm,
     template-haskell,
     uniplate >= 1.6,
-    vector >= 0.7 && < 0.9,
+    vector,
     zlib

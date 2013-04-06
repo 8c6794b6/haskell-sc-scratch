@@ -29,7 +29,7 @@ instance Show a => Show (BiMap a) where
 
 lookup_key :: Ord a => a -> BiMap a -> Maybe Int
 lookup_key v (BiMap m _) = M.lookup v m
-
+--------------------------------------------------------------------------
 lookup_val :: Int -> BiMap a -> a
 lookup_val k (BiMap _ m) = m IM.! k
 
@@ -38,8 +38,8 @@ insert v (BiMap m im) = (k, BiMap m' im') where
   m' = M.insert v k m
   im' = IM.insert k v im
   k = IM.size im
-  
-empty :: BiMap a  
+
+empty :: BiMap a
 empty = BiMap M.empty IM.empty
 
 size :: BiMap a -> Int
