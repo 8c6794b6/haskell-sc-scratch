@@ -17,14 +17,18 @@ module Sound.SC3.Lepton.Tree
 
     -- ** Routing nodes
     -- $example_declarative
-    module All
+    module Sound.SC3.Lepton.Tree.Connection
+  , module Sound.SC3.Lepton.Tree.Diff
+  , module Sound.SC3.Lepton.Tree.Nd
+  , module Sound.SC3.Lepton.Tree.Tree
+  , module Sound.SC3.Lepton.Tree.Zipper
   )  where
 
-import Sound.SC3.Lepton.Tree.Connection as All
-import Sound.SC3.Lepton.Tree.Diff as All
-import Sound.SC3.Lepton.Tree.Nd as All
-import Sound.SC3.Lepton.Tree.Tree as All
-import Sound.SC3.Lepton.Tree.Zipper as All
+import Sound.SC3.Lepton.Tree.Connection
+import Sound.SC3.Lepton.Tree.Diff
+import Sound.SC3.Lepton.Tree.Nd
+import Sound.SC3.Lepton.Tree.Tree
+import Sound.SC3.Lepton.Tree.Zipper
 
 -- $example_interactive
 --
@@ -107,7 +111,3 @@ import Sound.SC3.Lepton.Tree.Zipper as All
 -- > freq = control kr "freq" 440
 -- > pan = control kr "pan" 0
 -- > fmod = control kr "fmod" 0
-
-
-
-

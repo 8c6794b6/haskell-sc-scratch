@@ -9,23 +9,9 @@ Maintainer  : 8c6794b6@gmail.com
 Stability   : unstable
 Portability : non-portable (CPP)
 
-Additional instance declarations for datat types found in Sound.SC3.
-
-Currently below types are instantiated from Data.Typeable and Data.Data.
-
-* 'Datum'
-
-* 'OSC'
-
-* 'Time'
-
-* 'Rate'
-
-* 'Special'
-
-* 'UGen'
-
-* 'AddAction'
+Module to hold additional orphan instance declarations for datat types found in
+Sound.SC3. Currently Data.Typeable and Data.Data type classes are derived are
+added to support 'Sound.SC3.UGen' and 'Sound.OSC.Datum'.
 
 -}
 module Sound.SC3.Lepton.Instance () where
@@ -33,23 +19,55 @@ module Sound.SC3.Lepton.Instance () where
 import Data.Data
 
 import Sound.SC3
-import Sound.OpenSoundControl
+import Sound.SC3.UGen.MCE
+import Sound.OSC
 
 #if defined(__GLASGOW_HASKELL__) && __GLASGOW_HASKELL__ >= 700
+
+-- --------------------------------------------------------------------------
+--
+-- Data types from Sound.OSC
+--
+-- --------------------------------------------------------------------------
+
+deriving instance Data MIDI
+deriving instance Typeable MIDI
+
 deriving instance Data Datum
 deriving instance Typeable Datum
 
-deriving instance Data OSC
-deriving instance Typeable OSC
-
-deriving instance Data Time
-deriving instance Typeable Time
+-- --------------------------------------------------------------------------
+--
+-- Data types from Sound.SC3
+--
+-- --------------------------------------------------------------------------
 
 deriving instance Data Rate
 deriving instance Typeable Rate
 
 deriving instance Data Special
 deriving instance Typeable Special
+
+deriving instance Data MRG
+deriving instance Typeable MRG
+
+deriving instance Data a => Data (MCE a)
+deriving instance Typeable1 MCE
+
+deriving instance Data Proxy
+deriving instance Typeable Proxy
+
+deriving instance Data Primitive
+deriving instance Typeable Primitive
+
+deriving instance Data Label
+deriving instance Typeable Label
+
+deriving instance Data Control
+deriving instance Typeable Control
+
+deriving instance Data Constant
+deriving instance Typeable Constant
 
 deriving instance Data UGen
 deriving instance Typeable UGen
@@ -59,6 +77,7 @@ deriving instance Typeable AddAction
 
 deriving instance Data UGenId
 deriving instance Typeable UGenId
+
 #else
 instance Typeable Datum where
   typeOf _  = mkTyConApp tc_Datum []

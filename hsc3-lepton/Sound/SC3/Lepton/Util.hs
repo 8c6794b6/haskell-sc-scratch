@@ -1,5 +1,3 @@
-{-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE Rank2Types #-}
 ----------------------------------------------------------------------
 -- |
 -- Module      : $Header$
@@ -13,22 +11,17 @@
 --
 module Sound.SC3.Lepton.Util where
 
-import Data.List (nub, foldl')
+import Control.Monad.IO.Class
+import Data.Int (Int32)
+import Data.List (nub)
 import Data.Maybe (fromMaybe)
 import System.Environment (getEnvironment)
 import System.FilePath ((</>), (<.>))
-import System.Random
-  ( Random
-  , RandomGen
-  , getStdRandom
-  , next
-  , randomR
-  , randomRs
-  , newStdGen )
 import qualified Data.ByteString.Lazy as B
 
 import Sound.SC3
-import Sound.OpenSoundControl
+import Sound.SC3.UGen.MCE
+import Sound.OSC
 
 -- | Environmental variable for synthdefs.
 scSynthdefPath :: String
@@ -50,90 +43,102 @@ writeSynthdef name ugen = do
 -- | Reload synthdef directory. If specified, path to the
 -- @HSC3_SYNTHDEF_DIR@ would be used. Otherwise, current directory
 -- would be used.
-reloadSynthdef :: (Transport t) => t -> IO OSC
-reloadSynthdef fd = do
-  envir <- getEnvironment
+reloadSynthdef :: (MonadIO m, DuplexOSC m) => m Message
+reloadSynthdef = do
+  envir <- liftIO $ getEnvironment
   let dir = fromMaybe "./" $ lookup scSynthdefPath envir
       path = dir </> ""
-  async fd (d_loadDir path)
+  async (d_loadDir path)
 
 -- | Type synonym for sending osc message to scsynth.
 type SendUDP a = UDP -> IO a
 
 -- | Get rate, name, and default value of controls from given ugen.
-getControls :: UGen -> [(Rate,String,Double,Bool)]
+getControls :: UGen -> [(Rate,String,Float,Bool)]
 getControls = nub . getControls'
 
-getControls' :: UGen -> [(Rate,String,Double,Bool)]
+getControls' :: UGen -> [(Rate,String,Float,Bool)]
 getControls' ug =
     case ug of
-      Constant _ -> []
-      Control rate name def trg -> [(rate,name,def,trg)]
-      Primitive _ _ inputs _ _ _ -> concatMap getControls' inputs
-      Proxy src _ -> getControls' src
-      MCE ugs -> concatMap getControls' ugs
-      MRG l r -> getControls' l ++ getControls' r
+      Control_U (Control rate name def trg)     -> [(rate,name,def,trg)]
+      Primitive_U (Primitive  _ _ inputs _ _ _) ->
+          concatMap getControls' inputs
+      Proxy_U (Proxy prim _)                    ->
+          getControls' (Primitive_U prim)
+      MCE_U m                                   ->
+          case m of
+              MCE_Unit u    -> getControls' u
+              MCE_Vector us -> concatMap getControls' us
+      MRG_U (MRG l r)                           ->
+          getControls' l ++ getControls' r
+      _                                         -> []
 
 -- | Datatype for representing '/b_info' message returned by sending
 -- '/b_query'.
 data BufInfo = BufInfo {
-      bufNumber :: Int,
-      bufNumFrames :: Int,
-      bufNumChannels :: Int,
-      bufSampleRate :: Double
+      bufNumber :: Int32,
+      bufNumFrames :: Int32,
+      bufNumChannels :: Int32,
+      bufSampleRate :: Float
     } deriving (Eq, Show)
 
 -- | Send /b_query and returns BufInfo.
-getBufInfo :: Int -> IO BufInfo
+getBufInfo :: DuplexOSC m => Int -> m BufInfo
 getBufInfo bufId = do
-  msg <- withSC3 (\fd -> send fd (b_query [bufId]) >>
-                         wait fd "/b_info")
-  case msg of
-    Message "/b_info" [Int bid, Int nf,Int nc,Float sr] ->
-        return $ BufInfo bid nf nc sr
-    _ -> error "Not a /b_info message"
+    msg <- send (b_query [bufId]) >> waitReply "/b_info"
+    case msg of
+        Message "/b_info" [Int32 bid,Int32 nf,Int32 nc,Float sr] ->
+            return $ BufInfo bid nf nc sr
+        _ -> error "Not a /b_info message"
 
-queryRootNode :: (Transport t) => t -> IO OSC
-queryRootNode fd = do
-  send fd (Message "/g_queryTree" [Int 0, Int 1])
-  wait fd "/g_queryTree.reply"
+queryRootNode :: DuplexOSC m => m Message
+queryRootNode = do
+    _ <- async (notify True)
+    send $ g_queryTree [(0,True)]
+    waitReply "/g_queryTree.reply"
 
 -- | Sends "/g_queryTree" and shows returning message.
-queryTree :: Int -> OSC
-queryTree n = Message "/g_queryTree" [Int n, Int 1]
+queryTree :: Int -> Message
+queryTree n = g_queryTree [(n, True)]
 
 -- | Sends registration for notify, then query the nodes and shows
 -- returing message.
-queryNode :: Transport t => Int -> t -> IO OSC
-queryNode n = \fd -> do
-  _ <- async fd (notify True)
-  send fd (n_query [n])
-  wait fd "/n_info"
+-- queryNode :: Transport t => Int -> t -> IO OSC
+queryNode :: DuplexOSC m => Int -> m Message
+queryNode n = do
+    _ <- async (notify True)
+    send (n_query [n])
+    waitReply "/n_info"
 
 -- | Dumps root node and show in scsynth.
-dumpTree :: Transport t => t -> IO ()
-dumpTree fd = send fd (Message "/g_dumpTree" [Int 0, Int 1])
+dumpRootNode :: SendOSC m => m ()
+dumpRootNode = send $ g_dumpTree [(0,True)]
 
 -- | Sends a synthdef to server.
-sendSynthdef :: Transport t => String -> UGen -> t -> IO OSC
-sendSynthdef name ugen = \t -> async t $ d_recv $ synthdef name ugen
+sendSynthdef :: DuplexOSC m => String -> UGen -> m Message
+sendSynthdef name ugen = async $ d_recv $ synthdef name ugen
 
 -- | Write a synthdef to file, then load it.
-loadSynthdef :: Transport t => String -> UGen -> t -> IO OSC
-loadSynthdef name ugen _ = do
+loadSynthdef :: String -> UGen -> IO Message
+loadSynthdef name ugen = do
   writeSynthdef name ugen
   withSC3 $ sendSynthdef name ugen
 
+
 -- | Sends @/b_get@ message and wait until it gets @/b_set@ message.
-b_get' :: Transport t => Int -> [Int] -> (t -> IO OSC)
-b_get' bId is = \fd -> send fd (b_get bId is) >> wait fd "/b_set"
+b_get' :: DuplexOSC m => Int -> [Int] -> m Message
+b_get' bId is = do
+    send (b_get bId is)
+    waitReply "/b_set"
 
 -- | Sends @/b_getn@ message and wait until it gets @/b_setn@.
---
--- > \fd ->
-b_getn' :: Transport t => Int -> [(Int,Int)] -> t -> IO OSC
-b_getn' bid params = \fd -> send fd (b_getn bid params) >> wait fd "/b_setn"
+b_getn' :: DuplexOSC m => Int -> [(Int,Int)] -> m Message
+b_getn' bid params = do
+    send (b_getn bid params)
+    waitReply "/b_setn"
 
+
+{-
 -- | Write to buffer from List.
 b_loadList :: Int -> Int -> Int -> [Double] -> IO OSC
 b_loadList  = undefined
@@ -153,7 +158,9 @@ b_loadToByteString = undefined
 -- | Plays the buffer. Takes buffer id and boolean for looping or not.
 b_play :: Int -> Bool -> IO ()
 b_play _ _ = undefined
+-}
 
+{-
 -- | Sends @/c_get@ message and wait until it gets @/c_set@.
 c_get' :: Transport t => [Int] -> t -> IO OSC
 c_get' ids = \fd -> send fd  (c_get ids) >> wait fd "/c_set"
@@ -229,34 +236,12 @@ envCoord' :: [(UGen, UGen)] -> UGen -> UGen -> EnvCurve -> [UGen]
 envCoord' bp dur amp c =
     let l = map ((* amp) . snd) bp
         t = map (* dur) (d_dx (map fst bp))
-    in  env l t (repeat c) 1 (-1)
+    in undefined
+    -- in  env l t (repeat c) 1 (-1)
 
-d_dx :: (Num a) => [a] -> [a]
-d_dx [] = []
-d_dx [_] = []
-d_dx [x,y] = [y - x]
-d_dx (x:y:r) = y - x : d_dx (y:r)
-
-------------------------------------------------------------------------------
---
--- OSC message
---
-------------------------------------------------------------------------------
-
--- -- | Map audio rate control with audio bus.
--- n_mapa :: Int -> [(String,Int)] -> OSC
--- n_mapa n ps = Message "/n_mapa" $ reverse $ foldl' f [Int n] ps
---   where f b (x,y) = Int y:String x:b
-
--- | Map multiple audio rate control with audio bus.
-n_mapan :: Int -> [(String,Int,Int)] -> OSC
-n_mapan n ps = Message "/n_mapan" $ reverse $ foldl' f [Int n] ps
-  where f b (x,y,z) = Int z:Int y:String x:b
-
--- -- | Sends '/n_order' message.
--- n_order :: AddAction -- ^ Add action
---         -> Int       -- ^ Target node or group id
---         -> Int       -- ^ Source node or group id, will be moved
---         -> OSC
--- n_order action target source=
---   Message "/n_order" [Int (fromEnum action), Int target, Int source]
+-- d_dx :: (Num a) => [a] -> [a]
+-- d_dx [] = []
+-- d_dx [_] = []
+-- d_dx [x,y] = [y - x]
+-- d_dx (x:y:r) = y - x : d_dx (y:r)
+-}

@@ -21,7 +21,7 @@ import qualified Data.Map as M
 import Control.Monad.Trans
 import Control.Monad.Reader
 import Control.Monad.State
-import Sound.OpenSoundControl
+import Sound.OSC
 
 
 {-$example
@@ -66,13 +66,13 @@ Run multiple threads:
 data TEnv = TEnv
   { -- | UTCr from OSC.
     teInitTime :: Double
-    
+
     -- | Duration of one unit.
   , teTimeUnit :: Double
-    
+
     -- | Map of ThreadInfo.
   , teThreads :: M.Map String ThreadInfo
-    
+
     -- | Map of ThreadId and last execution time. Currently unused.
   , teTimes :: M.Map ThreadId Double
   }
@@ -108,7 +108,7 @@ initEnv = initEnvTU 1
 
 -- | Initialize environment with given TimeUnit.
 initEnvTU :: Double -> IO (MVar TEnv)
-initEnvTU u = utcr >>= \t0 -> newMVar (TEnv t0 u M.empty M.empty)
+initEnvTU u = time >>= \t0 -> newMVar (TEnv t0 u M.empty M.empty)
 
 -- | Dump the contents of thread environment.
 dumpEnv :: MVar TEnv -> IO ()
@@ -125,7 +125,7 @@ tadd f tev name a = modifyMVar_ tev $ \te -> do
   if M.member name threads
     then putStrLn (name ++ " already exists.") >> return te
     else do
-      now <- utcr
+      now <- time
       let del = f now (teTimeUnit te)
       tvar <- newMVar (now+del)
       ti <- newChild a tev name tvar del
@@ -140,10 +140,10 @@ tupdate :: InitialDelay -> MVar TEnv -> String -> Act () -> IO ()
 tupdate f tev name a = do
   te <- readMVar tev
   let threads = teThreads te
-  if not $ M.member name threads
+  _ <- if not $ M.member name threads
      then forkIO (tadd f tev name a)
      else forkIO $ do
-       t0 <- utcr
+       t0 <- time
        threadDelay $ floor $ (latency + f t0 (teTimeUnit te)) * 1e6
        tkill0 tev name
        tadd0 tev name a
@@ -158,8 +158,8 @@ tpause f tev name = modifyMVar_ tev $ \te -> do
     Just ti -> case tiStatus ti of
       Paused  -> return te
       Running -> do
-        forkIO $ do
-          t0 <- utcr
+        _ <- forkIO $ do
+          t0 <- time
           threadDelay $ floor $ (latency + f t0 (teTimeUnit te)) * 1e6
           pauseChild ti
         let ti' = ti {tiStatus=Paused}
@@ -175,8 +175,8 @@ tresume f tev name = modifyMVar_ tev $ \te -> do
     Just ti -> case tiStatus ti of
       Running -> return te
       Paused  -> do
-        forkIO $ do
-          t0 <- utcr
+        _ <- forkIO $ do
+          t0 <- time
           threadDelay $ floor $ (latency + f t0 (teTimeUnit te)) * 1e6
           resumeChild ti
         let ti' = ti {tiStatus=Running}
@@ -190,8 +190,8 @@ tkill f tev name = modifyMVar_ tev $ \te -> do
   case M.lookup name threads of
     Nothing -> return te
     Just ti -> do
-      t0 <- utcr
-      forkIO $ do
+      t0 <- time
+      _ <- forkIO $ do
         threadDelay $ floor $ (latency + f t0 (teTimeUnit te)) * 1e6
         killThread (tiId ti)
       return $ te {teThreads = M.delete name threads}
@@ -222,7 +222,7 @@ tresume0 = tresume noDelay
 newChild :: Act () -> MVar TEnv -> String -> MVar Double -> Double -> IO ThreadInfo
 newChild a tev name tvar del = do
   blk <- newMVar ()
-  psd <- newMVar =<< utcr
+  psd <- newMVar =<< time
   let as = ActState name blk tvar
   tid <- forkIO $ do
     threadDelay (floor ((del+latency) * 1e6))
@@ -232,14 +232,14 @@ newChild a tev name tvar del = do
 -- | Pause child thread
 pauseChild :: ThreadInfo -> IO ()
 pauseChild ti = do
-  modifyMVar_ (tiPausedTime ti) $ \_ -> utcr
+  modifyMVar_ (tiPausedTime ti) $ \_ -> time
   takeMVar (tiBlock ti)
 
 -- | Resume child thread
 resumeChild :: ThreadInfo -> IO ()
 resumeChild ti = do
   lastPaused <- readMVar (tiPausedTime ti)
-  now <- utcr
+  now <- time
   modifyMVar_ (tiIdealTime ti) $ return . (+ (now-lastPaused))
   putMVar (tiBlock ti) ()
 
@@ -323,7 +323,7 @@ getInitTime = ask >>= \mv -> act (teInitTime `fmap` readMVar mv)
 
 -- | Get current UTCr.
 getNow :: Act Double
-getNow = act utcr
+getNow = act time
 
 -- | Run action with empty env and state.
 testAct :: Act a -> IO a

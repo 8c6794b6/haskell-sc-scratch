@@ -9,6 +9,10 @@
 --
 -- Parser for Datum used by Open Sound Control Message.
 --
+-- Note that, those parsers for 'Int32', 'Int64', 'Double', etc have
+-- conflicting name with functions from 'Sound.OSC'. Use qualified import when
+-- both functions were required.
+--
 module Sound.SC3.Lepton.Parser.Datum
   ( -- * Type
     DatumParser -- (..)
@@ -18,7 +22,8 @@ module Sound.SC3.Lepton.Parser.Datum
 
     -- * Parser building functions
   , datum
-  , int
+  , int32
+  , int64
   , double
   , float
   , string
@@ -27,14 +32,14 @@ module Sound.SC3.Lepton.Parser.Datum
   , midi
   ) where
 
-import Data.Word (Word8)
+import Data.Int (Int32, Int64)
 import Control.Monad.Identity (Identity)
 import Text.Parsec (ParsecT, ParseError)
 
 import qualified Data.ByteString.Lazy as L
 import qualified Text.Parsec as P
 
-import Sound.OpenSoundControl
+import Sound.OSC hiding (double, float, int32, int64, midi, string)
 
 -- | Type synonym for Parser for list of Datum.
 type DatumParser a = ParsecT [Datum] () Identity a
@@ -47,24 +52,27 @@ parseDatum p = P.parse p "osc"
 datum :: DatumParser Datum
 datum = dp return
 
--- | Parse OSC int.
-int :: DatumParser Int
-int = dp $ \d -> case d of Int x -> Just x; _ -> Nothing
+-- | Parse OSC int32.
+int32 :: DatumParser Int32
+int32 = dp $ \d -> case d of Int32 x -> Just x; _ -> Nothing
+
+-- | Parse OSC int64.
+int64 :: DatumParser Int64
+int64 = dp $ \d -> case d of Int64 x -> Just x; _ -> Nothing
 
 -- | Parse OSC float.
-float :: DatumParser Double
+float :: DatumParser Float
 float = dp $ \d -> case d of Float x -> Just x; _ -> Nothing
 
 -- | Parse OSC double.
 double :: DatumParser Double
 double = dp $ \d -> case d of Double x -> Just x; _ -> Nothing
 
--- | Parse OSC string.
-string :: DatumParser String
-string = dp $ \d -> case d of String x -> Just x; _ -> Nothing
+-- | Parse OSC ASCII string.
+string :: DatumParser ASCII
+string = dp $ \d -> case d of ASCII_String x -> Just x; _ -> Nothing
 
 -- | Parse OSC blob.
--- blob :: DatumParser [Word8]
 blob :: DatumParser L.ByteString
 blob = dp $ \d -> case d of Blob x -> Just x; _ -> Nothing
 
@@ -73,8 +81,8 @@ timeStamp :: DatumParser Time
 timeStamp = dp $ \d -> case d of TimeStamp x -> Just x; _ -> Nothing
 
 -- | Parse OSC midi
-midi :: DatumParser (Word8,Word8,Word8,Word8)
-midi = dp $ \d -> case d of Midi (w,x,y,z) -> Just (w,x,y,z); _ -> Nothing
+midi :: DatumParser MIDI
+midi = dp $ \d -> case d of Midi m -> Just m; _ -> Nothing
 
 -- | Wrapper for parser builder functions.
 dp :: (Datum -> Maybe a) -> DatumParser a

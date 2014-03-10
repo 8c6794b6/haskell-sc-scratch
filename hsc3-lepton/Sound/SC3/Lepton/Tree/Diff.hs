@@ -28,7 +28,7 @@ import Data.Tree
 import Data.List (foldl')
 import System.Random (randomRIO)
 
-import Sound.OpenSoundControl
+import Sound.OSC
 import Sound.SC3
 import Sound.SC3.Lepton.Tree.Tree
 
@@ -110,7 +110,7 @@ dumpDiff df = case df of
   Del n d -> putStrLn ("Del " ++ show n) >> dumpDiff d
   _ -> return ()
 
-diffMessage :: SCNode -> SCNode -> [OSC]
+diffMessage :: SCNode -> SCNode -> [Message]
 diffMessage t = accToOSC . toAcc (initialAcc (nodeId t)) . diffSCN t
 
 -- | OSC Message accumulator
@@ -176,7 +176,7 @@ Converts accumulated data to OSC message. Check whether node with same id
 appear in both of insertions and deletions, if so make n_set, n_map, or n_mapa
 messages for the node.
 -}
-accToOSC :: MsgAcc -> [OSC]
+accToOSC :: MsgAcc -> [Message]
 accToOSC (MsgAcc _ _ is ds)
   | IM.null ds = foldl' mkNew [] is'
   | otherwise  = if IM.null ds' then nms ++ ums else nms ++ dms ++ ums
@@ -197,7 +197,7 @@ accToOSC (MsgAcc _ _ is ds)
 assort :: Int               -- ^ node id
        -> SCNode            -- ^ Deleted node
        -> (Position,SCNode) -- ^ Inserted node and its position
-       -> [OSC]
+       -> [Message]
 assort i nd (p,ni) = case (nd,ni) of
   (Group _ _, Group _ _) ->
     let (a,j) = at p in [n_order a j [i]]
@@ -233,14 +233,14 @@ ddm a b = do
   mapM_ print . accToOSC . toAcc (initialAcc (nodeId a)) $ d
 
 -- | Sends given actions in asynchronus manner.
-(>>*) :: Transport t => (t -> IO a) -> (t -> IO b) -> t -> IO b
-(act1 >>* act2) fd = do
-  sessId <- randomRIO (0,2^(16::Int))
-  _ <- act1 fd
-  send fd $ sync sessId
-  Message _ [Int replyId] <- wait fd "/synced"
-  res <- act2 fd
-  when (replyId /= sessId) $ do
+(>>*) :: (DuplexOSC m, MonadIO m) => m a -> m b -> m b
+act1 >>* act2 = do
+  sessId <- liftIO $ randomRIO (0,2^(16::Int))
+  _ <- act1
+  sendOSC $ sync sessId
+  Message _ [Int32 replyId] <- waitReply "/synced"
+  res <- act2
+  when (fromIntegral replyId /= sessId) $ liftIO $ do
     putStrLn "server accessed from other connection"
     putStrLn $ concat ["Sent ", show sessId, " for sync"]
     putStrLn $ concat ["Got ", show replyId, " from server"]

@@ -7,8 +7,8 @@
 -- Portability : non-portable
 --
 -- Network connection related functions and actions.
--- 
-module Sound.SC3.Lepton.Tree.Connection 
+--
+module Sound.SC3.Lepton.Tree.Connection
   ( addNode
   , getNode
   , getDiff
@@ -20,11 +20,13 @@ module Sound.SC3.Lepton.Tree.Connection
   , printRootNode
   , patchNode
   , patchNodeTo
-  , patchPrint  
+  , patchPrint
   ) where
 
-import Sound.OpenSoundControl 
-  (Transport(..), OSC(..), Time(..), wait, utcr, immediately)
+import Control.Monad.IO.Class (MonadIO(..))
+import Sound.OSC
+  ( Bundle(..), DuplexOSC, SendOSC(..)
+  , bundle, waitReply, time, immediately)
 import Sound.SC3
 import Sound.SC3.Lepton.Tree.Tree
 import Sound.SC3.Lepton.Tree.Diff
@@ -33,38 +35,34 @@ import Sound.SC3.Lepton.Util (queryTree)
 
 -- | Send OSC message for constructing given @SCNode@.
 -- New node will be added to tail of target id.
-addNode :: (Transport t)
+addNode :: (SendOSC m, MonadIO m)
         => NodeId -- ^ Traget node id to add
         -> SCNode -- ^ New node
-        -> t      -- ^ Scsynth connection
-        -> IO ()
-addNode tId tree = \fd -> do
-  t0 <- utcr
-  send fd (Bundle (UTCr (t0 + 0.1)) (treeToNew tId tree))
+        -> m ()
+addNode tId tree = do
+  t0 <- time
+  sendOSC $ bundle (t0 + 0.1) (treeToNew tId tree)
 
 -- | Get node with specifying node id.
-getNode :: (Transport t)
+getNode :: (DuplexOSC m)
         => NodeId     -- ^ Node id to get
-        -> t          -- ^ Connection
-        -> IO SCNode
-getNode n fd = do
-  send fd (queryTree n)
-  m <- wait fd "/g_queryTree.reply"
+        -> m SCNode
+getNode n = do
+  sendOSC (queryTree n)
+  m <- waitReply "/g_queryTree.reply"
   return $ parseNode m
 
 -- | Send OSC message for setting given @SCNode@.
-setNode :: (Transport t)
+setNode :: (SendOSC m)
         => SCNode -- ^ Node with new parameters
-        -> t
-        -> IO ()
-setNode t = \fd -> send fd $ Bundle immediately (treeToSet t)
+        -> m ()
+setNode t = sendOSC $ Bundle immediately (treeToSet t)
 
 -- | Free the nodes specified with given node ids.
-delNode :: (Transport t)
+delNode :: (SendOSC m)
         => [NodeId]      -- ^ Node ids to free
-        -> t
-        -> IO ()
-delNode ns = \fd -> send fd $ n_free ns
+        -> m ()
+delNode ns = sendOSC $ n_free ns
 
 -- | Experimental.
 --
@@ -72,48 +70,45 @@ delNode ns = \fd -> send fd $ n_free ns
 --
 -- Implemented with freeing all nodes and adding transformed new nodes.
 --
-modifyNode :: (Transport t)
+modifyNode :: (DuplexOSC m)
            => (SCNode -> SCNode) -- ^ Function to apply
-           -> t
-           -> IO ()
-modifyNode f = \fd -> do
-  t <- getRootNode fd
-  reset fd
-  send fd $ Bundle immediately (treeToNew 0 (f t))
+           -> m ()
+modifyNode f = do
+  t <- getRootNode
+  reset
+  sendOSC $ Bundle immediately (treeToNew 0 (f t))
 
 -- | Prints current SCNode with specifying node id.
-printNode :: Transport t => Int -> t -> IO ()
-printNode n fd = getNode n fd >>= putStrLn . renderNode True
+printNode :: (MonadIO m, DuplexOSC m) => Int -> m ()
+printNode n = getNode n >>= liftIO . putStrLn . renderNode True
+
 
 --
 -- Variants for root node
 --
 
 -- | Get root node.
-getRootNode :: (Transport t) => t -> IO SCNode
+getRootNode :: DuplexOSC m => m SCNode
 getRootNode = getNode 0
 
 -- | Print current SCNode entirely.
-printRootNode :: (Transport t) => t -> IO ()
+printRootNode :: (MonadIO m, DuplexOSC m) => m ()
 printRootNode = printNode 0
 
 -- | Patch node to same node of root node found in new node.
-patchNode :: Transport t => SCNode -> t -> IO ()
+patchNode :: (DuplexOSC m, MonadIO m) => SCNode -> m ()
 patchNode n = patchNodeTo (nodeId n) n
 
-patchNodeTo :: Transport t => Int -> SCNode -> t -> IO ()
-patchNodeTo i t1 fd = do
-  t0 <- getNode i fd
+patchNodeTo :: (DuplexOSC m, MonadIO m) => Int -> SCNode -> m ()
+patchNodeTo i t1 = do
+  t0 <- getNode i
   let msgs = diffMessage t0 t1
-  now <- utcr
-  send fd $ Bundle (UTCr now) msgs
+  now <- time
+  sendOSC $ bundle now msgs
 
-getDiff :: Transport t => Int -> SCNode -> t -> IO SCNDiff
-getDiff i t1 fd = do
-  t0 <- getNode i fd
-  return $ diffSCN t0 t1
+getDiff :: DuplexOSC m => Int -> SCNode -> m SCNDiff
+getDiff i t1 = return . flip diffSCN t1 =<< getNode i
 
 -- | Update root node and then dump the contents.
-patchPrint :: Transport t => SCNode -> t -> IO ()
+patchPrint :: (DuplexOSC m, MonadIO m) => SCNode -> m ()
 patchPrint n = patchNode n >>* printRootNode
-

@@ -71,8 +71,10 @@ setc ::
   -> UGen   -- ^ Target ugen
   -> UGen
 setc name value = transform f where
-  f (Control r name' _ t) | name == name' = Control r name value t
-  f x = x
+  f (Control_U (Control r name' _ t))
+      | name == name' = Control_U (Control r name value' t)
+  f x                 = x
+  value' = fromRational (toRational value)
 
 -- | Set control values of given UGen
 setcs ::

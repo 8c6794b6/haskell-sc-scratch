@@ -49,6 +49,7 @@ module Sound.SC3.Lepton.Tree.Tree
   )  where
 
 import Control.Monad
+import Data.ByteString.Char8 (unpack)
 import Data.Function (on)
 import Data.Data
 import Data.List (unionBy)
@@ -56,7 +57,7 @@ import Text.PrettyPrint hiding (int, double)
 
 import Data.Generics.Uniplate.Data
 import Sound.SC3
-import Sound.OpenSoundControl
+import Sound.OSC hiding (int32, string)
 
 import Sound.SC3.Lepton.Instance ()
 import Sound.SC3.Lepton.Parser.Datum
@@ -185,7 +186,7 @@ nodeId (Synth i _ _) = i
 -- | Parse osc message returned from \"/g_queryTree\" and returns haskell
 -- representation of scsynth node tree.
 -- Only working with osc message including synth control parameters.
-parseNode :: OSC -> SCNode
+parseNode :: Message -> SCNode
 parseNode o = case o of
   Message "/g_queryTree.reply" ds -> case parseDatum parseGroup (tail ds) of
     Right tree -> tree
@@ -202,17 +203,17 @@ parseNode o = case o of
 
 parseGroup :: DatumParser SCNode
 parseGroup = do
-  nId <- int
-  numChild <- int
+  nId <- int32
+  numChild <- int32
   if numChild < 0
-    then parseSynth nId
-    else Group nId `fmap` replicateM numChild parseGroup
+    then parseSynth (fromIntegral nId)
+    else Group (fromIntegral nId) `fmap` replicateM (fromIntegral numChild) parseGroup
 
 parseSynth :: Int -> DatumParser SCNode
 parseSynth nId = do
-  name <- string
-  numParams <- int
-  params <- replicateM numParams parseParam
+  name <- unpack `fmap` string
+  numParams <- int32
+  params <- replicateM (fromIntegral numParams) parseParam
   return $ Synth nId name params
 
 -- | Parse parameter values for each synth.
@@ -222,20 +223,22 @@ parseSynth nId = do
 --
 parseParam :: DatumParser SynthParam
 parseParam = do
-  name <- string
+  name <- unpack `fmap` string
   val <- datum
   case val of
-    Float x   -> return $ name := x
+    Float x   -> return $ name := fromRational (toRational x)
     Double x  -> return $ name := x
-    String xs -> case xs of
-      'c':rest -> do
-        let busNum = read rest :: Int
-        return $ if busNum > 0
-          then name :<- busNum
-          else name :<= ((busNum - 4) `div` 64) + 129
-      'a':rest -> return $ name :<= read rest
-      _        -> error $ "Unknown param: " ++ xs
-    Int x     -> return $ name := fromIntegral x
+    ASCII_String xs ->
+        let xs' = unpack xs
+        in  case xs' of
+            'c':rest -> do
+                let busNum = read rest :: Int
+                return $ if busNum > 0
+                         then name :<- busNum
+                         else name :<= ((busNum - 4) `div` 64) + 129
+            'a':rest -> return $ name :<= read rest
+            _        -> error $ "Unknown param: " ++ xs'
+    Int32 x     -> return $ name := fromIntegral x
     e         -> error $ "Cannot make param from: " ++ show e
 
 ------------------------------------------------------------------------------
@@ -251,13 +254,13 @@ parseParam = do
 --
 treeToNew :: NodeId  -- ^ Target node id
           -> SCNode  -- ^ New nodes
-          -> [OSC]
+          -> [Message]
 treeToNew = treeToNewWith AddToTail
 
 treeToNewWith :: AddAction -- ^ Add action for this node
               -> NodeId    -- ^ Target node id
               -> SCNode    -- ^ New node to add
-              -> [OSC]
+              -> [Message]
 treeToNewWith aa tId tree = f tId tree
   where
     f i t = case t of
@@ -279,7 +282,7 @@ treeToNewWith aa tId tree = f tId tree
 -- OSC list contains \"n_set\" and \"n_map\" messages to set parameters.
 --
 treeToSet :: SCNode -- ^ Node with new parameters for already exisitng nodes.
-          -> [OSC]
+          -> [Message]
 treeToSet tree = f tree
   where
     f t = case t of
@@ -366,10 +369,12 @@ prettyDump = render . n2doc where
     (k:<-v) -> doubleQuotes (text k) <> text ":<-" <> signedInt v
     (k:<=v) -> doubleQuotes (text k) <> text ":<=" <> signedInt v
 
+-- | Show signed int.
 signedInt :: Int -> Doc
 signedInt n | n < 0     = parens (P.int n)
             | otherwise = P.int n
 
+-- | Show signed double.
 signedDouble :: Double -> Doc
 signedDouble n | n < 0     = parens (P.double n)
             | otherwise = P.double n

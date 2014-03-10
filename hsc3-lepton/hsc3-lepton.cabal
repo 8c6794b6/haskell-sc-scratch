@@ -1,5 +1,5 @@
 name:           hsc3-lepton
-version:        0.11.0
+version:        0.14.0
 synopsis:       Client side utility collection for scsynth.
 author:         8c6794b6
 maintainer:     8c6794b6@gmail.com
@@ -22,6 +22,85 @@ flag dev
     Enable developer options
   default:
     False
+
+library
+  ghc-options:
+    -Wall
+    -fno-warn-unused-do-bind
+    -fno-warn-orphans
+  if flag(dev)
+     ghc-options: -fhpc -auto-all
+  exposed-modules:
+    Sound.SC3.Lepton
+    Sound.SC3.Lepton.Instance
+    Sound.SC3.Lepton.Looper
+    Sound.SC3.Lepton.Parser
+    Sound.SC3.Lepton.Parser.Datum
+    Sound.SC3.Lepton.Parser.SynthDef
+  --   Sound.SC3.Lepton.Pattern
+  --   Sound.SC3.Lepton.Pattern.Client
+  --   Sound.SC3.Lepton.Pattern.Deserialize
+  --   Sound.SC3.Lepton.Pattern.Expression
+  --   Sound.SC3.Lepton.Pattern.Expression.Class
+  --   Sound.SC3.Lepton.Pattern.Expression.Etree
+  --   Sound.SC3.Lepton.Pattern.Expression.THHelper
+  --   Sound.SC3.Lepton.Pattern.Expression.Term
+  --   Sound.SC3.Lepton.Pattern.Expression.Type
+  --   Sound.SC3.Lepton.Pattern.Interpreter
+  --   Sound.SC3.Lepton.Pattern.Interpreter.Dup
+  --   Sound.SC3.Lepton.Pattern.Interpreter.E
+  --   Sound.SC3.Lepton.Pattern.Interpreter.L
+  --   Sound.SC3.Lepton.Pattern.Interpreter.S
+  --   Sound.SC3.Lepton.Pattern.Play
+  --   Sound.SC3.Lepton.Pattern.Server
+  --   Sound.SC3.Lepton.Pattern.Server3
+  --   Sound.SC3.Lepton.Pattern.ToOSC
+  --   Sound.SC3.Lepton.QuickCheck
+    Sound.SC3.Lepton.Tree
+    Sound.SC3.Lepton.Tree.Connection
+    Sound.SC3.Lepton.Tree.Diff
+    Sound.SC3.Lepton.Tree.Nd
+    Sound.SC3.Lepton.Tree.Tree
+    Sound.SC3.Lepton.Tree.Zipper
+    Sound.SC3.Lepton.UGen
+    Sound.SC3.Lepton.UGen.Demand
+    Sound.SC3.Lepton.UGen.Factory
+    Sound.SC3.Lepton.UGen.Missing
+    Sound.SC3.Lepton.UGen.Pretty
+    Sound.SC3.Lepton.Util
+
+  build-depends:
+    QuickCheck >= 2.0,
+    attoparsec,
+    base == 4.*,
+    binary,
+    bytestring,
+    blaze-builder,
+    cereal,
+    cmdargs,
+    containers,
+    deepseq,
+    filepath,
+    gdiff >= 1.0,
+    hosc >= 0.14,
+    hsc3 >= 0.14,
+    mersenne-random-pure64,
+    mtl,
+    mwc-random,
+    parallel,
+    parsec >= 3.0,
+    pretty,
+    primitive,
+    random,
+    random-shuffle,
+    split,
+    syb,
+    stm,
+    template-haskell,
+    transformers,
+    uniplate >= 1.6,
+    vector,
+    zlib
 
 -- test-suite main-tests
 
@@ -67,126 +146,40 @@ flag dev
 --     zlib
 
 
-executable leptseq
-  ghc-options:
-    -threaded -rtsopts
-    -Wall -fno-warn-unused-do-bind -fno-warn-orphans
-  main-is:
-     leptseq.hs
-  build-depends:
-    QuickCheck >= 2.0,
-    attoparsec,
-    base == 4.*,
-    binary,
-    bytestring,
-    blaze-builder,
-    cereal,
-    cmdargs,
-    containers,
-    deepseq,
-    filepath,
-    gdiff >= 1.0,
-    hosc >= 0.11,
-    hsc3 >= 0.11,
-    mersenne-random-pure64,
-    mtl,
-    mwc-random,
-    parallel,
-    parsec >= 3.0,
-    pretty,
-    primitive,
-    random,
-    random-shuffle,
-    split,
-    syb,
-    stm,
-    template-haskell,
-    uniplate >= 1.6,
-    vector,
-    zlib
-
-library
-  ghc-options:
-    -Wall
-    -fno-warn-unused-do-bind
-    -fno-warn-orphans
-
-  if flag(dev)
-     ghc-options: -fhpc -auto-all
-
-  exposed-modules:
-    Sound.SC3.Lepton
-    Sound.SC3.Lepton.Instance
-    Sound.SC3.Lepton.Looper
-    Sound.SC3.Lepton.Parser
-    Sound.SC3.Lepton.Parser.Datum
-    Sound.SC3.Lepton.Parser.SynthDef
-    Sound.SC3.Lepton.Pattern
-    Sound.SC3.Lepton.Pattern.Client
-    Sound.SC3.Lepton.Pattern.Deserialize
-    Sound.SC3.Lepton.Pattern.Expression
-    Sound.SC3.Lepton.Pattern.Expression.Class
-    Sound.SC3.Lepton.Pattern.Expression.Etree
-    Sound.SC3.Lepton.Pattern.Expression.THHelper
-    Sound.SC3.Lepton.Pattern.Expression.Term
-    Sound.SC3.Lepton.Pattern.Expression.Type
-    Sound.SC3.Lepton.Pattern.Interpreter
-    Sound.SC3.Lepton.Pattern.Interpreter.Dup
-    Sound.SC3.Lepton.Pattern.Interpreter.E
-    Sound.SC3.Lepton.Pattern.Interpreter.L
-    Sound.SC3.Lepton.Pattern.Interpreter.S
-    Sound.SC3.Lepton.Pattern.Play
-    Sound.SC3.Lepton.Pattern.Server
-    Sound.SC3.Lepton.Pattern.Server3
-    Sound.SC3.Lepton.Pattern.ToOSC
-    Sound.SC3.Lepton.QuickCheck
-    Sound.SC3.Lepton.Tree
-    Sound.SC3.Lepton.Tree.Connection
-    Sound.SC3.Lepton.Tree.Diff
-    Sound.SC3.Lepton.Tree.Nd
-    Sound.SC3.Lepton.Tree.Tree
-    Sound.SC3.Lepton.Tree.Zipper
-    Sound.SC3.Lepton.UGen
-    Sound.SC3.Lepton.UGen.Demand
-    Sound.SC3.Lepton.UGen.Factory
-    Sound.SC3.Lepton.UGen.Missing
-    Sound.SC3.Lepton.UGen.Pretty
-    Sound.SC3.Lepton.Util
-  other-modules:
-    Test.Sound.SC3.Lepton.Common
-    Test.Sound.SC3.Lepton.Instance
-    Test.Sound.SC3.Lepton.Tree.Nd
-    Test.Sound.SC3.Lepton.Tree.Tree
-    Test.Sound.SC3.Lepton.UGen.Demand
-
-  build-depends:
-    QuickCheck >= 2.0,
-    attoparsec,
-    base == 4.*,
-    binary,
-    bytestring,
-    blaze-builder,
-    cereal,
-    cmdargs,
-    containers,
-    deepseq,
-    filepath,
-    gdiff >= 1.0,
-    hosc >= 0.11,
-    hsc3 >= 0.11,
-    mersenne-random-pure64,
-    mtl,
-    mwc-random,
-    parallel,
-    parsec >= 3.0,
-    pretty,
-    primitive,
-    random,
-    random-shuffle,
-    split,
-    syb,
-    stm,
-    template-haskell,
-    uniplate >= 1.6,
-    vector,
-    zlib
+-- executable leptseq
+--   ghc-options:
+--     -threaded -rtsopts
+--     -Wall -fno-warn-unused-do-bind -fno-warn-orphans
+--   main-is:
+--      leptseq.hs
+--   build-depends:
+--     QuickCheck >= 2.0,
+--     attoparsec,
+--     base == 4.*,
+--     binary,
+--     bytestring,
+--     blaze-builder,
+--     cereal,
+--     cmdargs,
+--     containers,
+--     deepseq,
+--     filepath,
+--     gdiff >= 1.0,
+--     hosc >= 0.11,
+--     hsc3 >= 0.11,
+--     mersenne-random-pure64,
+--     mtl,
+--     mwc-random,
+--     parallel,
+--     parsec >= 3.0,
+--     pretty,
+--     primitive,
+--     random,
+--     random-shuffle,
+--     split,
+--     syb,
+--     stm,
+--     template-haskell,
+--     uniplate >= 1.6,
+--     vector,
+--     zlib

@@ -13,19 +13,28 @@
 -- For detail of synth definition file format, see
 -- /Synth-Definition-File-Format.html/ in SuperCollider help file.
 --
+-- This module contains parser for synthdef spec ver.1.
+--
 module Sound.SC3.Lepton.Parser.SynthDef
-  ( -- * Type
+  ( -- * Example
+    -- $example
+
+    -- * Type
     SynthDefFile(..)
   , SynthDef(..)
   , ParamPair(..)
   , UGenSpec(..)
   , InputSpec(..)
-  , Result(..) -- from Attoparsec
+
+  , Result      -- from Attoparsec
+  , IResult(..) -- from Attoparsec
 
     -- * Parser
+
     -- ** Running Parser
   , parseSynthDefFile
   , parse      -- from Attoparsec
+
     -- ** Synth Definition elements
   , synthDefFile
   , synthDefSpec
@@ -33,12 +42,6 @@ module Sound.SC3.Lepton.Parser.SynthDef
   , ugenSpec
   , inputSpec
   , outputSpec
-    -- ** Primitives
-  , pstring
-  , int8
-  , int16
-  , int32
-  , float32
 
     -- * Pretty printing
   , prettyDefFile
@@ -50,16 +53,53 @@ import Data.Data
 import Data.Int
 import Text.PrettyPrint
 
-import Data.Serialize hiding (Result)
+import Data.Serialize hiding (Result(..))
 import Data.Attoparsec
 import Data.Attoparsec.Char8 (anyChar)
 
-import Sound.OpenSoundControl.Coding.Byte (decode_f32)
+import Sound.OSC.Coding.Byte (decode_f32)
 import Sound.SC3 (binaryName, unaryName)
 
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as C8
 import qualified Data.ByteString.Lazy as BL
+
+{- $example
+
+Suppose that, synthdef named /default/ is written to file path shown below:
+
+>>> sd <- parseSynthDefFile "$HOME/.local/share/SuperCollider/synthdefs/default.scsyndef"
+>>> case sd of Done sd' _ -> print (prettyDefFile sd')
+synthdef spec ver.1
+default
+  parameters:
+    0: out (0.0)
+    1: freq (440.0)
+    2: amp (0.1)
+    3: pan (0.0)
+    4: gate (1.0)
+  ugen specs:
+    0: Control ir (out:ir)
+    1: Control (1) kr (out:kr) (out:kr) (out:kr) (out:kr)
+    2: VarSaw ar (ugen 1:0) (0.0) (0.3) (out:ar)
+    3: Linen kr (ugen 1:3) (1.0e-2) (0.7) (0.3) (2.0) (out:kr)
+    4: Rand ir (-0.4) (0.0) (out:ir)
+    5: (+) kr (ugen 1:0) (ugen 4:0) (out:kr)
+    6: VarSaw ar (ugen 5:0) (0.0) (0.3) (out:ar)
+    7: (+) ar (ugen 2:0) (ugen 6:0) (out:ar)
+    8: Rand ir (0.0) (0.4) (out:ir)
+    9: (+) kr (ugen 1:0) (ugen 8:0) (out:kr)
+    10: VarSaw ar (ugen 9:0) (0.0) (0.3) (out:ar)
+    11: (+) ar (ugen 7:0) (ugen 10:0) (out:ar)
+    12: Rand ir (4000.0) (5000.0) (out:ir)
+    13: Rand ir (2500.0) (3200.0) (out:ir)
+    14: XLine kr (ugen 12:0) (ugen 13:0) (1.0) (0.0) (out:kr)
+    15: LPF ar (ugen 11:0) (ugen 14:0) (out:ar)
+    16: (*) ar (ugen 15:0) (ugen 3:0) (out:ar)
+    17: Pan2 ar (ugen 16:0) (ugen 1:2) (ugen 1:1) (out:ar) (out:ar)
+    18: OffsetOut ar (ugen 0:0) (ugen 17:0) (ugen 17:1)
+
+-}
 
 ------------------------------------------------------------------------------
 --
@@ -74,8 +114,8 @@ data SynthDefFile = SynthDefFile
 
 data SynthDef = SynthDef
   { sdName :: String
-  , sdConstants :: [Double]
-  , sdParameters :: [Double]
+  , sdConstants :: [Float]
+  , sdParameters :: [Float]
   , sdParamNames :: [ParamPair]
   , sdUGenSpecs :: [UGenSpec]
   } deriving (Eq, Show, Data, Typeable)
@@ -109,7 +149,7 @@ parseSynthDefFile path = parse synthDefFile <$> B.readFile path
 
 synthDefFile :: Parser SynthDefFile
 synthDefFile = do
-  string $ C8.pack "SCgf"
+  _ <- string $ C8.pack "SCgf"
   version <- int32
   numSynth <- int16
   sdefs <- count (fromIntegral numSynth) synthDefSpec
@@ -172,7 +212,7 @@ int32 :: Parser Int32
 int32 = manyBytes 4
 {-# INLINE int32 #-}
 
-float32 :: Parser Double
+float32 :: Parser Float
 float32 = do
   fourBytes <- count 4 anyWord8
   let w = decode_f32 . BL.fromChunks . (:[]) $ B.pack fourBytes
@@ -205,11 +245,11 @@ prettyDef (SynthDef n cs ps pns uss) =
   nest 2 (text "ugen specs" <> colon $$ nest 2
           (vcat (zipWith (\i u -> int i <> colon <+> prettyUS cs u) [0..] uss)))
 
-prettyPair :: [Double] -> ParamPair -> Doc
+prettyPair :: [Float] -> ParamPair -> Doc
 prettyPair ps (ParamPair n idx) =
-  int (fromIntegral idx) <> colon <+> text n <+> parens (double $ ps!!(fromIntegral idx))
+  int (fromIntegral idx) <> colon <+> text n <+> parens (float $ ps!!(fromIntegral idx))
 
-prettyUS :: [Double] -> UGenSpec -> Doc
+prettyUS :: [Float] -> UGenSpec -> Doc
 prettyUS cs (UGenSpec n r sp is os) =
   prettyUGenName n sp <+> prettyRate r <+>
   hsep (map (prettyIs cs) is) <+>
@@ -230,7 +270,7 @@ prettyRate n = case n of
   3 -> text "dr"
   _ -> text $ "Unknown rate: " ++ show n
 
-prettyIs :: [Double] -> InputSpec -> Doc
-prettyIs cs (IsConstant idx) = parens $ double (cs !! (fromIntegral idx))
+prettyIs :: [Float] -> InputSpec -> Doc
+prettyIs cs (IsConstant idx) = parens $ float (cs !! (fromIntegral idx))
 prettyIs _  (IsUGenOut ugi oi) =
   parens $ text "ugen" <+> int (fromIntegral ugi) <> colon <> int (fromIntegral oi)
