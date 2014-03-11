@@ -23,7 +23,7 @@ import Data.Map ((!))
 import Data.Traversable (sequenceA)
 import qualified Data.Map as M
 
-import Sound.OpenSoundControl
+import Sound.OSC
 import Sound.SC3
 import Sound.SC3.ID
 
@@ -40,22 +40,22 @@ main :: IO ()
 main = withSC3 go
 
 -- | Load synth def and play the pattern.
-go :: (Transport t) => t -> IO ()
-go fd = do
-  async fd . d_recv . synthdef "speSynth" =<< speSynth
+go :: DuplexOSC m => m ()
+go = do
+  async . d_recv . synthdef "speSynth" =<< speSynth
   zipWithM_ f (repeat 1) =<< runPIO pspe2
   where
     f t v = do
-      send fd $ s_new "speSynth" (-1) AddToTail 1 [("freq",midiCPS v)]
-      threadDelay (floor $ t * 0.13 * 1e6)
+      send $ s_new "speSynth" (-1) AddToTail 1 [("freq",midiCPS v)]
+      liftIO $ threadDelay (floor $ t * 0.13 * 1e6)
 
-go2 n fd = do
-  async fd . d_recv . synthdef "speSynth" =<< speSynth
+go2 n = do
+  async . d_recv . synthdef "speSynth" =<< speSynth
   zipWithM_ f [n..] =<< runPIO p2 -- pspe2
   where
     f nid pch = do
       send fd $ s_new "speSynth" nid AddToTail 1 [("freq",midiCPS pch)]
-      threadDelay (floor $ 0.13 * 1e6)
+      liftIO $ threadDelay (floor $ 0.13 * 1e6)
 
 -- | Synthdef for spe example.
 speSynth :: IO UGen

@@ -235,7 +235,7 @@ fromTreeD self (e,g) = case e of
     $(dmatch1s 'name
       ["pdnegate","pdabs","pdsignum","precip","pexp","psqrt","plog"
       ,"psin","ptan","pcos","pasin","patan","pacos","psinh","pcosh","ptanh"
-      ,"pasinh","pacosh","patanh","pampDb","pasFloat","pasInt","pbitNot"
+      ,"pasinh","pacosh","patanh","pampDb","pasFloat","pasInt"
       ,"pcpsMIDI","pcpsOct","pcubed","pdbAmp","pdistort","pfrac","pisNil"
       ,"plog10","plog2","pmidiCPS","pmidiRatio","pnotE","pnotNil","poctCPS"
       ,"pramp_","pratioMIDI","psoftClip","psquared"]
@@ -318,6 +318,6 @@ e2l e = case fromTree (etree e,()) of
 
 playE :: E () (ToOSC Double) -> IO ()
 playE e = case fromTree (etree e,()) of
-  Right (Term (TyToOSC TyDouble) e' :: Term L h) -> audition $ toL e'
-  Right (Term t _ :: Term L ()) -> putStrLn $ "Deserialized type: " ++ show t
+  Right (Term (TyToOSC TyDouble) e' :: Term L ()) -> audition $ toL e'
+  -- Right (Term t _ :: Term L ()) -> putStrLn $ "Deserialized type: " ++ show t
   Left err -> putStrLn err

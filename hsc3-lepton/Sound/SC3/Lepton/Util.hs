@@ -92,8 +92,7 @@ getBufInfo bufId = do
         _ -> error "Not a /b_info message"
 
 queryRootNode :: DuplexOSC m => m Message
-queryRootNode = do
-    _ <- async (notify True)
+queryRootNode = withNotifications $ do
     send $ g_queryTree [(0,True)]
     waitReply "/g_queryTree.reply"
 
@@ -105,8 +104,7 @@ queryTree n = g_queryTree [(n, True)]
 -- returing message.
 -- queryNode :: Transport t => Int -> t -> IO OSC
 queryNode :: DuplexOSC m => Int -> m Message
-queryNode n = do
-    _ <- async (notify True)
+queryNode n = withNotifications $ do
     send (n_query [n])
     waitReply "/n_info"
 

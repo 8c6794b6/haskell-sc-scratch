@@ -1,18 +1,19 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 module Scratch.Pattern.Buzz where
 
-import Sound.OpenSoundControl
+import Sound.OSC
 import Sound.SC3
 import Sound.SC3.Lepton
+import Sound.SC3.Lepton.Pattern
 
 main :: IO ()
 main = withSC3 goBuzz
 
 -- | Play the pattern.
-goBuzz :: Transport t => t -> IO ()
-goBuzz fd = do
-  async fd $ d_recv $ synthdef "buzz" buzz
-  play fd $ toL pBuzz
+goBuzz :: (Transport m, DuplexOSC m) => m ()
+goBuzz = do
+  async $ d_recv $ synthdef "buzz" buzz
+  play $ toL pBuzz
 
 -- | UGen for buzz.
 buzz :: UGen

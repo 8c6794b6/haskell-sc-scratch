@@ -13,32 +13,30 @@ Module to contain example.
 module Scratch.Pattern.SPE where
 
 import Control.Concurrent (threadDelay)
-import System.Random (newStdGen, randomRs)
+import System.Random (mkStdGen, randomRs)
 
-import Sound.OpenSoundControl
+import Sound.OSC
 import Sound.SC3
 import Sound.SC3.ID
 import Sound.SC3.Lepton
+import Sound.SC3.Lepton.Pattern
 
 main :: IO ()
 main = withSC3 go
 
 -- | Load synthdef and play the pattern.
-go :: Transport t => t -> IO ()
-go fd = do
-  async fd . d_recv . synthdef "speSynth" =<< speSynth
+go :: Transport m => m ()
+go = do
+  async . d_recv $ synthdef "speSynth" speSynth
   mapLIO_ f pspe
   where
     f v = do
-      send fd $ s_new "speSynth" (-1) AddToTail 1 [("freq",midiCPS v)]
-      threadDelay (floor $ 0.13 * 1e6)
+      send $ s_new "speSynth" (-1) AddToTail 1 [("freq",midiCPS v)]
+      liftIO $ threadDelay (floor $ 0.13 * 1e6)
 
 -- | Synthdef for spe example.
-speSynth :: IO UGen
-speSynth = do
-  dl <- randomRs (0,0.05) `fmap` newStdGen
-  dr <- randomRs (0,0.05) `fmap` newStdGen
-  return $ out 0 $ mkSig dl dr
+speSynth :: UGen
+speSynth = out 0 $ mkSig dl dr
   where
     mkSig dl dr = foldr f v (take 4 $ zipWith mce2 dl dr)
     v = rlpf (lfSaw AR freq 0 * evl) nz 0.1
@@ -47,6 +45,8 @@ speSynth = do
     shp = envPerc 10e-3 1
     nz = midiCPS (lfNoise1 'z' KR 1 * 36 + 110)
     freq = control KR "freq" 440
+    dl = randomRs (0,0.05) (mkStdGen 0x34728eef)
+    dr = randomRs (0,0.05) (mkStdGen 0x87317abc)
 
 -- Helpers
 i = pint; d = pdouble; ds = map d
@@ -169,7 +169,7 @@ addspe "spe-mid" 0 2
 leptseq l_freeAll
 
 withSC3 $ flip send $ dumpOSC NoPrinter
-withSC3 $ flip send $ dumpOSC HexPrinter
+withSC3 $ send $ dumpOSC HexPrinter
 withSC3 printRootNode
 
 -}

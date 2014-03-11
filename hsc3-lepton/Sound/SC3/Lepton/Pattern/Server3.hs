@@ -22,10 +22,11 @@ import Data.ByteString.Lazy (ByteString)
 import Data.Data (Data, Typeable)
 
 import Data.Binary (decode)
-import Sound.OpenSoundControl
-import Sound.SC3 (notify, n_free)
+import Sound.OSC.FD
+import Sound.SC3 (notify, n_free, withNotifications, withSC3)
 
 import qualified Codec.Compression.Zlib as Z
+import qualified Data.ByteString.Char8 as C8
 import qualified Data.Foldable as F
 import qualified Data.Map as M
 
@@ -42,13 +43,13 @@ data ConInfo = ConInfo
   , ciProtocol :: Protocol
   } deriving (Eq, Show)
 
-data Connection = UDPCon UDP | TCPCon TCP
+data Con = UDPCon UDP | TCPCon TCP
 
-instance Transport Connection where
-  send (UDPCon c) o = send c o
-  send (TCPCon c) o = send c o
-  recv (UDPCon c) = recv c
-  recv (TCPCon c) = recv c
+instance Transport Con where
+  sendOSC (UDPCon c) o = sendOSC c o
+  sendOSC (TCPCon c) o = sendOSC c o
+  recvPacket (UDPCon c) = recvPacket c
+  recvPacket (TCPCon c) = recvPacket c
   close (UDPCon c) = close c
   close (TCPCon c) = close c
 
@@ -109,31 +110,33 @@ go lport shost sprtc sport = bracket acquire tidyup work where
 -- scsynth.
 loop :: ServerEnv -> IO ()
 loop env = forever $ do
-  msg <- recv $ seLept env
+  msg <- recvPacket $ seLept env
   handleMessage env msg
 
 -- | Handle bundled and non-bundles OSC message.
-handleMessage :: ServerEnv -> OSC -> IO ()
+handleMessage :: ServerEnv -> Packet -> IO ()
 handleMessage env msg = case msg of
-  Bundle time msgs -> mapM_ (sendMessage env (Just time)) msgs
-  _                -> sendMessage env Nothing msg
+  Packet_Bundle (Bundle time msgs) -> mapM_ (sendMsg env (Just time)) msgs
+  Packet_Message msg'              -> sendMsg env Nothing msg'
 
 -- | Pattern match OSC message and send to scsynth server.
-sendMessage
+sendMsg
   :: ServerEnv
   -- ^ Environment for server
   -> Maybe Time
   -- ^ Offset time of OSC message
-  -> OSC
+  -> Message
   -- ^ OSC message body
   -> IO ()
-sendMessage env time msg = case msg of
-  Bundle _ msgs                          -> mapM_ (sendMessage env time) msgs
-  Message "/l_new" [String name, Blob b] -> runLNew env time name b
-  Message "/l_free" [String name]        -> runLFree env time name
-  Message "/l_freeAll" []                -> runLFreeAll env time
-  Message "/l_dump" []                   -> runLDump env
-  _                                      -> putStrLn $ "Unknown: " ++ show msg
+sendMsg env time msg = case msg of
+  Message "/l_new" [ASCII_String name, Blob b] ->
+      runLNew env time (C8.unpack name) b
+  Message "/l_free" [ASCII_String name]        ->
+      runLFree env time (C8.unpack name)
+  Message "/l_freeAll" []                      -> runLFreeAll env time
+  Message "/l_dump" []                         -> runLDump env
+  _                                            ->
+      putStrLn $ "Unknown: " ++ show msg
 
 -- | Run new pattern.
 runLNew
@@ -222,16 +225,17 @@ mkThread
   -> ByteString
   -- ^ Serialized pattern
   -> IO ()
-mkThread env time name blob = case decodePattern blob of
+mkThread env time0 name blob = case decodePattern blob of
   Left err   -> print err
   Right pat' -> do
     withTransport (fromConInfo (seSC env)) $ \fd ->
       let acquire = do
-            send fd (notify True)
+            -- sendOSC fd (notify True)
             tid <- newNid
             return (fd, tid)
           tidyup (fd',tid) = do
-            send fd' $ bundle immediately [notify False, n_free [tid]]
+            -- sendOSC fd' $ bundle immediately [notify False, n_free [tid]]
+            -- sendOSC fd' $ n_free [tid]
             close fd'
             --
             -- XXX:
@@ -245,8 +249,8 @@ mkThread env time name blob = case decodePattern blob of
             --   writeTVar tv (M.delete name tmap)
             --
           work (fd',tid) = do
-            time' <- maybe (UTCr `fmap` utcr) return time
-            runMsgFrom time' pat' tid fd'
+            time' <- maybe time return time0
+            withSC3 $ withNotifications $ runMsgFrom time' pat' tid
             atomically $ do
               let tv = seThreads env
               tmap <- readTVar tv
@@ -254,7 +258,7 @@ mkThread env time name blob = case decodePattern blob of
       in  bracket acquire tidyup work
 
 -- | Open new connection from host, port, and protocol information.
-fromConInfo :: ConInfo -> IO Connection
+fromConInfo :: ConInfo -> IO Con
 fromConInfo (ConInfo h p ptc) = case ptc of
   Udp -> UDPCon `fmap` openUDP h p
   Tcp -> TCPCon `fmap` openTCP h p
@@ -262,8 +266,8 @@ fromConInfo (ConInfo h p ptc) = case ptc of
 -- | Pause until given time when Just time was given.
 -- Will not pause when Nothng was given, nor given time was past.
 maybePause :: Maybe Time -> IO ()
-maybePause = F.mapM_ $ \time -> do
-  dt <- (as_utcr time -) `fmap` utcr
+maybePause = F.mapM_ $ \time0 -> do
+  dt <- (time0 -) `fmap` time
   let (q,_) = properFraction (dt * 1e6)
   when (dt > 0) $ threadDelay q
 

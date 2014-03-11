@@ -14,21 +14,21 @@ module Scratch.Pattern.ChuckOTF2 where
 
 import System.FilePath
 
-import Sound.OpenSoundControl
+import Sound.OSC
 import Sound.SC3
 import Sound.SC3.ID
 import Sound.SC3.Lepton
 
-setup'otf = withSC3 $ \fd -> do
-  reset fd
-  async fd $ bundle immediately $
+setup'otf = withSC3 $ do
+  reset
+  mapM_ async $
     (map (d_recv . uncurry synthdef))
      [("otfperc",otfperc),("otfsine", otfsine)
      ,("otfrev1", otfrev1),("otfrev2",otfrev2)] ++
     (zipWith (\i file -> b_allocRead i (soundsDir </> file) 0 0)
      [0..]
      ["kick.wav", "snare-hop.wav", "hihat.wav", "hihat-open.wav"])
-  patchNode otfNodes fd
+  patchNode otfNodes
 
 soundsDir = "/home/atsuro/Downloads/chuck-1.2.1.3/examples/data"
 
@@ -47,12 +47,11 @@ otfNodes =
 otfperc = out ("out"@@0) sig where
   sig = pan2 (pb * ("amp"@@0.3)) ("pan"@@0) 1
   pb = playBuf 1 AR ("bnum"@@0) 1 1 0 NoLoop RemoveSynth
-  -- pb = undefined
 
 otfsine = out ("out"@@0) sig where
   sig = pan2 (sinOsc AR ("freq"@@0) 0 * e) ("pan"@@0) 1
   e = envGen KR 1 ("amp"@@0) 0 ("dur"@@1) RemoveSynth $
-      env [0,1,1,0] [1e-3,998e-3,1e-3] [EnvLin] 0 0
+      Envelope [0,1,1,0] [1e-3,998e-3,1e-3] [EnvLin] Nothing Nothing
 
 otfrev1 = replaceOut ("out"@@0) sig where
   sig = freeVerb2 inl inr 0.5 0.5 0.5
@@ -112,7 +111,9 @@ sin2P = psnew "otfsine" Nothing AddToHead 1
   ,("pan", pforever (d (-0.2)))]
 
 -- t = 0.5
-t = 0.52
+-- t = 0.52
+
+t = 60 / 128
 d = pdouble
 ds = map pdouble
 i = pint
@@ -124,25 +125,26 @@ sin2N = 0xcaba
 ------------------------------------------------------------------------------
 -- Actions for patterns
 
+addKik, addHat, addHato, addSnr, addSin1, addSin2 :: IO ()
 addKik = addPat 0 "kik" kikP
 addHat = addPat 0 "hat" hatP
-addHato = addPat 0 "hat-open" hatoP
+addHato = addPat 0 "hato" hatoP
 addSnr = addPat t "snr" snrP
-addSin1 = addPat 0 "sin-lo" sin1P
-addSin2 = addPat 0 "sin-hi" sin2P
-addPat d n e = withLept . flip send =<< bundle' (t*2) d [l_new n e]
+addSin1 = addPat 0 "sin1" sin1P
+addSin2 = addPat 0 "sin2" sin2P
+addPat d n e = withLept . sendOSC =<< bundle' (t*2) d [l_new n e]
 
-resetAll = withLept (flip send l_freeAll)
+resetAll = withLept (send l_freeAll)
 
-dumpPat = withLept . flip send $ l_dump
+dumpPat = withLept . send $ l_dump
 
 addAll = sequence_ [addKik, addSnr, addHat, addHato, addSin1, addSin2]
 
 addAllButSnare' = bundle' (t*2) 0
-  [ l_new "kik" kikP, l_new "hat" hatP, l_new "hat-open" hatoP
-  , l_new "sin-lo" sin1P, l_new "sin-hi" sin2P ]
+  [ l_new "kik" kikP, l_new "hat" hatP, l_new "hato" hatoP
+  , l_new "sin1" sin1P, l_new "sin1" sin2P ]
 
-delPat n = withLept . flip send =<< bundle' (t*2) 0 [l_free n]
+delPat n = withLept . sendOSC =<< bundle' (t*2) 0 [l_free n]
 
 pausePat n = leptseq =<< bundle' (t*2) 0 [l_pause n]
 runPat n = leptseq =<< bundle' (t*2) 0 [l_run n]
@@ -153,17 +155,39 @@ runPat n = leptseq =<< bundle' (t*2) 0 [l_run n]
 
 setup'otf
 addAll
-
 leptseq l_dump
 leptseq l_freeAll
 
-mapM_ delPat ["hat-open", "hat"]
+mapM_ delPat ["sin1", "sin2"]
+
+delPat "sin-lo"
+delPat "hat" >> delPat "hat-open"
+delPat "snr"
+
+sequence_ [addSin1, addSin2]
+sequence_ [delPat "hat", delPat "hat-open"]
+
+sequence_ [delPat "snr", delPat "kik"] >> sequence_ [addHat, addHato]
+sequence_ [delPat "hat", delPat "hato"] >> sequence_ [addSnr, addKik]
+sequence_ [delPat "snr", addHat, addSnr]
+
+sequence_ [addKik, addSnr, addHat, addHato]
+
+delPat "sin-hi"
+sequence_ [addSin2, addSnr, delPat "kik", delPat "hat", delPat "hat-open"]
+
+
+mapM_ delPat ["hat", "hat-open"]
+sequence_ [addHat, addHato]
 
 addKik
 addHat >> addHato
-addHat
-addHato
 addSnr
+
+addSin1 >> delPat "kik"
+addHat
+delPat "kik"
+addSin1
 
 sequence_ [addHat, addHato]
 

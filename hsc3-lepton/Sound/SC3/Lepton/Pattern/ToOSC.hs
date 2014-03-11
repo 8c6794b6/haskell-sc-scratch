@@ -22,10 +22,10 @@ import Data.Maybe (fromMaybe)
 import Control.DeepSeq
 import Data.Binary (Binary)
 import Data.Serialize (Serialize)
-import Sound.OpenSoundControl
+import Sound.OSC
 import Sound.SC3 hiding (Binary)
 
-import Sound.SC3.Lepton.Tree.Tree
+import Sound.SC3.Lepton.Instance ()
 
 import qualified Data.Binary as B
 import qualified Data.Map as M
@@ -185,7 +185,7 @@ instance Binary AddAction where
     n -> error $ "Unexpected index in get: " ++ show n
 
 -- | Converts to OSC messages.
-toOSC :: ToOSC Double -> OSC
+toOSC :: ToOSC Double -> Message
 toOSC (ToOSC t m) = case t of
   Snew def nid aa tid -> s_new def (fromMaybe (-1) nid) aa tid (M.assocs m)
   Nset nid            -> n_set nid (M.assocs m)

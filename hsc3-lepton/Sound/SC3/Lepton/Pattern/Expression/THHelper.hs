@@ -230,7 +230,7 @@ df1s =
   -- See source code of haddock.
   [ 'pdnegate, 'pdabs, 'pdsignum, 'precip, 'pexp, 'psqrt, 'plog
   , 'psin, 'ptan, 'pcos, 'pasin, 'patan, 'pacos, 'psinh, 'ptanh, 'pcosh
-  , 'pasinh, 'patanh, 'pacosh, 'pampDb, 'pasFloat, 'pasInt, 'pbitNot
+  , 'pasinh, 'patanh, 'pacosh, 'pampDb, 'pasFloat, 'pasInt
   , 'pcpsMIDI, 'pcpsOct, 'pcubed, 'pdbAmp, 'pdistort, 'pfrac, 'pisNil
   , 'plog10, 'plog2, 'pmidiCPS, 'pmidiRatio, 'pnotE, 'pnotNil, 'poctCPS
   , 'pramp_, 'pratioMIDI, 'psoftClip, 'psquared ]

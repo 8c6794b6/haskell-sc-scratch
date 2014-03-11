@@ -11,20 +11,21 @@ Sends OSC message sequentially with responding to server.
 module Sound.SC3.Lepton.Pattern.Play where
 
 import Control.Applicative
-import Control.Concurrent
-import Control.Exception (bracket, bracket_)
+-- import Control.Exception (bracket, bracket_)
 import Control.Monad
+-- import Control.Monad.Catch
 import System.IO (IOMode(..), withFile)
 
 import Data.Unique
-import Sound.OpenSoundControl
-import Sound.OpenSoundControl.Coding.Byte
+import Sound.OSC hiding (waitUntil)
+import Sound.OSC.Coding.Byte
 import Sound.SC3
 
 import Sound.SC3.Lepton.Pattern.Interpreter.L
 import Sound.SC3.Lepton.Pattern.ToOSC
 import Sound.SC3.Lepton.Tree
 import Sound.SC3.Lepton.UGen.Factory
+
 
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.Map as M
@@ -34,7 +35,7 @@ import qualified Data.Map as M
 
 -- | Type class used to play sequence of message.
 class Playable p where
-  playIO :: (b -> a -> IO b) -> b -> p a -> IO ()
+  playIO :: Transport m => (b -> a -> m b) -> b -> p a -> m ()
 
 -- | Plays pattern.
 --
@@ -42,14 +43,28 @@ class Playable p where
 -- invokation of play action to pattern. When this synth has been removed, pattern
 -- sequence will stop.
 --
+-- instance (Playable p) => Audible (p (ToOSC Double)) where
+--   play r = liftIO $ bracket
+--     (do send (notify True)
+--         trid <- liftIO newNid
+--         return trid)
+--     (\trid ->
+--       sendOSC (bundle immediately [notify False, n_free [trid]]))
+--     (\trid -> runMsg r trid)
+
+-- playL r = bracket
+--         (do send (notify True)
+--             trid <- liftIO newNid
+--             return trid)
+--         (\trid ->
+--           sendOSC (bundle immediately [notify False, n_free [trid]]))
+--         (\trid -> runMsg r trid)
+
 instance Playable p => Audible (p (ToOSC Double)) where
-  play fd r = bracket
-    (do send fd (notify True)
-        trid <- newNid
-        return (fd,trid))
-    (\(fd',trid) ->
-      send fd' (bundle immediately [notify False, n_free [trid]]))
-    (\(fd',trid) -> runMsg r trid fd')
+    play r = withNotifications $ do
+        trid <- liftIO newNid
+        runMsg r trid
+        sendOSC $ n_free [trid]
 
 ------------------------------------------------------------------------------
 -- Guts
@@ -58,17 +73,15 @@ instance Playable (L ()) where
   playIO = foldLIO_
 
 -- | Run message immediately
-runMsg :: (Playable p, Transport t)
+runMsg :: (Playable p, Transport m)
   => p (ToOSC Double)
   -- ^ Pattern to play
   -> Int
   -- ^ Node id used for trigger synth
-  -> t
-  -- ^ Destination
-  -> IO ()
-runMsg msg trid fd =  utcr >>= \now -> runMsgFrom (UTCr now) msg trid fd
-{-# SPECIALISE runMsg :: L () (ToOSC Double) -> Int -> UDP -> IO () #-}
-{-# SPECIALISE runMsg :: L () (ToOSC Double) -> Int -> TCP -> IO () #-}
+  -> m ()
+runMsg msg trid = time >>= \now -> runMsgFrom now msg trid
+{-# SPECIALISE runMsg :: L () (ToOSC Double) -> Int -> Connection UDP () #-}
+{-# SPECIALISE runMsg :: L () (ToOSC Double) -> Int -> Connection TCP () #-}
 
 -- | Run message from given time.
 --
@@ -76,9 +89,13 @@ runMsg msg trid fd =  utcr >>= \now -> runMsgFrom (UTCr now) msg trid fd
 -- with sending 's_new silence'.
 --
 runMsgFrom
-  :: (Playable p, Transport t) =>
-     Time -> p (ToOSC Double) -> Int -> t -> IO ()
-runMsgFrom time msg trid fd = bracket_ newTrigger freeTrigger work where
+  :: (Playable p, Transport m) =>
+     Time -> p (ToOSC Double) -> Int -> m ()
+--
+-- XXX: Not using bracket due to constraint in Audible.
+-- runMsgFrom now msg trid = bracket_ newTrigger freeTrigger work where
+--
+runMsgFrom now msg trid = newTrigger >> work >> freeTrigger where
   --
   -- When delta time is small amount, latency (> 1ms) occurs in
   -- server side. Sending messages in chunk, accumulate until enough
@@ -88,64 +105,63 @@ runMsgFrom time msg trid fd = bracket_ newTrigger freeTrigger work where
   -- Try pattern converter and sender running in different thread, with
   -- passing around chunks via MVar. This may save couple computation time.
   --
-  newTrigger = send fd $ s_new "tr" trid AddToHead 1 []
-  freeTrigger = send fd $ n_free [trid]
-  work = do
-    let now = as_utcr time
-    -- foldPIO_ go (now,now,[]) msg
-    playIO go (now,now,[]) msg
+  newTrigger = send $ s_new "tr" trid AddToHead 1 []
+  freeTrigger = send $ n_free [trid]
+  work = playIO go (now,now,[]) msg
   go (t0,t1,acc) o
     | getDur o == 0 || null acc = return (t0,t1,o:acc)
     | otherwise                 = do
       let dt = getDur o
           enoughTime = (t0+dt)-t1 > (offsetDelay*5)
       msgs <- mkOSCs acc trid
-      send fd $ bundle (UTCr $ t0+offsetDelay) (tick:msgs)
-      t1' <- if enoughTime then utcr else return t1
-      when enoughTime $ waitUntil fd "/tr" trid
+      sendOSC $ bundle (t0+offsetDelay) (tick:msgs)
+      t1' <- if enoughTime then time else return t1
+      when enoughTime $ waitUntil "/tr" trid
       return (t0+dt,t1',[o])
   tick = n_set trid [("t_trig",1)]
-{-# SPECIALISE runMsgFrom :: Time -> L () (ToOSC Double) -> Int -> TCP -> IO () #-}
-{-# SPECIALISE runMsgFrom :: Time -> L () (ToOSC Double) -> Int -> UDP -> IO () #-}
+{-# SPECIALISE runMsgFrom ::
+    Time -> L () (ToOSC Double) -> Int -> Connection TCP () #-}
+{-# SPECIALISE runMsgFrom ::
+    Time -> L () (ToOSC Double) -> Int -> Connection UDP () #-}
 
 -- | Run pausable message. MVar contains the time assumed as now.
 --
 -- This action is checking contents of MVar for every response.
 -- For performance significant message sending, use runMsg or runMsgFrom.
 --
-runPausableMsg :: (Playable p, Transport t)
-  => MVar Double -> p (ToOSC Double) -> Int -> t -> IO ()
-runPausableMsg mvar msg trid fd = bracket_ newTrig freeTrig work where
-  newTrig = send fd $ s_new "tr" trid AddToHead 1 []
-  freeTrig = send fd $ n_free [trid]
-  -- work = foldPIO_ go [] msg
-  work = playIO go [] msg
-  go acc o
-    | getDur o == 0 || null acc = return (o:acc)
-    | otherwise                 = do
-      -- XXX: When to get and put contents of MVar?
-      -- Is this use of MVar thread safe?
-      let dt = getDur o
-      msgs <- mkOSCs acc trid
-      modifyMVar_ mvar $ \tl -> case tl + dt of
-        tl' -> mapM_ (send fd) [ bundle (UTCr tl') [tick]
-                               , bundle (UTCr $ tl'+offsetDelay) msgs ] >>
-               return tl'
-      waitUntil fd "/tr" trid
-      return [o]
-  tick = n_set trid [("t_trig",1)]
+-- runPausableMsg :: (Playable p, MonadCatch m, MonadIO m, DuplexOSC m)
+--   => MVar Double -> p (ToOSC Double) -> Int -> m ()
+-- runPausableMsg mvar msg trid = bracket_ newTrig freeTrig work where
+--   newTrig = send $ s_new "tr" trid AddToHead 1 []
+--   freeTrig = send $ n_free [trid]
+--   -- work = foldPIO_ go [] msg
+--   work = playIO go [] msg
+--   go acc o
+--     | getDur o == 0 || null acc = return (o:acc)
+--     | otherwise                 = do
+--       -- XXX: When to get and put contents of MVar?
+--       -- Is this use of MVar thread safe?
+--       let dt = getDur o
+--       msgs <- liftIO $ mkOSCs acc trid
+--       liftIO $ modifyMVar_ mvar $ \tl -> case tl + dt of
+--         tl' -> mapM_ sendOSC [ bundle tl' [tick]
+--                              , bundle (tl'+offsetDelay) msgs ] >>
+--                return tl'
+--       waitUntil "/tr" trid
+--       return [o]
+--   tick = n_set trid [("t_trig",1)]
 
-mkOSCs :: [ToOSC Double] -> Int -> IO [OSC]
+mkOSCs :: MonadIO m => [ToOSC Double] -> Int -> m [Message]
 mkOSCs os tid = foldM f [] os where
   f acc o
     | isSilence o = do
-      nid <- newNid
+      nid <- liftIO newNid
       let slt = Snew "rest" (Just nid) AddToTail 1
           rest = toOSC (ToOSC slt (M.singleton "dur" (getDur o)))
       slt `seq` rest `seq` return (rest:acc)
     | otherwise   = case oscType o of
       Snew _ nid _ _ -> do
-        nid' <- maybe newNid return nid
+        nid' <- liftIO $ maybe newNid return nid
         let ops = M.foldrWithKey (mkOpts nid') [] (oscMap o)
             o' = toOSC (setNid nid' o)
         o' `seq` ops `seq` return ((toOSC (setNid nid' o):ops) ++ acc)
@@ -165,8 +181,8 @@ silenceS :: UGen
 silenceS = freeSelf (impulse KR 1 0)
 
 -- | Sends synthdefs used by pattern player.
-setup :: Transport t => t -> IO OSC
-setup fd = async fd $ bundle immediately
+setup :: DuplexOSC m => m ()
+setup = mapM_ async
   [d_recv $ synthdef "tr" tr
   ,d_recv $ synthdef "silence" silenceS
   ,d_recv $ synthdef "rest" silenceS
@@ -187,19 +203,20 @@ newNidInBetween a b = do
 
 -- | Wait until specified message has been returned from server.
 waitUntil ::
-  Transport t
-  => t
-  -> String
+  (RecvOSC m, MonadIO m)
+  => String
   -- ^ String to match in returned OSC message.
   -> Int
   -- ^ Int to match in first element of returned OSC message.
-  -> IO ()
-waitUntil fd str n = recv fd >>= \m -> case m of
-  Message !str' (Int !n':_) | str == str' && n == n' -> return ()
-  _                         -> waitUntil fd str n
-{-# SPECIALISE waitUntil :: UDP -> String -> Int -> IO () #-}
-{-# SPECIALISE waitUntil :: TCP -> String -> Int -> IO () #-}
+  -> m ()
+waitUntil str n = recvMessage >>= \m -> case m of
+  Just (Message !str' (Int32 !n':_))
+      | str == str' && n == fromIntegral n' -> return ()
+  _                                         -> waitUntil str n
+{-# SPECIALISE waitUntil :: String -> Int -> Connection UDP () #-}
+{-# SPECIALISE waitUntil :: String -> Int -> Connection TCP () #-}
 
+{-
 waitUntil2 ::
   Transport t
   => t
@@ -211,10 +228,10 @@ waitUntil2 ::
   -- ^ Trigger id to match
   -> IO ()
 waitUntil2 fd str n i = recv fd >>= \m -> case m of
-  Message !str' (Int (!n'):Int (!i'):_)
+  Message !str' (Int32 (!n'):Int32 (!i'):_)
     | str == str' && n == n' && i == i' -> return ()
   _                                     -> waitUntil2 fd str n i
-
+-}
 
 -- | Make OSC message from given name.
 --
@@ -233,9 +250,9 @@ mkOpts ::
   -- ^ Key name
   -> Double
   -- ^ Value in result message.
-  -> [OSC]
+  -> [Message]
   -- ^ List of OSC used as accumulator
-  -> [OSC]
+  -> [Message]
 mkOpts nid a val acc = case break (== '/') a of
   (k,v) -> case (k,v) of
     ("n_set",'/':p)  -> n_set nid [(p,val)]:acc
@@ -249,21 +266,20 @@ mkOpts nid a val acc = case break (== '/') a of
 
 -- | Write OSC from pattern, for non-realtime use with scsynth.
 writeScore :: (Playable p) =>
-  [OSC]
+  [Message]
   -- ^ Initial OSC message.
   -> SCNode
   -- ^ Initial node graph.
-  -- -> R (ToOSC Double)
-  -> p (ToOSC Double)
+  -> L () (ToOSC Double)
   -- ^ Pattern containing OSC message.
   -> FilePath
   -- ^ Path to save OSC data.
   -> IO ()
 writeScore ini n0 pat path = withFile path WriteMode $ \hdl -> do
   let n0' = diffMessage (Group 0 []) n0
-  BSL.hPut hdl (oscWithSize (bundle (NTPr 0) (n0' ++ ini)))
-  -- foldPIO_ (k hdl) 0 pat
-  playIO (k hdl) 0 pat
+  -- BSL.hPut hdl (oscAndSize (bundle (NTPr 0) (n0' ++ ini)))
+  BSL.hPut hdl (oscAndSize (bundle 0 (n0' ++ ini)))
+  foldLIO_ (k hdl) 0 pat
   where
     k hdl t o
       | isSilence o = return (t+getDur o)
@@ -275,9 +291,10 @@ writeScore ini n0 pat path = withFile path WriteMode $ \hdl -> do
             let opts = M.foldrWithKey (mkOpts nid') [] (oscMap o)
             return $ toOSC (setNid nid' o):opts
         let t' = t + getDur o
-        BSL.hPut hdl (oscWithSize $ bundle (NTPr t') o')
+        -- BSL.hPut hdl (oscAndSize $ bundle (NTPr t') o')
+        liftIO $ BSL.hPut hdl (oscAndSize $ bundle t' o')
         return t'
-    oscWithSize o = BSL.append l b where
+    oscAndSize o = BSL.append l b where
       b = encodeOSC o
       l = encode_i32 (fromIntegral (BSL.length b))
 

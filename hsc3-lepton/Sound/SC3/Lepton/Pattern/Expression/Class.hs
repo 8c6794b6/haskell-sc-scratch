@@ -67,7 +67,7 @@ class Pdouble p where
   pampDb     :: p h Double -> p h Double
   pasFloat   :: p h Double -> p h Double
   pasInt     :: p h Double -> p h Double
-  pbitNot    :: p h Double -> p h Double
+  -- pbitNot    :: p h Double -> p h Double
   pcpsMIDI   :: p h Double -> p h Double
   pcpsOct    :: p h Double -> p h Double
   pcubed     :: p h Double -> p h Double

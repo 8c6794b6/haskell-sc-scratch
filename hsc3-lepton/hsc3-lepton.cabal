@@ -37,25 +37,25 @@ library
     Sound.SC3.Lepton.Parser
     Sound.SC3.Lepton.Parser.Datum
     Sound.SC3.Lepton.Parser.SynthDef
-  --   Sound.SC3.Lepton.Pattern
-  --   Sound.SC3.Lepton.Pattern.Client
-  --   Sound.SC3.Lepton.Pattern.Deserialize
-  --   Sound.SC3.Lepton.Pattern.Expression
-  --   Sound.SC3.Lepton.Pattern.Expression.Class
-  --   Sound.SC3.Lepton.Pattern.Expression.Etree
-  --   Sound.SC3.Lepton.Pattern.Expression.THHelper
-  --   Sound.SC3.Lepton.Pattern.Expression.Term
-  --   Sound.SC3.Lepton.Pattern.Expression.Type
-  --   Sound.SC3.Lepton.Pattern.Interpreter
-  --   Sound.SC3.Lepton.Pattern.Interpreter.Dup
-  --   Sound.SC3.Lepton.Pattern.Interpreter.E
-  --   Sound.SC3.Lepton.Pattern.Interpreter.L
-  --   Sound.SC3.Lepton.Pattern.Interpreter.S
-  --   Sound.SC3.Lepton.Pattern.Play
-  --   Sound.SC3.Lepton.Pattern.Server
-  --   Sound.SC3.Lepton.Pattern.Server3
-  --   Sound.SC3.Lepton.Pattern.ToOSC
-  --   Sound.SC3.Lepton.QuickCheck
+    Sound.SC3.Lepton.Pattern
+    Sound.SC3.Lepton.Pattern.Client
+    Sound.SC3.Lepton.Pattern.Deserialize
+    Sound.SC3.Lepton.Pattern.Expression
+    Sound.SC3.Lepton.Pattern.Expression.Class
+    Sound.SC3.Lepton.Pattern.Expression.Etree
+    Sound.SC3.Lepton.Pattern.Expression.THHelper
+    Sound.SC3.Lepton.Pattern.Expression.Term
+    Sound.SC3.Lepton.Pattern.Expression.Type
+    Sound.SC3.Lepton.Pattern.Interpreter
+    Sound.SC3.Lepton.Pattern.Interpreter.Dup
+    Sound.SC3.Lepton.Pattern.Interpreter.E
+    Sound.SC3.Lepton.Pattern.Interpreter.L
+    Sound.SC3.Lepton.Pattern.Interpreter.S
+    Sound.SC3.Lepton.Pattern.Play
+    -- Sound.SC3.Lepton.Pattern.Server
+    Sound.SC3.Lepton.Pattern.Server3
+    Sound.SC3.Lepton.Pattern.ToOSC
+    -- Sound.SC3.Lepton.QuickCheck
     Sound.SC3.Lepton.Tree
     Sound.SC3.Lepton.Tree.Connection
     Sound.SC3.Lepton.Tree.Diff
@@ -68,7 +68,46 @@ library
     Sound.SC3.Lepton.UGen.Missing
     Sound.SC3.Lepton.UGen.Pretty
     Sound.SC3.Lepton.Util
+  build-depends:
+    QuickCheck >= 2.0,
+    attoparsec,
+    base == 4.*,
+    binary,
+    bytestring,
+    blaze-builder,
+    cereal,
+    cmdargs,
+    containers,
+    deepseq,
+    exceptions,
+    filepath,
+    gdiff >= 1.0,
+    hosc >= 0.14,
+    hsc3 >= 0.14,
+    mersenne-random-pure64,
+    mtl,
+    mwc-random,
+    parallel,
+    parsec >= 3.0,
+    pretty,
+    primitive,
+    random,
+    random-shuffle,
+    split,
+    syb,
+    stm,
+    template-haskell,
+    transformers,
+    uniplate >= 1.6,
+    vector,
+    zlib
 
+executable leptseq
+  ghc-options:
+    -threaded -rtsopts
+    -Wall -fno-warn-unused-do-bind -fno-warn-orphans
+  main-is:
+     leptseq.hs
   build-depends:
     QuickCheck >= 2.0,
     attoparsec,
@@ -82,8 +121,8 @@ library
     deepseq,
     filepath,
     gdiff >= 1.0,
-    hosc >= 0.14,
-    hsc3 >= 0.14,
+    hosc >= 0.11,
+    hsc3 >= 0.11,
     mersenne-random-pure64,
     mtl,
     mwc-random,
@@ -143,43 +182,4 @@ library
 --     template-haskell,
 --     uniplate >= 1.6,
 --     vector >= 0.7 && < 0.9,
---     zlib
-
-
--- executable leptseq
---   ghc-options:
---     -threaded -rtsopts
---     -Wall -fno-warn-unused-do-bind -fno-warn-orphans
---   main-is:
---      leptseq.hs
---   build-depends:
---     QuickCheck >= 2.0,
---     attoparsec,
---     base == 4.*,
---     binary,
---     bytestring,
---     blaze-builder,
---     cereal,
---     cmdargs,
---     containers,
---     deepseq,
---     filepath,
---     gdiff >= 1.0,
---     hosc >= 0.11,
---     hsc3 >= 0.11,
---     mersenne-random-pure64,
---     mtl,
---     mwc-random,
---     parallel,
---     parsec >= 3.0,
---     pretty,
---     primitive,
---     random,
---     random-shuffle,
---     split,
---     syb,
---     stm,
---     template-haskell,
---     uniplate >= 1.6,
---     vector,
 --     zlib

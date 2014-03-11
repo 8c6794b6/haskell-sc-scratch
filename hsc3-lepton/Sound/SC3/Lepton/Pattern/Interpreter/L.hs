@@ -1,6 +1,4 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE FlexibleInstances #-}
 {-|
 Module      : $Header$
 CopyRight   : (c) 8c6794b6
@@ -27,6 +25,7 @@ import Control.Monad
 import System.IO.Unsafe
 
 import Control.Monad.Primitive
+import Control.Monad.IO.Class (MonadIO(..))
 import Sound.SC3
 import System.Random.MWC
 import System.Random.Shuffle
@@ -48,16 +47,16 @@ newtype L h a = L {unL :: h -> (Gen (PrimState IO)) -> IO [a]}
 toL :: L () a -> L () a
 toL = id
 
-runLIO :: L () a -> IO [a]
-runLIO (l :: L () a) = withSystemRandom (unL l () :: GenIO -> IO [a])
+runLIO :: MonadIO m => L () a -> m [a]
+runLIO l = liftIO $ withSystemRandom (unL l ())
 
-mapLIO_ :: (a -> IO ()) -> L () a -> IO ()
+mapLIO_ :: MonadIO m => (a -> m ()) -> L () a -> m ()
 mapLIO_ k l = mapM_ k =<< runLIO l
 
-foldLIO :: (b -> a -> IO b) -> b -> L () a -> IO b
+foldLIO :: MonadIO m => (b -> a -> m b) -> b -> L () a -> m b
 foldLIO k z l = foldM k z =<< runLIO l
 
-foldLIO_ :: (b -> a -> IO b) -> b -> L () a -> IO ()
+foldLIO_ :: MonadIO m => (b -> a -> m b) -> b -> L () a -> m ()
 foldLIO_ k z l = foldLIO k z l >> return ()
 
 ------------------------------------------------------------------------------
@@ -111,7 +110,7 @@ shiftT t ms = case ms of
 initialT :: Num a => M.Map String a
 initialT = M.singleton "dur" 0
 {-# INLINE initialT #-}
-{-# SPECIALIZE initialT :: M.Map String Double #-}
+-- {-# SPECIALIZE initialT :: M.Map String Double #-}
 
 mergeL :: Double -> (Double,Double) ->
           [ToOSC Double] -> [ToOSC Double] -> [ToOSC Double]
@@ -207,7 +206,7 @@ instance Pdouble L where
   pampDb = fmap ampDb
   pasFloat = fmap asFloat
   pasInt = fmap asInt
-  pbitNot = fmap bitNot
+  -- pbitNot = fmap bitNot
   pcpsMIDI = fmap cpsMIDI
   pcpsOct = fmap cpsOct
   pcubed = fmap cubed

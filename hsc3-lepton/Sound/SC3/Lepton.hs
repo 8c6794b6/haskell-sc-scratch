@@ -17,7 +17,7 @@ module Sound.SC3.Lepton
 
 import Sound.SC3.Lepton.Instance ()
 import Sound.SC3.Lepton.Looper as All
--- import Sound.SC3.Lepton.Pattern as All
+import Sound.SC3.Lepton.Pattern as All
 import Sound.SC3.Lepton.Tree as All
 import Sound.SC3.Lepton.UGen as All
 import Sound.SC3.Lepton.Util as All
