@@ -13,7 +13,7 @@ import Control.Applicative
 import Text.Show.Functions ()
 import Test.QuickCheck
 
-import Sound.SC3
+import Sound.SC3 hiding (label)
 import Sound.SC3.Lepton.Tree.Tree
 import Sound.SC3.Lepton.Tree.Zipper
 import Sound.SC3.Lepton.QuickCheck
@@ -22,7 +22,7 @@ import Test.Sound.SC3.Lepton.Common
 import qualified Data.IntSet as IS
 
 tests :: [Property]
-tests = 
+tests =
   [label "updateNode" prop_updateNode
   ,label "zipperInstance" prop_zipperInstance
   ,label "goTop" prop_goTop
@@ -36,7 +36,7 @@ tests =
 -- runTests :: IO [Result]
 -- runTests =
 --   mapM (quickCheckWithResult (stdArgs {maxSize=25})) tests
- 
+
 prop_updateNode :: (SCNode -> SCNode) -> SCZipper -> Property
 prop_updateNode f z =
   let newSize = sizeOf (updateNode f z)

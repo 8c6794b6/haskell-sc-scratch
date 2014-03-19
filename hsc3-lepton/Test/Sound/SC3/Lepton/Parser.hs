@@ -15,8 +15,8 @@ import Test.QuickCheck hiding (Result)
 
 import Data.Attoparsec (Result(..), parse)
 import Data.ByteString (pack)
-import Sound.OpenSoundControl
-import Sound.SC3
+import Sound.OSC hiding (double, float, int32, int64, midi, string)
+import Sound.SC3 hiding (label)
 
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as BL
@@ -38,7 +38,7 @@ prop_parse_any_datum :: Property
 prop_parse_any_datum =
   forAll (arbitrary `suchThat` (not . null)) $ \ds ->
   let p f = case parseDatum f ds of Right _ -> True; _ -> False
-  in  p int .||. p float .||. p double .||. p string .||.
+  in  p int64 .||. p int32 .||. p float .||. p double .||. p string .||.
       p blob .||. p timeStamp .||. p midi
 
 prop_parse_synthdef :: Property

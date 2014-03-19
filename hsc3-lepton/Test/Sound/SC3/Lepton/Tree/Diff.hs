@@ -16,8 +16,8 @@ import Data.Map (Map)
 import Test.QuickCheck
 
 import Data.Generics.Uniplate.Operations
-import Sound.OpenSoundControl
-import Sound.SC3
+import Sound.OSC
+import Sound.SC3 hiding (label)
 
 import Sound.SC3.Lepton.QuickCheck
 import Sound.SC3.Lepton.Tree.Tree
@@ -80,11 +80,11 @@ isGroup :: SCNode -> Bool
 isGroup (Group _ _) = True
 isGroup _           = False
 
-isMsg :: String -> OSC -> Bool
+isMsg :: String -> Message -> Bool
 isMsg str (Message m _) = m == str
 isMsg _   _             = False
 
-msgString :: OSC -> String
+msgString :: Message -> String
 msgString (Message m _) = m
 msgString _             = ""
 

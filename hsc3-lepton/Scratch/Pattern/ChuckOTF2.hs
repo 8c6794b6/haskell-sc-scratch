@@ -112,15 +112,12 @@ sin2P = psnew "otfsine" Nothing AddToHead 1
 
 -- t = 0.5
 -- t = 0.52
+t = 60 / 115
 
-t = 60 / 128
 d = pdouble
 ds = map pdouble
 i = pint
 prnd = prand (i 1)
-
-sin1N = 0xbaca
-sin2N = 0xcaba
 
 ------------------------------------------------------------------------------
 -- Actions for patterns
@@ -158,26 +155,31 @@ addAll
 leptseq l_dump
 leptseq l_freeAll
 
-mapM_ delPat ["sin1", "sin2"]
+mapM_ delPat ["sin2", "sin2"]
 
-delPat "sin-lo"
-delPat "hat" >> delPat "hat-open"
+delPat "sin2" >> addSin1
+addHat >> addHato >> addSnr >> addSin2 >> delPat "kik" >> delPat "sin1"
+addHat >> addKik >> addSnr >> addSin2
+addKik >> addSnr >> addHato >> addSin1
+
+delPat "hat" >> delPat "hato"
 delPat "snr"
 
 sequence_ [addSin1, addSin2]
-sequence_ [delPat "hat", delPat "hat-open"]
+sequence_ [delPat "hat", delPat "hato"]
 
 sequence_ [delPat "snr", delPat "kik"] >> sequence_ [addHat, addHato]
 sequence_ [delPat "hat", delPat "hato"] >> sequence_ [addSnr, addKik]
 sequence_ [delPat "snr", addHat, addSnr]
 
-sequence_ [addKik, addSnr, addHat, addHato]
+mapM_ delPat ["snr", "sin2", "hat", "hato"]
+delPat "kik"
+sequence_ [addKik, addSnr, addSin2, addHat, addHato]
 
-delPat "sin-hi"
-sequence_ [addSin2, addSnr, delPat "kik", delPat "hat", delPat "hat-open"]
+delPat "sin2"
+sequence_ [addSin2, addSnr, delPat "kik", delPat "hat", delPat "hato"]
 
-
-mapM_ delPat ["hat", "hat-open"]
+mapM_ delPat ["hat", "hato"]
 sequence_ [addHat, addHato]
 
 addKik

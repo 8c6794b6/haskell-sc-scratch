@@ -110,7 +110,6 @@ shiftT t ms = case ms of
 initialT :: Num a => M.Map String a
 initialT = M.singleton "dur" 0
 {-# INLINE initialT #-}
--- {-# SPECIALIZE initialT :: M.Map String Double #-}
 
 mergeL :: Double -> (Double,Double) ->
           [ToOSC Double] -> [ToOSC Double] -> [ToOSC Double]

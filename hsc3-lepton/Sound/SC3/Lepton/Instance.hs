@@ -78,6 +78,22 @@ deriving instance Typeable AddAction
 deriving instance Data UGenId
 deriving instance Typeable UGenId
 
+deriving instance Data Synthdef
+deriving instance Typeable Synthdef
+
+deriving instance Data Graph
+deriving instance Typeable Graph
+
+deriving instance Data Node
+deriving instance Typeable Node
+
+deriving instance Data FromPort
+deriving instance Typeable FromPort
+
+deriving instance Data KType
+deriving instance Typeable KType
+
+
 #else
 instance Typeable Datum where
   typeOf _  = mkTyConApp tc_Datum []

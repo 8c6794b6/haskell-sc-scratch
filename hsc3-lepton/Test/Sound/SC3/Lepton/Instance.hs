@@ -11,18 +11,14 @@ module Test.Sound.SC3.Lepton.Instance where
 
 import Test.QuickCheck
 
-import Sound.OpenSoundControl
+import Sound.OSC
 import Sound.SC3.Lepton.Instance
 import Sound.SC3.Lepton.QuickCheck
 
 tests :: [Property]
-tests = 
+tests =
   [label "arbitrary_datum" prop_arbitrary_Datum
-  ,label "arbitrary_time" prop_arbitrary_Time]
+  ]
 
 prop_arbitrary_Datum :: Datum -> Bool
 prop_arbitrary_Datum n = n == n
-
-prop_arbitrary_Time :: Time -> Bool
-prop_arbitrary_Time n = n == n
-

@@ -18,7 +18,7 @@ import Control.Exception
 
 import Data.Binary (decode, encode)
 import Codec.Compression.Zlib(compress, decompress)
-import Sound.OpenSoundControl
+import Sound.OSC
 import Sound.SC3
 import Sound.SC3.ID
 import Sound.SC3.Lepton
@@ -66,12 +66,11 @@ connection. Sending multiple bundle with 'mapM_' with same timestamps.
 --     , ("pu", puP), ("bell", bellP), ("drn1P",drn1P), ("drn2P",drn2P)
 --     ]
 
-setupHuh :: Transport t => t -> IO OSC
-setupHuh fd = do
-  Play.setup fd
-  mapM_ (uncurry writeSynthdef) huhdefs
-  async fd $ bundle immediately $
-    map (d_recv . uncurry synthdef) huhdefs
+setupHuh :: Transport m => m ()
+setupHuh = do
+  Play.setup
+  liftIO $ mapM_ (uncurry writeSynthdef) huhdefs
+  mapM_ (async . d_recv . uncurry synthdef) huhdefs
 
 huhdefs =
   [("cf2huh", cf2huh)
@@ -173,7 +172,7 @@ cf2huh' srcn tick = mrg [out ("out"@@0) sig, d] where
   ampv = latch tick tick
   ed = tRand 'd' 0.1 0.4 tick
   ev = tRand 'e' 0.1 0.6 tick
-  d = detectSilence' ampe 0.01 0.1 RemoveSynth
+  d = detectSilence ampe 0.01 0.1 RemoveSynth
 
 cf2nzf :: UGen
 cf2nzf = cf2nzf' ("t_amp"@@0) ("freq"@@0)
@@ -246,7 +245,7 @@ cf2pu' tick = mrg [out ("out"@@0) sig, d] where
   ampe = decay2 tick 5e-4 950e-3
   amp = "amp"@@0.3
   bw = lfdNoise3 'b' KR 0.1123 * 0.48 + 0.5
-  d = detectSilence' ampe 0.01 1 RemoveSynth
+  d = detectSilence ampe 0.01 1 RemoveSynth
 
 cf2bell :: UGen
 cf2bell = cf2bell' ("t_trig"@@0) ("freq"@@0) ("amp"@@0.3)
@@ -261,7 +260,7 @@ cf2bell' tick freq amp = mrg [out ("out"@@0) (sig * amp), d] where
   mkR x = expRand x 1e-4 150e-3
   nz = pinkNoise 'p' AR
   aenv = decay2 tick 50e-3 1
-  d = detectSilence' aenv 0.01 1 RemoveSynth
+  d = detectSilence aenv 0.01 1 RemoveSynth
 
 cf2shw :: UGen
 cf2shw = cf2shw' ("t_trig"@@0)
@@ -315,3 +314,5 @@ cf2mst' amp = mrg [l', r'] where
   -- (hpf (limiter (mce [l,r] * amp) 1 0.25) 15) where
   l = in' 1 AR 0
   r = in' 1 AR 1
+
+env vs ts cs l r = Envelope vs ts cs (Just l) (Just r)

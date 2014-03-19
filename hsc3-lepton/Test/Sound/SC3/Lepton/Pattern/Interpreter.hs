@@ -23,7 +23,7 @@ import Data.Data
 import Data.Ratio ((%))
 import Test.QuickCheck
 
-import Sound.SC3
+import Sound.SC3 hiding (label)
 import Sound.SC3.Lepton.Pattern
 import Sound.SC3.Lepton.QuickCheck
 import System.Random.Mersenne.Pure64
@@ -173,7 +173,7 @@ doubleP =
   [ ap2 (+@), ap2 (*@), ap2 (-@), ap2 pdrange
   , pdabs, pdnegate, pdsignum, ap2 (/@), precip, psqrt, plog
   , psin, ptan, pcos, pasin, patan, pacos, psinh, ptanh, pcosh
-  , pasinh, patanh, pacosh, pampDb, pasFloat, pasInt, pbitNot
+  , pasinh, patanh, pacosh, pampDb, pasFloat, pasInt
   , pcpsMIDI, pcpsOct, pcubed, pdbAmp, pdistort, pfrac, pisNil
   , plog10, plog2, pmidiCPS, pmidiRatio, pnotE, pnotNil, poctCPS
   , pramp_, pratioMIDI, psoftClip, psquared, const ppi

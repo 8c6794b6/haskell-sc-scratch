@@ -1,4 +1,6 @@
 {-# OPTIONS_HADDOCK hide #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 ------------------------------------------------------------------------------
 -- |
 -- Module      : $Header$
@@ -15,9 +17,10 @@ module Sound.SC3.Lepton.QuickCheck () where
 import Control.Applicative ((<$>), (<*>))
 import Test.QuickCheck
 
-import Sound.OpenSoundControl
+import Sound.OSC
 import Sound.SC3
 
+import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as BL
 
 import Sound.SC3.Lepton.Tree
@@ -39,18 +42,20 @@ instance Arbitrary SynthParam where
 
 instance Arbitrary Datum where
   arbitrary = oneof
-    [Int <$> arbitrary
+    [Int32 <$> arbitrary
+    ,Int64 <$> arbitrary
     ,Float <$> arbitrary
-    ,String <$> arbitrary
+    ,ASCII_String <$> arbitrary
     ,Blob . BL.pack . take 120 <$> listOf (elements [0..255])
     ,TimeStamp <$> arbitrary
-    ,Midi <$> ((,,,) <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary)]
+    ,Midi <$> arbitrary]
 
-instance Arbitrary Time where
-  arbitrary = oneof
-    [UTCr <$> arbitrary
-    ,NTPr <$> arbitrary
-    ,NTPi <$> arbitrary]
+instance Arbitrary MIDI where
+    arbitrary =
+        MIDI <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
+
+instance Arbitrary ASCII where
+    arbitrary = B.pack <$> arbitrary
 
 instance Arbitrary AddAction where
   arbitrary = elements [AddToHead .. AddReplace]

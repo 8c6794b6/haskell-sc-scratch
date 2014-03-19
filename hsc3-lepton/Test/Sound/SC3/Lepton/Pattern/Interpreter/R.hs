@@ -191,7 +191,7 @@ tests = []
 --       o1 = mko t1 x1; o2 = mko t2 x2;
 --       r0 = head $ drop 2 rs
 --   in  (t1 < t2 ==> r0 == o1) .||. (t2 > t1 ==> r0 == o2)
-      
+
 -- make_ziplist op x xs = getZipList (op <$> ZipList xs <*> pure x)
 
 -- ------------------------------------------------------------------------------

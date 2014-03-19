@@ -235,7 +235,7 @@ mkThread env time0 name blob = case decodePattern blob of
             return (fd, tid)
           tidyup (fd',tid) = do
             -- sendOSC fd' $ bundle immediately [notify False, n_free [tid]]
-            -- sendOSC fd' $ n_free [tid]
+            sendOSC fd' $ n_free [tid]
             close fd'
             --
             -- XXX:

@@ -1,4 +1,5 @@
 {-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 ------------------------------------------------------------------------------
 -- |
 -- Module      : $Header$
@@ -16,7 +17,7 @@ import Test.QuickCheck
 
 import Data.Generics.Uniplate.Operations
 
-import Sound.SC3
+import Sound.SC3 hiding (label)
 import Sound.SC3.Lepton.Instance ()
 import Sound.SC3.Lepton.QuickCheck ()
 import Sound.SC3.Lepton.UGen.Demand
@@ -62,7 +63,7 @@ prop_sbrown =
 
 prop_sbufrd :: Property
 prop_sbufrd =
-  forAll arbitrary $ \(a,b,c) -> 
+  forAll arbitrary $ \(a,b,c) ->
   sbufrd a b c `hasUGenNamed` "Dbufrd"
 
 prop_sbufwr :: Property
@@ -82,8 +83,8 @@ prop_sibrown =
 
 prop_sinf :: Gen Bool
 prop_sinf = do
-  let p (Constant v) | v == 9.0e8 = True
-      p _            = False
+  let p (Constant_U (Constant v)) | v == 9.0e8 = True
+      p _                         = False
       d = evalSupply sinf (mkStdGen 0)
   return $ not $ null [e | e <- universe d, p e]
 
@@ -139,7 +140,7 @@ prop_sxrand =
 
 hasUGenNamed :: Supply -> String -> Gen Bool
 hasUGenNamed d n = do
-  let p (Primitive _ n' _ _ _ _) | n == n' = True
-      p _                        = False
+  let p (Primitive_U (Primitive _ n' _ _ _ _)) | n == n' = True
+      p _                                      = False
       d' = evalSupply d (mkStdGen 0)
   return $ not $ null [e | e <- universe d', p e]

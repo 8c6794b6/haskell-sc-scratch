@@ -19,10 +19,10 @@ import Scratch.Huh (n0)
 main :: IO ()
 main = withSC3 runHuh
 
-runHuh fd = do
-  reset fd
-  patchNode n0 fd
-  play fd $ toL allP
+runHuh = do
+  reset
+  patchNode n0
+  play $ toL allP
 
 bpm = 295
 

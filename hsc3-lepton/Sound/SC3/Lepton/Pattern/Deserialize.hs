@@ -319,5 +319,7 @@ e2l e = case fromTree (etree e,()) of
 playE :: E () (ToOSC Double) -> IO ()
 playE e = case fromTree (etree e,()) of
   Right (Term (TyToOSC TyDouble) e' :: Term L ()) -> audition $ toL e'
+  Right (Term t _ )                               ->
+      putStrLn $ "Deserialized type: " ++ show t
   -- Right (Term t _ :: Term L ()) -> putStrLn $ "Deserialized type: " ++ show t
   Left err -> putStrLn err
