@@ -23,15 +23,17 @@ module Sound.SC3.Lepton.GUI
   ) where
 
 import Control.Monad (forM, replicateM, zipWithM_)
-import "mtl" Control.Monad.Trans (liftIO)
+import Control.Monad.Reader (ask)
+import Control.Monad.Trans (liftIO)
 import qualified Control.Exception as E
 import qualified Data.Map as M
 
 import Data.Generics.Uniplate.Data (universe)
-import Sound.OpenSoundControl
-import Sound.SC3
+import Sound.OSC.FD
+import Sound.SC3.FD
 import Sound.SC3.Lepton (SCNode(..), paramToTuple)
 import qualified Graphics.UI.Gtk as G
+import qualified Sound.OSC.Transport.Monad as M
 
 -- $example
 --
@@ -93,12 +95,14 @@ data ParamRange = ParamRange
 --
 -- Ignoring mapped controls.
 --
-treeToGui :: (Transport t) => SCNode -> Hints -> t -> IO ()
-treeToGui tree hints fd = do
-  G.initGUI
-  window <- makeGUIWindow tree hints fd
-  G.widgetShowAll window
-  G.mainGUI
+treeToGui :: Transport t => SCNode -> Hints -> M.Connection t ()
+treeToGui tree hints = do
+  liftIO $ G.initGUI
+  fd <- ask
+  liftIO $ do
+      window <- makeGUIWindow tree hints fd
+      G.widgetShowAll window
+      G.mainGUI
 
 -- | Inner guts of gui builder.
 --
@@ -167,7 +171,7 @@ mkButtons fd box i ps vs = do
   dumpButton `G.on` G.buttonActivated $ do
     E.handle printIOError $ do
       let o = s_get i $ map fst ps
-      m <- send fd o >> wait fd "/n_set"
+      m <- send fd o >> waitReply fd "/n_set"
       print m
 
   setButton <- G.buttonNewWithLabel "set"
@@ -180,7 +184,7 @@ mkButtons fd box i ps vs = do
   getButton <- G.buttonNewWithLabel "get"
   getButton `G.on` G.buttonActivated $ do
     let f (name,vscl) = do
-          msg <- send fd (s_get i [name]) >> wait fd "/n_set"
+          msg <- send fd (s_get i [name]) >> waitReply fd "/n_set"
           G.rangeSetValue vscl (extractVal msg)
     mapM_ f vs
 
@@ -190,9 +194,9 @@ mkButtons fd box i ps vs = do
             ,G.containerChild G.:= getButton]
 
 -- | Extracts value from OSC Message.
-extractVal :: OSC -> Double
+extractVal :: Message -> Double
 extractVal msg = case msg of
-  (Message "/n_set" (_:_:Float v:_)) -> v
+  (Message "/n_set" (_:_:Float v:_)) -> realToFrac v
   _                                  -> 0
 
 -- | Simple error handler for IOError.
