@@ -13,10 +13,6 @@ description:
   Collection of client side utility for scsynth using hsc3.
   See "Sound.SC3.Lepton" for overview.
 
-extra-source-files:
-   leptseq.hs
-   tests.hs
-
 flag dev
   description:
     Enable developer options
@@ -24,6 +20,8 @@ flag dev
     False
 
 library
+  hs-source-dirs:
+    src/lib
   ghc-options:
     -Wall
     -fno-warn-unused-do-bind
@@ -106,40 +104,14 @@ executable leptseq
   ghc-options:
     -threaded -rtsopts
     -Wall -fno-warn-unused-do-bind -fno-warn-orphans
+  hs-source-dirs:
+     src/exec
   main-is:
      leptseq.hs
   build-depends:
-    QuickCheck >= 2.0,
-    attoparsec,
     base == 4.*,
-    binary,
-    bytestring,
-    blaze-builder,
-    cereal,
     cmdargs,
-    containers,
-    deepseq,
-    filepath,
-    gdiff >= 1.0,
-    hosc >= 0.11,
-    hsc3 >= 0.11,
-    mersenne-random-pure64,
-    mtl,
-    mwc-random,
-    parallel,
-    parsec >= 3.0,
-    pretty,
-    primitive,
-    random,
-    random-shuffle,
-    split,
-    syb,
-    stm,
-    template-haskell,
-    transformers,
-    uniplate >= 1.6,
-    vector,
-    zlib
+    hsc3-lepton -any
 
 -- test-suite main-tests
 

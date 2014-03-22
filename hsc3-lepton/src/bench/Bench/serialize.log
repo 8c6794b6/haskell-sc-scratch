@@ -1,0 +1,60 @@
+warming up
+estimating clock resolution...
+mean is 15.75859 us (40001 iterations)
+found 2160 outliers among 39999 samples (5.4%)
+  1312 (3.3%) high mild
+  836 (2.1%) high severe
+estimating cost of a clock call...
+mean is 114.3674 ns (55 iterations)
+found 6 outliers among 55 samples (10.9%)
+  1 (1.8%) low severe
+  1 (1.8%) high mild
+  4 (7.3%) high severe
+
+benchmarking Expr serialize pspe
+mean: 149.3012 us, lb 142.1125 us, ub 175.8598 us, ci 0.950
+std dev: 58.30269 us, lb 230.6213 ns, ub 134.8631 us, ci 0.950
+
+benchmarking E serialize pspe
+mean: 89.55542 us, lb 89.53100 us, ub 89.58772 us, ci 0.950
+std dev: 143.0042 ns, lb 114.8770 ns, ub 197.1769 ns, ci 0.950
+
+benchmarking Bz serialize pspe
+mean: 14.72111 us, lb 14.66880 us, ub 14.95707 us, ci 0.950
+std dev: 483.7761 ns, lb 29.54293 ns, ub 1.144706 us, ci 0.950
+
+benchmarking Expr deserialize pspe
+mean: 116.6203 us, lb 116.5830 us, ub 116.6617 us, ci 0.950
+std dev: 201.6367 ns, lb 171.0697 ns, ub 248.3045 ns, ci 0.950
+
+benchmarking E deserialize pspe
+mean: 367.0338 us, lb 366.8384 us, ub 367.3080 us, ci 0.950
+std dev: 1.176280 us, lb 898.8580 ns, ub 1.916764 us, ci 0.950
+
+benchmarking Bz deserialize pspe
+mean: 89.42700 us, lb 89.33291 us, ub 89.52236 us, ci 0.950
+std dev: 481.1177 ns, lb 427.4960 ns, ub 553.3349 ns, ci 0.950
+
+benchmarking Expr serialize psw
+mean: 424.5284 us, lb 423.3874 us, ub 425.9719 us, ci 0.950
+std dev: 6.583793 us, lb 5.405666 us, ub 8.148876 us, ci 0.950
+
+benchmarking E serialize psw
+mean: 284.0881 us, lb 282.8258 us, ub 289.1835 us, ci 0.950
+std dev: 11.37684 us, lb 2.220936 us, ub 26.65320 us, ci 0.950
+
+benchmarking Bz serialize psw
+mean: 46.11512 us, lb 46.04747 us, ub 46.20788 us, ci 0.950
+std dev: 402.3169 ns, lb 312.7340 ns, ub 501.4940 ns, ci 0.950
+
+benchmarking Expr deserialize psw
+mean: 400.6467 us, lb 388.7537 us, ub 416.4678 us, ci 0.950
+std dev: 69.87044 us, lb 56.82785 us, ub 84.97517 us, ci 0.950
+
+benchmarking E deserialize psw
+mean: 908.9249 us, lb 907.8765 us, ub 910.2768 us, ci 0.950
+std dev: 6.120624 us, lb 5.022258 us, ub 7.750185 us, ci 0.950
+
+benchmarking Bz deserialize psw
+mean: 352.2126 us, lb 351.7460 us, ub 352.6860 us, ci 0.950
+std dev: 2.414009 us, lb 2.147887 us, ub 2.745538 us, ci 0.950
