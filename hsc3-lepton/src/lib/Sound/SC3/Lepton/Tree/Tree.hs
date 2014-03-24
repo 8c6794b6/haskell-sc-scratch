@@ -49,7 +49,7 @@ module Sound.SC3.Lepton.Tree.Tree
   )  where
 
 import Control.Monad
-import Data.ByteString.Char8 (pack, unpack)
+import Data.ByteString.Char8 (unpack)
 import Data.Function (on)
 import Data.Data
 import Data.List (unionBy)

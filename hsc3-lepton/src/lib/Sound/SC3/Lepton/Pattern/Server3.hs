@@ -23,7 +23,7 @@ import Data.Data (Data, Typeable)
 
 import Data.Binary (decode)
 import Sound.OSC.FD
-import Sound.SC3 (notify, n_free, withNotifications, withSC3)
+import Sound.SC3 (n_free, withNotifications, withSC3)
 
 import qualified Codec.Compression.Zlib as Z
 import qualified Data.ByteString.Char8 as C8
@@ -116,8 +116,8 @@ loop env = forever $ do
 -- | Handle bundled and non-bundles OSC message.
 handleMessage :: ServerEnv -> Packet -> IO ()
 handleMessage env msg = case msg of
-  Packet_Bundle (Bundle time msgs) -> mapM_ (sendMsg env (Just time)) msgs
-  Packet_Message msg'              -> sendMsg env Nothing msg'
+  Packet_Bundle (Bundle t msgs) -> mapM_ (sendMsg env (Just t)) msgs
+  Packet_Message msg'           -> sendMsg env Nothing msg'
 
 -- | Pattern match OSC message and send to scsynth server.
 sendMsg
@@ -128,12 +128,12 @@ sendMsg
   -> Message
   -- ^ OSC message body
   -> IO ()
-sendMsg env time msg = case msg of
+sendMsg env t msg = case msg of
   Message "/l_new" [ASCII_String name, Blob b] ->
-      runLNew env time (C8.unpack name) b
+      runLNew env t (C8.unpack name) b
   Message "/l_free" [ASCII_String name]        ->
-      runLFree env time (C8.unpack name)
-  Message "/l_freeAll" []                      -> runLFreeAll env time
+      runLFree env t (C8.unpack name)
+  Message "/l_freeAll" []                      -> runLFreeAll env t
   Message "/l_dump" []                         -> runLDump env
   _                                            ->
       putStrLn $ "Unknown: " ++ show msg
@@ -149,7 +149,7 @@ runLNew
   -> ByteString
   -- ^ Serialized pattern
   -> IO ()
-runLNew env time name blob = do
+runLNew env tm name blob = do
   --
   -- XXX: No gurantee for thread Map to contain un-managed threads.
   --
@@ -162,9 +162,9 @@ runLNew env time name blob = do
         Just (Running tid) -> killThread tid
         _                  -> return ()
   tid <- forkIO $ do
-    maybePause time
+    maybePause tm
     maybeKill
-    mkThread env time name blob
+    mkThread env tm name blob
   atomically $ writeTVar (seThreads env) $ M.insert name (Running tid) tmap
 
 -- | Free specified thread.
@@ -176,11 +176,11 @@ runLFree
   -> String
   -- ^ Thread name to kill
   -> IO ()
-runLFree env time name = do
+runLFree env tm name = do
   tmap <- atomically $ readTVar $ seThreads env
   case M.lookup name tmap of
     Just (Running tid) -> do
-      maybePause time
+      maybePause tm
       killThread tid
       atomically $
         writeTVar (seThreads env) $ M.delete name tmap
@@ -193,10 +193,10 @@ runLFreeAll
   -> Maybe Time
   -- ^ Offset time for sending message
   -> IO ()
-runLFreeAll env time = do
+runLFreeAll env tm = do
   let tv = seThreads env
   tmap <- atomically $ readTVar tv
-  maybePause time
+  maybePause tm
   F.forM_ tmap $ \tinfo -> case tinfo of
     Running tid -> do
       killThread tid
@@ -248,7 +248,7 @@ mkThread env time0 name blob = case decodePattern blob of
             --   tmap <- readTVar tv
             --   writeTVar tv (M.delete name tmap)
             --
-          work (fd',tid) = do
+          work (_fd',tid) = do
             time' <- maybe time return time0
             withSC3 $ withNotifications $ runMsgFrom time' pat' tid
             atomically $ do

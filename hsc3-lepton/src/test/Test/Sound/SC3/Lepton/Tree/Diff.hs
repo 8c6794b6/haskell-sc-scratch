@@ -80,11 +80,9 @@ isGroup _           = False
 
 isMsg :: String -> Message -> Bool
 isMsg str (Message m _) = m == str
-isMsg _   _             = False
 
 msgString :: Message -> String
 msgString (Message m _) = m
-msgString _             = ""
 
 (||?) :: (t -> Bool) -> (t -> Bool) -> t -> Bool
 (||?) = liftBiFunc (||)
@@ -97,7 +95,3 @@ gen_uniqueIdNode = arbitrary `suchThat` (\n -> hasUniqueIds n && isGroup n)
 
 tests :: TestTree
 tests = $testGroupGenerator
-  -- [label "diff_insert" prop_diff_insert
-  -- ,label "diff_delete" prop_diff_delete
-  -- ,label "diff_update" prop_diff_update
-  -- ,label "diff_mixed" prop_diff_mixed]
