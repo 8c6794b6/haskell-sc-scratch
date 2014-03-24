@@ -1,3 +1,4 @@
+{-# LANGUAGE TemplateHaskell #-}
 ------------------------------------------------------------------------------
 -- |
 -- Module      : $Header$
@@ -11,6 +12,9 @@ module Test.Sound.SC3.Lepton.Tree.Zipper where
 
 import Control.Applicative
 import Text.Show.Functions ()
+import Test.Tasty (TestTree, localOption)
+import Test.Tasty.QuickCheck (testProperty, QuickCheckMaxSize(..))
+import Test.Tasty.TH (testGroupGenerator)
 import Test.QuickCheck
 
 import Sound.SC3 hiding (label)
@@ -20,22 +24,6 @@ import Sound.SC3.Lepton.QuickCheck
 
 import Test.Sound.SC3.Lepton.Common
 import qualified Data.IntSet as IS
-
-tests :: [Property]
-tests =
-  [label "updateNode" prop_updateNode
-  ,label "zipperInstance" prop_zipperInstance
-  ,label "goTop" prop_goTop
-  ,label "steps" prop_steps
-  ,label "delete" prop_delete
-  ,label "insert" prop_insert
-  ,label "insert_delete" prop_insert_delete]
-
--- | SCZipper test data gets too large for prop_goTop
--- modify maxSize from default 100.
--- runTests :: IO [Result]
--- runTests =
---   mapM (quickCheckWithResult (stdArgs {maxSize=25})) tests
 
 prop_updateNode :: (SCNode -> SCNode) -> SCZipper -> Property
 prop_updateNode f z =
@@ -142,3 +130,8 @@ nodeIdsInZipper (SCZipper n ps) = nodeIds n ++ concatMap nodeIdsInPath ps
 
 nodeIdsInPath :: SCPath -> [Int]
 nodeIdsInPath (SCPath n ls rs) = n:concatMap nodeIds ls ++ concatMap nodeIds rs
+
+-- | SCZipper test data gets too large for prop_goTop
+-- modify maxSize to 25 from default, which is 100.
+tests :: TestTree
+tests = localOption (QuickCheckMaxSize 25) ($testGroupGenerator)

@@ -120,7 +120,7 @@ executable leptseq
 
 test-suite tests
   ghc-options:
-    -rtsopts -fhpc -auto-all
+    -rtsopts -auto-all
   type:
     exitcode-stdio-1.0
   hs-source-dirs:
@@ -130,6 +130,7 @@ test-suite tests
     tests.hs
   build-depends:
     QuickCheck >= 2.0,
+    attoparsec,
     base == 4.*,
     binary,
     bytestring,
@@ -145,3 +146,5 @@ test-suite tests
     tasty-th,
     uniplate >= 1.6,
     hsc3-lepton -any
+  if flag(dev)
+     ghc-options: -fhpc

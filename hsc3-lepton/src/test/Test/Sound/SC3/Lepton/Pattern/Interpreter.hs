@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-|
 
 Module      : $Header$
@@ -21,20 +22,26 @@ import Control.DeepSeq
 import Data.Binary (decode, encode)
 import Data.Data
 import Data.Ratio ((%))
+import Test.Tasty (TestTree)
+import Test.Tasty.TH (testGroupGenerator)
+import Test.Tasty.QuickCheck (testProperty)
 import Test.QuickCheck
 
 import Sound.SC3 hiding (label)
 import Sound.SC3.Lepton.Pattern
 import Sound.SC3.Lepton.QuickCheck
-import System.Random.Mersenne.Pure64
+-- import System.Random.Mersenne.Pure64
 
 import qualified Data.ByteString.Lazy as BSL
-import qualified Data.Serialize as Srl
+-- import qualified Data.Serialize as Srl
 
-tests :: [Property]
-tests =
-  [ label "s_is_s" prop_s_is_s
-  ]
+-- tests :: TestTree
+-- tests =
+--   [ label "s_is_s" prop_s_is_s
+--   ]
+
+tests :: TestTree
+tests = $testGroupGenerator
 
 -- tests = []
 -- tests =

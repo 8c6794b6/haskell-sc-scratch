@@ -1,5 +1,6 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE Rank2Types #-}
+{-# LANGUAGE TemplateHaskell #-}
 ------------------------------------------------------------------------------
 -- |
 -- Module      : $Header$
@@ -14,6 +15,9 @@ module Test.Sound.SC3.Lepton.Tree.Diff where
 import Control.Applicative
 import Data.Map (Map)
 import Test.QuickCheck
+import Test.Tasty (TestTree)
+import Test.Tasty.QuickCheck (testProperty)
+import Test.Tasty.TH (testGroupGenerator)
 
 import Data.Generics.Uniplate.Operations
 import Sound.OSC
@@ -26,12 +30,6 @@ import Sound.SC3.Lepton.Tree.Zipper
 
 import qualified Data.Map as M
 
-tests :: [Property]
-tests =
-  [label "diff_insert" prop_diff_insert
-  ,label "diff_delete" prop_diff_delete
-  ,label "diff_update" prop_diff_update
-  ,label "diff_mixed" prop_diff_mixed]
 
 prop_diff_insert :: SCNode -> Property
 prop_diff_insert n1 = do
@@ -96,3 +94,10 @@ liftBiFunc q f g = \n -> f n `q` g n
 
 gen_uniqueIdNode :: Gen SCNode
 gen_uniqueIdNode = arbitrary `suchThat` (\n -> hasUniqueIds n && isGroup n)
+
+tests :: TestTree
+tests = $testGroupGenerator
+  -- [label "diff_insert" prop_diff_insert
+  -- ,label "diff_delete" prop_diff_delete
+  -- ,label "diff_update" prop_diff_update
+  -- ,label "diff_mixed" prop_diff_mixed]

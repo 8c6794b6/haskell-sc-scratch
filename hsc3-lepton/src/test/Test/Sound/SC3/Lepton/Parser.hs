@@ -1,3 +1,4 @@
+{-# LANGUAGE TemplateHaskell #-}
 ------------------------------------------------------------------------------
 -- |
 -- Module      : $Header$
@@ -11,6 +12,9 @@ module Test.Sound.SC3.Lepton.Parser where
 
 import Control.Applicative
 import Data.Word
+import Test.Tasty (TestTree)
+import Test.Tasty.TH (testGroupGenerator)
+import Test.Tasty.QuickCheck (testProperty)
 import Test.QuickCheck hiding (Result)
 
 import Data.Attoparsec (Result(..), parse)
@@ -24,10 +28,10 @@ import qualified Data.ByteString.Lazy as BL
 import Sound.SC3.Lepton.Parser
 import Sound.SC3.Lepton.QuickCheck
 
-tests :: [Property]
-tests = [label "parse_datum" prop_parse_datum
-        ,label "parse_any_datum" prop_parse_any_datum
-        ,label "parse_synthdef" prop_parse_synthdef]
+-- tests :: [Property]
+-- tests = [label "parse_datum" prop_parse_datum
+--         ,label "parse_any_datum" prop_parse_any_datum
+--         ,label "parse_synthdef" prop_parse_synthdef]
 
 prop_parse_datum :: Property
 prop_parse_datum =
@@ -52,3 +56,6 @@ prop_parse_synthdef =
       any (\pp -> ppName pp == cn) (sdParamNames def) &&
       any (\us -> usName us == "SinOsc") (sdUGenSpecs def)
     _                               -> False
+
+tests :: TestTree
+tests = $testGroupGenerator
