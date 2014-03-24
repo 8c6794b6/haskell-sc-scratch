@@ -3,13 +3,17 @@ version:	0.0.0
 synopsis:       Scratch for running tests
 author:         8c6794b6
 maintainer:     8c6794b6@gmail.com
-cabal-version:  >= 1.9.2
+cabal-version:  >= 1.8
 build-type:     Simple
 license:        BSD3
 category:       GUI
 stability:      experimental
 description:
   Scratch for running tests.
+
+library
+    exposed-modules: ImportMe
+    build-depends:   base >= 4.5
 
 -- test-suite test-foo
 --   type:
