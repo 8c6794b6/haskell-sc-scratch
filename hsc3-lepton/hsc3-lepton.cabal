@@ -120,7 +120,7 @@ executable leptseq
 
 test-suite tests
   ghc-options:
-    -rtsopts -auto-all
+    -rtsopts -auto-all -threaded
   type:
     exitcode-stdio-1.0
   hs-source-dirs:
