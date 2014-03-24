@@ -1,3 +1,4 @@
+{-# LANGUAGE TemplateHaskell #-}
 {-|
 Module      : $Header$
 CopyRight   : (c) 8c6794b6
@@ -11,12 +12,13 @@ Tests for comparing nodes written with Nd and SCNode.
 module Test.Sound.SC3.Lepton.Tree.Nd where
 
 import Test.QuickCheck
+import Test.Tasty (TestTree)
+import Test.Tasty.QuickCheck (testProperty)
+import Test.Tasty.TH (testGroupGenerator)
 
 import Sound.SC3.Lepton.Tree
 
-tests =
-  [ label "nodify" prop_nodify ]
-
+prop_nodify :: Property
 prop_nodify =
   forAll (elements [1..99]) $ \gid ->
   forAll arbitrary $ \(nname1, nname2, pname1, pname2, pname3) ->
@@ -41,3 +43,6 @@ prop_nodify =
         , syn' (gid * 1000 + 1)  nname2 [pname3 *<= prmv nd1 pname1 ]]
 
   in  sc == nodify nd
+
+tests :: TestTree
+tests = $(testGroupGenerator)

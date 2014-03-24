@@ -26,8 +26,6 @@ library
     -Wall
     -fno-warn-unused-do-bind
     -fno-warn-orphans
-  if flag(dev)
-     ghc-options: -fhpc -auto-all
   exposed-modules:
     Sound.SC3.Lepton
     Sound.SC3.Lepton.Instance
@@ -53,7 +51,7 @@ library
     -- Sound.SC3.Lepton.Pattern.Server
     Sound.SC3.Lepton.Pattern.Server3
     Sound.SC3.Lepton.Pattern.ToOSC
-    -- Sound.SC3.Lepton.QuickCheck
+    Sound.SC3.Lepton.QuickCheck
     Sound.SC3.Lepton.Tree
     Sound.SC3.Lepton.Tree.Connection
     Sound.SC3.Lepton.Tree.Diff
@@ -99,6 +97,13 @@ library
     uniplate >= 1.6,
     vector,
     zlib
+  if flag(dev)
+     ghc-options: -fhpc -auto-all
+     build-depends:
+       tasty,
+       tasty-quickcheck,
+       tasty-hunit,
+       tasty-th
 
 executable leptseq
   ghc-options:
@@ -113,45 +118,30 @@ executable leptseq
     cmdargs,
     hsc3-lepton -any
 
--- test-suite main-tests
-
---   ghc-options:
---     -rtsopts -fhpc -auto-all
-
---   type:
---     exitcode-stdio-1.0
-
---   main-is:
---     tests.hs
-
---   build-depends:
---     QuickCheck >= 2.0,
---     attoparsec,
---     base == 4.*,
---     binary,
---     bytestring,
---     blaze-builder,
---     cereal,
---     cmdargs,
---     containers,
---     deepseq,
---     filepath,
---     gdiff >= 1.0,
---     hosc >= 0.11,
---     hsc3 >= 0.11,
---     mersenne-random-pure64,
---     mtl,
---     mwc-random,
---     parallel,
---     parsec >= 3.0,
---     pretty,
---     primitive,
---     random,
---     random-shuffle,
---     split,
---     syb,
---     stm,
---     template-haskell,
---     uniplate >= 1.6,
---     vector >= 0.7 && < 0.9,
---     zlib
+test-suite tests
+  ghc-options:
+    -rtsopts -fhpc -auto-all
+  type:
+    exitcode-stdio-1.0
+  hs-source-dirs:
+    src/exec
+    src/test
+  main-is:
+    tests.hs
+  build-depends:
+    QuickCheck >= 2.0,
+    base == 4.*,
+    binary,
+    bytestring,
+    containers,
+    deepseq,
+    filepath,
+    hosc >= 0.11,
+    hsc3 >= 0.11,
+    random,
+    tasty,
+    tasty-hunit,
+    tasty-quickcheck,
+    tasty-th,
+    uniplate >= 1.6,
+    hsc3-lepton -any

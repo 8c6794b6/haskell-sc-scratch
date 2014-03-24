@@ -26,7 +26,7 @@ import Sound.SC3.Lepton.Instance ()
 --
 -- * \"t_\" would be KR rate control ugen with trigger flag on.
 --
--- * Other wise, KR rate control ugen without trigger.
+-- * Otherwise, KR rate control ugen without trigger.
 --
 ctrl :: String -- ^ Control name
      -> Double -- ^ Default value
@@ -72,9 +72,8 @@ setc ::
   -> UGen
 setc name value = transform f where
   f (Control_U (Control r name' _ t))
-      | name == name' = Control_U (Control r name value' t)
+      | name == name' = Control_U (Control r name (realToFrac value) t)
   f x                 = x
-  value' = fromRational (toRational value)
 
 -- | Set control values of given UGen
 setcs ::

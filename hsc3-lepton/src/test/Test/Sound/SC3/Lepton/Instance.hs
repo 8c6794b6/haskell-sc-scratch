@@ -1,3 +1,4 @@
+{-# LANGUAGE TemplateHaskell #-}
 ------------------------------------------------------------------------------
 -- |
 -- Module      : $Header$
@@ -10,15 +11,16 @@
 module Test.Sound.SC3.Lepton.Instance where
 
 import Test.QuickCheck
+import Test.Tasty (TestTree)
+import Test.Tasty.QuickCheck (testProperty)
+import Test.Tasty.TH (testGroupGenerator)
 
 import Sound.OSC
 import Sound.SC3.Lepton.Instance
 import Sound.SC3.Lepton.QuickCheck
 
-tests :: [Property]
-tests =
-  [label "arbitrary_datum" prop_arbitrary_Datum
-  ]
-
 prop_arbitrary_Datum :: Datum -> Bool
 prop_arbitrary_Datum n = n == n
+
+tests :: TestTree
+tests = $(testGroupGenerator)

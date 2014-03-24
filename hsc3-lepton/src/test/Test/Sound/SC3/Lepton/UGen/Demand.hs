@@ -1,5 +1,6 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TemplateHaskell #-}
 ------------------------------------------------------------------------------
 -- |
 -- Module      : $Header$
@@ -14,6 +15,9 @@ module Test.Sound.SC3.Lepton.UGen.Demand where
 import Control.Applicative
 import System.Random
 import Test.QuickCheck
+import Test.Tasty (TestTree)
+import Test.Tasty.QuickCheck (testProperty)
+import Test.Tasty.TH (testGroupGenerator)
 
 import Data.Generics.Uniplate.Operations
 
@@ -27,27 +31,6 @@ instance Arbitrary UGen where
 
 instance Arbitrary Supply where
   arbitrary = oneof [sval <$> arbitrary]
-
-tests :: [Property]
-tests =
-  [label "instance" prop_instance
-  ,label "sbrown" prop_sbrown
-  ,label "sbufrd" prop_sbufrd
-  ,label "sbufwr" prop_sbufwr
-  ,label "sgeom" prop_sgeom
-  ,label "sibrown" prop_sibrown
-  ,label "sinf" prop_sinf
-  ,label "siwhite" prop_siwhite
-  ,label "srand" prop_srand
-  ,label "sseq" prop_sseq
-  ,label "sser" prop_sser
-  ,label "sseries" prop_sseries
-  ,label "sstutter" prop_sstutter
-  ,label "sswitch" prop_sswitch
-  ,label "sswitch1" prop_sswitch1
-  ,label "swhite" prop_swhite
-  ,label "sxrand" prop_sxrand
-  ]
 
 prop_instance :: Property
 prop_instance =
@@ -144,3 +127,6 @@ hasUGenNamed d n = do
       p _                                      = False
       d' = evalSupply d (mkStdGen 0)
   return $ not $ null [e | e <- universe d', p e]
+
+tests :: TestTree
+tests = $(testGroupGenerator)

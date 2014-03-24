@@ -1,3 +1,4 @@
+{-# LANGUAGE TemplateHaskell #-}
 ------------------------------------------------------------------------------
 -- |
 -- Module      : $Header$
@@ -5,26 +6,22 @@
 -- License     : BSD3
 -- Maintainer  : 8c6794b6@gmail.com
 -- Stability   : unstable
--- Portability : portable
+-- Portability : unknown
 --
 module Test.Sound.SC3.Lepton.Tree.Tree where
 
+import Data.ByteString.Char8 (pack)
+
 import Test.QuickCheck
+import Test.Tasty (TestTree)
+import Test.Tasty.QuickCheck (testProperty)
+import Test.Tasty.TH (testGroupGenerator)
 
 import Sound.OSC
 import Sound.SC3.Lepton.Tree.Tree
 import Sound.SC3.Lepton.QuickCheck ()
 
-import qualified Data.ByteString.Char8 as C8
-
 import Test.Sound.SC3.Lepton.Common
-
-tests :: [Property]
-tests =
-  [label "treeToNew" prop_treeToNew
-  ,label "treeToSet" prop_treeToSet
-  ,label "drawSCNode" prop_drawSCNode
-  ,label "parseNode" prop_parseNode]
 
 prop_treeToNew :: Property
 prop_treeToNew =
@@ -60,12 +57,17 @@ nodeToOSC n = Message "/g_queryTree.reply" (Int32 1:f n []) where
     Group i ns      -> Int32 (fromIntegral i):
                        Int32 (fromIntegral $ length ns):foldr f os ns
     Synth i name ps ->
-      Int32 (fromIntegral i):Int32 (-1):ASCII_String (C8.pack name):
+      Int32 (fromIntegral i):Int32 (-1):ASCII_String (pack name):
       Int32 (fromIntegral $ length ps):foldr g [] ps ++ os
   g p ps = case p of
-    m := v  -> ASCII_String (C8.pack m) :
-               Float (fromRational $ toRational v) : ps
-    m :<- v -> ASCII_String (C8.pack m) :
-               ASCII_String (C8.pack $ 'c':show v) : ps
-    m :<= v -> ASCII_String (C8.pack m) :
-               ASCII_String (C8.pack $ 'a':show v) : ps
+    -- XXX: Convertng the type, from g_queryTree.reply specification, returned
+    -- message will contain 'Float' instead of 'Double'.
+    m := v  -> ASCII_String (pack m) :
+               Double v : ps
+    m :<- v -> ASCII_String (pack m) :
+               ASCII_String (pack $ 'c':show v) : ps
+    m :<= v -> ASCII_String (pack m) :
+               ASCII_String (pack $ 'a':show v) : ps
+
+tests :: TestTree
+tests = $testGroupGenerator

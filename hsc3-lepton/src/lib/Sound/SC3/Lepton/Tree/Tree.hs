@@ -49,7 +49,7 @@ module Sound.SC3.Lepton.Tree.Tree
   )  where
 
 import Control.Monad
-import Data.ByteString.Char8 (unpack)
+import Data.ByteString.Char8 (pack, unpack)
 import Data.Function (on)
 import Data.Data
 import Data.List (unionBy)
@@ -226,7 +226,7 @@ parseParam = do
   name <- unpack `fmap` string
   val <- datum
   case val of
-    Float x   -> return $ name := fromRational (toRational x)
+    Float x   -> return $ name := realToFrac x
     Double x  -> return $ name := x
     ASCII_String xs ->
         let xs' = unpack xs
@@ -377,4 +377,4 @@ signedInt n | n < 0     = parens (P.int n)
 -- | Show signed double.
 signedDouble :: Double -> Doc
 signedDouble n | n < 0     = parens (P.double n)
-            | otherwise = P.double n
+               | otherwise = P.double n

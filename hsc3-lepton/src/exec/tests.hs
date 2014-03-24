@@ -11,25 +11,26 @@
 --
 module Main where
 
-import System.Exit (exitFailure, exitSuccess)
-import Test.QuickCheck (Args(..),quickCheckWithResult, stdArgs)
+import Test.Tasty (testGroup, defaultMain)
 
 import Test.Sound.SC3.Lepton.Common
-import qualified Test.Sound.SC3.Lepton.Instance as I
+import qualified Test.Sound.SC3.Lepton.Instance as Instance
 -- import qualified Test.Sound.SC3.Lepton.Parser as P
 -- import qualified Test.Sound.SC3.Lepton.Tree.Diff as TD
-import qualified Test.Sound.SC3.Lepton.Tree.Nd as TN
-import qualified Test.Sound.SC3.Lepton.Tree.Tree as TT
+import qualified Test.Sound.SC3.Lepton.Tree.Nd as Nd
+import qualified Test.Sound.SC3.Lepton.Tree.Tree as Tree
 -- import qualified Test.Sound.SC3.Lepton.Tree.Zipper as TZ
-import qualified Test.Sound.SC3.Lepton.UGen.Demand as UD
+import qualified Test.Sound.SC3.Lepton.UGen.Demand as Demand
 -- import qualified Test.Sound.SC3.Lepton.Pattern.ParseP as PP
 -- import qualified Test.Sound.SC3.Lepton.Pattern.Interpreter as PI
 -- import qualified Test.Sound.SC3.Lepton.Pattern.Interpreter.R as PIR
 
 main :: IO ()
 main = do
-  results <- mapM (quickCheckWithResult stdArgs {maxSize=25}) $ concat
-    [ I.tests, TN.tests, TT.tests, UD.tests ]          
-    -- [ P.tests, TT.tests, I.tests, TN.tests, TZ.tests , TD.tests
-    -- , UD.tests, PP.tests, PI.tests {- , PIR.tests -} ]
-  if any (not . isSuccess) results then exitFailure else exitSuccess
+  let tests = testGroup "tests"
+        [ Instance.tests
+        , Nd.tests
+        , Demand.tests
+        , Tree.tests
+        ]
+  defaultMain $ tests

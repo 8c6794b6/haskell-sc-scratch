@@ -12,9 +12,10 @@
 --
 -- Arbitrary instance of SCNode and SynthParam for QuickCheck tests.
 --
-module Sound.SC3.Lepton.QuickCheck () where
+module Sound.SC3.Lepton.QuickCheck (Gen) where
 
 import Control.Applicative ((<$>), (<*>))
+import Data.Int (Int32)
 import Test.QuickCheck
 
 import Sound.OSC
@@ -28,11 +29,11 @@ import Sound.SC3.Lepton.Tree
 instance Arbitrary SCNode where
   arbitrary = do
     l <- choose (0,3::Int)
-    oneof [Group <$> arbitrary <*> vectorOf l arbitrary
-          ,Synth <$> arbitrary <*> nameChars <*> arbitrary]
-  -- arbitrary = sized nodes where
-  --   nodes n | n < 2     = Synth <$> arbitrary <*> nameChars <*> arbitrary
-  --           | otherwise = Group <$> arbitrary <*> Q.listOf (nodes (n `div` 2))
+    oneof [Group <$> fmap fromIntegral (arbitrary :: Gen Int32) <*>
+           vectorOf l arbitrary
+          ,Synth <$> fmap fromIntegral (arbitrary :: Gen Int32) <*>
+           nameChars <*> arbitrary
+          ]
 
 instance Arbitrary SynthParam where
   arbitrary = oneof
