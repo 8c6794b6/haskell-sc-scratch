@@ -96,10 +96,6 @@ queryRootNode = withNotifications $ do
     send $ g_queryTree [(0,True)]
     waitReply "/g_queryTree.reply"
 
--- | Sends "/g_queryTree" and shows returning message.
-queryTree :: Int -> Message
-queryTree n = g_queryTree [(n, True)]
-
 -- | Sends registration for notify, then query the nodes and shows
 -- returing message.
 -- queryNode :: Transport t => Int -> t -> IO OSC

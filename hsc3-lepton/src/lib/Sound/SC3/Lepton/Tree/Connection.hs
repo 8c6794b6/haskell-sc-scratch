@@ -31,8 +31,6 @@ import Sound.SC3
 import Sound.SC3.Lepton.Tree.Tree
 import Sound.SC3.Lepton.Tree.Diff
 
-import Sound.SC3.Lepton.Util (queryTree)
-
 -- | Send OSC message for constructing given @SCNode@.
 -- New node will be added to tail of target id.
 addNode :: (SendOSC m, MonadIO m)
@@ -48,7 +46,7 @@ getNode :: (DuplexOSC m)
         => NodeId     -- ^ Node id to get
         -> m SCNode
 getNode n = do
-  sendOSC (queryTree n)
+  sendOSC $ g_queryTree [(n,True)]
   m <- waitReply "/g_queryTree.reply"
   return $ parseNode m
 
