@@ -11,7 +11,8 @@ Sends OSC message sequentially with responding to server.
 module Sound.SC3.Lepton.Pattern.Play where
 
 import Control.Applicative
--- import Control.Exception (bracket, bracket_)
+import Control.Exception (bracket, bracket_)
+import Control.Concurrent
 import Control.Monad
 -- import Control.Monad.Catch
 import System.IO (IOMode(..), withFile)
@@ -131,25 +132,33 @@ runMsgFrom now msg trid = newTrigger >> work >> freeTrigger where
 --
 -- runPausableMsg :: (Playable p, MonadCatch m, MonadIO m, DuplexOSC m)
 --   => MVar Double -> p (ToOSC Double) -> Int -> m ()
+runPausableMsg ::
+  (Playable p, Transport m)
+  => MVar Double -> p (ToOSC Double) -> Int -> m ()
 -- runPausableMsg mvar msg trid = bracket_ newTrig freeTrig work where
---   newTrig = send $ s_new "tr" trid AddToHead 1 []
---   freeTrig = send $ n_free [trid]
---   -- work = foldPIO_ go [] msg
---   work = playIO go [] msg
---   go acc o
---     | getDur o == 0 || null acc = return (o:acc)
---     | otherwise                 = do
---       -- XXX: When to get and put contents of MVar?
---       -- Is this use of MVar thread safe?
---       let dt = getDur o
---       msgs <- liftIO $ mkOSCs acc trid
---       liftIO $ modifyMVar_ mvar $ \tl -> case tl + dt of
---         tl' -> mapM_ sendOSC [ bundle tl' [tick]
---                              , bundle (tl'+offsetDelay) msgs ] >>
---                return tl'
---       waitUntil "/tr" trid
---       return [o]
---   tick = n_set trid [("t_trig",1)]
+runPausableMsg mvar msg trid = work where
+  -- newTrig = send $ s_new "tr" trid AddToHead 1 []
+  -- freeTrig = send $ n_free [trid]
+  -- work = foldPIO_ go [] msg
+  work = playIO go [] msg
+  go acc o
+    | getDur o == 0 || null acc = return (o:acc)
+    | otherwise                 = do
+      -- XXX: When to get and put contents of MVar?
+      -- Is this use of MVar thread safe?
+      let dt = getDur o
+      msgs <- liftIO $ mkOSCs acc trid
+      -- liftIO $ modifyMVar_ mvar $ \tl -> case tl + dt of
+      --   tl' -> mapM_ sendOSC [ bundle tl' [tick]
+      --                        , bundle (tl'+offsetDelay) msgs ] >>
+      --          return tl'
+      os <- liftIO $ modifyMVar mvar $ \tl ->
+        let tl' = tl + dt
+        in  return (tl', [bundle tl' [tick], bundle (tl'+offsetDelay) msgs])
+      mapM_ sendOSC os
+      waitUntil "/tr" trid
+      return [o]
+  tick = n_set trid [("t_trig",1)]
 
 mkOSCs :: MonadIO m => [ToOSC Double] -> Int -> m [Message]
 mkOSCs os tid = foldM f [] os where
