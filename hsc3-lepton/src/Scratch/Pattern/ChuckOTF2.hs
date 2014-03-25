@@ -162,7 +162,11 @@ addHat >> addHato >> addSnr >> addSin2 >> delPat "kik" >> delPat "sin1"
 addHat >> addKik >> addSnr >> addSin2
 addKik >> addSnr >> addHato >> addSin1
 
-delPat "hat" >> delPat "hato"
+addHato
+delPat "hat"
+addHat
+delPat "hato"
+delPat "sin1"
 delPat "snr"
 
 sequence_ [addSin1, addSin2]

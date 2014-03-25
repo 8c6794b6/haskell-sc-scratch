@@ -25,20 +25,20 @@ import Sound.SC3.Lepton hiding (setup)
 import qualified Sound.SC3.Lepton.Pattern.Play as Play
 
 -- | Load synth def and play the pattern.
-gospe :: (Transport t) => t -> IO ()
-gospe fd = do
-  async fd . d_recv . synthdef "speSynth" =<< speSynth
-  mapPIO_ f pspe
+gospe :: (Transport t) => t ()
+gospe = do
+  async . d_recv . synthdef "speSynth" =<< liftIO speSynth
+  mapLIO_ f pspe
   where
     f v = do
-      send fd $ s_new "speSynth" (-1) AddToTail 1 [("freq",midiCPS v)]
-      threadDelay (floor $ 0.13 * 1e6)
+      send $ s_new "speSynth" (-1) AddToTail 1 [("freq",midiCPS v)]
+      liftIO $ threadDelay (floor $ 0.13 * 1e6)
 
 gospe' :: Transport t => t -> IO ()
 gospe' fd = do
   async fd . d_recv . synthdef "speSynth" =<< speSynth
   play fd $ psnew "speSynth" Nothing AddToTail 1
-    [("dur", pforever 0.13),("freq", midiCPS (pspe :: R Double))]
+    [("dur", pforever 0.13),("freq", pmidiCPS pspe)]
 
 gospe'p p fd = do
   async fd . d_recv . synthdef "speSynth" =<< speSynth
@@ -65,14 +65,18 @@ pspe =
   pcycle
     [prand 1
        [pempty, plist [24,31,36,43,48,55]]
-    ,pseq (prange 2 5)
+    ,pseq (pirange 2 5)
        [60, prand 1 [63, 65], 67, prand 1 [70,72,74]]
-    ,prand (prange 3 9)
+    ,prand (pirange 3 9)
        [74,75,77,79,81]]
 
 pspe' = psnew "speSynth" Nothing AddToTail 1
-  [("dur", prepeat 0.13), ("freq", midiCPS pspe)]
+  [("dur", pforever 0.13), ("freq", pmidiCPS pspe)]
 
+pempty = plist []
+plist = pseq 1
+
+{-
 -- ---------------------------------------------------------------------------
 -- Parallel tests
 
@@ -237,3 +241,4 @@ msg01 = psnew "rspdef1" Nothing AddToTail 1
   ,("amp", pforever 0.3)]
 
 main = withSC3 gosw
+-}

@@ -16,23 +16,22 @@ import Data.Function (fix)
 import System.Random
 import System.FilePath
 
-import Sound.OpenSoundControl
+import Sound.OSC
 import Sound.SC3
 import Sound.SC3.ID
 import Sound.SC3.Lepton
 import System.Random.Mersenne.Pure64
-import Sound.SC3.Lepton.Pattern.Parse2
+-- import Sound.SC3.Lepton.Pattern.Parse2
 
 import qualified Data.ByteString.Lazy.Char8 as LC8
 
-import Scratch.L
 
 l = withLept
 
 pspe = psnew "speSynth" Nothing AddToTail 1
-  [("dur", prepeat 0.13)
-  ,("amp", prepeat 0.1)
-  ,("freq", midiCPS pspeFreq)]
+  [("dur", pforever (pdouble 0.13))
+  ,("amp", pforever (pdouble 0.1))
+  ,("freq", pmidiCPS pspeFreq)]
 
 -- pspeFreq =
 --   pcycle
@@ -45,25 +44,25 @@ pspe = psnew "speSynth" Nothing AddToTail 1
 
 pspeFreq =
   pcycle
-    [prand (pval 1)
-       [pempty, plist [24,31,36,43,48,55]]
-    ,pseq (prange (pval 2) (pval 5))
-       [ pval 60, prand (pval 1) [pval 63, pval 65]
-       , pval 67, prand (pval 1) [pval 70,pval 72,pval 74]]
-    ,prand (prange (pval 3) (pval 9))
-       [pval 74,pval 75,pval 77,pval 79,pval 81]]
+    [prand (pint 1)
+       [pseq (pint 0) [], pseq (pint 1) [24,31,36,43,48,55]]
+    ,pseq (pirange (pint 2) (pint 5))
+       [ pdouble 60, prand (pint 1) [pdouble 63, pdouble 65]
+       , pdouble 67, prand (pint 1) [pdouble 70,pdouble 72,pdouble 74]]
+    ,prand (pirange (pint 3) (pint 9))
+       [pdouble 74,pdouble 75,pdouble 77,pdouble 79,pdouble 81]]
 
 -- Unison, using same random seed.
 pspe2 =
   ppar
     [psnew "speSynth" Nothing AddToTail 1
-     [("dur", prepeat 0.13)
-     ,("amp", prepeat 0.1)
-     ,("freq", midiCPS pspeFreq)]
+     [("dur", pforever (pdouble 0.13))
+     ,("amp", pforever (pdouble 0.1))
+     ,("freq", pmidiCPS pspeFreq)]
     ,psnew "speSynth" Nothing AddToTail 1
-     [("dur", prepeat 0.13)
-     ,("amp", prepeat 0.1)
-     ,("freq", midiCPS (prepeat (-5) + pspeFreq))]
+     [("dur", pforever (pdouble 0.13))
+     ,("amp", pforever (pdouble 0.1))
+     ,("freq", pmidiCPS (pforever (pdouble (-5)) +@ pspeFreq))]
     ]
 
 -- Non-unison, bundled two patterns.
@@ -82,23 +81,24 @@ pspe2 =
 --       ,("freq", midiCPS (prepeat (-7) + pspeFreq))]
 --     ]
 
+{-
 -- Unison, using papp and plam
 pspe3 =
    (plam
     (\x ->
       ppar
       [psnew "speSynth" Nothing AddToTail 1
-       [("dur", prepeat 0.13)
-       ,("amp", prepeat 0.1)
-       ,("freq", midiCPS x)]
+       [("dur", pforever (pdouble 0.13))
+       ,("amp", pforever (pdouble 0.1))
+       ,("freq", pmidiCPS x)]
       ,psnew "speSynth" Nothing AddToTail 1
-       [("dur", prepeat 0.13)
-       ,("amp", prepeat 0.1)
-       ,("freq", midiCPS x * prepeat 0.498)]
+       [("dur", pforever (pdouble 0.13))
+       ,("amp", pforever (pdouble 0.1))
+       ,("freq", pmidiCPS x * pforever (pdouble 0.498))]
       ,psnew "speSynth" Nothing AddToTail 1
-       [("dur", prepeat 0.13)
-       ,("amp", prepeat 0.1)
-       ,("freq", midiCPS x * prepeat 2.002)]
+       [("dur", pforever (pdouble 0.13))
+       ,("amp", pforever (pdouble 0.1))
+       ,("freq", pmidiCPS x * pforever (pdouble 2.002))]
       ]
     )) `papp` pspeFreq
 
@@ -431,3 +431,5 @@ lll01 = let d = pval in
   ,("atk", pforever (d 1e-4))
   ,("dcy", pforever (d 1))
   ]
+
+-}
