@@ -65,6 +65,27 @@ ctrls name vals = mce . snd $ sigs
     f a (i,us) = (i+1, ctrl (name ++ "_" ++ show i) a : us)
 
 -- | Set control value of given UGen.
+--
+-- Useable when changing control value without writing synthdef:
+--
+-- > synth001 =
+-- >    let sig   = sinOsc AR (k "freq" 440) 0 * amp * e
+-- >        amp   = k "amp" 0.3
+-- >        e     = decay2 t 1e-2 dcy * l
+-- >        t     = impulse KR dense 0 + dust 'a' KR dense
+-- >        l     = line KR 1 0 8 RemoveSynth
+-- >        dcy   = k "decay" 2
+-- >        k n v = control KR n v
+-- >    in  out (k "out" 0) (mce2 sig sig)
+--
+-- Changing control value @freq@:
+--
+-- >>> setc "freq" 880 synth001
+--
+-- Changing control value @freq@ and @decay@:
+--
+-- >>> setc "freq" 880 $ setc "decay" 0.3 $ synth001
+--
 setc ::
   String    -- ^ Name of control parameter
   -> Double -- ^ New value
