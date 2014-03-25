@@ -18,7 +18,7 @@ be done with sending and receiving OSC command, instead of raw ByteString.
 module Sound.SC3.Lepton.Pattern.Server
   ( -- * Types
     ConInfo(..)
-  , Connection(..)
+  , Con(..)
   , LeptSeq(..)
   , Protocol(..)
   , ServerEnv(..)
@@ -37,12 +37,13 @@ import Control.Concurrent
 import Control.Exception (bracket)
 import Control.Monad
 import Control.Monad.Reader
+import Data.ByteString.Char8 (unpack)
 import Data.Data
 import Data.Ord (comparing)
 
 import Data.Binary (decode)
-import Sound.OpenSoundControl
-import Sound.SC3 hiding (Binary, env)
+import Sound.OSC.FD
+import Sound.SC3.FD
 
 import qualified Codec.Compression.Zlib as Z
 import qualified Data.ByteString.Lazy as BL
@@ -84,7 +85,7 @@ mkInitEnv lep = do
 -- | Protocol type.
 data Protocol = Tcp | Udp deriving (Eq,Show,Data,Typeable)
 
--- | Connection information used for scsynth server.
+-- | Con information used for scsynth server.
 data ConInfo = ConInfo
   { ciHost :: String
   , ciPort :: Int
@@ -92,13 +93,13 @@ data ConInfo = ConInfo
   } deriving (Eq, Show)
 
 -- | Wrapper for Transport class.
-data Connection = UDPCon UDP | TCPCon TCP
+data Con = UDPCon UDP | TCPCon TCP
 
-instance Transport Connection where
-  send (UDPCon c) o = send c o
-  send (TCPCon c) o = send c o
-  recv (UDPCon c) = recv c
-  recv (TCPCon c) = recv c
+instance Transport Con where
+  sendOSC (UDPCon c) o = sendOSC c o
+  sendOSC (TCPCon c) o = sendOSC c o
+  recvPacket (UDPCon c) = recvPacket c
+  recvPacket (TCPCon c) = recvPacket c
   close (UDPCon c) = close c
   close (TCPCon c) = close c
 
@@ -106,7 +107,7 @@ instance Transport Connection where
 data ServerEnv = ServerEnv
   { envThreads :: M.Map String Thread
   , envSC :: ConInfo
-  , envLept :: Connection
+  , envLept :: Con
   , envPort :: Int }
 
 -- | Forked thread in server.
@@ -139,8 +140,8 @@ newtype ServerLoop a =
   ServerLoop {unServerLoop :: ReaderT (MVar ServerEnv) IO a}
   deriving (Applicative,Functor,Monad,MonadReader (MVar ServerEnv),MonadIO)
 
--- | Get Connection from Coninfo.
-fromConInfo :: ConInfo -> IO Connection
+-- | Get Con from Coninfo.
+fromConInfo :: ConInfo -> IO Con
 fromConInfo (ConInfo h p ptc) = case ptc of
   Udp -> UDPCon <$> openUDP h p
   Tcp -> TCPCon <$> openTCP h p
@@ -160,11 +161,11 @@ work :: ServerLoop ()
 work = do
   st <- liftIO . readMVar =<< ask
   let lep = envLept st
-  msg <- liftIO $ recv lep
+  msg <- liftIO $ recvPacket lep
   case msg of
-    Bundle _ []     -> return ()
-    Bundle time ms  -> mapM_ (sendMessage (Just time)) ms
-    m@(Message _ _) -> sendMessage Nothing m
+    Packet_Bundle (Bundle _ [])     -> return ()
+    Packet_Bundle (Bundle time ms)  -> mapM_ (sendMsg (Just time)) ms
+    Packet_Message (m@(Message _ _)) -> sendMsg Nothing m
 
 -- | Send message with or without bundled time, and update ServerEnv.
 --
@@ -175,17 +176,17 @@ work = do
 -- Timestamp in nested bundle will be ignored, outermost bundle time will
 -- be used in whole message.
 --
-sendMessage :: Maybe Time -> OSC -> ServerLoop ()
-sendMessage time m = case m of
-  Bundle _ ms -> mapM_ (sendMessage time) ms
-  Message "/l_new" [String key, Blob pat] -> runLNew time key pat
-  Message "/l_free" [String key]          -> runLFree time key
+sendMsg :: Maybe Time -> Message -> ServerLoop ()
+sendMsg time m = case m of
+  -- Bundle _ ms -> mapM_ (sendMsg time) ms
+  Message "/l_new" [ASCII_String key, Blob pat] -> runLNew time (unpack key) pat
+  Message "/l_free" [ASCII_String key]          -> runLFree time (unpack key)
   Message "/l_freeAll" []                 -> runLFreeAll time
   Message "/l_dump" []                    -> runLDump time
-  Message "/l_add" [String key, Blob pat] -> runLAdd time key pat
-  Message "/l_run" [String key]           -> runLRun time key
-  Message "/l_pause" [String key]         -> runLPause time key
-  Message "/l_update" [String key, Blob pat] -> runLUpdate time key pat
+  Message "/l_add" [ASCII_String key, Blob pat] -> runLAdd time (unpack key) pat
+  Message "/l_run" [ASCII_String key]           -> runLRun time (unpack key)
+  Message "/l_pause" [ASCII_String key]         -> runLPause time (unpack key)
+  Message "/l_update" [ASCII_String key, Blob pat] -> runLUpdate time (unpack key) pat
   _ -> do
     st <- liftIO . readMVar =<< ask
     liftIO $ withTransport (fromConInfo (envSC st)) (flip send m)
@@ -208,12 +209,12 @@ runLAdd _ key pat = case decodePattern pat of
   Left err   -> liftIO $ putStr err
 
 runLRun :: Maybe Time -> String -> ServerLoop ()
-runLRun time key = withEnv $ \env ->
+runLRun time0 key = withEnv $ \env ->
   case M.lookup key (envThreads env) of
-    Just (Thread New pat _)        -> forkNewThread time key pat
-    Just (Thread Finished pat _)   -> forkNewThread time key pat
+    Just (Thread New pat _)        -> forkNewThread time0 key pat
+    Just (Thread Finished pat _)   -> forkNewThread time0 key pat
     Just (Thread (Paused i) pat lck) -> modifyEnv $ \env' -> do
-      time' <- liftIO $ maybe utcr (return . as_utcr) time
+      time' <- liftIO $ maybe time (return) time0
       liftIO $ putMVar lck time'
       let t = Thread (Running i) pat lck
       return $ env' {envThreads = M.adjust (const t) key (envThreads env')}
@@ -229,7 +230,7 @@ runLPause time key = modifyEnv $ \env ->
     _ -> return env
 
 runLUpdate :: Maybe Time -> String -> BL.ByteString -> ServerLoop ()
-runLUpdate time key pat = do
+runLUpdate time0 key pat = do
   case decodePattern pat of
     Right pat' -> do
       mvar <- ask
@@ -237,7 +238,7 @@ runLUpdate time key pat = do
         let tmap = envThreads env
         env' <- case M.lookup key tmap of
           Just t -> do
-            maybePause time
+            maybePause time0
             F.mapM_ killThread (getThreadId t)
             return $ env {envThreads=M.delete key tmap}
           Nothing -> return env
@@ -245,19 +246,19 @@ runLUpdate time key pat = do
         tid <- forkIO $ withTransport (fromConInfo $ envSC env) $ \fd ->
           bracket
             (do send fd (notify True)
-                now <- utcr
-                time' <- maybe (return $ UTCr now)
-                  (\t -> return $ if UTCr now > t then UTCr now else t) time
+                now <- time
+                time' <- maybe (return now)
+                  (\t -> return $ if now > t then now else t) time0
                 trid <- newNid
                 return (time',trid,fd))
             (\(_,trid,fd') -> do
                  -- modifyMVar_ mvar $ \env' ->
                  --   return $ env' {envThreads=M.delete key (envThreads env')}
-                 send fd' $ bundle immediately [notify False, n_free [trid]])
+                 sendOSC fd' $ bundle immediately [notify False, n_free [trid]])
             (\(time',trid,fd') -> do
                 -- putMVar lck (as_utcr time')
                 -- runPausableMsg lck pat' trid fd')
-                runMsgFrom time' pat' trid fd')
+                withNotifications fd' (runReaderT (runMsgFrom time' pat' trid)))
         let t = Thread (Running tid) pat' lck
             env'' = env' {envThreads=M.insert key t (envThreads env')}
         -- liftIO $ print (fmap showThread $ envThreads env'')
@@ -289,16 +290,16 @@ forkNewThread time key pat = do
 -}
 
 forkNewThread :: Maybe Time -> String -> L () (ToOSC Double) -> ServerLoop ()
-forkNewThread time key pat = do
+forkNewThread time0 key pat = do
   mvar <- ask
   modifyEnv $ \env -> do
     lck <- liftIO newEmptyMVar
     tid <- liftIO $ forkIO $ withTransport (fromConInfo $ envSC env) $ \fd ->
       bracket
         (do send fd (notify True)
-            now <- utcr
-            time' <- maybe (return $ UTCr now)
-              (\t -> return $ if UTCr now > t then (UTCr now) else t) time
+            now <- time
+            time' <- maybe (return now)
+              (\t -> return $ if now > t then now else t) time0
             trid <- newNid
             return (time',trid,fd))
         (\(_,trid,fd') -> do
@@ -306,10 +307,10 @@ forkNewThread time key pat = do
             modifyMVar_ mvar $ \env' -> do
               -- return $ env' {envThreads=M.adjust f key (envThreads env')}
               return $ env' {envThreads=M.delete key (envThreads env')}
-            send fd' $ bundle immediately [notify False, n_free [trid]])
+            sendOSC fd' $ bundle immediately [notify False, n_free [trid]])
         (\(time',trid,fd') -> do
-            putMVar lck (as_utcr time')
-            runPausableMsg lck pat trid fd')
+            putMVar lck (time')
+            runReaderT (runPausableMsg lck pat trid) fd')
     let t = Thread (Running tid) pat lck
     return $ env {envThreads=M.insert key t (envThreads env)}
 
@@ -355,8 +356,8 @@ withEnv k = ask >>= liftIO . readMVar >>= k
 
 -- | Pause until given 'Time', or return immediately on 'Nothing'.
 maybePause :: Maybe Time -> IO ()
-maybePause = F.mapM_ $ \time -> do
-  dt <- (as_utcr time -) <$> utcr
+maybePause = F.mapM_ $ \time0 -> do
+  dt <- (time0 -) <$> time
   let (q,_) = properFraction (dt * 1e6)
   when (dt > 0) $ threadDelay q
 
