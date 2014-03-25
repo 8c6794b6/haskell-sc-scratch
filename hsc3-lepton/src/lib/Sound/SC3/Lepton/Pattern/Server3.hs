@@ -16,6 +16,7 @@ module Sound.SC3.Lepton.Pattern.Server3 where
 
 import Control.Concurrent
 import Control.Monad
+import Control.Monad.Reader
 import Control.Concurrent.STM
 import Control.Exception (bracket)
 import Data.ByteString.Lazy (ByteString)
@@ -23,7 +24,7 @@ import Data.Data (Data, Typeable)
 
 import Data.Binary (decode)
 import Sound.OSC.FD
-import Sound.SC3 (n_free, withNotifications, withSC3)
+import Sound.SC3 (n_free, withNotifications)
 
 import qualified Codec.Compression.Zlib as Z
 import qualified Data.ByteString.Char8 as C8
@@ -231,11 +232,11 @@ mkThread env time0 name blob = case decodePattern blob of
     withTransport (fromConInfo (seSC env)) $ \fd ->
       let acquire = do
             -- sendOSC fd (notify True)
-            tid <- newNid
-            return (fd, tid)
-          tidyup (fd',tid) = do
+            trid <- newNid
+            return (fd, trid)
+          tidyup (fd',trid) = do
             -- sendOSC fd' $ bundle immediately [notify False, n_free [tid]]
-            sendOSC fd' $ n_free [tid]
+            sendOSC fd' $ n_free [trid]
             close fd'
             --
             -- XXX:
@@ -248,9 +249,9 @@ mkThread env time0 name blob = case decodePattern blob of
             --   tmap <- readTVar tv
             --   writeTVar tv (M.delete name tmap)
             --
-          work (_fd',tid) = do
+          work (fd',trid) = do
             time' <- maybe time return time0
-            withSC3 $ withNotifications $ runMsgFrom time' pat' tid
+            runReaderT (withNotifications $ runMsgFrom time' pat' trid) fd'
             atomically $ do
               let tv = seThreads env
               tmap <- readTVar tv
