@@ -46,11 +46,13 @@ module Sound.SC3.Lepton.UGen.Demand
   , sseq
   , sser
   , sseries
+  , sshuf
   , sstutter
   , sval
   , sswitch
   , sswitch1
   , swhite
+  , swrand
   , sxrand
   ) where
 
@@ -98,12 +100,11 @@ import Sound.SC3.ID
 -- >   ,srand (siwhite sinf 3 9)
 -- >    [74,75,77,79,81]]
 --
--- See also "Sound.SC3.Lepton.Pattern".
---
+
 
 -- | Wrapper for demand ugens.
 newtype Demand a = Demand {unDemand :: State StdGen a}
-                 deriving (Functor, Applicative, Monad, MonadState StdGen)
+     deriving (Functor, Applicative, Monad, MonadState StdGen)
 
 -- | Fundamental type for constructing pattern with demand ugen.
 type Supply = Demand UGen
@@ -219,6 +220,10 @@ sser = liftSquash dser
 sseries :: Supply -> Supply -> Supply -> Supply
 sseries = liftS3 dseries
 
+-- | Cunterpart of dshuf.
+sshuf :: Supply -> Supply -> Supply
+sshuf = liftS2 dshuf
+
 -- | Counterpart of dstutter.
 sstutter :: Supply -> Supply -> Supply
 sstutter = liftS2 dstutter
@@ -238,6 +243,10 @@ sswitch1 = liftSquash dswitch1
 -- | Counterpart of dwhite.
 swhite :: Supply -> Supply -> Supply -> Supply
 swhite = liftS3 dwhite
+
+-- | Counterpart of dwrand.
+swrand :: Supply -> Supply -> Supply -> Supply
+swrand = liftS3 dwrand
 
 -- | Counterpart of dxrand.
 sxrand :: Supply -> [Supply] -> Supply
