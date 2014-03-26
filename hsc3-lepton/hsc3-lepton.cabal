@@ -13,6 +13,10 @@ description:
   Collection of client side utility for scsynth using hsc3.
   See "Sound.SC3.Lepton" for overview.
 
+extra-source-files:
+  src/examples/demand.hs
+  src/examples/tree.hs
+
 flag dev
   description:
     Enable developer options
