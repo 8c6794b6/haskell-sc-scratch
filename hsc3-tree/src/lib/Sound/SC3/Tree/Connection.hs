@@ -1,14 +1,14 @@
-------------------------------------------------------------------------------
--- |
--- Module      : $Header$
--- License     : BSD3
--- Maintainer  : 8c6794b6@gmail.com
--- Stability   : unstable
--- Portability : non-portable
---
--- Network connection related functions and actions.
---
-module Sound.SC3.Lepton.Tree.Connection
+{-|
+Module      : $Header$
+License     : BSD3
+Maintainer  : 8c6794b6@gmail.com
+Stability   : unstable
+Portability : non-portable
+
+Network connection related functions and actions.
+
+-}
+module Sound.SC3.Tree.Connection
   ( addNode
   , getNode
   , getDiff
@@ -27,9 +27,10 @@ import Control.Monad.IO.Class (MonadIO(..))
 import Sound.OSC
   ( Bundle(..), DuplexOSC, SendOSC(..)
   , bundle, waitReply, time, immediately)
-import Sound.SC3
-import Sound.SC3.Lepton.Tree.Tree
-import Sound.SC3.Lepton.Tree.Diff
+import Sound.SC3 (g_queryTree, n_free, reset)
+
+import Sound.SC3.Tree.Type
+import Sound.SC3.Tree.Diff
 
 -- | Send OSC message for constructing given @SCNode@.
 -- New node will be added to tail of target id.
@@ -80,6 +81,25 @@ modifyNode f = do
 printNode :: (MonadIO m, DuplexOSC m) => Int -> m ()
 printNode n = getNode n >>= liftIO . putStrLn . renderNode True
 
+-- | Patch node to same node of root node found in new node.
+patchNode :: (DuplexOSC m, MonadIO m) => SCNode -> m ()
+patchNode n = patchNodeTo (nodeId n) n
+
+-- | Patch node to specified node.
+patchNodeTo :: (DuplexOSC m, MonadIO m) => Int -> SCNode -> m ()
+patchNodeTo i t1 = do
+  t0 <- getNode i
+  let msgs = diffMessage t0 t1
+  now <- time
+  sendOSC $ bundle now msgs
+
+-- | Get difference of nodes.
+getDiff :: DuplexOSC m => Int -> SCNode -> m SCNDiff
+getDiff i t1 = return . flip diffSCN t1 =<< getNode i
+
+-- | Update root node and then dump the contents.
+patchPrint :: (DuplexOSC m, MonadIO m) => SCNode -> m ()
+patchPrint n = patchNode n >>* printRootNode
 
 --
 -- Variants for root node
@@ -92,21 +112,3 @@ getRootNode = getNode 0
 -- | Print current SCNode entirely.
 printRootNode :: (MonadIO m, DuplexOSC m) => m ()
 printRootNode = printNode 0
-
--- | Patch node to same node of root node found in new node.
-patchNode :: (DuplexOSC m, MonadIO m) => SCNode -> m ()
-patchNode n = patchNodeTo (nodeId n) n
-
-patchNodeTo :: (DuplexOSC m, MonadIO m) => Int -> SCNode -> m ()
-patchNodeTo i t1 = do
-  t0 <- getNode i
-  let msgs = diffMessage t0 t1
-  now <- time
-  sendOSC $ bundle now msgs
-
-getDiff :: DuplexOSC m => Int -> SCNode -> m SCNDiff
-getDiff i t1 = return . flip diffSCN t1 =<< getNode i
-
--- | Update root node and then dump the contents.
-patchPrint :: (DuplexOSC m, MonadIO m) => SCNode -> m ()
-patchPrint n = patchNode n >>* printRootNode

@@ -19,10 +19,10 @@ import Data.Unique
 import Sound.OSC hiding (waitUntil)
 import Sound.OSC.Coding.Byte
 import Sound.SC3
+import Sound.SC3.Tree
 
 import Sound.SC3.Lepton.Pattern.Interpreter.L
 import Sound.SC3.Lepton.Pattern.ToOSC
-import Sound.SC3.Lepton.Tree
 import Sound.SC3.Lepton.UGen.Factory
 
 

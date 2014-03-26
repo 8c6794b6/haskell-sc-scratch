@@ -6,20 +6,16 @@ Maintainer  : 8c6794b6@gmail.com
 Stability   : unstable
 Portability : portable
 
-Functions and data types for emoving manual node id book keeping.
+Functions and data types to avoid manual node id book keeping.
 
 Synth node /A/ in particular group may refer to synth node /B/ defined in
-another group, with mapping @out@ parameters to @in@ parameters.
+another group, with mapping @out@ parameters to @in@ parameters.  It will be
+nice if we could mention to particular parameter of synth node, for later
+reuse. Also, it will be nice if we can avoid manual book keeping of synth node
+id.  It is not always better to have automatic node id assignment, there could
+be good enough reason to specify node id manually.
 
-It will be nice if we could mention to particular parameter of synth
-node, for later reuse.
-
-Also, it will be nice if we can avoid manual book keeping of synth
-node id.  It is not always better to have automatic node id
-assignment, there could be good enough reason to specify node id
-manually.
-
-This module provides these 2 features:
+This module provides following 2 features:
 
   1. Get parameter of specified node
 
@@ -29,14 +25,14 @@ SCNodes could be written in expression like:
 
 > nodes =
 >   let foo = syn "foo" ["out"*=10,"freq"*<-100,"amp"*=1]
->       bar = syn "bar" ["out"*=1,"a_in"*<=prmv foo "out"]
+>       bar = syn "bar" ["out"*=1,"a_in"*<=foo-*"out"]
 >   in  grp 0
 >        [grp 1
 >          [foo, bar]]
 
 Note the absence of node ids, and bar is referring value of foo with
 
-> prmv foo "out"
+> foo -* "out"
 
 Applying a function 'nodify' will convert above to SCNode:
 
@@ -49,14 +45,13 @@ will result in:
 >     [Synth 1000 "foo" ["out":=10,"freq":<-100,"amp":=1]
 >     ,Synth 1001 "bar" ["out":=1,"a_in":<=10]]]
 
-
 Group nodes need their Id values specified, and Synth nodes could be
 written without Node id. When node id has given, the specified value
 would be used.  Other wise, enumerated value from node id of parent
 group * 1000 will be used.
 
 -}
-module Sound.SC3.Lepton.Tree.Nd
+module Sound.SC3.Tree.Nd
   ( -- * Types
     Nd(..), Prm(..), PrmVal(..)
 
@@ -64,10 +59,10 @@ module Sound.SC3.Lepton.Tree.Nd
   , nodify
 
     -- * Builder functions
-  , grp, syn, syn', prmv, (*=), (*<-), (*<=), (-*), abus, cbus
+  , grp, syn, syn', (*=), (*<-), (*<=), (-*), prmv, abus, cbus
   ) where
 
-import Sound.SC3.Lepton.Tree.Tree
+import Sound.SC3.Tree.Type
 
 data Nd
   = Grp Int [Nd]

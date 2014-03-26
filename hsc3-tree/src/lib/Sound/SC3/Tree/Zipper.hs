@@ -1,15 +1,14 @@
 {-# LANGUAGE DeriveDataTypeable #-}
-------------------------------------------------------------------------------
--- |
--- Module      : $Header$
--- License     : BSD3
--- Maintainer  : 8c6794b6@gmail.com
--- Stability   : unstable
--- Portability : non-portable
---
--- Zipper data types and functions for SCNode.
---
-module Sound.SC3.Lepton.Tree.Zipper
+{- |
+Module      : $Header$
+License     : BSD3
+Maintainer  : 8c6794b6@gmail.com
+Stability   : unstable
+Portability : non-portable
+
+Zipper data types and functions for SCNode.
+-}
+module Sound.SC3.Tree.Zipper
  ( SCZipper(..)
  , SCPath(..)
  , NodePath
@@ -33,7 +32,7 @@ import Data.Data
 import Data.Generics.Uniplate.Data
 
 import Sound.SC3
-import Sound.SC3.Lepton.Tree.Tree
+import Sound.SC3.Tree.Type
 
 -- | Track current position and data to reconstruct the entire tree
 data SCZipper = SCZipper {
@@ -132,7 +131,6 @@ insert :: SCNode -> SCZipper -> SCZipper
 insert n z = insert' n Nothing z
 
 -- | Insert new node with given AddAction and target node id.
--- insert' :: SCNode -> AddAction -> Int -> SCZipper -> SCZipper
 insert' :: SCNode -> Maybe (AddAction,Int) -> SCZipper -> SCZipper
 insert' node Nothing z                =
   insert' node (Just (AddToTail, nodeId $ focus z)) z

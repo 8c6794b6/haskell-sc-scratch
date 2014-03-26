@@ -1,43 +1,43 @@
-------------------------------------------------------------------------------
--- |
--- Module      : $Header$
--- CopyRight   : (c) 8c6794b6
--- License     : BSD3
--- Maintainer  : 8c6794b6@gmail.com
--- Stability   : unstable
--- Portability : portable
---
--- Representation of scsynth node tree.
---
-module Sound.SC3.Lepton.Tree
-  ( -- * Usage Examples
+{- |
+CopyRight   : (c) 8c6794b6
+License     : BSD3
+Maintainer  : 8c6794b6@gmail.com
 
-    -- ** Quick interaction
+Stability   : unstable
+Portability : portable
+
+Representation of scsynth node tree.
+
+-}
+module Sound.SC3.Tree
+  ( -- * Examples
+
+    -- ** Interactive use
     -- $example_interactive
 
     -- ** Routing nodes
     -- $example_declarative
 
     -- * Module re-exports
-    module Sound.SC3.Lepton.Tree.Connection
-  , module Sound.SC3.Lepton.Tree.Diff
-  , module Sound.SC3.Lepton.Tree.Nd
-  , module Sound.SC3.Lepton.Tree.Tree
-  , module Sound.SC3.Lepton.Tree.Zipper
+    module Sound.SC3.Tree.Connection
+  , module Sound.SC3.Tree.Diff
+  , module Sound.SC3.Tree.Nd
+  , module Sound.SC3.Tree.Type
+  , module Sound.SC3.Tree.Zipper
   )  where
 
-import Sound.SC3.Lepton.Tree.Connection
-import Sound.SC3.Lepton.Tree.Diff
-import Sound.SC3.Lepton.Tree.Nd
-import Sound.SC3.Lepton.Tree.Tree
-import Sound.SC3.Lepton.Tree.Zipper
+import Sound.SC3.Tree.Connection
+import Sound.SC3.Tree.Diff
+import Sound.SC3.Tree.Nd
+import Sound.SC3.Tree.Type
+import Sound.SC3.Tree.Zipper
 
 {-$example_interactive
 
 Dump the contents of running synth nodes from ghci:
 
 >>> import Sound.SC3
->>> import Sound.SC3.Lepton.Tree
+>>> import Sound.SC3.Tree
 >>> withSC3 reset
 >>> withSC3 printRootNode
 0 group
@@ -77,8 +77,7 @@ Write node structure and send it to scsynth. \"fmod\" parameters
 in synth \"bar\" are mapped from control rate outputs of synth \"foo\".
 
 > import Sound.SC3
-> import Sound.SC3.Lepton.Tree
->
+> import Sound.SC3.Tree
 >
 > main :: IO ()
 > main = withSC3 $  do

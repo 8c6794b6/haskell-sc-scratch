@@ -21,7 +21,7 @@ Known bug:
   synth nodes. This may occur when diff contains removal of group node.
 
 -}
-module Sound.SC3.Lepton.Tree.Diff where
+module Sound.SC3.Tree.Diff where
 
 import Control.Monad (when)
 import Data.Tree
@@ -30,7 +30,7 @@ import System.Random (randomRIO)
 
 import Sound.OSC
 import Sound.SC3
-import Sound.SC3.Lepton.Tree.Tree
+import Sound.SC3.Tree.Type
 
 import Data.Generic.Diff
 

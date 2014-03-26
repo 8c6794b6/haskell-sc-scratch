@@ -8,21 +8,22 @@
 -- Stability   : unstable
 -- Portability : portable
 --
-module Test.Sound.SC3.Lepton.Tree.Zipper where
+module Test.Sound.SC3.Tree.Zipper where
 
 import Control.Applicative
 import Text.Show.Functions ()
+
+import Sound.SC3 hiding (label)
+
 import Test.Tasty (TestTree, localOption)
 import Test.Tasty.QuickCheck (testProperty, QuickCheckMaxSize(..))
 import Test.Tasty.TH (testGroupGenerator)
 import Test.QuickCheck
 
-import Sound.SC3 hiding (label)
-import Sound.SC3.Lepton.Tree.Tree
-import Sound.SC3.Lepton.Tree.Zipper
-import Sound.SC3.Lepton.QuickCheck
+import Sound.SC3.Tree.Type
+import Sound.SC3.Tree.Zipper
+import Test.Sound.SC3.Tree.QuickCheck
 
-import Test.Sound.SC3.Lepton.Common
 import qualified Data.IntSet as IS
 
 prop_updateNode :: (SCNode -> SCNode) -> SCZipper -> Property
@@ -135,3 +136,9 @@ nodeIdsInPath (SCPath n ls rs) = n:concatMap nodeIds ls ++ concatMap nodeIds rs
 -- modify maxSize to 25 from default, which is 100.
 tests :: TestTree
 tests = localOption (QuickCheckMaxSize 25) ($testGroupGenerator)
+
+isSynth :: SCNode -> Bool
+isSynth n = case n of Synth _ _ _ -> True; _ -> False
+
+isGroup :: SCNode -> Bool
+isGroup x = case x of Group _ _ -> True; _ -> False

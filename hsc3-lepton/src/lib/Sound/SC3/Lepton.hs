@@ -18,7 +18,6 @@ module Sound.SC3.Lepton
 import Sound.SC3.Lepton.Instance ()
 import Sound.SC3.Lepton.Looper as All
 import Sound.SC3.Lepton.Pattern as All
-import Sound.SC3.Lepton.Tree as All
 import Sound.SC3.Lepton.UGen as All
 import Sound.SC3.Lepton.Util as All
 
@@ -31,10 +30,6 @@ on hsc3 and hosc packages.
 This module re-exports most modules in hsc3-lepton packages, except for
 Parsers. When any functions in "Sound.SC3.Lepton.Parser" is needed, import them
 individually.
-
-"Sound.SC3.Lepton.Tree" module contains functions to map synth and groups in
-declarative style. 'Synth' and 'Group' nodes could be expressed as haskell data
-type, for sending to and receiving from scsynth server.
 
 "Sound.SC3.Lepton.Pattern" contains functions to compose patterns.
 Patterns could be used for expressing sequential audible events in higher level.

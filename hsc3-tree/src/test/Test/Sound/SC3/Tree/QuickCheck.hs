@@ -1,4 +1,3 @@
-{-# OPTIONS_HADDOCK hide #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
 ------------------------------------------------------------------------------
@@ -12,7 +11,7 @@
 --
 -- Arbitrary instance of SCNode and SynthParam for QuickCheck tests.
 --
-module Sound.SC3.Lepton.QuickCheck (Gen) where
+module Test.Sound.SC3.Tree.QuickCheck (Gen) where
 
 import Control.Applicative ((<$>), (<*>))
 import Data.Int (Int32)

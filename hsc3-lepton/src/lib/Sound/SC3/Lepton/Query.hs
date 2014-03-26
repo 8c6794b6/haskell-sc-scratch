@@ -33,8 +33,8 @@ import Data.Generics.Uniplate.Data (universe)
 import Sound.SC3 hiding (free)
 import Sound.OpenSoundControl
 
-import Sound.SC3.Lepton.Tree.Tree
-import Sound.SC3.Lepton.Tree.Connection
+import Sound.SC3.Tree.Tree
+import Sound.SC3.Tree.Connection
 import Sound.SC3.Lepton.Util
 import Sound.SC3.Lepton.Instance ()
 

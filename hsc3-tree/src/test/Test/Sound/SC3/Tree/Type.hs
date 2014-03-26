@@ -1,14 +1,13 @@
 {-# LANGUAGE TemplateHaskell #-}
-------------------------------------------------------------------------------
--- |
--- Module      : $Header$
--- CopyRight   : (c) 8c6794b6
--- License     : BSD3
--- Maintainer  : 8c6794b6@gmail.com
--- Stability   : unstable
--- Portability : unknown
---
-module Test.Sound.SC3.Lepton.Tree.Tree where
+{-|
+Module      : $Header$
+CopyRight   : (c) 8c6794b6
+License     : BSD3
+Maintainer  : 8c6794b6@gmail.com
+Stability   : unstable
+Portability : unknown
+-}
+module Test.Sound.SC3.Tree.Type where
 
 import Data.ByteString.Char8 (pack)
 
@@ -18,10 +17,10 @@ import Test.Tasty.QuickCheck (testProperty)
 import Test.Tasty.TH (testGroupGenerator)
 
 import Sound.OSC
-import Sound.SC3.Lepton.Tree.Tree
-import Sound.SC3.Lepton.QuickCheck ()
+import Sound.SC3.Tree.Type
 
-import Test.Sound.SC3.Lepton.Common
+import Test.Sound.SC3.Tree.QuickCheck ()
+
 
 prop_treeToNew :: Property
 prop_treeToNew =
@@ -68,6 +67,12 @@ nodeToOSC n = Message "/g_queryTree.reply" (Int32 1:f n []) where
                ASCII_String (pack $ 'c':show v) : ps
     m :<= v -> ASCII_String (pack m) :
                ASCII_String (pack $ 'a':show v) : ps
+
+isSynth :: SCNode -> Bool
+isSynth n = case n of Synth _ _ _ -> True; _ -> False
+
+isGroup :: SCNode -> Bool
+isGroup x = case x of Group _ _ -> True; _ -> False
 
 tests :: TestTree
 tests = $testGroupGenerator

@@ -9,14 +9,14 @@ Portability : portable
 
 Tests for comparing nodes written with Nd and SCNode.
 -}
-module Test.Sound.SC3.Lepton.Tree.Nd where
+module Test.Sound.SC3.Tree.Nd where
 
 import Test.QuickCheck
 import Test.Tasty (TestTree)
 import Test.Tasty.QuickCheck (testProperty)
 import Test.Tasty.TH (testGroupGenerator)
 
-import Sound.SC3.Lepton.Tree
+import Sound.SC3.Tree
 
 prop_nodify :: Property
 prop_nodify =

@@ -15,7 +15,6 @@ description:
 
 extra-source-files:
   src/examples/demand.hs
-  src/examples/tree.hs
 
 flag dev
   description:
@@ -56,12 +55,6 @@ library
     Sound.SC3.Lepton.Pattern.Server3
     Sound.SC3.Lepton.Pattern.ToOSC
     Sound.SC3.Lepton.QuickCheck
-    Sound.SC3.Lepton.Tree
-    Sound.SC3.Lepton.Tree.Connection
-    Sound.SC3.Lepton.Tree.Diff
-    Sound.SC3.Lepton.Tree.Nd
-    Sound.SC3.Lepton.Tree.Tree
-    Sound.SC3.Lepton.Tree.Zipper
     Sound.SC3.Lepton.UGen
     Sound.SC3.Lepton.UGen.Demand
     Sound.SC3.Lepton.UGen.Factory
@@ -81,9 +74,9 @@ library
     deepseq,
     exceptions,
     filepath,
-    gdiff >= 1.0,
     hosc >= 0.14,
     hsc3 >= 0.14,
+    hsc3-tree,
     mersenne-random-pure64,
     mtl,
     mwc-random,
@@ -130,6 +123,11 @@ test-suite tests
   hs-source-dirs:
     src/exec
     src/test
+  other-modules:
+    Test.Sound.SC3.Lepton.Common
+    Test.Sound.SC3.Lepton.Parser
+    Test.Sound.SC3.Lepton.Instance
+    Test.Sound.SC3.Lepton.UGen.Demand
   main-is:
     tests.hs
   build-depends:
@@ -141,8 +139,9 @@ test-suite tests
     containers,
     deepseq,
     filepath,
-    hosc >= 0.11,
-    hsc3 >= 0.11,
+    hosc,
+    hsc3,
+    hsc3-tree,
     random,
     tasty,
     tasty-hunit,

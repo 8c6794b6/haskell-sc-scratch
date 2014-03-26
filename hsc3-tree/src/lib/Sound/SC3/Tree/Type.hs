@@ -1,16 +1,16 @@
 {-# LANGUAGE DeriveDataTypeable #-}
-------------------------------------------------------------------------------
--- |
--- Module      : $Header$
--- CopyRight   : (c) 8c6794b6
--- License     : BSD3
--- Maintainer  : 8c6794b6@gmail.com
--- Stability   : unstable
--- Portability : portable
---
--- Representation of scsynth node tree.
---
-module Sound.SC3.Lepton.Tree.Tree
+{-|
+Module      : $Header$
+CopyRight   : (c) 8c6794b6
+License     : BSD3
+Maintainer  : 8c6794b6@gmail.com
+Stability   : unstable
+Portability : portable
+
+Representation of scsynth node tree.
+
+-}
+module Sound.SC3.Tree.Type
   ( -- * Types
     SCNode(..)
   , NodeId
@@ -40,6 +40,13 @@ module Sound.SC3.Lepton.Tree.Tree
   , hasUniqueIds
   )  where
 
+{-
+XXX:
+
+This package may use /Query_Node/ data type from "Sound.SC3.Status" when the
+data type has been made available.
+-}
+
 import Control.Monad
 import Data.ByteString.Char8 (unpack)
 import Data.Function (on)
@@ -51,8 +58,7 @@ import Data.Generics.Uniplate.Data
 import Sound.SC3
 import Sound.OSC hiding (int32, string)
 
-import Sound.SC3.Lepton.Instance ()
-import Sound.SC3.Lepton.Parser.Datum
+import Sound.SC3.Parser.Datum
 
 import qualified Text.PrettyPrint as P
 import qualified Data.IntSet as IS
@@ -118,7 +124,8 @@ parseGroup = do
   numChild <- int32
   if numChild < 0
     then parseSynth (fromIntegral nId)
-    else Group (fromIntegral nId) `fmap` replicateM (fromIntegral numChild) parseGroup
+    else Group (fromIntegral nId) `fmap`
+         replicateM (fromIntegral numChild) parseGroup
 
 parseSynth :: Int -> DatumParser SCNode
 parseSynth nId = do
@@ -151,6 +158,7 @@ parseParam = do
             _        -> error $ "Unknown param: " ++ xs'
     Int32 x     -> return $ name := fromIntegral x
     e         -> error $ "Cannot make param from: " ++ show e
+
 
 ------------------------------------------------------------------------------
 --
@@ -240,6 +248,7 @@ hasUniqueIds n = listSize == setSize where
 
 nodeIds :: SCNode -> [Int]
 nodeIds n = [f n'|n' <- universe n, let f (Synth j _ _) = j; f (Group j _) = j]
+
 
 ------------------------------------------------------------------------------
 --

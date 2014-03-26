@@ -7,13 +7,13 @@ Stability   : experimental
 Portability : unknown
 
 Example showing sequence of actions and declarative node routing with functions
-from "Sound.SC3.Lepton.Tree" module.
+from "Sound.SC3.Tree" module.
 
 -}
 module Main where
 
 import Sound.SC3
-import Sound.SC3.Lepton.Tree
+import Sound.SC3.Tree
 
 import Data.Generics.Uniplate.Data (transform, transformBi)
 
@@ -60,7 +60,7 @@ act04 = do
 
 main :: IO ()
 main = withSC3 $  do
-  mapM (async . d_recv . uncurry synthdef) [("foo",foo),("bar",bar)]
+  mapM_ (async . d_recv . uncurry synthdef) [("foo",foo),("bar",bar)]
   patchNode $ nodify nodes
 
 nodes :: Nd

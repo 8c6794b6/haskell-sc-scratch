@@ -10,7 +10,7 @@
 -- Stability   : unstable
 -- Portability : portable
 --
-module Test.Sound.SC3.Lepton.Tree.Diff where
+module Test.Sound.SC3.Tree.Diff where
 
 import Control.Applicative
 import Data.Map (Map)
@@ -23,10 +23,11 @@ import Data.Generics.Uniplate.Operations
 import Sound.OSC
 import Sound.SC3 hiding (label)
 
-import Sound.SC3.Lepton.QuickCheck
-import Sound.SC3.Lepton.Tree.Tree
-import Sound.SC3.Lepton.Tree.Diff
-import Sound.SC3.Lepton.Tree.Zipper
+import Sound.SC3.Tree.Type
+import Sound.SC3.Tree.Diff
+import Sound.SC3.Tree.Zipper
+
+import Test.Sound.SC3.Tree.QuickCheck
 
 import qualified Data.Map as M
 
