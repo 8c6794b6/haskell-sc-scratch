@@ -32,7 +32,7 @@ module Sound.SC3.Lepton.UGen.Demand
   , liftSquash
   , squash
 
-  -- * Building blocks
+  -- * UGen wrappers
   , seed
   , sbrown
   , sbufrd
@@ -63,44 +63,44 @@ import System.Random
 import Sound.SC3
 import Sound.SC3.ID
 
--- $example
---
--- From /Streams-Patterns-Events/ tutorial in SuperCollider help files.
---
--- > import System.Random
--- >
--- > import Sound.SC3
--- > import Sound.SC3.ID
--- > import Sound.SC3.Lepton.UGen
--- >
--- > main :: IO ()
--- > main = audition $ playS sup
--- >
--- > playS :: Supply -> UGen
--- > playS sp = out 0 $ foldr f v (zipWith mce2 rs1 rs2) where
--- >   v = rlpf (pulse ar (mce2 freq (freq*1.01)) bw * 0.2 * amp)
--- >       (lfdNoise3 'n' kr 2.323 * 2000 + 2200)
--- >       (lfdNoise3 'q' kr 1.110 * 0.498 + 0.5)
--- >   f a b = allpassN b 0.05 a 4
--- >   rs1 = map mkR "abcd"
--- >   rs2 = map mkR "efgh"
--- >   mkR x = rand x 0.001 0.05
--- >   freq = midiCPS $ demand tick 0 (evalSupply sp (mkStdGen 0x81aafad))
--- >   amp = decay2 tick 5e-4 950e-3
--- >   tick = impulse kr 7.6923 0
--- >   bw = lfdNoise3 'b' kr 0.1123 * 0.48 + 0.5
--- >
--- > sup :: Supply
--- > sup =
--- >   sseq sinf
--- >   [srand 1
--- >    [snil, sseq 1 [24,31,36,43,48,55]]
--- >   ,sseq (siwhite sinf 2 5)
--- >    [60, srand 1 [63,65], 67, srand 1 [70,72,74]]
--- >   ,srand (siwhite sinf 3 9)
--- >    [74,75,77,79,81]]
---
+{-$example
 
+From /Streams-Patterns-Events/ tutorial in SuperCollider help files.
+
+> import System.Random
+>
+> import Sound.SC3
+> import Sound.SC3.ID
+> import Sound.SC3.Lepton.UGen.Demand
+>
+> main :: IO ()
+> main = audition $ playS sup
+>
+> playS :: Supply -> UGen
+> playS sp = out 0 sig
+>   where
+>     sig   = foldr f v (zipWith mce2 (mkRs "abcd") (mkRs "efgh"))
+>     f a b = allpassN b 0.05 a 4
+>     v     = rlpf (pulse AR (mce2 freq (freq*1.01)) bw) rq cf * amp
+>     rq    = lfdNoise3 'n' KR 2.323 * 2000 + 2200
+>     cf    = lfdNoise3 'q' KR 1.110 * 0.498 + 0.5
+>     bw    = lfdNoise3 'b' KR 0.1123 * 0.48 + 0.5
+>     mkRs  = map (\x -> rand x 0.001 0.1)
+>     freq  = midiCPS $ demand tick 0 (evalSupply sp (mkStdGen 0x81aafad))
+>     amp   = decay2 tick 5e-4 950e-3 * 0.2
+>     tick  = impulse KR 7.6923 0
+>
+> sup :: Supply
+> sup =
+>   sseq sinf
+>   [srand 1
+>    [snil, sseq 1 [24,31,36,43,48,55]]
+>   ,sseq (siwhite sinf 2 5)
+>    [60, srand 1 [63,65], 67, srand 1 [70,72,74]]
+>   ,srand (siwhite sinf 3 9)
+>    [74,75,77,79,81]]
+
+-}
 
 -- | Wrapper for demand ugens.
 newtype Demand a = Demand {unDemand :: State StdGen a}
@@ -171,32 +171,32 @@ seed = get >>= \g -> let (i,g') = random g in put g' >> return i
 squash :: [Supply] -> Supply
 squash = fmap mce . sequence
 
--- | Counterpart of dbrown
+-- | Wrapper for 'dbrown'.
 sbrown :: Supply -> Supply -> Supply -> Supply -> Supply
 sbrown = liftS4 dbrown
 
--- | Counterpart of dbufrd
+-- | Wrapper for 'dbufrd'.
 sbufrd :: Supply -> Supply -> Loop -> Supply
 sbufrd buf phs loop = dbufrd <$> seed <*> buf <*> phs <*> return loop
 
--- | Counterpart of dbufwr
+-- | Wrapper for 'dbufwr'
 sbufwr :: Supply -> Supply -> Supply -> Loop -> Supply
 sbufwr buf phs input loop =
   dbufwr <$> seed <*> buf <*> phs <*> input <*> return loop
 
--- | Counterpart of dgeom.
+-- | Wrapper for 'dgeom'.
 sgeom :: Supply -> Supply -> Supply -> Supply
 sgeom = liftS3 dgeom
 
--- | Counterpart of dibrown.
+-- | Wrapper for 'dibrown'.
 sibrown :: Supply -> Supply -> Supply -> Supply -> Supply
 sibrown = liftS4 dibrown
 
--- | Counterpart of dinf.
+-- | Wrapper for 'dinf'.
 sinf :: Supply
 sinf = return dinf
 
--- | Counterpart of diwhite.
+-- | Wrapper for 'diwhite'.
 siwhite :: Supply -> Supply -> Supply -> Supply
 siwhite = liftS3 diwhite
 
@@ -204,27 +204,27 @@ siwhite = liftS3 diwhite
 snil :: Supply
 snil = sseq 0 [0]
 
--- | Counterpart of drand.
+-- | Wrapper for 'drand'.
 srand :: Supply -> [Supply] -> Supply
 srand = liftSquash drand
 
--- | Counterpart of dseq.
+-- | Wrapper for 'dseq'.
 sseq :: Supply -> [Supply] -> Supply
 sseq = liftSquash dseq
 
--- | Counterpart of dser.
+-- | Wrapper for 'dser'.
 sser :: Supply -> [Supply] -> Supply
 sser = liftSquash dser
 
--- | Counterpart of dseries.
+-- | Wrapper for 'dseries'.
 sseries :: Supply -> Supply -> Supply -> Supply
 sseries = liftS3 dseries
 
--- | Cunterpart of dshuf.
+-- | Wrapper for 'dshuf'.
 sshuf :: Supply -> Supply -> Supply
 sshuf = liftS2 dshuf
 
--- | Counterpart of dstutter.
+-- | Wrapper for 'dstutter'.
 sstutter :: Supply -> Supply -> Supply
 sstutter = liftS2 dstutter
 
@@ -232,22 +232,22 @@ sstutter = liftS2 dstutter
 sval :: UGen -> Supply
 sval = return
 
--- | Counterpart of dswitch.
+-- | Wrapper for 'dswitch'.
 sswitch :: Supply -> [Supply] -> Supply
 sswitch = liftSquash dswitch
 
--- | Counterpart of dswitch1.
+-- | Wrapper for 'dswitch1'.
 sswitch1 :: Supply -> [Supply] -> Supply
 sswitch1 = liftSquash dswitch1
 
--- | Counterpart of dwhite.
+-- | Wrapper for 'dwhite'.
 swhite :: Supply -> Supply -> Supply -> Supply
 swhite = liftS3 dwhite
 
--- | Counterpart of dwrand.
+-- | Wrapper for 'dwrand'.
 swrand :: Supply -> Supply -> Supply -> Supply
 swrand = liftS3 dwrand
 
--- | Counterpart of dxrand.
+-- | Wrapper for 'dxrand'.
 sxrand :: Supply -> [Supply] -> Supply
 sxrand = liftSquash dxrand
