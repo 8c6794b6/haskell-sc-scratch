@@ -11,10 +11,8 @@ Sends OSC message sequentially with responding to server.
 module Sound.SC3.Lepton.Pattern.Play where
 
 import Control.Applicative
-import Control.Exception (bracket, bracket_)
 import Control.Concurrent
 import Control.Monad
--- import Control.Monad.Catch
 import System.IO (IOMode(..), withFile)
 
 import Data.Unique
