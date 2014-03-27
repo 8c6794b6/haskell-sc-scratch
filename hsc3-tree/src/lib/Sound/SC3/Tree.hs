@@ -23,6 +23,7 @@ module Sound.SC3.Tree
   , module Sound.SC3.Tree.Diff
   , module Sound.SC3.Tree.Nd
   , module Sound.SC3.Tree.Type
+  , module Sound.SC3.Tree.Query
   , module Sound.SC3.Tree.Zipper
   )  where
 
@@ -30,6 +31,7 @@ import Sound.SC3.Tree.Connection
 import Sound.SC3.Tree.Diff
 import Sound.SC3.Tree.Nd
 import Sound.SC3.Tree.Type
+import Sound.SC3.Tree.Query
 import Sound.SC3.Tree.Zipper
 
 {-$example_interactive
@@ -58,17 +60,17 @@ Dump again after adding synth nodes:
    2 group
 
 Updating synth nodes with using generic transforming function, e.g.
-'transform' from uniplate package:
+@everywhere@ and @mkT@ from "Data.Generics" in syb package:
 
->>> import Data.Generics.Uniplate.Data
+>>> import Data.Generics
 >>> t <- withSC3 getRootNode
 >>> let f (Synth i n ps) = Synth (2000 + abs i) "default" ps; f x = x
->>> withSC3 $ addNode 0 $ transform f t
+>>> withSC3 $ addNode 0 $ everywhere (mkT f) t
 
-Using @transformBi@:
+Doubling the frequencies:
 
 >>> let g ("freq":=f) = "freq":=(f*2); g x = x
->>> withSC3 $ patchNode $ transformBi g t
+>>> withSC3 $ patchNode $ everywhere (mkT g) t
 -}
 
 {-$example_declarative

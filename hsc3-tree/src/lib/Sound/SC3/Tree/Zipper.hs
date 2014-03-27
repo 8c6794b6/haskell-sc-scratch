@@ -29,7 +29,7 @@ module Sound.SC3.Tree.Zipper
 import Data.List (nub)
 
 import Data.Data
-import Data.Generics.Uniplate.Data
+import Data.Generics.Uniplate.Data (transform)
 
 import Sound.SC3
 import Sound.SC3.Tree.Type

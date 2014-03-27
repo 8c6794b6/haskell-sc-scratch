@@ -16,6 +16,7 @@ import Test.Tasty (defaultMain, testGroup)
 import qualified Test.Sound.SC3.Tree.Diff as Diff
 import qualified Test.Sound.SC3.Tree.Nd as Nd
 import qualified Test.Sound.SC3.Tree.Type as Type
+import qualified Test.Sound.SC3.Tree.Query as Query
 import qualified Test.Sound.SC3.Tree.Zipper as Zipper
 
 main :: IO ()
@@ -23,5 +24,6 @@ main = defaultMain $ testGroup "test"
   [ Diff.tests
   , Nd.tests
   , Type.tests
+  , Query.tests
   , Zipper.tests
   ]

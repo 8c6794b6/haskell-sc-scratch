@@ -116,13 +116,13 @@ diffMessage t = accToOSC . toAcc (initialAcc (nodeId t)) . diffSCN t
 -- | OSC Message accumulator
 data MsgAcc = MsgAcc
   { -- | Position to insert new node.
-    pos :: Position
+    maPos :: Position
   , -- | Current group id.
-    cgi :: [Int]
+    maCgi :: [Int]
   , -- | Assoc list of (nodeId, (position, node)) for insert operation.
-    inss :: [(Int,(Position,SCNode))]
+    maInss :: [(Int,(Position,SCNode))]
   , -- | Map of key=nodeId, val=node, for delete operation.
-    dels :: IM.IntMap SCNode
+    maDels :: IM.IntMap SCNode
   } deriving (Eq,Show)
 
 -- | Initial accumulator, start adding from head of given node id.
@@ -154,22 +154,23 @@ toAcc acc d0 = case d0 of
   Ins TFNodeNil (Ins TFNodeNil d) -> toAcc upOneGroup d
   Ins TFNodeNil (Cpy TFNodeNil d) -> toAcc upOneGroup d
   Ins (TFN (Snode i n ps)) d ->
-    let inss' = (i,(pos acc, Synth i n ps)):inss acc
-    in  toAcc (acc{inss=inss', pos=After i}) d
+    let inss' = (i,(maPos acc, Synth i n ps)):maInss acc
+    in  toAcc (acc{maInss=inss', maPos=After i}) d
   Ins (TFN (Gnode i)) d ->
-    let inss' = (i,(pos acc, Group i [])):inss acc
-    in  toAcc (acc{pos=Head i, cgi=i:cgi acc,inss=inss'}) d
+    let inss' = (i,(maPos acc, Group i [])):maInss acc
+    in  toAcc (acc{maPos=Head i, maCgi=i:maCgi acc,maInss=inss'}) d
   Ins _ d -> toAcc acc d
-  Del (TFN n) d -> toAcc (acc {dels=IM.insert (scnId n) (scn2n n) (dels acc)}) d
+  Del (TFN n) d ->
+      toAcc (acc {maDels=IM.insert (scnId n) (scn2n n) (maDels acc)}) d
   Del _ d -> toAcc acc d
   Cpy TFNodeNil (Cpy TFNodeNil d) -> toAcc upOneGroup d
   Cpy TFNodeNil (Ins TFNodeNil d) -> toAcc upOneGroup d
-  Cpy (TFN (Snode i _ _)) d -> toAcc (acc {pos=After i}) d
-  Cpy (TFN (Gnode i)) d -> toAcc (acc {pos=Head i,cgi=i:cgi acc}) d
+  Cpy (TFN (Snode i _ _)) d -> toAcc (acc {maPos=After i}) d
+  Cpy (TFN (Gnode i)) d -> toAcc (acc {maPos=Head i,maCgi=i:maCgi acc}) d
   Cpy _ d -> toAcc acc d
   _ -> acc
   where
-    upOneGroup = acc {pos=After (head (cgi acc)),cgi=tail (cgi acc)}
+    upOneGroup = acc {maPos=After (head (maCgi acc)),maCgi=tail (maCgi acc)}
 
 {-|
 Converts accumulated data to OSC message. Check whether node with same id

@@ -5,7 +5,7 @@ CopyRight   : (c) 8c6794b6
 License     : BSD3
 Maintainer  : 8c6794b6@gmail.com
 Stability   : unstable
-Portability : portable
+Portability : unknown
 
 Representation of scsynth node tree.
 
@@ -15,6 +15,7 @@ module Sound.SC3.Tree.Type
     SCNode(..)
   , NodeId
   , nodeId
+  , synthName
   , SynthName
   , SynthParam(..)
   , ParamName
@@ -35,6 +36,7 @@ module Sound.SC3.Tree.Type
 
     -- * Util
   , paramName
+  , paramValue
   , updateParams
   , nodeIds
   , hasUniqueIds
@@ -54,7 +56,7 @@ import Data.Data
 import Data.List (unionBy)
 import Text.PrettyPrint hiding (int, double)
 
-import Data.Generics.Uniplate.Data
+import Data.Generics.Uniplate.Data (universe)
 import Sound.SC3
 import Sound.OSC hiding (int32, string)
 
@@ -96,9 +98,17 @@ infixr 5 :=
 infixr 5 :<-
 infixr 5 :<=
 
+-- | Returns node id of synth and group node.
 nodeId :: SCNode -> Int
 nodeId (Group i _) = i
 nodeId (Synth i _ _) = i
+
+-- | Get name from 'Synth' constructor. Group nodes will return empty
+-- string.
+synthName :: SCNode -> String
+synthName n = case n of
+    Synth _ n' _ -> n'
+    _            -> ""
 
 -- | Parse osc message returned from \"/g_queryTree\" and returns haskell
 -- representation of scsynth node tree.
@@ -234,6 +244,12 @@ paramName x = case x of
   (n := _)  -> n
   (n :<- _) -> n
   (n :<= _) -> n
+
+paramValue :: SynthParam -> Double
+paramValue p = case p of
+  _ :=  v -> v
+  _ :<- v -> fromIntegral v
+  _ :<= v -> fromIntegral v
 
 updateParams :: [SynthParam] -> SCNode -> SCNode
 updateParams ps node = case node of

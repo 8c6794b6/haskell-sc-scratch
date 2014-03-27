@@ -15,7 +15,7 @@ module Main where
 import Sound.SC3
 import Sound.SC3.Tree
 
-import Data.Generics.Uniplate.Data (transform, transformBi)
+import Data.Generics (everywhere, mkT)
 
 
 -- --------------------------------------------------------------------------
@@ -42,14 +42,14 @@ act03 :: IO ()
 act03 = do
   t <- withSC3 getRootNode
   let f (Synth i _ ps) = Synth (2000 + abs i) "default" ps; f x = x
-  withSC3 $ addNode 0 $ transform f t
+  withSC3 $ addNode 0 $ everywhere (mkT f) t
 
 -- | Assuming that the synth nodes transformed with 'act03' are running.
 act04 :: IO ()
 act04 = do
   t <- withSC3 getRootNode
   let g ("freq":=f) = "freq":=(f*2); g x = x
-  withSC3 $ patchNode $ transformBi g t
+  withSC3 $ patchNode $ everywhere (mkT g) t
 
 
 -- --------------------------------------------------------------------------
@@ -75,13 +75,13 @@ nodes =
         [ syn "bar"
           [ "amp"*=0.1, "pan"*=0.75, "freq"*=220, "fmod"*<-mod1-*"out"]
         , syn "bar"
-          [ "amp"*=0.1, "pan"*=(-0.75), "freq"*=330, "fmod"*<-mod2-*"out"]]]]
+          [ "amp"*=0.1, "pan"*=(-0.75), "freq"*=330, "fmod"*<-mod2-*"out"] ]]]
 
 foo :: UGen
 foo = out outBus (sinOsc KR freq 0 * amp)
 
 bar :: UGen
-bar = out 0 $ pan2 (saw AR (fmod + freq) * amp) pan 1
+bar = out outBus $ pan2 (saw AR (fmod + freq) * amp) pan 1
 
 outBus, amp, freq, pan, fmod :: UGen
 outBus = control KR "out" 0

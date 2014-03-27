@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveDataTypeable #-}
 {-|
 Module      : $Header$
 CopyRight   : (c) 8c6794b6
@@ -62,22 +63,23 @@ module Sound.SC3.Tree.Nd
   , grp, syn, syn', (*=), (*<-), (*<=), (-*), prmv, abus, cbus
   ) where
 
+import Data.Data (Data, Typeable)
 import Sound.SC3.Tree.Type
 
 data Nd
   = Grp Int [Nd]
   | Syn (Maybe Int) String [Prm]
-  deriving (Eq,Show)
+  deriving (Eq,Show,Data,Typeable)
 
 data Prm = Prm String PrmVal
-  deriving (Eq,Show)
+  deriving (Eq,Show,Data,Typeable)
 
 data PrmVal
   = Dval Double
   | Ival Int
   | Cbus PrmVal
   | Abus PrmVal
-  deriving (Eq,Show)
+  deriving (Eq,Show,Data,Typeable)
 
 grp :: Int -> [Nd] -> Nd
 grp = Grp

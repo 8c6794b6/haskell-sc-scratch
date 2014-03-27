@@ -32,6 +32,7 @@ library
                      Sound.SC3.Tree.Diff
                      Sound.SC3.Tree.Nd
                      Sound.SC3.Tree.Type
+                     Sound.SC3.Tree.Query
                      Sound.SC3.Tree.Zipper
   other-modules:     Sound.SC3.Parser.Datum
   build-depends:     base >=4.6 && <4.7
@@ -44,6 +45,7 @@ library
                    , pretty
                    , mtl
                    , random
+                   , syb
                    , transformers
                    , uniplate
 
@@ -69,16 +71,20 @@ test-suite tests
   other-modules:     Test.Sound.SC3.Tree.Diff
                      Test.Sound.SC3.Tree.Nd
                      Test.Sound.SC3.Tree.Type
-                     Test.Sound.SC3.Tree.Zipper
+                     Test.Sound.SC3.Tree.Query
                      Test.Sound.SC3.Tree.QuickCheck
+                     Test.Sound.SC3.Tree.Zipper
   build-depends:     base >= 4.6 && <4.7
                    , bytestring
                    , containers
                    , hsc3
                    , hosc
                    , hsc3-tree -any
+                   , syb
                    , tasty
+                   , tasty-hunit
                    , tasty-quickcheck
                    , tasty-th
                    , uniplate
+                   , HUnit
                    , QuickCheck

@@ -19,7 +19,7 @@ import Test.Tasty (TestTree)
 import Test.Tasty.QuickCheck (testProperty)
 import Test.Tasty.TH (testGroupGenerator)
 
-import Data.Generics.Uniplate.Operations
+import Data.Generics.Uniplate.Operations (transformBi)
 import Sound.OSC
 import Sound.SC3 hiding (label)
 
