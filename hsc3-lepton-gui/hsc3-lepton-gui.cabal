@@ -1,5 +1,5 @@
 name:		hsc3-lepton-gui
-version:	0.0.3
+version:	0.14.0.4
 synopsis:       GUI for scsynth using hsc3-lepton and gtk2
 author:         8c6794b6
 maintainer:     8c6794b6@gmail.com
@@ -8,11 +8,11 @@ build-type:     Simple
 license:        BSD3
 category:       GUI
 stability:      experimental
-description:    
-  GUI for scsynth using hsc3-lepton and gtk2. 
+description:
+  GUI for scsynth using hsc3-lepton and gtk2.
 
 library
-  ghc-options: 
+  ghc-options:
     -O2 -Wall -fno-warn-unused-do-bind
   exposed-modules:
     Sound.SC3.Lepton.GUI
@@ -23,5 +23,5 @@ library
     hosc,
     uniplate >= 1.6,
     mtl -any,
-    hsc3,
-    hsc3-lepton >= 0.0.3
+    hsc3 >= 0.14,
+    hsc3-tree

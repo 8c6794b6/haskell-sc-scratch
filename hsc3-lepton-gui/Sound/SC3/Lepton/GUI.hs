@@ -31,7 +31,7 @@ import qualified Data.Map as M
 import Data.Generics.Uniplate.Data (universe)
 import Sound.OSC.FD
 import Sound.SC3.FD
-import Sound.SC3.Lepton (SCNode(..), paramToTuple)
+import Sound.SC3.Tree (SCNode(..), paramToTuple)
 import qualified Graphics.UI.Gtk as G
 import qualified Sound.OSC.Transport.Monad as M
 
