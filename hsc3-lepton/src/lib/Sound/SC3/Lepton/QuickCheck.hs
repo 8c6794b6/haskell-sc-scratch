@@ -15,7 +15,6 @@
 module Sound.SC3.Lepton.QuickCheck (Gen) where
 
 import Control.Applicative ((<$>), (<*>))
-import Data.Int (Int32)
 import Test.QuickCheck
 
 import Sound.OSC

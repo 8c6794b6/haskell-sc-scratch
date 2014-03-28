@@ -13,11 +13,9 @@ module Sound.SC3.Lepton.Pattern.Play where
 import Control.Applicative
 import Control.Concurrent
 import Control.Monad
-import System.IO (IOMode(..), withFile)
 
 import Data.Unique
 import Sound.OSC hiding (waitUntil)
-import Sound.OSC.Coding.Byte
 import Sound.SC3
 
 import Sound.SC3.Lepton.Pattern.Interpreter.L
@@ -25,7 +23,6 @@ import Sound.SC3.Lepton.Pattern.ToOSC
 import Sound.SC3.Lepton.UGen.Factory
 
 
-import qualified Data.ByteString.Lazy as BSL
 import qualified Data.Map as M
 
 -------------------------------------------------------------------------------
