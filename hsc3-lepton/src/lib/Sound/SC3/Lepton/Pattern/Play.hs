@@ -19,7 +19,6 @@ import Data.Unique
 import Sound.OSC hiding (waitUntil)
 import Sound.OSC.Coding.Byte
 import Sound.SC3
-import Sound.SC3.Tree
 
 import Sound.SC3.Lepton.Pattern.Interpreter.L
 import Sound.SC3.Lepton.Pattern.ToOSC
@@ -268,8 +267,13 @@ mkOpts nid a val acc = case break (== '/') a of
     ("c_set", '/':p) -> c_set [(read p, val)]:acc
     _                -> acc
 
+{-
 ------------------------------------------------------------------------------
 -- Non-realtime
+--
+-- Requires SCNode from hsc3-tree package, this function is not in use,
+-- commented out for now.
+--
 
 -- | Write OSC from pattern, for non-realtime use with scsynth.
 writeScore :: (Playable p) =>
@@ -308,6 +312,7 @@ writeScore ini n0 pat path = withFile path WriteMode $ \hdl -> do
 -- | Root node with a group with node id 1.
 defaultGroup :: SCNode
 defaultGroup = Group 0 [Group 1 []]
+-}
 
 -------------------------------------------------------------------------------
 -- Debugging
