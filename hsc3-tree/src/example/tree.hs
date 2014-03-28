@@ -89,3 +89,27 @@ amp    = control KR "amp" 0.3
 freq   = control KR "freq" 440
 pan    = control KR "pan" 0
 fmod   = control KR "fmod" 0
+
+-- --------------------------------------------------------------------------
+--
+-- Querying example
+--
+-- --------------------------------------------------------------------------
+
+-- | Assuming that 'main' action has executed.
+act05 :: IO ()
+act05 = do
+  n <- withSC3 getRootNode
+  putStrLn $ drawSCNode n
+
+act06 :: IO ()
+act06 = do
+  n <- withSC3 getRootNode
+  let (g10:_) = queryN (nodeId ==? 10) n
+  putStrLn $ drawSCNode g10
+
+act07 :: IO ()
+act07 = do
+  n <- withSC3 getRootNode
+  let fmods = queryN (params (paramName ==? "fmod")) n
+  mapM_ (putStrLn . drawSCNode) fmods

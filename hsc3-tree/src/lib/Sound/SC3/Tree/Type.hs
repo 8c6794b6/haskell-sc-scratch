@@ -16,6 +16,7 @@ module Sound.SC3.Tree.Type
   , NodeId
   , nodeId
   , synthName
+  , synthParams
   , SynthName
   , SynthParam(..)
   , ParamName
@@ -109,6 +110,12 @@ synthName :: SCNode -> String
 synthName n = case n of
     Synth _ n' _ -> n'
     _            -> ""
+
+-- | Get 'SynthParam' of given synth node. Returns empty list for group node.
+synthParams :: SCNode -> [SynthParam]
+synthParams n = case n of
+    Synth _ _ ps -> ps
+    _            -> []
 
 -- | Parse osc message returned from \"/g_queryTree\" and returns haskell
 -- representation of scsynth node tree.
@@ -245,6 +252,8 @@ paramName x = case x of
   (n :<- _) -> n
   (n :<= _) -> n
 
+-- | Converts value of 'SynthParam' to 'Double'. Information of mapped buses
+-- will be lost.
 paramValue :: SynthParam -> Double
 paramValue p = case p of
   _ :=  v -> v

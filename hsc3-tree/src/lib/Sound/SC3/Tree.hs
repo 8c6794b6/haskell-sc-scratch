@@ -16,7 +16,10 @@ module Sound.SC3.Tree
     -- $example_interactive
 
     -- ** Routing nodes
-    -- $example_declarative
+    -- $example_routing
+
+    -- ** Querying
+    -- $example_query
 
     -- * Module re-exports
     module Sound.SC3.Tree.Connection
@@ -73,7 +76,7 @@ Doubling the frequencies:
 >>> withSC3 $ patchNode $ everywhere (mkT g) t
 -}
 
-{-$example_declarative
+{-$example_routing
 
 Write node structure and send it to scsynth. \"fmod\" parameters
 in synth \"bar\" are mapped from control rate outputs of synth \"foo\".
@@ -113,5 +116,46 @@ in synth \"bar\" are mapped from control rate outputs of synth \"foo\".
 > freq = control KR "freq" 440
 > pan = control KR "pan" 0
 > fmod = control KR "fmod" 0
+
+-}
+
+{-$example_query
+
+Suppose that we have a 'SCNode' shown in routing example:
+
+>>> n <- withSC3 getRootNode
+>>> putStrLn $ drawSCNode n
+0 group
+   1 group
+      10 group
+         10000 foo
+           amp: 100.0 freq: 0.6600000262260437 out: 100.0
+         10001 foo
+           amp: 80.0 freq: 3.3299999237060547 out: 101.0
+      11 group
+         11000 bar
+           pan: 0.75 amp: 0.10000000149011612 freq: 220.0 fmod: c100 out: 0.0
+         11001 bar
+           pan: -0.75 amp: 0.10000000149011612 freq: 330.0 fmod: c101 out: 0.0
+
+Querying a node in group 10 with 'nodeId' and '==?':
+
+>>> let (g10:_) = queryN (nodeId ==? 10) n
+>>> putStrLn $ drawSCNode g10
+10 group
+   10000 foo
+     amp: 100.0 freq: 0.6600000262260437 out: 100.0
+   10001 foo
+     amp: 80.0 freq: 3.3299999237060547 out: 101.0
+
+Querying nodes with condition to 'SynthParam' with 'params'. Filtering nodes
+containing \"fmod\" parameter:
+
+>>> let fmods = queryN (params (paramName ==? "fmod")) n
+>>> mapM_ (putStrLn . drawSCNode) fmods
+11000 bar
+  pan: 0.75 amp: 0.10000000149011612 freq: 220.0 fmod: c100 out: 0.0
+11001 bar
+  pan: -0.75 amp: 0.10000000149011612 freq: 330.0 fmod: c101 out: 0.0
 
 -}

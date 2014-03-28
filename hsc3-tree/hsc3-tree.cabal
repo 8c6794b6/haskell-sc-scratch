@@ -7,7 +7,7 @@ description:
   declarative style. 'Synth' and 'Group' nodes could be expressed as haskell
   data type, for sending to and receiving from scsynth server.
   .
-  See "Sound.SC3.Tree" for example.
+  See "Sound.SC3.Tree" for examples.
 
 license:             BSD3
 license-file:        LICENSE

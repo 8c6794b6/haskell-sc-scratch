@@ -10,27 +10,19 @@ Functions to query 'SCNode' with conditions.
 
 -}
 module Sound.SC3.Tree.Query
-    ( -- * Example
-      -- $example
-
-      -- * Querying functions
+    ( -- * Querying functions
       queryN
     , queryN'
+    , queryP
+    , queryP'
       -- * Query builder
     , Condition
     , params, (==?), (/=?), (&&?), (||?)
     ) where
 
-import Data.Generics.Uniplate.Data (universe)
+import Data.Generics.Uniplate.Data (universe, universeBi)
 
 import Sound.SC3.Tree.Type
-
-{-$example
-
-
-
--}
-
 
 -- --------------------------------------------------------------------------
 --
@@ -48,6 +40,16 @@ queryN' p node = case queryN p node of
     (x:_) -> Just x
     _     -> Nothing
 
+-- | Query given 'SCNode' with conditions to parameters, returns 'SynthParam'
+-- satisfying given condition.
+queryP :: Condition SynthParam -> SCNode -> [SynthParam]
+queryP p node = [sp|sp<-universeBi node, p sp]
+
+-- | Variant of 'queryP' returning 'Maybe' value.
+queryP' :: Condition SynthParam -> SCNode -> Maybe SynthParam
+queryP' p node = case queryP p node of
+    (x:_) -> Just x
+    _     -> Nothing
 
 -- --------------------------------------------------------------------------
 --
@@ -99,3 +101,29 @@ liftQ op f v = \x -> f x `op` v
 
 liftQ2 :: (c -> d -> b) -> (a -> c) -> (a -> d) -> a -> b
 liftQ2 op f g v = f v `op` g v
+
+{-
+
+--- Sample data
+
+nodes :: Nd
+nodes =
+  grp 0
+    [grp 1
+      [grp 10
+       [mod1, mod2]
+      ,grp 11
+       [bar1, bar2]]]
+
+mod1, mod2, bar1, bar2 :: Nd
+mod1 = syn "foo" ["out"*=100, "amp"*=100, "freq"*=0.66]
+mod2 = syn "foo" ["out"*=101, "amp"*=80, "freq"*=3.33]
+bar1 = syn "bar" ["amp"*=0.1, "pan"*=0.75, "freq"*=220, "fmod"*<-mod1-*"out"]
+bar2 = syn "bar" ["amp"*=0.1, "pan"*=(-0.75), "freq"*=330, "fmod"*<-mod2-*"out"]
+
+q01 :: Maybe SynthParam
+q01 = do
+    nbar2 <- queryN' (synthName ==? "bar" &&?
+                      params (paramValue ==? 101)) (nodify nodes)
+    queryP' (paramName ==? "pan") nbar2
+-}
