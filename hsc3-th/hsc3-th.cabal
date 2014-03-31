@@ -1,0 +1,33 @@
+name:                hsc3-th
+version:             0.14.0.0
+synopsis:            Template Haskell utility for hsc3
+description:         Template Haskell utility for hsc3
+license:             BSD3
+license-file:        LICENSE
+author:              8c6794b6
+maintainer:          8c6794b6@gmail.com
+category:            Sound
+build-type:          Simple
+cabal-version:       >=1.10
+
+library
+  hs-source-dirs:      src/lib
+  ghc-options:         -Wall
+  exposed-modules:     Sound.SC3.TH.Synthdef
+  build-depends:       base >=4.6 && <4.7
+                     , language-haskell-extract
+                     , hsc3
+                     , template-haskell
+  default-language:    Haskell2010
+
+test-suite test
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      src
+  main-is:             test.hs
+  ghc-options:         -Wall
+  build-depends:       base >= 4.6 && <4.7
+                     , tasty
+                     , tasty-hunit
+                     , hsc3
+                     , hsc3-th
+  default-language:    Haskell2010
