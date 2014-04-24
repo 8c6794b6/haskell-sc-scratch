@@ -20,7 +20,6 @@ import qualified Test.Sound.SC3.Lepton.Parser as Parser
 -- import qualified Test.Sound.SC3.Lepton.Tree.Nd as Nd
 -- import qualified Test.Sound.SC3.Lepton.Tree.Tree as Tree
 -- import qualified Test.Sound.SC3.Lepton.Tree.Zipper as Zipper
-import qualified Test.Sound.SC3.Lepton.UGen.Demand as Demand
 -- import qualified Test.Sound.SC3.Lepton.Pattern.ParseP as PP
 -- import qualified Test.Sound.SC3.Lepton.Pattern.Interpreter as Interpreter
 -- import qualified Test.Sound.SC3.Lepton.Pattern.Interpreter.R as PIR
@@ -34,6 +33,5 @@ main = do
         -- , Nd.tests
         -- , Tree.tests
         -- , Zipper.tests
-        , Demand.tests
         ]
   defaultMain $ tests

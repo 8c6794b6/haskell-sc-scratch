@@ -11,7 +11,7 @@ Portability : non-portable (GeneralizedNewtypeDeriving)
 State monad wrapper for building patterns with demand ugens.
 
 -}
-module Sound.SC3.Lepton.UGen.Demand
+module Sound.SC3.Supply
   (
   -- * Example
   -- $example
@@ -71,7 +71,7 @@ From /Streams-Patterns-Events/ tutorial in SuperCollider help files.
 >
 > import Sound.SC3
 > import Sound.SC3.ID
-> import Sound.SC3.Lepton.UGen.Demand
+> import Sound.SC3.Supply
 >
 > main :: IO ()
 > main = audition $ playS sup

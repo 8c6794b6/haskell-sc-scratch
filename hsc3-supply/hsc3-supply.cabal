@@ -1,0 +1,40 @@
+name:                hsc3-supply
+version:             0.14.0.0
+synopsis:            Demand UGen builder for hsc3
+description:         Demand UGen builder for hsc3
+license:             BSD3
+license-file:        LICENSE
+author:              8c6794b6
+maintainer:          8c6794b6@gmail.com
+category:            Sound
+build-type:          Simple
+cabal-version:       >=1.10
+
+extra-source-files:
+  src/example/spe.hs
+
+library
+  hs-source-dirs:      src/lib
+  ghc-options:         -Wall
+  exposed-modules:     Sound.SC3.Supply
+  build-depends:       base >=4.6 && <4.7
+                     , hsc3 >= 0.14
+                     , mtl
+                     , random
+  default-language:    Haskell2010
+
+test-suite test
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      src
+  main-is:             test.hs
+  ghc-options:         -Wall
+  build-depends:       base >= 4.6 && <4.7
+                     , random
+                     , hsc3
+                     , hsc3-supply
+                     , tasty
+                     , tasty-hunit
+                     , tasty-quickcheck
+                     , tasty-th
+                     , QuickCheck >= 2.0
+  default-language:    Haskell2010

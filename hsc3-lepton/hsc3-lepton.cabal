@@ -13,8 +13,7 @@ description:
   Collection of client side utility for scsynth using hsc3.
   See "Sound.SC3.Lepton" for overview.
 
-extra-source-files:
-  src/examples/demand.hs
+-- extra-source-files:
 
 flag dev
   description:
@@ -56,7 +55,6 @@ library
     Sound.SC3.Lepton.Pattern.ToOSC
     Sound.SC3.Lepton.QuickCheck
     Sound.SC3.Lepton.UGen
-    Sound.SC3.Lepton.UGen.Demand
     Sound.SC3.Lepton.UGen.Factory
     Sound.SC3.Lepton.UGen.Missing
     Sound.SC3.Lepton.UGen.Pretty
@@ -124,7 +122,6 @@ test-suite tests
     Test.Sound.SC3.Lepton.Common
     Test.Sound.SC3.Lepton.Parser
     Test.Sound.SC3.Lepton.Instance
-    Test.Sound.SC3.Lepton.UGen.Demand
   main-is:
     tests.hs
   build-depends:
