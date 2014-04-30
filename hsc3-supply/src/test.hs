@@ -83,6 +83,11 @@ prop_sseries =
   forAll arbitrary $ \(a,b,c) ->
   sseries a b c `isPrimitiveUGen` "Dseries"
 
+prop_sshuf :: Property
+prop_sshuf =
+  forAll (arbitrary `suchThat` (not . null . snd)) $ \(a,bs) ->
+  sshuf a bs `isPrimitiveUGen` "Dshuf"
+
 prop_sstutter :: Property
 prop_sstutter =
   forAll arbitrary $ \(a,b) ->
@@ -102,6 +107,11 @@ prop_swhite :: Property
 prop_swhite =
   forAll arbitrary $ \(a,b,c) ->
   swhite a b c `isPrimitiveUGen` "Dwhite"
+
+prop_swrand :: Property
+prop_swrand =
+  forAll (arbitrary `suchThat` ((\bs -> length bs >= 2) . snd)) $ \(a,bs) ->
+  swrand a bs bs `isPrimitiveUGen` "Dxrand"
 
 prop_sxrand :: Property
 prop_sxrand =

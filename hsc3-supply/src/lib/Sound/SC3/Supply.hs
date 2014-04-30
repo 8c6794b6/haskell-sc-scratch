@@ -221,8 +221,8 @@ sseries :: Supply -> Supply -> Supply -> Supply
 sseries = liftS3 dseries
 
 -- | Wrapper for 'dshuf'.
-sshuf :: Supply -> Supply -> Supply
-sshuf = liftS2 dshuf
+sshuf :: Supply -> [Supply] -> Supply
+sshuf = liftSquash dshuf
 
 -- | Wrapper for 'dstutter'.
 sstutter :: Supply -> Supply -> Supply
@@ -245,8 +245,8 @@ swhite :: Supply -> Supply -> Supply -> Supply
 swhite = liftS3 dwhite
 
 -- | Wrapper for 'dwrand'.
-swrand :: Supply -> Supply -> Supply -> Supply
-swrand = liftS3 dwrand
+swrand :: Supply -> [Supply] -> [Supply] -> Supply
+swrand dur vals probs = liftS3 dwrand dur (squash vals) (squash probs)
 
 -- | Wrapper for 'dxrand'.
 sxrand :: Supply -> [Supply] -> Supply
