@@ -136,9 +136,3 @@ nodeIdsInPath (SCPath n ls rs) = n:concatMap nodeIds ls ++ concatMap nodeIds rs
 -- modify maxSize to 25 from default, which is 100.
 tests :: TestTree
 tests = localOption (QuickCheckMaxSize 25) ($testGroupGenerator)
-
-isSynth :: SCNode -> Bool
-isSynth n = case n of Synth _ _ _ -> True; _ -> False
-
-isGroup :: SCNode -> Bool
-isGroup x = case x of Group _ _ -> True; _ -> False

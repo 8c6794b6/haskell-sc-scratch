@@ -64,16 +64,27 @@ module Sound.SC3.Tree.Nd
   ) where
 
 import Data.Data (Data, Typeable)
+
+import Sound.SC3 (Audible(..))
+
+import Sound.SC3.Tree.Connection
 import Sound.SC3.Tree.Type
 
+-- | Data type to define scsynth nodes.
 data Nd
   = Grp Int [Nd]
   | Syn (Maybe Int) String [Prm]
   deriving (Eq,Show,Data,Typeable)
 
+-- | Patches nodes with 'patchNode'.
+instance Audible Nd where
+    play = patchNode . nodify
+
+-- | Data type to define parameter of node.
 data Prm = Prm String PrmVal
   deriving (Eq,Show,Data,Typeable)
 
+-- | Data type to devine parameter values of node.
 data PrmVal
   = Dval Double
   | Ival Int
@@ -81,15 +92,37 @@ data PrmVal
   | Abus PrmVal
   deriving (Eq,Show,Data,Typeable)
 
+instance Num PrmVal where
+  (+) = error "+"
+  (*) = error "*"
+  (-) = error "-"
+  abs = error "abs"
+  negate n = case n of
+    Abus _ -> error "negate used for Abus"
+    Cbus _ -> error "negate used for Cbus"
+    Dval x -> Dval (negate x)
+    Ival x -> Ival (negate x)
+  signum = error "signum"
+  fromInteger = Dval . fromInteger
+
+instance Fractional PrmVal where
+  (/) = error "/"
+  recip = error "recip"
+  fromRational = Dval . fromRational
+
+-- | Alias of 'Grp'.
 grp :: Int -> [Nd] -> Nd
 grp = Grp
 
+-- | Alias of 'Syn', without node ID.
 syn :: String -> [Prm] -> Nd
 syn = Syn Nothing
 
+-- | Alias of 'Syn', with node ID.
 syn' :: Int -> String -> [Prm] -> Nd
 syn' i = Syn (Just i)
 
+-- | Get parameter value from 'Nd'.
 prmv :: Nd -> String -> PrmVal
 prmv n k = case n of
   Syn _ def xs -> go xs where
@@ -141,23 +174,6 @@ unPrmVal p@(Prm k v) = case v of
   Abus (Ival x) -> k :<= x
   _ -> error $ "Undecidable param" ++ show p
 
-instance Num PrmVal where
-  (+) = error "+"
-  (*) = error "*"
-  (-) = error "-"
-  abs = error "abs"
-  negate n = case n of
-    Abus _ -> error "negate used for Abus"
-    Cbus _ -> error "negate used for Cbus"
-    Dval x -> Dval (negate x)
-    Ival x -> Ival (negate x)
-  signum = error "signum"
-  fromInteger = Dval . fromInteger
-
-instance Fractional PrmVal where
-  (/) = error "/"
-  recip = error "recip"
-  fromRational = Dval . fromRational
 
 {-
 

@@ -14,7 +14,6 @@ module Sound.SC3.Tree.Connection
   , getDiff
   , setNode
   , delNode
-  , modifyNode
   , printNode
   , getRootNode
   , printRootNode
@@ -27,7 +26,7 @@ import Control.Monad.IO.Class (MonadIO(..))
 import Sound.OSC
   ( Bundle(..), DuplexOSC, SendOSC(..)
   , bundle, waitReply, time, immediately)
-import Sound.SC3 (g_queryTree, n_free, reset)
+import Sound.SC3 (g_queryTree, n_free)
 
 import Sound.SC3.Tree.Type
 import Sound.SC3.Tree.Diff
@@ -39,8 +38,7 @@ addNode :: (SendOSC m, MonadIO m)
         -> SCNode -- ^ New node
         -> m ()
 addNode tId tree = do
-  t0 <- time
-  sendOSC $ bundle (t0 + 0.1) (treeToNew tId tree)
+  sendOSC $ bundle immediately (treeToNew tId tree)
 
 -- | Get node with specifying node id.
 getNode :: (DuplexOSC m)
@@ -62,20 +60,6 @@ delNode :: (SendOSC m)
         => [NodeId]      -- ^ Node ids to free
         -> m ()
 delNode ns = sendOSC $ n_free ns
-
--- | Experimental.
---
--- Modify running node with given function.
---
--- Implemented with freeing all nodes and adding transformed new nodes.
---
-modifyNode :: (DuplexOSC m)
-           => (SCNode -> SCNode) -- ^ Function to apply
-           -> m ()
-modifyNode f = do
-  t <- getRootNode
-  reset
-  sendOSC $ Bundle immediately (treeToNew 0 (f t))
 
 -- | Prints current SCNode with specifying node id.
 printNode :: (MonadIO m, DuplexOSC m) => Int -> m ()

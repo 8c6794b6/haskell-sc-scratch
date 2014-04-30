@@ -51,12 +51,12 @@ queryP' p node = case queryP p node of
     (x:_) -> Just x
     _     -> Nothing
 
+
 -- --------------------------------------------------------------------------
 --
 -- Query builders
 --
 -- --------------------------------------------------------------------------
-
 
 -- | A function to filter out matching elements.
 type Condition a = a -> Bool

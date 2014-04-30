@@ -17,6 +17,8 @@ module Sound.SC3.Tree.Type
   , nodeId
   , synthName
   , synthParams
+  , isSynth
+  , isGroup
   , SynthName
   , SynthParam(..)
   , ParamName
@@ -98,6 +100,14 @@ type BusId = Int
 infixr 5 :=
 infixr 5 :<-
 infixr 5 :<=
+
+-- | 'True' if given node is synth.
+isSynth :: SCNode -> Bool
+isSynth n = case n of Synth _ _ _ -> True; _ -> False
+
+-- | 'True' if given node is group.
+isGroup :: SCNode -> Bool
+isGroup = not . isSynth
 
 -- | Returns node id of synth and group node.
 nodeId :: SCNode -> Int
@@ -272,7 +282,7 @@ hasUniqueIds n = listSize == setSize where
   l = nodeIds n
 
 nodeIds :: SCNode -> [Int]
-nodeIds n = [f n'|n' <- universe n, let f (Synth j _ _) = j; f (Group j _) = j]
+nodeIds n = [nodeId n'|n' <- universe n]
 
 
 ------------------------------------------------------------------------------

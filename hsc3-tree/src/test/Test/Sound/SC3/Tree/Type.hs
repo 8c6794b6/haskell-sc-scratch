@@ -68,11 +68,5 @@ nodeToOSC n = Message "/g_queryTree.reply" (Int32 1:f n []) where
     m :<= v -> ASCII_String (pack m) :
                ASCII_String (pack $ 'a':show v) : ps
 
-isSynth :: SCNode -> Bool
-isSynth n = case n of Synth _ _ _ -> True; _ -> False
-
-isGroup :: SCNode -> Bool
-isGroup x = case x of Group _ _ -> True; _ -> False
-
 tests :: TestTree
 tests = $testGroupGenerator

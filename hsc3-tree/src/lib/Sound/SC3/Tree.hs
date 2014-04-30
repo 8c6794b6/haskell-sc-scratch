@@ -37,6 +37,7 @@ import Sound.SC3.Tree.Type
 import Sound.SC3.Tree.Query
 import Sound.SC3.Tree.Zipper
 
+
 {-$example_interactive
 
 Dump the contents of running synth nodes from ghci:

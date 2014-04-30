@@ -41,7 +41,7 @@ Data type defined with GADT for diffing SCNode.
 
 Not so much difference in performance for getting edit distance data, but good
 thing is that Synth node and parameters are combined. This makes extraction of
-n_set message easier to be done.
+n_set message easier.
 -}
 data TFamily :: * -> * -> * where
   TFNode     :: TFamily (Tree SCN) (Cons SCN (Cons [Tree SCN] Nil))
@@ -105,10 +105,11 @@ toRose (Synth i n ps) = Node (Snode i n ps) []
 
 dumpDiff :: EditScriptL TFamily txs tys -> IO ()
 dumpDiff df = case df of
-  Ins n d -> putStrLn ("Ins " ++ show n) >> dumpDiff d
-  Cpy n d -> putStrLn ("Cpy " ++ show n) >> dumpDiff d
-  Del n d -> putStrLn ("Del " ++ show n) >> dumpDiff d
-  _ -> return ()
+  Ins n d   -> putStrLn ("Ins " ++ show n) >> dumpDiff d
+  Cpy n d   -> putStrLn ("Cpy " ++ show n) >> dumpDiff d
+  Del n d   -> putStrLn ("Del " ++ show n) >> dumpDiff d
+  CpyTree n -> putStrLn "CpyTree" >> dumpDiff n >> putStrLn "End of CpyTree"
+  _         -> return ()
 
 diffMessage :: SCNode -> SCNode -> [Message]
 diffMessage t = accToOSC . toAcc (initialAcc (nodeId t)) . diffSCN t
@@ -117,7 +118,7 @@ diffMessage t = accToOSC . toAcc (initialAcc (nodeId t)) . diffSCN t
 data MsgAcc = MsgAcc
   { -- | Position to insert new node.
     maPos :: Position
-  , -- | Current group id.
+  , -- | Current group ids.
     maCgi :: [Int]
   , -- | Assoc list of (nodeId, (position, node)) for insert operation.
     maInss :: [(Int,(Position,SCNode))]
@@ -130,8 +131,8 @@ initialAcc :: Int -> MsgAcc
 initialAcc i = MsgAcc (Head i) [i] [] IM.empty
 
 {-|
-Converts edit script to list of operation. What we want to do here is to
-convert EditScript to set of operation so that easily converted to OSC
+Converts edit script to a list of operation. What we want to do here is to
+convert 'EditScript' to set of operation so that easily converted to OSC
 messages.
 
 * When deletion and insertion of node with same id occur, operation
@@ -143,7 +144,7 @@ messages.
 * When insertion of node comes before other than deletion of node,
   operation is adding new node. We detect this with seeking an
   editscript whether Ins of same node appear or not. Also, need to keep track
-  of target node id, and position. Note that AddAfter add action could not be
+  of target node id and position. Note that 'AddAfter' add action could not be
   used when adding to group without containing any node yet.
 
 This function seeks 2 sequence of EditScriptL constructors at once, and
@@ -151,20 +152,28 @@ determine which operation to take.
 -}
 toAcc :: forall txs tys . MsgAcc -> EditScriptL TFamily txs tys -> MsgAcc
 toAcc acc d0 = case d0 of
-  Ins TFNodeNil (Ins TFNodeNil d) -> toAcc upOneGroup d
-  Ins TFNodeNil (Cpy TFNodeNil d) -> toAcc upOneGroup d
+  Ins TFNodeNil d -> toAcc upOneGroup d
+  Ins (TFN (Snode i n ps)) (Ins TFNodeNil d) ->
+    let inss' = (i,(maPos acc, Synth i n ps)):maInss acc
+    in  toAcc (acc{maInss=inss', maPos=After i}) d
+  -- Consume Ins and Cpy of TFNodeNil for Synth node.
+  Ins (TFN (Snode i n ps)) (Cpy TFNodeNil d) ->
+    let inss' = (i,(maPos acc, Synth i n ps)):maInss acc
+    in  toAcc (acc{maInss=inss', maPos=After i}) d
   Ins (TFN (Snode i n ps)) d ->
     let inss' = (i,(maPos acc, Synth i n ps)):maInss acc
     in  toAcc (acc{maInss=inss', maPos=After i}) d
   Ins (TFN (Gnode i)) d ->
     let inss' = (i,(maPos acc, Group i [])):maInss acc
-    in  toAcc (acc{maPos=Head i, maCgi=i:maCgi acc,maInss=inss'}) d
+    in  toAcc (acc {maPos=Head i,maCgi=i:maCgi acc,maInss=inss'}) d
   Ins _ d -> toAcc acc d
   Del (TFN n) d ->
       toAcc (acc {maDels=IM.insert (scnId n) (scn2n n) (maDels acc)}) d
   Del _ d -> toAcc acc d
-  Cpy TFNodeNil (Cpy TFNodeNil d) -> toAcc upOneGroup d
-  Cpy TFNodeNil (Ins TFNodeNil d) -> toAcc upOneGroup d
+  Cpy TFNodeNil d -> toAcc upOneGroup d
+  -- Again, consume Ins and Cpy of TFNodeNil for Synth node.
+  Cpy (TFN (Snode i _ _)) (Ins TFNodeNil d) -> toAcc (acc {maPos=After i}) d
+  Cpy (TFN (Snode i _ _)) (Cpy TFNodeNil d) -> toAcc (acc {maPos=After i}) d
   Cpy (TFN (Snode i _ _)) d -> toAcc (acc {maPos=After i}) d
   Cpy (TFN (Gnode i)) d -> toAcc (acc {maPos=Head i,maCgi=i:maCgi acc}) d
   Cpy _ d -> toAcc acc d
@@ -190,7 +199,7 @@ accToOSC (MsgAcc _ _ is ds)
       Head  j -> treeToNewWith AddToHead j n ++ os
     -- mkSet (_,n) os = treeToSet n ++ os
     -- (dupIs, ns') = IM.partitionWithKey (\k _ -> k `IM.member` ds) ns
-    ns = IM.fromList is
+    ns  = IM.fromList is
     is' = filter (\(i,_) -> i `IM.notMember` ds) is
     ds' = IM.difference ds ns
 
@@ -231,7 +240,7 @@ ddm :: SCNode -> SCNode -> IO ()
 ddm a b = do
   let d = diffSCN a b
   dumpDiff d
-  mapM_ print . accToOSC . toAcc (initialAcc (nodeId a)) $ d
+  mapM_ (putStrLn . messagePP) . accToOSC . toAcc (initialAcc (nodeId a)) $ d
 
 -- | Sends given actions in asynchronus manner.
 (>>*) :: (DuplexOSC m, MonadIO m) => m a -> m b -> m b

@@ -75,10 +75,6 @@ countOccurence :: [String] -> String
 countOccurence = f . foldr ($) M.empty . map (\k -> M.insertWith' (+) k 1)
   where f = M.foldrWithKey (\k a bs -> k ++ ":" ++ show a ++ " " ++ bs) ""
 
-isGroup :: SCNode -> Bool
-isGroup (Group _ _) = True
-isGroup _           = False
-
 isMsg :: String -> Message -> Bool
 isMsg str (Message m _) = m == str
 
