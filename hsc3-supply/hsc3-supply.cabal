@@ -1,5 +1,5 @@
 name:                hsc3-supply
-version:             0.14.0.0
+version:             0.14.0.1
 synopsis:            Demand UGen builder for hsc3
 description:         Demand UGen builder for hsc3
 license:             BSD3
@@ -17,7 +17,7 @@ library
   hs-source-dirs:      src/lib
   ghc-options:         -Wall
   exposed-modules:     Sound.SC3.Supply
-  build-depends:       base >=4.6 && <4.7
+  build-depends:       base >=4.6
                      , hsc3 >= 0.14
                      , mtl
                      , random
@@ -28,7 +28,7 @@ test-suite test
   hs-source-dirs:      src
   main-is:             test.hs
   ghc-options:         -Wall
-  build-depends:       base >= 4.6 && <4.7
+  build-depends:       base >= 4.6
                      , random
                      , hsc3
                      , hsc3-supply

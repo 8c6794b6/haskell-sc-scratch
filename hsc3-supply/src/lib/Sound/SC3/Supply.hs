@@ -56,7 +56,7 @@ module Sound.SC3.Supply
   , sxrand
   ) where
 
-import Control.Applicative
+import Control.Applicative hiding ((<*))
 import Control.Monad.State
 import System.Random
 
@@ -127,11 +127,40 @@ instance Num a => Num (Demand a) where
   fromInteger = return . fromInteger
 
 instance Fractional a => Fractional (Demand a) where
-  a / b = (/) <$> a <*> b
-  recip a = fmap recip a
+  a / b        = (/) <$> a <*> b
+  recip a      = fmap recip a
   fromRational = return . fromRational
 
+instance Floating a => Floating (Demand a) where
+    pi     = return pi
+    exp    = fmap exp
+    sqrt   = fmap sqrt
+    log    = fmap log
+    a ** b = (**) <$> a <*> b
+    sin    = fmap sin
+    cos    = fmap cos
+    asin   = fmap asin
+    atan   = fmap atan
+    acos   = fmap acos
+    sinh   = fmap sinh
+    tanh   = fmap tanh
+    cosh   = fmap cosh
+    asinh  = fmap asinh
+    atanh  = fmap atanh
+    acosh  = fmap acosh
+
+instance Ord a => Ord (Demand a) where
+    compare a b = evalState (unDemand $ liftA2 compare a b) (mkStdGen 0)
+
+instance OrdE a => OrdE (Demand a) where
+    a <*  b = (<*)  <$> a <*> b
+    a <=* b = (<=*) <$> a <*> b
+    a >*  b = (>*)  <$> a <*> b
+    a >=* b = (>=*) <$> a <*> b
+
 instance Enum a => Enum (Demand a) where
+  succ = fmap succ
+  pred = fmap pred
   fromEnum d = fromEnum $ evalState (unDemand d) (mkStdGen 0)
   toEnum = return . toEnum
 
