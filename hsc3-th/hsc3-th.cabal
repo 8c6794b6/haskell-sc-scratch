@@ -1,5 +1,5 @@
 name:                hsc3-th
-version:             0.14.0.0
+version:             0.14.0.1
 synopsis:            Template Haskell utility for hsc3
 description:         Template Haskell utility for hsc3
 license:             BSD3
@@ -14,7 +14,7 @@ library
   hs-source-dirs:      src/lib
   ghc-options:         -Wall
   exposed-modules:     Sound.SC3.TH.Synthdef
-  build-depends:       base >=4.6 && <4.7
+  build-depends:       base >=4.6
                      , language-haskell-extract
                      , hsc3
                      , template-haskell
@@ -25,7 +25,7 @@ test-suite test
   hs-source-dirs:      src
   main-is:             test.hs
   ghc-options:         -Wall
-  build-depends:       base >= 4.6 && <4.7
+  build-depends:       base >= 4.6
                      , tasty
                      , tasty-hunit
                      , hsc3
