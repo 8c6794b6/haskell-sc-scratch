@@ -1,5 +1,5 @@
 name:                hsc3-tree
-version:             0.14.0.0
+version:             0.14.0.1
 synopsis:            Manages synth and group in scsynth server node tree.
 description:
   This package contains utilities to manages synthes and groups in scsynth
@@ -35,7 +35,7 @@ library
                      Sound.SC3.Tree.Query
                      Sound.SC3.Tree.Zipper
   other-modules:     Sound.SC3.Parser.Datum
-  build-depends:     base >=4.6 && <4.7
+  build-depends:     base >=4.6
                    , bytestring
                    , containers
                    , gdiff
@@ -47,7 +47,6 @@ library
                    , random
                    , syb
                    , transformers
-                   , uniplate
 
 executable hsc3-tree-example
   if flag(dev)
@@ -57,10 +56,10 @@ executable hsc3-tree-example
   hs-source-dirs:    src/example
   default-language:  Haskell2010
   main-is:           tree.hs
-  build-depends:     base >=4.6 && <4.7
+  build-depends:     base >=4.6
                    , hsc3
                    , hsc3-tree
-                   , uniplate
+                   , syb
 
 test-suite tests
   hs-source-dirs:    src/test
@@ -74,7 +73,7 @@ test-suite tests
                      Test.Sound.SC3.Tree.Query
                      Test.Sound.SC3.Tree.QuickCheck
                      Test.Sound.SC3.Tree.Zipper
-  build-depends:     base >= 4.6 && <4.7
+  build-depends:     base >= 4.6
                    , bytestring
                    , containers
                    , hsc3
@@ -85,6 +84,5 @@ test-suite tests
                    , tasty-hunit
                    , tasty-quickcheck
                    , tasty-th
-                   , uniplate
                    , HUnit
                    , QuickCheck

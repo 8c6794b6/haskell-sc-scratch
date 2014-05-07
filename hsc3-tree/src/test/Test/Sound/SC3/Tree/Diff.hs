@@ -12,14 +12,11 @@
 --
 module Test.Sound.SC3.Tree.Diff where
 
-import Control.Applicative
-import Data.Map (Map)
 import Test.QuickCheck
 import Test.Tasty (TestTree)
 import Test.Tasty.QuickCheck (testProperty)
 import Test.Tasty.TH (testGroupGenerator)
 
-import Data.Generics.Uniplate.Operations (transformBi)
 import Sound.OSC
 import Sound.SC3 hiding (label)
 
@@ -27,20 +24,20 @@ import Sound.SC3.Tree.Type
 import Sound.SC3.Tree.Diff
 import Sound.SC3.Tree.Zipper
 
-import Test.Sound.SC3.Tree.QuickCheck
+import Test.Sound.SC3.Tree.QuickCheck ()
 
 import qualified Data.Map as M
 
 
 prop_diff_insert :: SCNode -> Property
-prop_diff_insert n1 = do
-  n0 <- gen_uniqueIdNode
-  let z = SCZipper n0 []
-  forAll (elements (nodeIds n0) `suchThat` (/= (nodeId n0))) $ \targetId ->
-    let n0' = focus $ goTop (insert' n1 (Just (AddAfter,targetId)) z)
-        msgs = diffMessage n0 n0'
-    in  all (isMsg "/s_new" ||? isMsg "/g_new" ||? isMsg "/n_map" ||?
-             isMsg "/n_mapa") msgs
+prop_diff_insert n1 =
+  forAll gen_uniqueIdNode $ \n0 -> do
+      let z = SCZipper n0 []
+      forAll (elements (nodeIds n0) `suchThat` (/= nodeId n0)) $ \targetId ->
+          let n0' = focus $ goTop (insert' n1 (Just (AddAfter,targetId)) z)
+              msgs = diffMessage n0 n0'
+          in  all (isMsg "/s_new" ||? isMsg "/g_new" ||? isMsg "/n_map" ||?
+              isMsg "/n_mapa") msgs
 
 prop_diff_delete :: Property
 prop_diff_delete =
@@ -58,21 +55,23 @@ prop_diff_update =
   forAll (arbitrary `suchThat` (not . null)) $ \ps ->
   let up n@(Synth i _ _) | i == idToModify = updateParams ps n
       up n               = n
-      n0' = transformBi up n0
+      n0'  = mapSCNode up n0
       msgs = diffMessage n0 n0'
   in  all (isMsg "/n_map" ||? isMsg "/n_mapa" ||? isMsg "/n_set" ||?
            isMsg "/n_order") msgs ||
       null msgs
 
 prop_diff_mixed :: Property
-prop_diff_mixed = do
-  n0 <- gen_uniqueIdNode `suchThat` (\n -> not $ 0 `elem` nodeIds n)
-  n1 <- gen_uniqueIdNode `suchThat` (\n -> not $ 0 `elem` nodeIds n)
-  let msgs = diffMessage (Group 0 [n0]) (Group 0 [n1])
-  collect (countOccurence $ map msgString msgs) $ length msgs >= 0
+prop_diff_mixed =
+   let gen_nonRootNode =
+           gen_uniqueIdNode `suchThat` (\n -> not $ 0 `elem` nodeIds n)
+   in  forAll gen_nonRootNode $ \n0 ->
+       forAll gen_nonRootNode $ \n1 ->
+           let msgs = diffMessage (Group 0 [n0]) (Group 0 [n1])
+           in  collect (countOccurence $ map msgString msgs) (length msgs >= 0)
 
 countOccurence :: [String] -> String
-countOccurence = f . foldr ($) M.empty . map (\k -> M.insertWith' (+) k 1)
+countOccurence = f . foldr ($) M.empty . map (\k -> M.insertWith' (+) k (1::Int))
   where f = M.foldrWithKey (\k a bs -> k ++ ":" ++ show a ++ " " ++ bs) ""
 
 isMsg :: String -> Message -> Bool

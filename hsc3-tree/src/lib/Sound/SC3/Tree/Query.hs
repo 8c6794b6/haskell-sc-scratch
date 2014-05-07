@@ -17,10 +17,8 @@ module Sound.SC3.Tree.Query
     , queryP'
       -- * Query builder
     , Condition
-    , params, (==?), (/=?), (&&?), (||?)
+    , params, (==?), (/=?), (<?), (<=?), (>?), (>=?), (&&?), (||?)
     ) where
-
-import Data.Generics.Uniplate.Data (universe, universeBi)
 
 import Sound.SC3.Tree.Type
 
@@ -32,7 +30,21 @@ import Sound.SC3.Tree.Type
 
 -- | Querys given 'SCNode', returns list of 'SCNode' satisfying given condition.
 queryN :: Condition SCNode -> SCNode -> [SCNode]
-queryN p node = [n|n<-universe node, p n]
+queryN p node =
+    let f x acc =
+            case x of
+                Group _ ns | p x       -> x : foldr f acc ns
+                           | otherwise -> foldr f acc ns
+                Synth {}   | p x       -> x : acc
+                           | otherwise -> acc
+    in  foldr f [] [node]
+
+--
+-- Variant using Data.Generics.Uniplate.Operations.universe
+--
+-- queryN p node = [n|n<-universe node, p n]
+--
+
 
 -- | Variant of 'query' returning 'Maybe' value.
 queryN' :: Condition SCNode -> SCNode -> Maybe SCNode
@@ -43,7 +55,14 @@ queryN' p node = case queryN p node of
 -- | Query given 'SCNode' with conditions to parameters, returns 'SynthParam'
 -- satisfying given condition.
 queryP :: Condition SynthParam -> SCNode -> [SynthParam]
-queryP p node = [sp|sp<-universeBi node, p sp]
+queryP cond node =
+    let f n acc =
+            case n of
+                Group _ ns   -> foldr f acc ns
+                Synth _ _ ps ->
+                    let g p acc' = if cond p then p : acc' else acc'
+                    in  foldr g acc ps
+    in  foldr f [] [node]
 
 -- | Variant of 'queryP' returning 'Maybe' value.
 queryP' :: Condition SynthParam -> SCNode -> Maybe SynthParam
@@ -74,6 +93,22 @@ params f n = case n of
 -- | Lifts '/='.
 (/=?) :: Eq a => (n -> a) -> a -> Condition n
 (/=?) = liftQ (/=)
+
+-- | Lifts '>'.
+(>?) :: Ord a => (n -> a) -> a -> Condition n
+(>?) = liftQ (>)
+
+-- | Lifts '>='.
+(>=?) :: Ord a => (n -> a) -> a -> Condition n
+(>=?) = liftQ (>=)
+
+-- | Lifts '<'.
+(<?) :: Ord a => (n -> a) -> a -> Condition n
+(<?) = liftQ (<)
+
+-- | Lifts '<='.
+(<=?) :: Ord a => (n -> a) -> a -> Condition n
+(<=?) = liftQ (<=)
 
 -- | Lifts '&&'
 (&&?) :: Condition n -> Condition n -> Condition n

@@ -19,6 +19,7 @@ module Sound.SC3.Tree.Type
   , synthParams
   , isSynth
   , isGroup
+  , mapSCNode
   , SynthName
   , SynthParam(..)
   , ParamName
@@ -59,7 +60,6 @@ import Data.Data
 import Data.List (unionBy)
 import Text.PrettyPrint hiding (int, double)
 
-import Data.Generics.Uniplate.Data (universe)
 import Sound.SC3
 import Sound.OSC hiding (int32, string)
 
@@ -126,6 +126,15 @@ synthParams :: SCNode -> [SynthParam]
 synthParams n = case n of
     Synth _ _ ps -> ps
     _            -> []
+
+-- | Map given function to 'SCNode'.
+mapSCNode :: (SCNode -> SCNode) -> SCNode -> SCNode
+mapSCNode f n0 =
+    let g n = case n of
+                Synth {}   -> f n
+                Group i ns -> f $ Group i $ foldr (\m ms -> g m : ms) [] ns
+    in  g n0
+{-# INLINEABLE mapSCNode #-}
 
 -- | Parse osc message returned from \"/g_queryTree\" and returns haskell
 -- representation of scsynth node tree.
@@ -282,7 +291,11 @@ hasUniqueIds n = listSize == setSize where
   l = nodeIds n
 
 nodeIds :: SCNode -> [Int]
-nodeIds n = [nodeId n'|n' <- universe n]
+nodeIds n =
+    let f x acc = case x of
+                    Synth nid _ _ -> nid : acc
+                    Group nid ns  -> nid : foldr f acc ns
+    in  foldr f [] [n]
 
 
 ------------------------------------------------------------------------------
@@ -299,7 +312,11 @@ drawSCNode = renderNode True
 renderNode :: Bool -> SCNode -> String
 renderNode detail = render . n2doc where
   n2doc n = case n of
-    Group i ns   -> P.int i <+> text "group" $$ vcat (map (nest 3 . n2doc) ns)
+    Group i ns   ->
+        text "NODE TREE Group" <+> P.int i $$ vcat (map (nest 3 . n2doc') ns)
+    _            -> n2doc' n
+  n2doc' n = case n of
+    Group i ns   -> P.int i <+> text "group" $$ vcat (map (nest 3 . n2doc') ns)
     Synth i name ps ->
       P.int i <+> text name $$
       (if detail then hsep (map (nest 2 . p2doc) ps) else empty)

@@ -29,7 +29,6 @@ module Sound.SC3.Tree.Zipper
 import Data.List (nub)
 
 import Data.Data
-import Data.Generics.Uniplate.Data (transform)
 
 import Sound.SC3
 import Sound.SC3.Tree.Type
@@ -136,11 +135,11 @@ insert' node Nothing z                =
   insert' node (Just (AddToTail, nodeId $ focus z)) z
 insert' node (Just (action,target)) z =
   case action of
-    AddToTail  -> transform toTail z
-    AddToHead  -> transform toHead z
-    AddAfter   -> transform after z
-    AddBefore  -> transform before z
-    AddReplace -> transform replace z
+    AddToTail  -> toTail z
+    AddToHead  -> toHead z
+    AddAfter   -> after z
+    AddBefore  -> before z
+    AddReplace -> replace z
   where
     foldLRs f =
       map (\(SCPath i ls rs) -> SCPath i (foldr f [] ls) (foldr f [] rs))
