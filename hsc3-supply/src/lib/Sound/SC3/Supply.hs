@@ -58,9 +58,9 @@ module Sound.SC3.Supply
 
 import Control.Applicative hiding ((<*))
 import Control.Monad.State
-import System.Random
+    (MonadState(..), State, evalState, get, put, runState)
+import System.Random (StdGen, getStdRandom, mkStdGen, random)
 
-import Sound.SC3
 import Sound.SC3.ID
 
 {-$example
@@ -109,22 +109,17 @@ newtype Demand a = Demand {unDemand :: State StdGen a}
 -- | Fundamental type for constructing pattern with demand ugen.
 type Supply = Demand UGen
 
+-- | Unwrap 'Demand' with `mkStdGen 0`.
+evalDemand0 :: Demand a -> a
+evalDemand0 d = evalState (unDemand d) (mkStdGen 0)
+
 -- | Compare with running state using (mkStdGen 0).
 instance Eq a => Eq (Demand a) where
   Demand a == Demand b = let g = mkStdGen 0 in evalState a g == evalState b g
 
 -- | Show with evaluating state using (mkStdGen 0).
 instance Show a => Show (Demand a) where
-  show (Demand a) = "Demand (" ++ (show $ evalState a (mkStdGen 0)) ++ ")"
-
-instance Num a => Num (Demand a) where
-  a + b = (+) <$> a <*> b
-  a - b = (-) <$> a <*> b
-  a * b = (*) <$> a <*> b
-  negate a = fmap negate a
-  abs a = fmap abs a
-  signum a = fmap signum a
-  fromInteger = return . fromInteger
+  show a = "Demand (" ++ (show $ evalDemand0 a) ++ ")"
 
 instance Fractional a => Fractional (Demand a) where
   a / b        = (/) <$> a <*> b
@@ -149,8 +144,45 @@ instance Floating a => Floating (Demand a) where
     atanh  = fmap atanh
     acosh  = fmap acosh
 
+instance Enum a => Enum (Demand a) where
+    succ = fmap succ
+    pred = fmap pred
+    fromEnum = fromEnum . evalDemand0
+    toEnum = return . toEnum
+    enumFrom = fmap return . enumFrom . evalDemand0
+    enumFromThen a b = fmap return . evalDemand0 $ liftA2 enumFromThen a b
+    enumFromTo a b = fmap return . evalDemand0 $ liftA2 enumFromTo a b
+    enumFromThenTo a b c =
+        fmap return . evalDemand0 $ liftA3 enumFromThenTo a b c
+
+instance Integral a => Integral (Demand a) where
+    quot = liftA2 quot
+    rem = liftA2 rem
+    div = liftA2 div
+    mod = liftA2 mod
+    quotRem a b = (quot a b, rem a b)
+    toInteger d = toInteger $ evalDemand0 d
+
+instance Num a => Num (Demand a) where
+    a + b = (+) <$> a <*> b
+    a - b = (-) <$> a <*> b
+    a * b = (*) <$> a <*> b
+    negate a = fmap negate a
+    abs a = fmap abs a
+    signum a = fmap signum a
+    fromInteger = return . fromInteger
+
+instance Real a => Real (Demand a) where
+    toRational = toRational . evalDemand0
+
+instance RealFrac a => RealFrac (Demand a) where
+    properFraction = error "Demand.properFraction"
+    round = round . evalDemand0
+    ceiling = ceiling . evalDemand0
+    floor = floor . evalDemand0
+
 instance Ord a => Ord (Demand a) where
-    compare a b = evalState (unDemand $ liftA2 compare a b) (mkStdGen 0)
+    compare a b = evalDemand0 (liftA2 compare a b)
 
 instance OrdE a => OrdE (Demand a) where
     a <*  b = (<*)  <$> a <*> b
@@ -158,11 +190,34 @@ instance OrdE a => OrdE (Demand a) where
     a >*  b = (>*)  <$> a <*> b
     a >=* b = (>=*) <$> a <*> b
 
-instance Enum a => Enum (Demand a) where
-  succ = fmap succ
-  pred = fmap pred
-  fromEnum d = fromEnum $ evalState (unDemand d) (mkStdGen 0)
-  toEnum = return . toEnum
+instance UnaryOp a => UnaryOp (Demand a) where
+    ampDb = fmap ampDb
+    asFloat = fmap asFloat
+    asInt = fmap asInt
+    cpsMIDI = fmap cpsMIDI
+    cpsOct = fmap cpsOct
+    cubed = fmap cubed
+    dbAmp = fmap dbAmp
+    distort = fmap distort
+    frac = fmap frac
+    isNil = fmap isNil
+    log10 = fmap log10
+    log2 = fmap log2
+    midiCPS = fmap midiCPS
+    midiRatio = fmap midiRatio
+    notE = fmap notE
+    notNil = fmap notNil
+    octCPS = fmap octCPS
+    ramp_ = fmap ramp_
+    ratioMIDI = fmap ratioMIDI
+    softClip = fmap softClip
+    squared = fmap squared
+
+instance RealFracE a => RealFracE (Demand a) where
+
+instance EqE a => EqE (Demand a) where
+    (==*) = liftA2 (==*)
+    (/=*) = liftA2 (/=*)
 
 -- | Run demand ugen with given StdGen.
 runSupply :: Supply -> StdGen -> (UGen,StdGen)
