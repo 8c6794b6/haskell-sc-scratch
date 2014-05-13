@@ -63,7 +63,7 @@ delNode ns = sendOSC $ n_free ns
 
 -- | Prints current SCNode with specifying node id.
 printNode :: (MonadIO m, DuplexOSC m) => Int -> m ()
-printNode n = getNode n >>= liftIO . putStrLn . renderNode True
+printNode n = getNode n >>= liftIO . putStrLn . drawSCNode
 
 -- | Patch node to same node of root node found in new node.
 patchNode :: (DuplexOSC m, MonadIO m) => SCNode -> m ()
@@ -79,7 +79,7 @@ patchNodeTo i t1 = do
 
 -- | Get difference of nodes.
 getDiff :: DuplexOSC m => Int -> SCNode -> m SCNDiff
-getDiff i t1 = return . flip diffSCN t1 =<< getNode i
+getDiff i t1 = return . flip diffSCNode t1 =<< getNode i
 
 -- | Update root node and then dump the contents.
 patchPrint :: (DuplexOSC m, MonadIO m) => SCNode -> m ()

@@ -17,7 +17,7 @@ of message to modify one node tree to another.
 
 Known bug:
 
-* Updating node may fail, when it's freeing the parent group after adding new
+* Updating node may fail when it's freeing the parent group after adding new
   synth nodes. This may occur when diff contains removal of group node.
 
 -}
@@ -96,8 +96,8 @@ data SCN = Gnode Int
 data Position = Head Int | After Int
               deriving (Eq,Show)
 
-diffSCN :: SCNode -> SCNode -> SCNDiff
-diffSCN ta tb = diff (toRose ta) (toRose tb)
+diffSCNode :: SCNode -> SCNode -> SCNDiff
+diffSCNode ta tb = diff (toRose ta) (toRose tb)
 
 toRose :: SCNode -> Tree SCN
 toRose (Group i ns) = Node (Gnode i) (map toRose ns)
@@ -112,7 +112,7 @@ dumpDiff df = case df of
   _         -> return ()
 
 diffMessage :: SCNode -> SCNode -> [Message]
-diffMessage t = accToOSC . toAcc (initialAcc (nodeId t)) . diffSCN t
+diffMessage t = accToOSC . toAcc (initialAcc (nodeId t)) . diffSCNode t
 
 -- | OSC Message accumulator
 data MsgAcc = MsgAcc
@@ -153,10 +153,11 @@ determine which operation to take.
 toAcc :: forall txs tys . MsgAcc -> EditScriptL TFamily txs tys -> MsgAcc
 toAcc acc d0 = case d0 of
   Ins TFNodeNil d -> toAcc upOneGroup d
+  -- Consume Ins and Cpy of TFNodeNil for Synth node so that end of group node
+  -- could be marked with Nil.
   Ins (TFN (Snode i n ps)) (Ins TFNodeNil d) ->
     let inss' = (i,(maPos acc, Synth i n ps)):maInss acc
     in  toAcc (acc{maInss=inss', maPos=After i}) d
-  -- Consume Ins and Cpy of TFNodeNil for Synth node.
   Ins (TFN (Snode i n ps)) (Cpy TFNodeNil d) ->
     let inss' = (i,(maPos acc, Synth i n ps)):maInss acc
     in  toAcc (acc{maInss=inss', maPos=After i}) d
@@ -238,7 +239,7 @@ scn2n (Snode i n ps) = Synth i n ps
 -- | Dump diff and message.
 ddm :: SCNode -> SCNode -> IO ()
 ddm a b = do
-  let d = diffSCN a b
+  let d = diffSCNode a b
   dumpDiff d
   mapM_ (putStrLn . messagePP) . accToOSC . toAcc (initialAcc (nodeId a)) $ d
 

@@ -121,6 +121,11 @@ params f n = case n of
 infix 4 ==?
 infix 4 /=?
 
+infix 4 >?
+infix 4 >=?
+infix 4 <?
+infix 4 <=?
+
 infixr 3 &&?
 infixr 2 ||?
 

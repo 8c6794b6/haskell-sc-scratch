@@ -46,7 +46,7 @@ Dump the contents of running synth nodes from ghci:
 >>> import Sound.SC3.Tree
 >>> withSC3 reset
 >>> withSC3 printRootNode
-0 group
+NODE TREE Group 0
    1 group
    2 group
 
@@ -55,7 +55,7 @@ Dump again after adding synth nodes:
 >>> audition $ out 0 $ sinOsc AR (control KR "freq" 440) 0 * 0.1
 >>> audition $ out 0 $ sinOsc AR (control KR "freq" 330) 0 * 0.1
 >>> withSC3 printRootNode
-0 group
+NODE TREE Group 0
    1 group
       -16 Anonymous
         freq: 440.0
@@ -126,7 +126,7 @@ Suppose that we have a 'SCNode' shown in routing example:
 
 >>> n <- withSC3 getRootNode
 >>> putStrLn $ drawSCNode n
-0 group
+NODE TREE Group 0
    1 group
       10 group
          10000 foo
@@ -143,7 +143,7 @@ Querying a node in group 10 with 'nodeId' and '==?':
 
 >>> let (g10:_) = queryN (nodeId ==? 10) n
 >>> putStrLn $ drawSCNode g10
-10 group
+NODE TREE Group 10
    10000 foo
      amp: 100.0 freq: 0.6600000262260437 out: 100.0
    10001 foo

@@ -13,6 +13,11 @@ Representation of scsynth node tree.
 module Sound.SC3.Tree.Type
   ( -- * Types
     SCNode(..)
+  , SynthParam(..)
+  , SynthName
+  , ParamName
+  , ParamValue
+  , BusId
   , NodeId
   , nodeId
   , synthName
@@ -20,11 +25,6 @@ module Sound.SC3.Tree.Type
   , isSynth
   , isGroup
   , mapSCNode
-  , SynthName
-  , SynthParam(..)
-  , ParamName
-  , ParamValue
-  , BusId
 
     -- * Parser
   , parseNode
@@ -35,7 +35,7 @@ module Sound.SC3.Tree.Type
   , treeToSet
   , paramToTuple
   , drawSCNode
-  , renderNode
+  , renderSCNode
   , prettyDump
 
     -- * Util
@@ -187,9 +187,13 @@ parseParam = do
         in  case xs' of
             'c':rest -> do
                 let busNum = read rest :: Int
-                return $ if busNum > 0
+                return $ if busNum > 0 || 4095 < busNum
                          then name :<- busNum
-                         else name :<= ((busNum - 4) `div` 64) + 129
+                         -- XXX:
+                         -- Follow Group_QueryTreeAndControls() in SC_Group.cpp,
+                         -- take look of "childGraph->nMapControls[i]" and
+                         -- "child->mWorld->mControlBus".
+                         else name :<= (busNum - (-552556612)) `div` 64
             'a':rest -> return $ name :<= read rest
             _        -> error $ "Unknown param: " ++ xs'
     Int32 x     -> return $ name := fromIntegral x
@@ -306,11 +310,11 @@ nodeIds n =
 
 -- | Draw SCNode data.
 drawSCNode :: SCNode -> String
-drawSCNode = renderNode True
+drawSCNode = renderSCNode True
 
 -- | Pretty prints SCNode in same format as '/g_dumpTree' OSC message.
-renderNode :: Bool -> SCNode -> String
-renderNode detail = render . n2doc where
+renderSCNode :: Bool -> SCNode -> String
+renderSCNode detail = render . n2doc where
   n2doc n = case n of
     Group i ns   ->
         text "NODE TREE Group" <+> P.int i $$ vcat (map (nest 3 . n2doc') ns)
