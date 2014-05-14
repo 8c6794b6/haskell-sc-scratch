@@ -25,6 +25,7 @@ module Sound.SC3.Tree.Type
   , isSynth
   , isGroup
   , mapSCNode
+  , filterSCNode
 
     -- * Parser
   , parseNode
@@ -50,13 +51,15 @@ module Sound.SC3.Tree.Type
 XXX:
 
 This package may use /Query_Node/ data type from "Sound.SC3.Status" when the
-data type has been made available.
+data type become available.
+
 -}
 
+import Control.DeepSeq (NFData(..), deepseq)
 import Control.Monad
 import Data.ByteString.Char8 (unpack)
 import Data.Function (on)
-import Data.Data
+import Data.Data (Data,Typeable)
 import Data.List (unionBy)
 import Text.PrettyPrint hiding (int, double)
 
@@ -76,22 +79,38 @@ import qualified Data.IntSet as IS
 ------------------------------------------------------------------------------
 
 -- | Data type for representing Group and Synth node in scsynth.
-data SCNode = Group NodeId [SCNode]                -- ^ Group node
-            | Synth NodeId SynthName [SynthParam]  -- ^ Synth node
+data SCNode = Group {-# UNPACK #-} !NodeId [SCNode]
+            -- ^ Group node
+            | Synth {-# UNPACK #-} !NodeId SynthName [SynthParam]
+            -- ^ Synth node
               deriving (Eq,Read,Show,Data,Typeable)
+
+instance NFData SCNode where
+    rnf n = case n of
+              Group i ns      -> i `seq` ns `deepseq` ()
+              Synth i name ps -> i `seq` name `deepseq` ps `deepseq` ()
 
 type SynthName = String
 
 -- | Data type for synth param.
-data SynthParam = ParamName := ParamValue -- ^ Double value
-                | ParamName :<- BusId     -- ^ Mapped control bus id
-                | ParamName :<= BusId     -- ^ Mapped audio bus id
+data SynthParam = ParamName := {-# UNPACK #-} !ParamValue
+                -- ^ Double value
+                | ParamName :<- {-# UNPACK #-} !BusId
+                -- ^ Mapped control bus id
+                | ParamName :<= {-# UNPACK #-} !BusId
+                -- ^ Mapped audio bus id
                   deriving (Eq,Read,Data,Typeable)
 
 instance Show SynthParam where
   show (f:=x)  = show f ++ ":=" ++ show x
   show (f:<-x) = show f ++ ":<-" ++ show x
   show (f:<=x) = show f ++ ":<=" ++ show x
+
+instance NFData SynthParam where
+    rnf p = case p of
+              n := v  -> n `deepseq` v `seq` ()
+              n :<- v -> n `deepseq` v `seq` ()
+              n :<= v -> n `deepseq` v `seq` ()
 
 type ParamName = String
 type ParamValue = Double
@@ -135,6 +154,19 @@ mapSCNode f n0 =
                 Group i ns -> f $ Group i $ foldr (\m ms -> g m : ms) [] ns
     in  g n0
 {-# INLINEABLE mapSCNode #-}
+
+-- | Filter 'SCNode' with given condition.
+filterSCNode :: (SCNode -> Bool) -> SCNode -> SCNode
+filterSCNode p n0 =
+    let f n acc =
+            case n of
+                Group i ns | p n       -> Group i (foldr f [] ns) : acc
+                           | otherwise -> acc
+                Synth {}   | p n       -> n : acc
+                           | otherwise -> acc
+    in head $ foldr f [] [n0]
+{-# INLINEABLE filterSCNode #-}
+
 
 -- | Parse osc message returned from \"/g_queryTree\" and returns haskell
 -- representation of scsynth node tree.
@@ -185,15 +217,7 @@ parseParam = do
     ASCII_String xs ->
         let xs' = unpack xs
         in  case xs' of
-            'c':rest -> do
-                let busNum = read rest :: Int
-                return $ if busNum > 0 || 4095 < busNum
-                         then name :<- busNum
-                         -- XXX:
-                         -- Follow Group_QueryTreeAndControls() in SC_Group.cpp,
-                         -- take look of "childGraph->nMapControls[i]" and
-                         -- "child->mWorld->mControlBus".
-                         else name :<= (busNum - (-552556612)) `div` 64
+            'c':rest -> return $ name :<- read rest
             'a':rest -> return $ name :<= read rest
             _        -> error $ "Unknown param: " ++ xs'
     Int32 x     -> return $ name := fromIntegral x

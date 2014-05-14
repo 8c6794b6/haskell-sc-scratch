@@ -1,5 +1,5 @@
 name:                hsc3-tree
-version:             0.14.0.1
+version:             0.14.0.2
 synopsis:            Manages synth and group in scsynth server node tree.
 description:
   This package contains utilities to manages synthes and groups in scsynth
@@ -38,6 +38,7 @@ library
   build-depends:     base >=4.6
                    , bytestring
                    , containers
+                   , deepseq
                    , gdiff
                    , hosc >= 0.14
                    , hsc3 >= 0.14
@@ -86,3 +87,14 @@ test-suite tests
                    , tasty-th
                    , HUnit
                    , QuickCheck
+
+benchmark bench
+  hs-source-dirs:   src/bench
+  main-is:          hsc3-tree-bench.hs
+  default-language: Haskell2010
+  type:             exitcode-stdio-1.0
+  build-depends:    base >= 4.6
+                  , criterion
+                  , hosc
+                  , hsc3-tree
+  ghc-options:      -O -Wall

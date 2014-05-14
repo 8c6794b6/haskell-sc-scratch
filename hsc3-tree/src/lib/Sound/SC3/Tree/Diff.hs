@@ -168,6 +168,11 @@ toAcc acc d0 = case d0 of
     let inss' = (i,(maPos acc, Group i [])):maInss acc
     in  toAcc (acc {maPos=Head i,maCgi=i:maCgi acc,maInss=inss'}) d
   Ins _ d -> toAcc acc d
+  -- Consume Ins and Cpy of TFNodeNil, here too.
+  Del (TFN n) (Ins TFNodeNil d) ->
+      toAcc (acc {maDels=IM.insert (scnId n) (scn2n n) (maDels acc)}) d
+  Del (TFN n) (Cpy TFNodeNil d) ->
+      toAcc (acc {maDels=IM.insert (scnId n) (scn2n n) (maDels acc)}) d
   Del (TFN n) d ->
       toAcc (acc {maDels=IM.insert (scnId n) (scn2n n) (maDels acc)}) d
   Del _ d -> toAcc acc d
@@ -183,14 +188,16 @@ toAcc acc d0 = case d0 of
     upOneGroup = acc {maPos=After (head (maCgi acc)),maCgi=tail (maCgi acc)}
 
 {-|
-Converts accumulated data to OSC message. Check whether node with same id
-appear in both of insertions and deletions, if so make n_set, n_map, or n_mapa
-messages for the node.
+Converts accumulated data to OSC message.
+
+Check whether node with same id appear in both of insertions and deletions, if
+so make n_set, n_map, or n_mapa messages for the node.
 -}
 accToOSC :: MsgAcc -> [Message]
 accToOSC (MsgAcc _ _ is ds)
-  | IM.null ds = foldl' mkNew [] is'
-  | otherwise  = if IM.null ds' then nms ++ ums else nms ++ dms ++ ums
+  | IM.null ds  = foldl' mkNew [] is'
+  | IM.null ds' = nms ++ ums
+  | otherwise   = nms ++ dms ++ ums
   where
     nms = foldl' mkNew [] is'
     dms = [n_free (IM.keys ds')]
@@ -237,8 +244,8 @@ scn2n (Snode i n ps) = Synth i n ps
 --
 
 -- | Dump diff and message.
-ddm :: SCNode -> SCNode -> IO ()
-ddm a b = do
+dumpDiffMessage :: SCNode -> SCNode -> IO ()
+dumpDiffMessage a b = do
   let d = diffSCNode a b
   dumpDiff d
   mapM_ (putStrLn . messagePP) . accToOSC . toAcc (initialAcc (nodeId a)) $ d
@@ -256,3 +263,46 @@ act1 >>* act2 = do
     putStrLn $ concat ["Sent ", show sessId, " for sync"]
     putStrLn $ concat ["Got ", show replyId, " from server"]
   return res
+
+
+{-
+-- For testing
+
+nd020 :: SCNode
+nd020 =
+    Group 101
+    [ Synth 1616049966 "sin02"
+      ["out":=18]
+    , Synth 1777095663 "ap01"
+      ["in":=18,"out":=18]
+    , Synth 1425562103 "cmb02"
+      ["in":=18,"out":=18]
+    , Synth 10199 "router"
+      ["in":=18,"out":=16] ]
+
+nd021 :: SCNode
+nd021 =
+    Group 101
+    [ Synth 53822416 "sin03"
+      ["out":=18]
+    , Synth 112652199 "ap02"
+      ["in":=18,"out":=18]
+    , Synth 690662386 "lp01"
+      ["out":=18,"in":=18]
+    , Synth 10199 "router"
+      ["in":=18,"out":=16] ]
+
+nd030 :: SCNode
+nd030 =
+    Group 0
+    [ Group 1 []
+    , Group 2 []]
+
+nd031 :: SCNode
+nd031 =
+    Group 0
+    [ Group 1
+      [ Group 10 []
+      , Group 11 [] ]
+    , Group 2 []]
+-}
