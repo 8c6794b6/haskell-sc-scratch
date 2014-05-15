@@ -12,8 +12,10 @@
 --
 module Test.Sound.SC3.Tree.Diff where
 
+import Test.HUnit (Assertion, (@=?))
 import Test.QuickCheck
 import Test.Tasty (TestTree)
+import Test.Tasty.HUnit (testCase)
 import Test.Tasty.QuickCheck (testProperty)
 import Test.Tasty.TH (testGroupGenerator)
 
@@ -28,6 +30,48 @@ import Test.Sound.SC3.Tree.QuickCheck ()
 
 import qualified Data.Map as M
 
+-- Test a bug found when patching empty groups to root node.
+case_diff_n0 :: Assertion
+case_diff_n0 = do
+  let n0 = Group 0
+           [ Group 1 []
+           , Group 2 [] ]
+      n1 = Group 0
+           [ Group 1
+             [ Group 10 []
+             , Group 11 [] ]
+           , Group 2 [] ]
+  diffMessage n0 n1 @=? [g_new [(10,AddToHead,1)], g_new [(11,AddAfter,10)]]
+
+-- Test a bug found when replacing entire contents of group.
+case_diff_n1 :: Assertion
+case_diff_n1 = do
+    let n0 = Group 101
+             [ Synth 1616049966 "sin02"
+               ["out":=18]
+             , Synth 1777095663 "ap01"
+               ["in":=18,"out":=18]
+             , Synth 1425562103 "cmb02"
+               ["in":=18,"out":=18]
+             , Synth 10199 "router"
+               ["in":=18,"out":=16] ]
+        n1 = Group 101
+            [ Synth 53822416 "sin03"
+              ["out":=18]
+            , Synth 112652199 "ap02"
+              ["in":=18,"out":=18]
+            , Synth 690662386 "lp01"
+              ["out":=18,"in":=18]
+            , Synth 10199 "router"
+              ["in":=18,"out":=16] ]
+    diffMessage n0 n1 @=?
+        [ s_new "sin03" 53822416 AddToHead 101
+          [("out",18)]
+        , s_new "ap02" 112652199 AddAfter 53822416
+          [("in",18),("out",18)]
+        , s_new "lp01" 690662386 AddAfter 112652199
+          [("out",18),("in",18)]
+        , n_free [1425562103,1616049966,1777095663] ]
 
 prop_diff_insert :: SCNode -> Property
 prop_diff_insert n1 =
@@ -71,8 +115,9 @@ prop_diff_mixed =
            in  collect (countOccurence $ map msgString msgs) (length msgs >= 0)
 
 countOccurence :: [String] -> String
-countOccurence = f . foldr ($) M.empty . map (\k -> M.insertWith' (+) k (1::Int))
-  where f = M.foldrWithKey (\k a bs -> k ++ ":" ++ show a ++ " " ++ bs) ""
+countOccurence =
+    M.foldrWithKey (\k a bs -> k ++ ":" ++ show a ++ " " ++ bs) "" .
+    foldr ($) M.empty . map (\k -> M.insertWith' (+) k (1::Int))
 
 isMsg :: String -> Message -> Bool
 isMsg str (Message m _) = m == str
