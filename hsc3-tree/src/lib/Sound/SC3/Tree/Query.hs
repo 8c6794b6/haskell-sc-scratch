@@ -45,12 +45,19 @@ queryN p node =
 -- queryN p node = [n|n<-universe node, p n]
 --
 
-
 -- | Variant of 'query' returning 'Maybe' value.
+--
+-- Query will stop with first matching 'SCNode', if any.
+--
 queryN' :: Condition SCNode -> SCNode -> Maybe SCNode
-queryN' p node = case queryN p node of
-    (x:_) -> Just x
-    _     -> Nothing
+queryN' p node =
+    let f x acc =
+            case x of
+                Group _ ns | p x       -> Just x
+                           | otherwise -> foldr f acc ns
+                Synth {}   | p x       -> Just x
+                           | otherwise -> acc
+    in  foldr f Nothing [node]
 
 -- | Query given 'SCNode' with conditions to parameters, returns 'SynthParam'
 -- satisfying given condition.
@@ -65,10 +72,18 @@ queryP cond node =
     in  foldr f [] [node]
 
 -- | Variant of 'queryP' returning 'Maybe' value.
+--
+-- Query will stop with first matching 'SynthParam', if any.
+--
 queryP' :: Condition SynthParam -> SCNode -> Maybe SynthParam
-queryP' p node = case queryP p node of
-    (x:_) -> Just x
-    _     -> Nothing
+queryP' cond node =
+    let f n acc =
+            case n of
+                Group _ ns   -> foldr f acc ns
+                Synth _ _ ps ->
+                    let g p acc' = if cond p then Just p else acc'
+                    in  foldr g acc ps
+    in  foldr f Nothing [node]
 
 
 -- --------------------------------------------------------------------------

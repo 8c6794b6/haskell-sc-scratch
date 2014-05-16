@@ -51,5 +51,23 @@ case_param_fmod = do
   let ns = queryN (params (paramName ==? "fmod")) nodes'
   length ns @?= 2
 
+case_group_11 :: Assertion
+case_group_11 = do
+  let n11       = queryN (nodeId ==? 11) nodes'
+      Just n11' = queryN' (nodeId ==? 11) nodes'
+  head n11 @?= n11'
+
+case_param_freqs :: Assertion
+case_param_freqs = do
+  let foos = queryN (synthName ==? "foo") nodes'
+      ps   = map (queryP (paramName ==? "freq")) foos
+  concat ps @?= ["freq":=0.66,"freq":=3.33]
+
+case_param_first_freq :: Assertion
+case_param_first_freq = do
+  let Just foo = queryN' (synthName ==? "foo") nodes'
+      p        = queryP' (paramName ==? "freq") foo
+  p @?= Just ("freq":=0.66)
+
 tests :: TestTree
 tests = $testGroupGenerator
