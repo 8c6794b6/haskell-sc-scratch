@@ -120,6 +120,7 @@ in synth \"bar\" are mapped from control rate outputs of synth \"foo\".
 
 -}
 
+
 {-$example_query
 
 Suppose that we have a 'SCNode' shown in routing example:

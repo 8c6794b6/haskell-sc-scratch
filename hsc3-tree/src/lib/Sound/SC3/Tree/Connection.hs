@@ -11,12 +11,15 @@ Network connection related functions and actions.
 module Sound.SC3.Tree.Connection
   ( addNode
   , getNode
+  , getNode'
   , getDiff
   , setNode
   , delNode
   , printNode
+  , printNode'
   , getRootNode
   , printRootNode
+  , printRootNode'
   , patchNode
   , patchNodeTo
   , patchPrint
@@ -24,8 +27,8 @@ module Sound.SC3.Tree.Connection
 
 import Control.Monad.IO.Class (MonadIO(..))
 import Sound.OSC
-  ( Bundle(..), DuplexOSC, SendOSC(..)
-  , bundle, waitReply, time, immediately)
+  ( Bundle(..), DuplexOSC, SendOSC(..), Transport
+  , bundle, waitReply, immediately)
 import Sound.SC3 (g_queryTree, n_free)
 
 import Sound.SC3.Tree.Type
@@ -49,6 +52,11 @@ getNode n = do
   m <- waitReply "/g_queryTree.reply"
   return $ parseNode m
 
+getNode' :: DuplexOSC m => NodeId -> m SCNode
+getNode' n = do
+  sendOSC $ g_queryTree [(n,False)]
+  return . parseNode =<< waitReply "/g_queryTree.reply"
+
 -- | Send OSC message for setting given @SCNode@.
 setNode :: (SendOSC m)
         => SCNode -- ^ Node with new parameters
@@ -65,24 +73,27 @@ delNode ns = sendOSC $ n_free ns
 printNode :: (MonadIO m, DuplexOSC m) => Int -> m ()
 printNode n = getNode n >>= liftIO . putStrLn . drawSCNode
 
+-- | Like 'printNode', but without parameters.
+printNode' :: Transport m => Int -> m ()
+printNode' n = getNode' n >>= liftIO . putStrLn . drawSCNode
+
 -- | Patch node to same node of root node found in new node.
-patchNode :: (DuplexOSC m, MonadIO m) => SCNode -> m ()
+patchNode :: Transport m => SCNode -> m ()
 patchNode n = patchNodeTo (nodeId n) n
 
 -- | Patch node to specified node.
-patchNodeTo :: (DuplexOSC m, MonadIO m) => Int -> SCNode -> m ()
+patchNodeTo :: Transport m => Int -> SCNode -> m ()
 patchNodeTo i t1 = do
   t0 <- getNode i
   let msgs = diffMessage t0 t1
-  now <- time
-  sendOSC $ bundle now msgs
+  sendOSC $ bundle immediately msgs
 
 -- | Get difference of nodes.
 getDiff :: DuplexOSC m => Int -> SCNode -> m SCNDiff
 getDiff i t1 = return . flip diffSCNode t1 =<< getNode i
 
 -- | Update root node and then dump the contents.
-patchPrint :: (DuplexOSC m, MonadIO m) => SCNode -> m ()
+patchPrint :: Transport m => SCNode -> m ()
 patchPrint n = patchNode n >>* printRootNode
 
 --
@@ -94,5 +105,9 @@ getRootNode :: DuplexOSC m => m SCNode
 getRootNode = getNode 0
 
 -- | Print current SCNode entirely.
-printRootNode :: (MonadIO m, DuplexOSC m) => m ()
+printRootNode :: Transport m => m ()
 printRootNode = printNode 0
+
+-- | Like 'printRootNode', but without parameters.
+printRootNode' :: Transport m => m ()
+printRootNode' = printNode' 0

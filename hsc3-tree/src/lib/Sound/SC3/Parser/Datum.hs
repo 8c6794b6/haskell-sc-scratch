@@ -46,42 +46,52 @@ type DatumParser a = ParsecT [Datum] () Identity a
 -- | Parse list of Datum with given DatumParser.
 parseDatum :: DatumParser a -> [Datum] -> Either ParseError a
 parseDatum p = P.parse p "osc"
+{-# INLINEABLE parseDatum #-}
 
 -- | Parse datum.
 datum :: DatumParser Datum
 datum = dp return
+{-# INLINEABLE datum #-}
 
 -- | Parse OSC int32.
 int32 :: DatumParser Int32
 int32 = dp $ \d -> case d of Int32 x -> Just x; _ -> Nothing
+{-# INLINEABLE int32 #-}
 
 -- | Parse OSC int64.
 int64 :: DatumParser Int64
 int64 = dp $ \d -> case d of Int64 x -> Just x; _ -> Nothing
+{-# INLINEABLE int64 #-}
 
 -- | Parse OSC float.
 float :: DatumParser Float
 float = dp $ \d -> case d of Float x -> Just x; _ -> Nothing
+{-# INLINEABLE float #-}
 
 -- | Parse OSC double.
 double :: DatumParser Double
 double = dp $ \d -> case d of Double x -> Just x; _ -> Nothing
+{-# INLINEABLE double #-}
 
 -- | Parse OSC ASCII string.
 string :: DatumParser ASCII
 string = dp $ \d -> case d of ASCII_String x -> Just x; _ -> Nothing
+{-# INLINEABLE string #-}
 
 -- | Parse OSC blob.
 blob :: DatumParser L.ByteString
 blob = dp $ \d -> case d of Blob x -> Just x; _ -> Nothing
+{-# INLINEABLE blob #-}
 
 -- | Parse OSC timestamp.
 timeStamp :: DatumParser Time
 timeStamp = dp $ \d -> case d of TimeStamp x -> Just x; _ -> Nothing
+{-# INLINEABLE timeStamp #-}
 
 -- | Parse OSC midi
 midi :: DatumParser MIDI
 midi = dp $ \d -> case d of Midi m -> Just m; _ -> Nothing
+{-# INLINEABLE midi #-}
 
 -- | Wrapper for parser builder functions.
 dp :: (Datum -> Maybe a) -> DatumParser a
@@ -89,6 +99,7 @@ dp f = P.tokenPrim showFunc updateFunc f
   where
     showFunc = show
     updateFunc pos _ _ = P.setSourceColumn pos (succ $ P.sourceColumn pos)
+{-# INLINEABLE dp #-}
 
 ------------------------------------------------------------------------------
 --

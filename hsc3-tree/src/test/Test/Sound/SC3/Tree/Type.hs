@@ -42,6 +42,11 @@ prop_parseNode =
   forAll (arbitrary `suchThat` isGroup) $ \n ->
   parseNode (nodeToOSC n) == n
 
+prop_parseNode_no_params :: Property
+prop_parseNode_no_params =
+  forAll (arbitrary `suchThat` isGroup) $ \n ->
+  parseNode (nodeToOSC' n) == removeParams n
+
 nodeSize :: SCNode -> Int
 nodeSize (Group _ ns) = foldr (\n s -> nodeSize n + s) 1 ns
 nodeSize (Synth _ _ _) = 1
@@ -67,6 +72,20 @@ nodeToOSC n = Message "/g_queryTree.reply" (Int32 1:f n []) where
                ASCII_String (pack $ 'c':show v) : ps
     m :<= v -> ASCII_String (pack m) :
                ASCII_String (pack $ 'a':show v) : ps
+
+removeParams :: SCNode -> SCNode
+removeParams = mapSCNode $ \n ->
+  case n of
+    Synth i name _ -> Synth i name []
+    _              -> n
+
+nodeToOSC' :: SCNode -> Message
+nodeToOSC' n = Message "/g_queryTree.reply" (Int32 0:f n []) where
+  f node os = case node of
+    Group i ns      -> Int32 (fromIntegral i):
+                       Int32 (fromIntegral $ length ns):foldr f os ns
+    Synth i name ps ->
+      Int32 (fromIntegral i):Int32 (-1):ASCII_String (pack name) : os
 
 tests :: TestTree
 tests = $testGroupGenerator

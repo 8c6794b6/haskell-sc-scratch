@@ -1,5 +1,5 @@
 name:                hsc3-tree
-version:             0.14.0.2
+version:             0.14.0.3
 synopsis:            Manages synth and group in scsynth server node tree.
 description:
   This package contains utilities to manages synthes and groups in scsynth

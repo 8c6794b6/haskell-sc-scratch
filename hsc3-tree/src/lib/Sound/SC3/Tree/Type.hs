@@ -167,16 +167,15 @@ filterSCNode p n0 =
     in head $ foldr f [] [n0]
 {-# INLINEABLE filterSCNode #-}
 
-
 -- | Parse osc message returned from \"/g_queryTree\" and returns haskell
 -- representation of scsynth node tree.
--- Only working with osc message including synth control parameters.
 parseNode :: Message -> SCNode
 parseNode o = case o of
-  Message "/g_queryTree.reply" ds -> case parseDatum parseGroup (tail ds) of
+  Message "/g_queryTree.reply" ds -> case parseDatum parseGroup ds of
     Right tree -> tree
     Left err   -> error $ show err
   _                               -> error "not a /g_queryTree.reply response"
+{-# INLINEABLE parseNode #-}
 
 --
 -- With using simple parser without parsec
@@ -188,12 +187,21 @@ parseNode o = case o of
 
 parseGroup :: DatumParser SCNode
 parseGroup = do
-  nId <- int32
+  flag <- int32
+  case flag of
+    1 -> parseGroupWith parseSynth
+    _ -> parseGroupWith parseSynthWithoutParams
+{-# INLINEABLE parseGroup #-}
+
+parseGroupWith :: (Int -> DatumParser SCNode) -> DatumParser SCNode
+parseGroupWith synthParser = do
+  nid <- int32
   numChild <- int32
   if numChild < 0
-    then parseSynth (fromIntegral nId)
-    else Group (fromIntegral nId) `fmap`
-         replicateM (fromIntegral numChild) parseGroup
+    then synthParser (fromIntegral nid)
+    else Group (fromIntegral nid) `fmap`
+         replicateM (fromIntegral numChild) (parseGroupWith synthParser)
+{-# INLINEABLE parseGroupWith #-}
 
 parseSynth :: Int -> DatumParser SCNode
 parseSynth nId = do
@@ -201,12 +209,15 @@ parseSynth nId = do
   numParams <- int32
   params <- replicateM (fromIntegral numParams) parseParam
   return $ Synth nId name params
+{-# INLINEABLE parseSynth #-}
+
+parseSynthWithoutParams :: Int -> DatumParser SCNode
+parseSynthWithoutParams nid = do
+  name <- unpack `fmap` string
+  return $ Synth nid name []
+{-# INLINEABLE parseSynthWithoutParams #-}
 
 -- | Parse parameter values for each synth.
---
--- Audio bus numbers shown for mapped audio controls are correct only when the
--- number of audio busses used in the server equals to 128, the default value.
---
 parseParam :: DatumParser SynthParam
 parseParam = do
   name <- unpack `fmap` string
@@ -222,6 +233,7 @@ parseParam = do
             _        -> error $ "Unknown param: " ++ xs'
     Int32 x     -> return $ name := fromIntegral x
     e         -> error $ "Cannot make param from: " ++ show e
+{-# INLINEABLE parseParam #-}
 
 
 ------------------------------------------------------------------------------
