@@ -14,11 +14,6 @@ module Sound.SC3.Tree.Type
   ( -- * Types
     SCNode(..)
   , SynthParam(..)
-  , SynthName
-  , ParamName
-  , ParamValue
-  , BusId
-  , NodeId
   , nodeId
   , synthName
   , synthParams
@@ -79,9 +74,9 @@ import qualified Data.IntSet as IS
 ------------------------------------------------------------------------------
 
 -- | Data type for representing Group and Synth node in scsynth.
-data SCNode = Group {-# UNPACK #-} !NodeId [SCNode]
+data SCNode = Group {-# UNPACK #-} !Int [SCNode]
             -- ^ Group node
-            | Synth {-# UNPACK #-} !NodeId SynthName [SynthParam]
+            | Synth {-# UNPACK #-} !Int String [SynthParam]
             -- ^ Synth node
               deriving (Eq,Read,Show,Data,Typeable)
 
@@ -90,14 +85,12 @@ instance NFData SCNode where
               Group i ns      -> i `seq` ns `deepseq` ()
               Synth i name ps -> i `seq` name `deepseq` ps `deepseq` ()
 
-type SynthName = String
-
 -- | Data type for synth param.
-data SynthParam = ParamName := {-# UNPACK #-} !ParamValue
+data SynthParam = String :=  Double
                 -- ^ Double value
-                | ParamName :<- {-# UNPACK #-} !BusId
+                | String :<- Int
                 -- ^ Mapped control bus id
-                | ParamName :<= {-# UNPACK #-} !BusId
+                | String :<= Int
                 -- ^ Mapped audio bus id
                   deriving (Eq,Read,Data,Typeable)
 
@@ -111,10 +104,6 @@ instance NFData SynthParam where
               n := v  -> n `deepseq` v `seq` ()
               n :<- v -> n `deepseq` v `seq` ()
               n :<= v -> n `deepseq` v `seq` ()
-
-type ParamName = String
-type ParamValue = Double
-type BusId = Int
 
 infixr 5 :=
 infixr 5 :<-
@@ -247,13 +236,13 @@ parseParam = do
 -- OSC list contains \"g_new\", \"s_new\", and \"n_map\" messages to build
 -- the given SCNode. New node will be added to tail of target id.
 --
-treeToNew :: NodeId  -- ^ Target node id
+treeToNew :: Int  -- ^ Target node id
           -> SCNode  -- ^ New nodes
           -> [Message]
 treeToNew = treeToNewWith AddToTail
 
 treeToNewWith :: AddAction -- ^ Add action for this node
-              -> NodeId    -- ^ Target node id
+              -> Int    -- ^ Target node id
               -> SCNode    -- ^ New node to add
               -> [Message]
 treeToNewWith aa tId tree = f tId tree
@@ -305,7 +294,7 @@ paramToTuple :: SynthParam -> [(String,Double)]
 paramToTuple (name := val) = [(name,val)]
 paramToTuple _ = []
 
-paramName :: SynthParam -> ParamName
+paramName :: SynthParam -> String
 paramName x = case x of
   (n := _)  -> n
   (n :<- _) -> n

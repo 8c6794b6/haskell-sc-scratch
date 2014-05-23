@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-|
 Copyright    : 8c6794b6, 2014
@@ -12,6 +13,7 @@ Benchmark for hsc3-tree.
 -}
 module Main where
 
+import Control.DeepSeq
 import Criterion.Main
 
 import Sound.OSC
@@ -19,9 +21,11 @@ import Sound.SC3.Tree
 
 main :: IO ()
 main = do
+  let name = "p:1570426241:wet:1652251979"
+      node' = node `deepseq` node
   defaultMain
-       [ bench "query name = \"p:1570426241:wet:1652251979\""
-         (nf (queryN (synthName ==? "p:1570426241:wet:1652251979")) node)
+       [ bench ("queryN (synthName ==? " ++ name ++ ")")
+         (nf (queryN (synthName ==? name)) node')
        , bench "parse sample message"
          (nf parseNode queryTree_reply)
        ]

@@ -37,7 +37,7 @@ import Sound.SC3.Tree.Diff
 -- | Send OSC message for constructing given @SCNode@.
 -- New node will be added to tail of target id.
 addNode :: (SendOSC m, MonadIO m)
-        => NodeId -- ^ Traget node id to add
+        => Int -- ^ Traget node id to add
         -> SCNode -- ^ New node
         -> m ()
 addNode tId tree = do
@@ -45,14 +45,14 @@ addNode tId tree = do
 
 -- | Get node with specifying node id.
 getNode :: (DuplexOSC m)
-        => NodeId     -- ^ Node id to get
+        => Int     -- ^ Node id to get
         -> m SCNode
 getNode n = do
   sendOSC $ g_queryTree [(n,True)]
   m <- waitReply "/g_queryTree.reply"
   return $ parseNode m
 
-getNode' :: DuplexOSC m => NodeId -> m SCNode
+getNode' :: DuplexOSC m => Int -> m SCNode
 getNode' n = do
   sendOSC $ g_queryTree [(n,False)]
   return . parseNode =<< waitReply "/g_queryTree.reply"
@@ -65,7 +65,7 @@ setNode t = sendOSC $ Bundle immediately (treeToSet t)
 
 -- | Free the nodes specified with given node ids.
 delNode :: (SendOSC m)
-        => [NodeId]      -- ^ Node ids to free
+        => [Int]      -- ^ Node ids to free
         -> m ()
 delNode ns = sendOSC $ n_free ns
 
