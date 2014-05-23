@@ -24,6 +24,7 @@ module Sound.SC3.Supply
   , runSupply
   , runSupplyIO
   , evalSupply
+  , supply
 
   -- * Lifting functions
   , liftS2
@@ -230,6 +231,10 @@ runSupplyIO = getStdRandom . runSupply
 -- | Evaluate demand ugen with given StdGen.
 evalSupply :: Supply -> StdGen -> UGen
 evalSupply d g = evalState (unDemand d) g
+
+-- | Evaluate demand ugen with given seed.
+supply :: Int -> Supply -> UGen
+supply i s = evalState (unDemand s) (mkStdGen i)
 
 liftS2 :: (Int -> a -> b -> c)
        -> Demand a -> Demand b -> Demand c
