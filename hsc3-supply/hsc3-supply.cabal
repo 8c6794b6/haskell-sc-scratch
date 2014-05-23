@@ -16,6 +16,7 @@ extra-source-files:
 library
   hs-source-dirs:      src/lib
   ghc-options:         -Wall
+  ghc-prof-options:    -auto-all
   exposed-modules:     Sound.SC3.Supply
   build-depends:       base >=4.6
                      , hsc3 >= 0.14
